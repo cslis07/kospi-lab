@@ -13,6 +13,15 @@ export async function fetchStockBasic(ticker: string) {
   return res.json();
 }
 
+export async function fetchStockIntegration(ticker: string) {
+  const res = await fetch(
+    `https://m.stock.naver.com/api/stock/${ticker}/integration`,
+    { headers: { ...HEADERS }, next: { revalidate: 60 } }
+  );
+  if (!res.ok) throw new Error(`Integration fetch failed: ${ticker}`);
+  return res.json();
+}
+
 export async function fetchMarketIndex(market: string) {
   const res = await fetch(
     `https://m.stock.naver.com/api/index/${market}/basic`,
@@ -27,4 +36,14 @@ export async function searchStocks(query: string) {
   const res = await fetch(url, { headers: HEADERS, next: { revalidate: 0 } });
   if (!res.ok) throw new Error('Search failed');
   return res.json();
+}
+
+export async function fetchChartData(ticker: string, count = 60, timeframe = 'day') {
+  const url = `https://fchart.stock.naver.com/siseJson.naver?symbol=${ticker}&requestType=1&timeframe=${timeframe}&count=${count}`;
+  const res = await fetch(url, {
+    headers: { ...HEADERS, Accept: 'text/html,application/xhtml+xml,application/xml' },
+    next: { revalidate: 60 },
+  });
+  if (!res.ok) throw new Error(`Chart fetch failed: ${ticker}`);
+  return res.text();
 }

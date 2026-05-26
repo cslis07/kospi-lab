@@ -10,6 +10,17 @@ export interface StockData {
   high52w?: number;
   low52w?: number;
   prevClose?: number;
+  per?: string;
+  pbr?: string;
+}
+
+export interface ChartPoint {
+  date: string;
+  price: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  volume?: number;
 }
 
 export interface MarketIndex {
@@ -31,4 +42,23 @@ export interface WatchlistItem {
   ticker: string;
   name: string;
   market: string;
+}
+
+export interface PortfolioEntry {
+  quantity: number;
+  avgPrice: number;
+}
+
+export interface AlertEntry {
+  above?: number;
+  below?: number;
+}
+
+export interface NewsItem {
+  title: string;
+  link: string;
+  pubDate?: string;
+  summary?: string;
+  source: string;
+  category: 'domestic' | 'international';
 }
