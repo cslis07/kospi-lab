@@ -14,15 +14,17 @@ function parseIndex(raw: Record<string, string>, name: string): MarketIndex {
 
 export async function GET() {
   try {
-    const [kospi, kosdaq, usdkrw] = await Promise.allSettled([
+    const [kospi, kosdaq, kpi200, usdkrw] = await Promise.allSettled([
       fetchMarketIndex('KOSPI'),
       fetchMarketIndex('KOSDAQ'),
+      fetchMarketIndex('KPI200'),
       fetchMarketIndex('FX_USDKRW'),
     ]);
 
     return NextResponse.json({
       kospi: kospi.status === 'fulfilled' ? parseIndex(kospi.value, 'KOSPI') : null,
       kosdaq: kosdaq.status === 'fulfilled' ? parseIndex(kosdaq.value, 'KOSDAQ') : null,
+      kpi200: kpi200.status === 'fulfilled' ? parseIndex(kpi200.value, 'KPI200') : null,
       usdkrw: usdkrw.status === 'fulfilled' ? parseIndex(usdkrw.value, 'USD/KRW') : null,
     });
   } catch (e) {

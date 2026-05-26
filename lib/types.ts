@@ -34,7 +34,7 @@ export interface SearchResult {
   ticker: string;
   name: string;
   market: string;
-  type: string;
+  type?: string;
 }
 
 export interface WatchlistItem {
