@@ -15,7 +15,6 @@ export async function GET(
   try {
     const raw = await fetchStockBasic(ticker);
 
-    // Try integration endpoint for 52-week data
     let integration: Record<string, unknown> = {};
     try {
       const intRes = await fetch(
@@ -30,12 +29,11 @@ export async function GET(
     const changeRate = parseFloat(String(raw.fluctuationsRatio ?? 0).replace(/[+%]/g, ''));
 
     const totalInfos: { key: string; value: string }[] = raw.totalInfos ?? [];
-    const getInfo = (key: string) => totalInfos.find((i) => i.key === key)?.value ?? '-';
+    const getInfo = (k: string) => totalInfos.find((i) => i.key === k)?.value ?? '-';
 
-    // 52-week data from integration
     const yearInfos: { key: string; value: string }[] =
       (integration as { yearlyTotalInfos?: { key: string; value: string }[] }).yearlyTotalInfos ?? [];
-    const getYear = (key: string) => yearInfos.find((i) => i.key.includes(key))?.value;
+    const getYear = (k: string) => yearInfos.find((i) => i.key.includes(k))?.value;
 
     const h52 = getYear('최고');
     const l52 = getYear('최저');
@@ -47,6 +45,7 @@ export async function GET(
       change,
       changeRate,
       volume: getInfo('거래량'),
+      tradingValue: getInfo('거래대금'),
       marketCap: getInfo('시가총액'),
       market: raw.stockExchangeType?.name ?? 'KRX',
       prevClose: price - change,

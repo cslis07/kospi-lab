@@ -5,13 +5,15 @@ import { usePathname } from 'next/navigation';
 
 const TABS = [
   { label: '대시보드', href: '/' },
-  { label: '뉴스 소식', href: '/news' },
+  { label: '리포트', href: '/report' },
+  { label: '뉴스', href: '/news' },
+  { label: '커뮤니티', href: '/community' },
 ];
 
 export default function NavTabs() {
   const pathname = usePathname();
   return (
-    <nav className="flex gap-1">
+    <nav className="flex border-b border-[var(--border)] mb-6">
       {TABS.map((tab) => {
         const active =
           tab.href === '/'
@@ -21,10 +23,10 @@ export default function NavTabs() {
           <Link
             key={tab.href}
             href={tab.href}
-            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
               active
-                ? 'text-white bg-white/10'
-                : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-white/5'
+                ? 'border-white text-[var(--text)]'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)] hover:border-white/30'
             }`}
           >
             {tab.label}

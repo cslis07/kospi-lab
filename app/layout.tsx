@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Header from '@/components/Header';
+import NavTabs from '@/components/NavTabs';
 
 export const metadata: Metadata = {
   title: 'KOSPI LAB — 한국 주식 실시간 시세',
@@ -12,10 +13,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko" className="h-full">
       <body className="min-h-full flex flex-col">
         <Header />
-        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-8">
+        <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 pt-6">
+          <NavTabs />
           {children}
-        </main>
-        <footer className="border-t border-[var(--border)] py-4 text-center text-xs text-[var(--text-muted)]">
+        </div>
+        <footer className="border-t border-[var(--border)] py-4 text-center text-xs text-[var(--text-muted)] mt-8">
           데이터 출처: 네이버 금융 · 5초 간격 갱신 · 투자 참고용
         </footer>
       </body>

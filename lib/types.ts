@@ -5,13 +5,12 @@ export interface StockData {
   change: number;
   changeRate: number;
   volume: string;
+  tradingValue: string;
   marketCap: string;
   market: string;
   high52w?: number;
   low52w?: number;
   prevClose?: number;
-  per?: string;
-  pbr?: string;
 }
 
 export interface ChartPoint {

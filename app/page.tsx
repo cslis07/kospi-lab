@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import useSWR from 'swr';
 import SearchBar from '@/components/SearchBar';
 import StockCard from '@/components/StockCard';
 import StockFilter, { type SortKey, type FilterMarket } from '@/components/StockFilter';
+import KospiBar from '@/components/KospiBar';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useAlerts } from '@/hooks/useAlerts';
-import useSWR from 'swr';
 import type { StockData } from '@/lib/types';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -19,22 +20,19 @@ export default function DashboardPage() {
   const [sort, setSort] = useState<SortKey>('default');
   const [filter, setFilter] = useState<FilterMarket>('all');
 
-  // Fetch all stock data for sorting
+  const { data: market } = useSWR('/api/market', fetcher, { refreshInterval: 10000 });
+  const usdRate = market?.usdkrw?.value as number | undefined;
+
   const tickers = watchlist.map((w) => w.ticker).join(',');
   const { data: allStocks } = useSWR<Record<string, StockData>>(
-    tickers
-      ? `/api/stock/batch?tickers=${tickers}`
-      : null,
+    tickers ? `/api/stock/batch?tickers=${tickers}` : null,
     fetcher,
     { refreshInterval: 5000 }
   );
 
   const filtered = useMemo(() => {
-    let items = watchlist.filter(
-      (w) => filter === 'all' || (w.market || 'KOSPI') === filter
-    );
+    let items = watchlist.filter((w) => filter === 'all' || w.market === filter);
     if (sort === 'default') return items;
-
     return [...items].sort((a, b) => {
       const da = allStocks?.[a.ticker];
       const db = allStocks?.[b.ticker];
@@ -45,15 +43,13 @@ export default function DashboardPage() {
     });
   }, [watchlist, filter, sort, allStocks]);
 
-  // Total portfolio value
   const totalPnl = useMemo(() => {
     if (!allStocks) return null;
-    let total = 0;
-    let hasAny = false;
+    let total = 0, hasAny = false;
     Object.entries(portfolio).forEach(([ticker, entry]) => {
-      const stock = allStocks[ticker];
-      if (!stock) return;
-      total += (stock.price - entry.avgPrice) * entry.quantity;
+      const s = allStocks[ticker];
+      if (!s) return;
+      total += (s.price - entry.avgPrice) * entry.quantity;
       hasAny = true;
     });
     return hasAny ? total : null;
@@ -61,15 +57,14 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Top controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-lg font-semibold text-[var(--text)]">내 관심종목</h2>
-          <p className="text-sm text-[var(--text-muted)] mt-0.5">5초마다 자동 갱신</p>
-        </div>
+      <KospiBar />
+
+      {/* Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
         <div className="flex items-center gap-3">
+          <h2 className="text-base font-semibold text-[var(--text)]">내 관심종목</h2>
           {totalPnl !== null && (
-            <div className={`text-sm font-semibold px-3 py-1.5 rounded-lg border ${
+            <div className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
               totalPnl >= 0
                 ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
                 : 'border-red-500/30 bg-red-500/10 text-red-400'
@@ -77,34 +72,26 @@ export default function DashboardPage() {
               포트폴리오 {totalPnl >= 0 ? '+' : ''}{new Intl.NumberFormat('ko-KR').format(Math.round(totalPnl))}원
             </div>
           )}
-          <SearchBar onAdd={add} />
         </div>
+        <SearchBar onAdd={add} />
       </div>
 
-      {/* Filter bar */}
       {mounted && watchlist.length > 0 && (
-        <div className="mb-4">
-          <StockFilter
-            sort={sort}
-            filter={filter}
-            onSort={setSort}
-            onFilter={setFilter}
-            count={filtered.length}
-          />
+        <div className="mb-5">
+          <StockFilter sort={sort} filter={filter} onSort={setSort} onFilter={setFilter} count={filtered.length} />
         </div>
       )}
 
-      {/* Grid */}
       {!mounted ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 animate-pulse h-52" />
+            <div key={i} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] h-[420px] animate-pulse" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-32 text-center">
-          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="flex flex-col items-center justify-center py-28 text-center">
+          <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mb-4">
+            <svg className="w-7 h-7 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
@@ -116,13 +103,14 @@ export default function DashboardPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
           {filtered.map((item) => (
             <StockCard
               key={item.ticker}
               ticker={item.ticker}
               name={item.name}
               market={item.market}
+              usdRate={usdRate}
               portfolio={portfolio[item.ticker]}
               alert={alerts[item.ticker]}
               onRemove={remove}
