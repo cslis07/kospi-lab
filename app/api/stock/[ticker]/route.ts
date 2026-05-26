@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchStockBasic } from '@/lib/naver';
 import type { StockData } from '@/lib/types';
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
   'Referer': 'https://finance.naver.com',
+  'Accept': 'application/json',
 };
+
+function parseNum(s: unknown) {
+  return parseFloat(String(s ?? 0).replace(/[,+%]/g, '')) || 0;
+}
 
 export async function GET(
   _req: NextRequest,
@@ -13,44 +17,42 @@ export async function GET(
 ) {
   const { ticker } = await params;
   try {
-    const raw = await fetchStockBasic(ticker);
+    // basic: price / change / market info
+    const [basicRes, integRes] = await Promise.all([
+      fetch(`https://m.stock.naver.com/api/stock/${ticker}/basic`, {
+        headers: HEADERS, next: { revalidate: 0 },
+      }),
+      fetch(`https://m.stock.naver.com/api/stock/${ticker}/integration`, {
+        headers: HEADERS, next: { revalidate: 0 },
+      }),
+    ]);
 
-    let integration: Record<string, unknown> = {};
-    try {
-      const intRes = await fetch(
-        `https://m.stock.naver.com/api/stock/${ticker}/integration`,
-        { headers: HEADERS, next: { revalidate: 300 } }
-      );
-      if (intRes.ok) integration = await intRes.json();
-    } catch {}
+    if (!basicRes.ok) throw new Error(`basic API ${basicRes.status}`);
 
-    const price = parseFloat(String(raw.closePrice ?? raw.currentPrice ?? 0).replace(/,/g, ''));
-    const change = parseFloat(String(raw.compareToPreviousClosePrice ?? 0).replace(/,/g, ''));
-    const changeRate = parseFloat(String(raw.fluctuationsRatio ?? 0).replace(/[+%]/g, ''));
+    const basic = await basicRes.json();
+    const integ = integRes.ok ? await integRes.json() : {};
 
-    const totalInfos: { key: string; value: string }[] = raw.totalInfos ?? [];
-    const getInfo = (k: string) => totalInfos.find((i) => i.key === k)?.value ?? '-';
+    const price = parseNum(basic.closePrice);
+    const change = parseNum(basic.compareToPreviousClosePrice);
+    const changeRate = parseNum(basic.fluctuationsRatio);
 
-    const yearInfos: { key: string; value: string }[] =
-      (integration as { yearlyTotalInfos?: { key: string; value: string }[] }).yearlyTotalInfos ?? [];
-    const getYear = (k: string) => yearInfos.find((i) => i.key.includes(k))?.value;
-
-    const h52 = getYear('최고');
-    const l52 = getYear('최저');
+    // integration totalInfos has volume, tradingValue, marketCap, 52w
+    const infos: { key: string; value: string }[] = integ.totalInfos ?? [];
+    const get = (key: string) => infos.find((i) => i.key === key)?.value ?? '-';
 
     const stock: StockData = {
       ticker,
-      name: raw.stockName ?? raw.name ?? ticker,
+      name: basic.stockName ?? ticker,
       price,
       change,
       changeRate,
-      volume: getInfo('거래량'),
-      tradingValue: getInfo('거래대금'),
-      marketCap: getInfo('시가총액'),
-      market: raw.stockExchangeType?.name ?? 'KRX',
+      volume: get('거래량'),
+      tradingValue: get('대금'),
+      marketCap: get('시총'),
+      market: basic.stockExchangeType?.name ?? 'KRX',
       prevClose: price - change,
-      high52w: h52 ? parseFloat(h52.replace(/,/g, '')) : undefined,
-      low52w: l52 ? parseFloat(l52.replace(/,/g, '')) : undefined,
+      high52w: parseNum(get('52주 최고')) || undefined,
+      low52w: parseNum(get('52주 최저')) || undefined,
     };
 
     return NextResponse.json(stock);

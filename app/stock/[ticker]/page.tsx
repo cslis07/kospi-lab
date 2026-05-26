@@ -18,10 +18,10 @@ function fmt(n: number) {
 }
 
 const TIMEFRAMES = [
-  { label: '1개월', count: 30, tf: 'day' },
-  { label: '3개월', count: 90, tf: 'day' },
-  { label: '6개월', count: 180, tf: 'day' },
-  { label: '1년', count: 365, tf: 'day' },
+  { label: '1개월', months: 1 },
+  { label: '3개월', months: 3 },
+  { label: '6개월', months: 6 },
+  { label: '1년',   months: 12 },
 ];
 
 export default function StockDetailPage() {
@@ -36,7 +36,7 @@ export default function StockDetailPage() {
     { refreshInterval: 5000 }
   );
   const { data: chart } = useSWR<ChartPoint[]>(
-    ticker ? `/api/stock/${ticker}/chart?count=${tf.count}&tf=${tf.tf}` : null,
+    ticker ? `/api/stock/${ticker}/chart?months=${tf.months}` : null,
     fetcher,
     { refreshInterval: 60000 }
   );
