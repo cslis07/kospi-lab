@@ -112,7 +112,6 @@ export default function DashboardPage() {
       if (!da || !db) return 0;
       if (sort === 'changeRate')    return db.changeRate - da.changeRate;
       if (sort === 'changeRateAsc') return da.changeRate - db.changeRate;
-      if (sort === 'marketCap')     return 0; // 국내 marketCap은 문자열이므로 skip
       return 0;
     });
   }, [watchlist, filter, sort, allStocks]);

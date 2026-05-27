@@ -114,7 +114,7 @@ export default function OverseasStockCard({ symbol, name, exchange, data, usdRat
     );
   }
 
-  if ('error' in (data as Record<string, unknown>)) {
+  if ('error' in (data as unknown as Record<string, unknown>)) {
     return (
       <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5">
         <CompanyLogo symbol={symbol} />
