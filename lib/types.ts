@@ -53,6 +53,12 @@ export interface AlertEntry {
   below?: number;
 }
 
+export interface FxRate {
+  value: number;   // KRW per 1 unit (JPY: per 100엔)
+  change: number;  // daily change in KRW
+  changeRate: number; // daily change %
+}
+
 export interface NewsItem {
   title: string;
   link: string;
