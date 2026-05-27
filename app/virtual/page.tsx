@@ -1,10 +1,53 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { useVirtualPortfolio } from '@/hooks/useVirtualPortfolio';
 import type { StockData, OverseasStockData, CryptoData, VirtualHolding } from '@/lib/types';
+
+const LS_KEYS = {
+  watchlist:     'kospi-lab-watchlist',
+  virtual:       'kospi-lab-virtual',
+  cryptoWatchlist: 'kospi-lab-crypto-watchlist',
+};
+
+function exportData() {
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    watchlist:      JSON.parse(localStorage.getItem(LS_KEYS.watchlist)     ?? '[]'),
+    virtual:        JSON.parse(localStorage.getItem(LS_KEYS.virtual)       ?? 'null'),
+    cryptoWatchlist: JSON.parse(localStorage.getItem(LS_KEYS.cryptoWatchlist) ?? '[]'),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `kospi-lab-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        if (!data.version) throw new Error('올바른 백업 파일이 아닙니다');
+        if (data.watchlist)       localStorage.setItem(LS_KEYS.watchlist,       JSON.stringify(data.watchlist));
+        if (data.virtual)         localStorage.setItem(LS_KEYS.virtual,         JSON.stringify(data.virtual));
+        if (data.cryptoWatchlist) localStorage.setItem(LS_KEYS.cryptoWatchlist, JSON.stringify(data.cryptoWatchlist));
+        resolve(data.exportedAt ?? '');
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(new Error('파일을 읽을 수 없습니다'));
+    reader.readAsText(file);
+  });
+}
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -27,6 +70,35 @@ type TabKey = 'portfolio' | 'ranking' | 'history';
 export default function VirtualPage() {
   const { state, mounted, sell, reset } = useVirtualPortfolio();
   const [tab, setTab] = useState<TabKey>('portfolio');
+
+  // 데이터 관리 상태
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dataMsg, setDataMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  const showMsg = (type: 'ok' | 'err', text: string) => {
+    setDataMsg({ type, text });
+    setTimeout(() => setDataMsg(null), 4000);
+  };
+
+  const handleExport = () => {
+    exportData();
+    showMsg('ok', '백업 파일이 다운로드됐습니다');
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    if (!confirm('현재 데이터를 백업 파일로 덮어씁니다. 계속할까요?')) return;
+    try {
+      const exportedAt = await importData(file);
+      const dateLabel  = exportedAt ? ` (백업일: ${exportedAt.slice(0, 10)})` : '';
+      showMsg('ok', `복원 완료${dateLabel} — 페이지를 새로고침합니다`);
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      showMsg('err', String(err));
+    }
+  };
 
   // 보유 종목 분류
   const domesticSymbols = Object.values(state.holdings)
@@ -418,6 +490,63 @@ export default function VirtualPage() {
             </>
           )}
         </div>
+      </div>
+      {/* ── 데이터 관리 ── */}
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-6">
+        <h2 className="text-sm font-semibold text-[var(--text)] mb-1">데이터 관리</h2>
+        <p className="text-xs text-[var(--text-muted)] mb-4">
+          관심종목·가상투자 데이터를 JSON 파일로 저장하거나 복원합니다.<br />
+          브라우저 종료 시 데이터가 사라진다면 <span className="text-amber-400">정기적으로 백업</span>하세요.
+        </p>
+
+        <div className="flex flex-wrap gap-3">
+          {/* 내보내기 */}
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-400 hover:bg-sky-500/20 transition-colors text-sm font-medium"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            백업 내보내기 (.json)
+          </button>
+
+          {/* 가져오기 */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors text-sm font-medium"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+            </svg>
+            백업 가져오기
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+        </div>
+
+        {/* 결과 메시지 */}
+        {dataMsg && (
+          <div className={`mt-3 flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl border ${
+            dataMsg.type === 'ok'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              : 'bg-red-500/10 border-red-500/30 text-red-400'
+          }`}>
+            <span>{dataMsg.type === 'ok' ? '✅' : '❌'}</span>
+            <span>{dataMsg.text}</span>
+          </div>
+        )}
+
+        <p className="text-[10px] text-[var(--text-muted)] mt-3 opacity-60">
+          💡 백업 파일에는 관심종목·가상투자 잔고·거래내역·코인 관심목록이 포함됩니다
+        </p>
       </div>
     </div>
   );
