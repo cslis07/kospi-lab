@@ -23,10 +23,11 @@ export default function NavTabs() {
           <Link
             key={tab.href}
             href={tab.href}
+            style={active ? { borderColor: 'var(--nav-active)' } : undefined}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
               active
-                ? 'border-white text-[var(--text)]'
-                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)] hover:border-white/30'
+                ? 'text-[var(--text)] font-semibold'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
             }`}
           >
             {tab.label}

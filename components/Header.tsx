@@ -68,7 +68,7 @@ function FxPill({ label, rate }: { label: string; rate: FxRate }) {
   const isPos = rate.change >= 0;
   const changeColor = isPos ? 'text-emerald-400' : 'text-red-400';
   return (
-    <div className="hidden sm:flex items-center gap-1.5 text-xs border border-[var(--border)] rounded-full px-3 py-1 bg-white/[0.03]">
+    <div className="pill-shadow hidden sm:flex items-center gap-1.5 text-xs border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
       <span className="text-[var(--text-muted)] font-medium">{label}</span>
       <span className="text-[var(--text)] font-bold font-mono">
         ₩{Math.round(rate.value).toLocaleString('ko-KR')}
@@ -98,7 +98,7 @@ export default function Header() {
   const jpykrw: FxRate | null = data?.jpykrw ?? null;
 
   return (
-    <header className="border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-md sticky top-0 z-40">
+    <header className="site-header border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-md sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
 
         {/* ── Left: 시장 상태 ── */}
@@ -140,7 +140,7 @@ export default function Header() {
 
           {/* JPY/KRW (per 100엔) */}
           {jpykrw && (
-            <div className="hidden md:flex items-center gap-1.5 text-xs border border-[var(--border)] rounded-full px-3 py-1 bg-white/[0.03]">
+            <div className="pill-shadow hidden md:flex items-center gap-1.5 text-xs border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
               <span className="text-[var(--text-muted)] font-medium">JPY/KRW</span>
               <span className="text-[var(--text)] font-bold font-mono">
                 ₩{Math.round(jpykrw.value).toLocaleString('ko-KR')}
@@ -153,7 +153,7 @@ export default function Header() {
           )}
 
           {/* 시계 */}
-          <div className="hidden sm:flex items-center gap-1 text-xs text-[var(--text-muted)] font-mono border border-[var(--border)] rounded-full px-3 py-1 bg-white/[0.03]">
+          <div className="pill-shadow hidden sm:flex items-center gap-1 text-xs text-[var(--text-muted)] font-mono border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
             {/* 새로고침 아이콘 */}
             <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -165,7 +165,7 @@ export default function Header() {
           <ThemeToggle />
 
           {/* 유저 아이콘 */}
-          <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
+          <div className="pill-shadow w-7 h-7 rounded-full bg-[var(--pill-bg)] border border-[var(--border)] flex items-center justify-center">
             <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                 d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

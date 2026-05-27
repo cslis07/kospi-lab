@@ -58,7 +58,7 @@ export default function KospiBar() {
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] mb-6 transition-all duration-300">
+    <div style={{ boxShadow: 'var(--shadow-bar)' }} className="bar-shadow rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] mb-6 transition-all duration-300">
       {/* Main row */}
       <button
         className="w-full flex items-center justify-between gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors rounded-2xl text-left"

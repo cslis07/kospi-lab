@@ -100,16 +100,16 @@ export default function StockCard({ ticker, name, market, usdRate, portfolio, al
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 animate-pulse space-y-3">
+      <div style={{ boxShadow: 'var(--shadow-card)' }} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 animate-pulse space-y-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-white/10" />
-          <div className="h-5 w-28 bg-white/10 rounded" />
+          <div className="w-9 h-9 rounded-full bg-[var(--border)]" />
+          <div className="h-5 w-28 bg-[var(--border)] rounded" />
         </div>
-        <div className="h-3 w-32 bg-white/10 rounded" />
-        <div className="h-9 w-40 bg-white/10 rounded" />
-        <div className="h-3 w-24 bg-white/10 rounded" />
+        <div className="h-3 w-32 bg-[var(--border)] rounded" />
+        <div className="h-9 w-40 bg-[var(--border)] rounded" />
+        <div className="h-3 w-24 bg-[var(--border)] rounded" />
         <div className="space-y-2 pt-2">
-          {[...Array(3)].map((_, i) => <div key={i} className="h-3 bg-white/5 rounded" />)}
+          {[...Array(3)].map((_, i) => <div key={i} className="h-3 bg-[var(--border)] rounded" />)}
         </div>
       </div>
     );
@@ -129,11 +129,13 @@ export default function StockCard({ ticker, name, market, usdRate, portfolio, al
   }
 
   return (
-    <div className={`rounded-2xl border transition-all duration-300 overflow-hidden ${
-      flash === 'up' ? 'flash-green border-emerald-500/25' :
-      flash === 'down' ? 'flash-red border-red-500/25' :
-      'border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--border-hover)]'
-    }`}>
+    <div
+      style={{ boxShadow: 'var(--shadow-card)' }}
+      className={`card-shadow rounded-2xl border transition-all duration-300 overflow-hidden ${
+        flash === 'up'   ? 'flash-green border-emerald-500/25' :
+        flash === 'down' ? 'flash-red border-red-500/25' :
+        'border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--border-hover)]'
+      }`}>
       <div className="p-5">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
