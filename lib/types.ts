@@ -80,6 +80,25 @@ export interface FxRate {
   changeRate: number; // daily change %
 }
 
+export interface CryptoData {
+  symbol: string;       // e.g. "BTCUSDT"
+  baseAsset: string;    // e.g. "BTC"
+  quoteAsset: string;   // e.g. "USDT"
+  price: number;        // last price in USDT
+  change: number;       // 24h price change in USDT
+  changeRate: number;   // 24h change %
+  high24h: number;
+  low24h: number;
+  volume24h: number;    // base asset volume
+  quoteVolume24h: number; // USDT volume
+}
+
+export interface CryptoWatchlistItem {
+  symbol: string;   // e.g. "BTCUSDT"
+  base: string;     // e.g. "BTC"
+  name: string;     // e.g. "Bitcoin"
+}
+
 export interface NewsItem {
   title: string;
   link: string;

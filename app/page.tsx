@@ -10,13 +10,15 @@ import StockFilter, { type SortKey, type FilterMarket } from '@/components/Stock
 import KospiBar from '@/components/KospiBar';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
+import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useAlerts } from '@/hooks/useAlerts';
-import type { StockData, OverseasStockData } from '@/lib/types';
+import CryptoCard from '@/components/CryptoCard';
+import type { StockData, OverseasStockData, CryptoData } from '@/lib/types';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-type MarketTab = 'domestic' | 'overseas';
+type MarketTab = 'domestic' | 'overseas' | 'crypto';
 
 /* ── 마켓 탭 버튼 ───────────────────────────────────── */
 function MarketTabBar({
@@ -24,27 +26,29 @@ function MarketTabBar({
   onChange,
   domesticCount,
   overseasCount,
+  cryptoCount,
 }: {
   active: MarketTab;
   onChange: (t: MarketTab) => void;
   domesticCount: number;
   overseasCount: number;
+  cryptoCount: number;
 }) {
+  const tabs = [
+    { id: 'domestic' as const, label: '🇰🇷 국내',  count: domesticCount, activeClass: 'bg-sky-500 shadow-sky-500/30' },
+    { id: 'overseas' as const, label: '🌐 해외',   count: overseasCount, activeClass: 'bg-sky-500 shadow-sky-500/30' },
+    { id: 'crypto'   as const, label: '₿ 코인',   count: cryptoCount,   activeClass: 'bg-amber-500 shadow-amber-500/30' },
+  ];
   return (
     <div className="flex items-center gap-1 p-1 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] w-fit"
       style={{ boxShadow: 'var(--shadow-pill)' }}>
-      {(
-        [
-          { id: 'domestic' as const, label: '🇰🇷 국내', count: domesticCount },
-          { id: 'overseas' as const, label: '🌐 해외',  count: overseasCount },
-        ] as const
-      ).map((tab) => (
+      {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
             active === tab.id
-              ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/30'
+              ? `${tab.activeClass} text-white shadow-sm`
               : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}
         >
@@ -82,6 +86,9 @@ export default function DashboardPage() {
   const { watchlist: overseas, add: addOverseas, remove: removeOverseas, mounted: oMounted } =
     useOverseasWatchlist();
 
+  // 코인
+  const { watchlist: cryptos, remove: removeCrypto, mounted: cMounted } = useCryptoWatchlist();
+
   // 시장 데이터 (환율)
   const { data: market } = useSWR('/api/market', fetcher, { refreshInterval: 10000 });
   const usdRate = market?.usdkrw?.value as number | undefined;
@@ -100,6 +107,14 @@ export default function DashboardPage() {
     symbols ? `/api/overseas/batch?symbols=${symbols}` : null,
     fetcher,
     { refreshInterval: 15000 }
+  );
+
+  // ── 코인 배치 조회 ──
+  const cryptoSymbols = cryptos.map((c) => c.symbol).join(',');
+  const { data: allCryptos } = useSWR<Record<string, CryptoData>>(
+    cryptoSymbols ? `/api/crypto/batch?symbols=${cryptoSymbols}` : null,
+    fetcher,
+    { refreshInterval: 5000 }
   );
 
   // ── 국내 필터/정렬 ──
@@ -163,6 +178,7 @@ export default function DashboardPage() {
             onChange={switchTab}
             domesticCount={watchlist.length}
             overseasCount={overseas.length}
+            cryptoCount={cryptos.length}
           />
 
           {/* 포트폴리오 손익 (국내만) */}
@@ -260,6 +276,33 @@ export default function DashboardPage() {
                 data={allOverseas?.[item.symbol]}
                 usdRate={usdRate}
                 onRemove={removeOverseas}
+              />
+            ))}
+          </div>
+        )
+      )}
+
+      {/* ── 코인 카드 그리드 ── */}
+      {marketTab === 'crypto' && (
+        !cMounted ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] h-[360px] animate-pulse" />
+            ))}
+          </div>
+        ) : cryptos.length === 0 ? (
+          <EmptyState hasItems={false} label="코인" />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
+            {cryptos.map((item) => (
+              <CryptoCard
+                key={item.symbol}
+                symbol={item.symbol}
+                base={item.base}
+                name={item.name}
+                data={allCryptos?.[item.symbol]}
+                usdRate={usdRate}
+                onRemove={removeCrypto}
               />
             ))}
           </div>
