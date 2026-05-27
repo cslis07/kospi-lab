@@ -36,7 +36,7 @@ export default function StockDetailPage() {
     { refreshInterval: 5000 }
   );
   const { data: chart } = useSWR<ChartPoint[]>(
-    ticker ? `/api/stock/${ticker}/chart?months=${tf.months}` : null,
+    ticker ? `/api/stock/${ticker}/chart?months=${tf.months}&market=${stock?.market ?? ''}` : null,
     fetcher,
     { refreshInterval: 60000 }
   );
