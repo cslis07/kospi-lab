@@ -53,6 +53,27 @@ export interface AlertEntry {
   below?: number;
 }
 
+export interface OverseasStockData {
+  symbol: string;
+  name: string;
+  price: number;        // USD
+  change: number;       // USD
+  changeRate: number;   // %
+  volume: number;       // shares
+  marketCap: number;    // USD raw
+  exchange: string;     // 'NasdaqGS' | 'NYSE' …
+  currency: string;
+  prevClose?: number;
+  high52w?: number;
+  low52w?: number;
+}
+
+export interface OverseasWatchlistItem {
+  symbol: string;
+  name: string;
+  exchange: string;
+}
+
 export interface FxRate {
   value: number;   // KRW per 1 unit (JPY: per 100엔)
   change: number;  // daily change in KRW
