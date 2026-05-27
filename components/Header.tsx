@@ -54,9 +54,13 @@ function calcStatus(): MarketStatus {
   return { isKrOpen, isUsOpen, krLabel, usLabel };
 }
 
+// SSR-safe: 서버는 빈 값으로 렌더링하고, 클라이언트 마운트 후 실제 계산
 function useMarketStatus(): MarketStatus {
-  const [status, setStatus] = useState<MarketStatus>(calcStatus);
+  const [status, setStatus] = useState<MarketStatus>({
+    isKrOpen: false, isUsOpen: false, krLabel: '', usLabel: '',
+  });
   useEffect(() => {
+    setStatus(calcStatus());
     const id = setInterval(() => setStatus(calcStatus()), 30000);
     return () => clearInterval(id);
   }, []);

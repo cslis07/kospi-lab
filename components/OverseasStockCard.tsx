@@ -187,11 +187,15 @@ export default function OverseasStockCard({ symbol, name, exchange, data, usdRat
         <div className="mt-4 space-y-1.5 text-sm">
           <div className="flex justify-between">
             <span className="text-[var(--text-muted)]">거래량</span>
-            <span className="text-[var(--text)] tabular-nums">{fmtVol(data.volume)}</span>
+            <span className="text-[var(--text)] tabular-nums">
+              {(data as unknown as Record<string,unknown>).volumeFmt as string || fmtVol(data.volume)}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-[var(--text-muted)]">시가총액</span>
-            <span className="text-[var(--text)]">{fmtCap(data.marketCap)}</span>
+            <span className="text-[var(--text)]">
+              {(data as unknown as Record<string,unknown>).marketCapFmt as string || fmtCap(data.marketCap)}
+            </span>
           </div>
         </div>
 
