@@ -1,10 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { CryptoData } from '@/lib/types';
 
+// Binance BTCUSDT → Yahoo Finance BTC-USD
+function toYahooSymbol(sym: string): string {
+  if (sym.endsWith('USDT')) return `${sym.slice(0, -4)}-USD`;
+  if (sym.endsWith('USD'))  return sym;
+  return `${sym}-USD`;
+}
+
 const HEADERS = {
-  'Accept': 'application/json',
-  'User-Agent': 'Mozilla/5.0',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'en-US,en;q=0.9',
 };
+
+async function fetchOne(symbol: string): Promise<CryptoData> {
+  const yahooSym = toYahooSymbol(symbol);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?interval=1d&range=2d&includePrePost=false`;
+
+  let res = await fetch(url, { headers: HEADERS, next: { revalidate: 0 } });
+  if (!res.ok) {
+    res = await fetch(url.replace('query1', 'query2'), { headers: HEADERS, next: { revalidate: 0 } });
+    if (!res.ok) throw new Error(`Yahoo ${yahooSym}: ${res.status}`);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data: any = await res.json();
+  const result = data?.chart?.result?.[0];
+  if (!result) throw new Error(`No result for ${yahooSym}`);
+
+  const meta       = result.meta ?? {};
+  const price      = Number(meta.regularMarketPrice ?? 0);
+  const prevClose  = Number(meta.previousClose ?? meta.chartPreviousClose ?? 0);
+  const change     = price - prevClose;
+  const changeRate = prevClose ? (change / prevClose) * 100 : 0;
+
+  const base = symbol.endsWith('USDT') ? symbol.slice(0, -4) : symbol.replace('-USD', '');
+
+  return {
+    symbol,
+    baseAsset:      base,
+    quoteAsset:     'USDT',
+    price,
+    change,
+    changeRate,
+    high24h:        Number(meta.regularMarketDayHigh  ?? price),
+    low24h:         Number(meta.regularMarketDayLow   ?? price),
+    volume24h:      Number(meta.regularMarketVolume   ?? 0),
+    quoteVolume24h: Number(meta.regularMarketVolume   ?? 0) * price,
+  };
+}
 
 export async function GET(req: NextRequest) {
   const symbols = (req.nextUrl.searchParams.get('symbols') ?? '')
@@ -12,37 +58,11 @@ export async function GET(req: NextRequest) {
 
   if (!symbols.length) return NextResponse.json({});
 
-  // Binance 배치 조회: symbols=["BTCUSDT","ETHUSDT",...]
-  const encoded = encodeURIComponent(JSON.stringify(symbols));
-  const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${encoded}`;
+  const settled = await Promise.allSettled(symbols.map(fetchOne));
+  const map: Record<string, CryptoData> = {};
+  settled.forEach((r, i) => {
+    if (r.status === 'fulfilled') map[symbols[i]] = r.value;
+  });
 
-  try {
-    const res = await fetch(url, { headers: HEADERS, next: { revalidate: 0 } });
-    if (!res.ok) throw new Error(`Binance ${res.status}`);
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const list: any[] = await res.json();
-
-    const map: Record<string, CryptoData> = {};
-    for (const t of list) {
-      const sym: string = t.symbol;
-      // 기본자산 = USDT 앞부분 (BTCUSDT → BTC)
-      const base = sym.endsWith('USDT') ? sym.slice(0, -4) : sym;
-      map[sym] = {
-        symbol:         sym,
-        baseAsset:      base,
-        quoteAsset:     'USDT',
-        price:          parseFloat(t.lastPrice  ?? 0),
-        change:         parseFloat(t.priceChange ?? 0),
-        changeRate:     parseFloat(t.priceChangePercent ?? 0),
-        high24h:        parseFloat(t.highPrice   ?? 0),
-        low24h:         parseFloat(t.lowPrice    ?? 0),
-        volume24h:      parseFloat(t.volume      ?? 0),
-        quoteVolume24h: parseFloat(t.quoteVolume ?? 0),
-      };
-    }
-    return NextResponse.json(map);
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 502 });
-  }
+  return NextResponse.json(map);
 }
