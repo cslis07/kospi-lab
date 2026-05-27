@@ -37,5 +37,13 @@ export function useWatchlist() {
     save(watchlist.filter((w) => w.ticker !== ticker));
   };
 
-  return { watchlist, add, remove, mounted };
+  const updateMemo = (ticker: string, memo: string) => {
+    save(
+      watchlist.map((w) =>
+        w.ticker === ticker ? { ...w, memo: memo.trim() || undefined } : w
+      )
+    );
+  };
+
+  return { watchlist, add, remove, updateMemo, mounted };
 }

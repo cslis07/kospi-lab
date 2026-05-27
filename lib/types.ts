@@ -41,6 +41,23 @@ export interface WatchlistItem {
   ticker: string;
   name: string;
   market: string;
+  memo?: string;
+}
+
+export interface InvestorTrend {
+  date: string;
+  individual: number;   // 개인 순매수 (천원)
+  foreign: number;      // 외국인 순매수
+  institution: number;  // 기관 순매수
+}
+
+export interface CalendarEvent {
+  date: string;         // YYYY-MM-DD
+  title: string;
+  category: 'fomc' | 'bok' | 'earnings' | 'indicator' | 'holiday';
+  country: 'US' | 'KR' | 'global';
+  importance: 'high' | 'medium' | 'low';
+  desc?: string;
 }
 
 export interface PortfolioEntry {
@@ -105,12 +122,14 @@ export type TradeSide  = 'buy' | 'sell';
 export type TradeCurrency = 'KRW' | 'USD';
 
 export interface VirtualHolding {
-  symbol:    string;
-  name:      string;
-  assetType: AssetType;
-  qty:       number;
-  avgPrice:  number;        // 매수 평균가 (native currency)
-  currency:  TradeCurrency;
+  symbol:      string;
+  name:        string;
+  assetType:   AssetType;
+  qty:         number;
+  avgPrice:    number;        // 매수 평균가 (native currency)
+  currency:    TradeCurrency;
+  targetPrice?: number;       // 목표가
+  stopLoss?:   number;        // 손절가
 }
 
 export interface VirtualTrade {
@@ -124,6 +143,7 @@ export interface VirtualTrade {
   price:     number;
   amount:    number;        // qty * price
   currency:  TradeCurrency;
+  memo?:     string;        // 투자 일지
 }
 
 export interface VirtualState {
