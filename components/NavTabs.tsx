@@ -5,8 +5,9 @@ import { usePathname } from 'next/navigation';
 
 const TABS = [
   { label: '대시보드', href: '/' },
-  { label: '리포트', href: '/report' },
-  { label: '뉴스', href: '/news' },
+  { label: '가상투자', href: '/virtual' },
+  { label: '리포트',   href: '/report' },
+  { label: '뉴스',     href: '/news' },
   { label: '커뮤니티', href: '/community' },
 ];
 
@@ -17,7 +18,7 @@ export default function NavTabs() {
       {TABS.map((tab) => {
         const active =
           tab.href === '/'
-            ? pathname === '/' || pathname.startsWith('/stock')
+            ? pathname === '/' || pathname.startsWith('/stock') || pathname.startsWith('/crypto')
             : pathname.startsWith(tab.href);
         return (
           <Link

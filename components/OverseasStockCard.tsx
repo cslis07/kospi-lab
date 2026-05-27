@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import type { OverseasStockData } from '@/lib/types';
+import VirtualTradeModal from './VirtualTradeModal';
 
 // ── 브랜드 색상 ──────────────────────────────────────
 const BRAND: Record<string, { bg: string; color: string; label: string }> = {
@@ -80,6 +81,7 @@ interface Props {
 export default function OverseasStockCard({ symbol, name, exchange, data, usdRate, onRemove }: Props) {
   const prevRef = useRef<number | null>(null);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+  const [showTrade, setShowTrade] = useState(false);
 
   useEffect(() => {
     if (data?.price === undefined) return;
@@ -225,9 +227,27 @@ export default function OverseasStockCard({ symbol, name, exchange, data, usdRat
       </div>
 
       {/* 푸터 */}
-      <div className="border-t border-[var(--border)] px-5 py-2.5 text-center text-xs text-[var(--text-muted)]">
-        Yahoo Finance 실시간 · {data.currency}
+      <div className="border-t border-[var(--border)] flex">
+        <span className="flex-1 px-4 py-2.5 text-center text-xs text-[var(--text-muted)]">
+          Yahoo Finance · {data.currency}
+        </span>
+        <button
+          onClick={() => setShowTrade(true)}
+          className="flex-1 px-4 py-2.5 text-center text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors border-l border-[var(--border)]">
+          💹 가상투자
+        </button>
       </div>
+
+      {showTrade && (
+        <VirtualTradeModal
+          symbol={symbol}
+          name={data.name}
+          assetType="overseas"
+          price={data.price}
+          currency="USD"
+          onClose={() => setShowTrade(false)}
+        />
+      )}
     </div>
   );
 }

@@ -99,6 +99,42 @@ export interface CryptoWatchlistItem {
   name: string;     // e.g. "Bitcoin"
 }
 
+// ── 가상투자 ──────────────────────────────────────────
+export type AssetType  = 'domestic' | 'overseas' | 'crypto';
+export type TradeSide  = 'buy' | 'sell';
+export type TradeCurrency = 'KRW' | 'USD';
+
+export interface VirtualHolding {
+  symbol:    string;
+  name:      string;
+  assetType: AssetType;
+  qty:       number;
+  avgPrice:  number;        // 매수 평균가 (native currency)
+  currency:  TradeCurrency;
+}
+
+export interface VirtualTrade {
+  id:        string;
+  ts:        number;        // Date.now()
+  symbol:    string;
+  name:      string;
+  assetType: AssetType;
+  side:      TradeSide;
+  qty:       number;
+  price:     number;
+  amount:    number;        // qty * price
+  currency:  TradeCurrency;
+}
+
+export interface VirtualState {
+  krw:        number;                           // ₩ 예수금
+  usd:        number;                           // $ 예수금
+  holdings:   Record<string, VirtualHolding>;
+  history:    VirtualTrade[];
+  initialKrw: number;
+  initialUsd: number;
+}
+
 export interface NewsItem {
   title: string;
   link: string;

@@ -4,6 +4,7 @@ import useSWR from 'swr';
 import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { StockData, PortfolioEntry, AlertEntry } from '@/lib/types';
+import VirtualTradeModal from './VirtualTradeModal';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -68,6 +69,7 @@ export default function StockCard({ ticker, name, market, usdRate, portfolio, al
 
   const prevPriceRef = useRef<number | null>(null);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+  const [showTrade, setShowTrade] = useState(false);
 
   useEffect(() => {
     if (data?.price === undefined) return;
@@ -239,9 +241,28 @@ export default function StockCard({ ticker, name, market, usdRate, portfolio, al
       </div>
 
       {/* Footer */}
-      <Link href={`/stock/${ticker}`} className="block border-t border-[var(--border)] px-5 py-2.5 text-center text-xs text-[var(--text-muted)] hover:text-sky-400 hover:bg-white/3 transition-colors">
-        누르면 오늘 시장 정보로 전환됩니다
-      </Link>
+      <div className="border-t border-[var(--border)] flex">
+        <Link href={`/stock/${ticker}`}
+          className="flex-1 px-4 py-2.5 text-center text-xs text-[var(--text-muted)] hover:text-sky-400 hover:bg-white/3 transition-colors">
+          차트 보기
+        </Link>
+        <button
+          onClick={() => setShowTrade(true)}
+          className="flex-1 px-4 py-2.5 text-center text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors border-l border-[var(--border)]">
+          💹 가상투자
+        </button>
+      </div>
+
+      {showTrade && data && (
+        <VirtualTradeModal
+          symbol={ticker}
+          name={data.name}
+          assetType="domestic"
+          price={data.price}
+          currency="KRW"
+          onClose={() => setShowTrade(false)}
+        />
+      )}
     </div>
   );
 }

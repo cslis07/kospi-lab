@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRef, useEffect, useState } from 'react';
 import type { CryptoData } from '@/lib/types';
+import VirtualTradeModal from './VirtualTradeModal';
 
 // ── 코인 브랜드 ──────────────────────────────────────────
 const BRAND: Record<string, { bg: string; color: string; label: string }> = {
@@ -56,6 +57,7 @@ interface Props {
 export default function CryptoCard({ symbol, base, name, data, usdRate, onRemove }: Props) {
   const prevRef = useRef<number | null>(null);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+  const [showTrade, setShowTrade] = useState(false);
 
   useEffect(() => {
     if (data?.price === undefined) return;
@@ -171,10 +173,28 @@ export default function CryptoCard({ symbol, base, name, data, usdRate, onRemove
       </div>
 
       {/* 푸터 */}
-      <Link href={`/crypto/${symbol}`}
-        className="block border-t border-[var(--border)] px-5 py-2.5 text-center text-xs text-[var(--text-muted)] hover:text-amber-400 hover:bg-white/3 transition-colors">
-        차트 보기 →
-      </Link>
+      <div className="border-t border-[var(--border)] flex">
+        <Link href={`/crypto/${symbol}`}
+          className="flex-1 px-4 py-2.5 text-center text-xs text-[var(--text-muted)] hover:text-amber-400 hover:bg-white/3 transition-colors">
+          차트 보기
+        </Link>
+        <button
+          onClick={() => setShowTrade(true)}
+          className="flex-1 px-4 py-2.5 text-center text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors border-l border-[var(--border)]">
+          💹 가상투자
+        </button>
+      </div>
+
+      {showTrade && data && (
+        <VirtualTradeModal
+          symbol={symbol}
+          name={name}
+          assetType="crypto"
+          price={data.price}
+          currency="USD"
+          onClose={() => setShowTrade(false)}
+        />
+      )}
     </div>
   );
 }
