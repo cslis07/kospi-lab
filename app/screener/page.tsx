@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -34,47 +34,20 @@ interface ScreenerResult {
   buffettScore: number;
   buffettDetails: BDetails;
 }
-
-// ── Default curated lists ──────────────────────────────────────────────────────
-const KR_DEFAULT = [
-  { ticker: '005930.KS', name: '삼성전자' },
-  { ticker: '000660.KS', name: 'SK하이닉스' },
-  { ticker: '035420.KS', name: 'NAVER' },
-  { ticker: '035720.KS', name: '카카오' },
-  { ticker: '005380.KS', name: '현대차' },
-  { ticker: '105560.KS', name: 'KB금융' },
-  { ticker: '055550.KS', name: '신한지주' },
-  { ticker: '051910.KS', name: 'LG화학' },
-  { ticker: '068270.KS', name: '셀트리온' },
-  { ticker: '028260.KS', name: '삼성물산' },
-];
-const US_DEFAULT = [
-  { ticker: 'AAPL',  name: 'Apple' },
-  { ticker: 'MSFT',  name: 'Microsoft' },
-  { ticker: 'V',     name: 'Visa' },
-  { ticker: 'GOOGL', name: 'Alphabet' },
-  { ticker: 'AMZN',  name: 'Amazon' },
-  { ticker: 'META',  name: 'Meta' },
-  { ticker: 'NVDA',  name: 'NVIDIA' },
-  { ticker: 'COST',  name: 'Costco' },
-  { ticker: 'KO',    name: 'Coca-Cola' },
-  { ticker: 'BRK-B', name: 'Berkshire' },
-];
-
-// ── Local name lookup (Korean/US stock names we know up-front) ─────────────────
-const LOCAL_NAMES: Record<string, string> = Object.fromEntries(
-  [...KR_DEFAULT, ...US_DEFAULT].map(({ ticker, name }) => [ticker, name])
-);
+interface SearchHit {
+  ticker: string;
+  name: string;
+}
 
 // ── Criteria labels ────────────────────────────────────────────────────────────
 const CRITERIA_INFO: { key: keyof BDetails; short: string; full: string }[] = [
-  { key: 'roe',    short: 'ROE',    full: 'ROE ≥ 10~15%  (자기자본이익률)' },
-  { key: 'margin', short: '이익률',  full: '영업이익률 ≥ 15%' },
-  { key: 'fcf',    short: 'FCF',    full: '잉여현금흐름 플러스' },
-  { key: 'debt',   short: '부채',   full: '부채비율 < 100%' },
-  { key: 'growth', short: '성장',   full: '매출 성장률 > 0% (YoY)' },
-  { key: 'per',    short: 'PER',    full: 'PER 0~35 (적정 밸류에이션)' },
-  { key: 'profit', short: '흑자',   full: '순이익 흑자' },
+  { key: 'roe',    short: 'ROE',   full: 'ROE ≥ 10~15%  (자기자본이익률)' },
+  { key: 'margin', short: '이익률', full: '영업이익률 ≥ 15%' },
+  { key: 'fcf',    short: 'FCF',   full: '잉여현금흐름 플러스' },
+  { key: 'debt',   short: '부채',  full: '부채비율 < 100%' },
+  { key: 'growth', short: '성장',  full: '매출 성장률 > 0% (YoY)' },
+  { key: 'per',    short: 'PER',   full: 'PER 0~35 (적정 밸류에이션)' },
+  { key: 'profit', short: '흑자',  full: '순이익 흑자' },
 ];
 
 // ── Formatting helpers ─────────────────────────────────────────────────────────
@@ -99,8 +72,8 @@ function fmtFCF(v: number | null, cur: string): string {
     if (abs >= 1e8)  return `${sign}${Math.round(abs / 1e8)}억`;
     return `${sign}${Math.round(abs / 1e7)}천만`;
   }
-  if (abs >= 1e9)  return `${sign}$${(abs / 1e9).toFixed(1)}B`;
-  if (abs >= 1e6)  return `${sign}$${(abs / 1e6).toFixed(0)}M`;
+  if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(0)}M`;
   return `${sign}$${abs.toFixed(0)}`;
 }
 function fmtPct(v: number | null): string {
@@ -112,7 +85,7 @@ function fmtPer(v: number | null): string {
   return `${v.toFixed(1)}x`;
 }
 
-// ── Score badge ────────────────────────────────────────────────────────────────
+// ── Score helpers ──────────────────────────────────────────────────────────────
 function scoreStyle(s: number): string {
   if (s >= 6) return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
   if (s >= 4) return 'bg-amber-500/20 text-amber-400 border-amber-500/40';
@@ -140,14 +113,14 @@ function CritBadge({ pass, label }: { pass: boolean | null; label: string }) {
 
 // ── MetricCell ────────────────────────────────────────────────────────────────
 function MetricCell({
-  label, value, pass, small,
-}: { label: string; value: string; pass?: boolean | null; small?: boolean }) {
+  label, value, pass,
+}: { label: string; value: string; pass?: boolean | null }) {
   const vColor =
     pass === true  ? 'text-emerald-400' :
     pass === false ? 'text-red-400' :
     'text-[var(--text)]';
   return (
-    <div className={`text-center ${small ? '' : 'p-2'}`}>
+    <div className="text-center p-2">
       <p className="text-[10px] text-[var(--text-muted)] mb-0.5">{label}</p>
       <p className={`text-xs font-bold tabular-nums ${vColor}`}>{value}</p>
     </div>
@@ -155,13 +128,15 @@ function MetricCell({
 }
 
 // ── Stock card ────────────────────────────────────────────────────────────────
-function StockCard({ r, market, localName }: { r: ScreenerResult; market: 'KR' | 'US'; localName: string }) {
+function StockCard({
+  r, market, localName,
+}: { r: ScreenerResult; market: 'KR' | 'US'; localName: string }) {
   const [expanded, setExpanded] = useState(false);
   const pctColor = (v: number | null) =>
     v == null ? '' : v >= 0 ? 'text-emerald-400' : 'text-red-400';
   const displayName = localName.length > 20 ? localName.slice(0, 20) + '…' : localName;
-  const codeLabel = r.ticker.replace(/\.(KS|KQ)$/, '');
-  const roeMin = market === 'KR' ? 10 : 15;
+  const codeLabel   = r.ticker.replace(/\.(KS|KQ)$/, '');
+  const roeMin      = market === 'KR' ? 10 : 15;
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
@@ -243,28 +218,19 @@ function StockCard({ r, market, localName }: { r: ScreenerResult; market: 'KR' |
       {/* Expanded detail */}
       {expanded && (
         <div className="border-t border-[var(--border)] px-4 pb-4 pt-3 space-y-3">
-          {/* Metrics grid */}
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
             <MetricCell label="PER" value={fmtPer(r.per)} pass={r.buffettDetails.per} />
             <MetricCell label={`ROE (≥${roeMin}%)`} value={r.roe != null ? `${r.roe.toFixed(1)}%` : '-'} pass={r.buffettDetails.roe} />
             <MetricCell label="영업이익률" value={r.opMargin != null ? `${r.opMargin.toFixed(1)}%` : '-'} pass={r.buffettDetails.margin} />
             <MetricCell label="FCF" value={fmtFCF(r.fcf, r.currency)} pass={r.buffettDetails.fcf} />
             <MetricCell label="부채비율" value={r.debtRatio != null ? `${r.debtRatio.toFixed(1)}%` : '-'} pass={r.buffettDetails.debt} />
-            <MetricCell
-              label="매출성장(YoY)"
-              value={fmtPct(r.revenueGrowth)}
-              pass={r.buffettDetails.growth}
-            />
+            <MetricCell label="매출성장(YoY)" value={fmtPct(r.revenueGrowth)} pass={r.buffettDetails.growth} />
           </div>
-
-          {/* Criteria badges */}
           <div className="flex flex-wrap gap-1.5">
             {CRITERIA_INFO.map((c) => (
               <CritBadge key={c.key} pass={r.buffettDetails[c.key]} label={c.full} />
             ))}
           </div>
-
-          {/* Extra: PEG, forward PE */}
           <div className="flex gap-4 text-xs text-[var(--text-muted)]">
             {r.peg   != null && <span>PEG <span className="text-[var(--text)] font-medium">{r.peg.toFixed(2)}</span></span>}
             {r.fwdPE != null && <span>Forward PER <span className="text-[var(--text)] font-medium">{r.fwdPE.toFixed(1)}x</span></span>}
@@ -299,44 +265,98 @@ function SkeletonCard() {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-type Market = 'KR' | 'US';
+type Market  = 'KR' | 'US';
 type SortKey = 'buffettScore' | 'roe' | 'opMargin' | 'per' | 'revenueGrowth';
 
 export default function ScreenerPage() {
-  const [market, setMarket] = useState<Market>('KR');
-  const [customInput, setCustomInput]   = useState('');
+  const [market, setMarket]           = useState<Market>('KR');
+  const [customInput, setCustomInput] = useState('');
   const [customTickers, setCustomTickers] = useState<string[]>([]);
-  const [query, setQuery] = useState<{ tickers: string[]; market: Market } | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>('buffettScore');
-  const [showGuide, setShowGuide] = useState(false);
-  const [minScore, setMinScore]   = useState(0);
+  // ticker → 표시할 이름 (검색 결과에서 얻어 동적으로 추가)
+  const [localNames, setLocalNames]   = useState<Record<string, string>>({});
+  const [query, setQuery]             = useState<{ tickers: string[]; market: Market } | null>(null);
+  const [sortKey, setSortKey]         = useState<SortKey>('buffettScore');
+  const [showGuide, setShowGuide]     = useState(false);
+  const [minScore, setMinScore]       = useState(0);
 
-  const defaultList = market === 'KR' ? KR_DEFAULT : US_DEFAULT;
+  // ── 자동완성 검색 상태 ───────────────────────────────────────────────────────
+  const [hits, setHits]               = useState<SearchHit[]>([]);
+  const [searching, setSearching]     = useState(false);
+  const [showDrop, setShowDrop]       = useState(false);
+  const dropRef   = useRef<HTMLDivElement>(null);
+  const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Normalize ticker: add .KS suffix for Korean market if user forgot
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
+        setShowDrop(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // 한국 시장: 주식명 자동완성 검색 (디바운스 300ms)
+  const handleKRInput = useCallback((val: string) => {
+    setCustomInput(val);
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    const trimmed = val.trim();
+    // 6자리 숫자면 코드 직접 입력 → 검색 불필요
+    if (!trimmed || /^\d+$/.test(trimmed)) {
+      setHits([]);
+      setShowDrop(false);
+      return;
+    }
+
+    setSearching(true);
+    setShowDrop(true);
+    timerRef.current = setTimeout(async () => {
+      try {
+        const res  = await fetch(`/api/stock-search?q=${encodeURIComponent(trimmed)}&market=KR`);
+        const data = await res.json() as SearchHit[];
+        setHits(data);
+      } catch {
+        setHits([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+  }, []);
+
+  // 검색 결과에서 종목 선택
+  const addFromHit = (hit: SearchHit) => {
+    if (!customTickers.includes(hit.ticker)) {
+      setCustomTickers((prev) => [...prev, hit.ticker]);
+      setLocalNames((prev) => ({ ...prev, [hit.ticker]: hit.name }));
+    }
+    setCustomInput('');
+    setShowDrop(false);
+    setHits([]);
+  };
+
+  // 코드 직접 입력 추가 (한국 6자리, 미국 티커)
   const normalizeTicker = (t: string): string => {
     const u = t.toUpperCase().trim();
     if (market === 'KR' && /^\d{6}$/.test(u)) return `${u}.KS`;
     return u;
   };
 
-  const addCustom = () => {
+  const addByCode = () => {
     const t = normalizeTicker(customInput);
-    if (!t) return;
-    if (customTickers.includes(t) || defaultList.some((d) => d.ticker === t)) return;
+    if (!t || customTickers.includes(t)) return;
     setCustomTickers((prev) => [...prev, t]);
     setCustomInput('');
   };
 
-  const removeCustom = (t: string) => setCustomTickers((prev) => prev.filter((x) => x !== t));
+  const removeCustom = (t: string) =>
+    setCustomTickers((prev) => prev.filter((x) => x !== t));
 
-  const activeTickers = [
-    ...defaultList.map((d) => d.ticker),
-    ...customTickers,
-  ];
+  // ── SWR ─────────────────────────────────────────────────────────────────────
+  const activeTickers = customTickers;
 
-  // Build SWR key only when user clicks "분석하기"
-  const apiUrl = query
+  const apiUrl = query && query.tickers.length > 0
     ? `/api/screener?tickers=${query.tickers.join(',')}&market=${query.market}`
     : null;
 
@@ -344,12 +364,11 @@ export default function ScreenerPage() {
     ScreenerResult[] | { error: string }
   >(apiUrl, fetcher, { revalidateOnFocus: false });
 
-  // API가 { error: string }을 반환하는 경우 처리
   const apiErrorMsg = (rawData as { error?: string })?.error ?? null;
-  const data = Array.isArray(rawData) ? rawData : null;
+  const data  = Array.isArray(rawData) ? rawData : null;
   const error = swrError || apiErrorMsg;
 
-  // Sort + filter
+  // ── 정렬·필터 ────────────────────────────────────────────────────────────────
   const sorted = useMemo(() => {
     if (!data) return [];
     return [...data]
@@ -357,7 +376,6 @@ export default function ScreenerPage() {
       .sort((a, b) => {
         if (sortKey === 'buffettScore') return b.buffettScore - a.buffettScore;
         if (sortKey === 'per') {
-          // Lower is better for PER; nulls last
           if (a.per == null && b.per == null) return 0;
           if (a.per == null) return 1;
           if (b.per == null) return -1;
@@ -370,6 +388,7 @@ export default function ScreenerPage() {
   }, [data, sortKey, minScore]);
 
   const handleAnalyze = () => {
+    if (activeTickers.length === 0) return;
     setQuery({ tickers: activeTickers, market });
   };
 
@@ -377,7 +396,10 @@ export default function ScreenerPage() {
     setMarket(m);
     setQuery(null);
     setCustomTickers([]);
+    setLocalNames({});
     setCustomInput('');
+    setHits([]);
+    setShowDrop(false);
   };
 
   const SORT_OPTIONS: { key: SortKey; label: string }[] = [
@@ -387,6 +409,10 @@ export default function ScreenerPage() {
     { key: 'per',           label: 'PER (낮은순)' },
     { key: 'revenueGrowth', label: '매출성장' },
   ];
+
+  // 칩에 표시할 이름
+  const chipLabel = (t: string) =>
+    localNames[t] ?? t.replace(/\.(KS|KQ)$/, '');
 
   return (
     <div className="max-w-4xl mx-auto pb-16">
@@ -410,17 +436,16 @@ export default function ScreenerPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-
         {showGuide && (
           <div className="border-t border-[var(--border)] p-4 grid sm:grid-cols-2 gap-2">
             {[
-              { icon: '📊', crit: 'ROE ≥ 10~15%', desc: '자기자본으로 얼마나 효율적으로 버는가. 여러 해 유지되면 해자 신호.' },
-              { icon: '💰', crit: '영업이익률 ≥ 15%', desc: '원가 경쟁력과 가격 결정권을 의미. 높을수록 해자 강함.' },
+              { icon: '📊', crit: 'ROE ≥ 10~15%',         desc: '자기자본으로 얼마나 효율적으로 버는가. 여러 해 유지되면 해자 신호.' },
+              { icon: '💰', crit: '영업이익률 ≥ 15%',      desc: '원가 경쟁력과 가격 결정권을 의미. 높을수록 해자 강함.' },
               { icon: '💵', crit: 'FCF(잉여현금흐름) 플러스', desc: '배당·자사주매입·인수 가능. 버핏이 가장 중요하게 보는 지표.' },
-              { icon: '🏦', crit: '부채비율 < 100%', desc: '부채/자본 비율. 빚이 적어야 불황·금리 상승에 강함.' },
-              { icon: '📈', crit: '매출 성장 (YoY > 0)', desc: '전년 대비 매출이 늘고 있는지. 꾸준한 성장이 핵심.' },
-              { icon: '💲', crit: 'PER 0~35 (적정 밸류)', desc: '현재 이익 대비 주가. 너무 비싸지 않은지 확인.' },
-              { icon: '✅', crit: '순이익 흑자', desc: '적자 성장보다 흑자 성장. 버핏의 기본 조건.' },
+              { icon: '🏦', crit: '부채비율 < 100%',       desc: '부채/자본 비율. 빚이 적어야 불황·금리 상승에 강함.' },
+              { icon: '📈', crit: '매출 성장 (YoY > 0)',   desc: '전년 대비 매출이 늘고 있는지. 꾸준한 성장이 핵심.' },
+              { icon: '💲', crit: 'PER 0~35 (적정 밸류)',  desc: '현재 이익 대비 주가. 너무 비싸지 않은지 확인.' },
+              { icon: '✅', crit: '순이익 흑자',            desc: '적자 성장보다 흑자 성장. 버핏의 기본 조건.' },
             ].map((item) => (
               <div key={item.crit} className="flex gap-2 p-2 rounded-lg bg-white/3">
                 <span className="text-base shrink-0">{item.icon}</span>
@@ -453,59 +478,116 @@ export default function ScreenerPage() {
           ))}
         </div>
 
-        {/* Default ticker chips */}
-        <div>
-          <p className="text-xs text-[var(--text-muted)] mb-2">기본 분석 종목</p>
-          <div className="flex flex-wrap gap-1.5">
-            {defaultList.map((d) => (
-              <span key={d.ticker} className="text-xs px-2 py-0.5 rounded-lg bg-white/8 text-[var(--text-muted)] border border-[var(--border)]">
-                {d.name}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Custom ticker input */}
+        {/* 종목 입력 */}
         <div>
           <p className="text-xs text-[var(--text-muted)] mb-2">
-            종목 직접 추가{' '}
-            <span className="opacity-60">
-              ({market === 'KR' ? '예: 005930 또는 005930.KS' : '예: TSLA, NVDA'})
-            </span>
+            {market === 'KR'
+              ? '종목 검색 — 주식명 또는 종목코드(6자리)로 추가'
+              : '종목 추가 — 티커 입력 (예: TSLA, NVDA)'}
           </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={customInput}
-              onChange={(e) => setCustomInput(e.target.value.trim())}
-              onKeyDown={(e) => e.key === 'Enter' && addCustom()}
-              placeholder={market === 'KR' ? '종목코드 (6자리)' : '티커 (예: TSLA)'}
-              className="flex-1 bg-white/5 border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50"
-            />
-            <button
-              onClick={addCustom}
-              className="px-4 py-2 bg-white/10 hover:bg-white/15 text-[var(--text)] rounded-xl text-sm transition-colors border border-[var(--border)]"
-            >
-              추가
-            </button>
-          </div>
+
+          {/* KR: 이름 검색 + 드롭다운 */}
+          {market === 'KR' ? (
+            <div className="relative" ref={dropRef}>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={customInput}
+                  onChange={(e) => handleKRInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      if (hits.length > 0) addFromHit(hits[0]);
+                      else addByCode();
+                    }
+                    if (e.key === 'Escape') setShowDrop(false);
+                  }}
+                  placeholder="삼성전자, 카카오, 005930 …"
+                  className="flex-1 bg-white/5 border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50"
+                />
+                <button
+                  onClick={() => {
+                    if (hits.length > 0) addFromHit(hits[0]);
+                    else addByCode();
+                  }}
+                  className="px-4 py-2 bg-white/10 hover:bg-white/15 text-[var(--text)] rounded-xl text-sm transition-colors border border-[var(--border)]"
+                >
+                  추가
+                </button>
+              </div>
+
+              {/* 드롭다운 */}
+              {showDrop && (
+                <div className="absolute z-50 left-0 right-0 mt-1 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl overflow-hidden">
+                  {searching ? (
+                    <p className="text-xs text-[var(--text-muted)] px-4 py-3">검색 중…</p>
+                  ) : hits.length === 0 ? (
+                    <p className="text-xs text-[var(--text-muted)] px-4 py-3">검색 결과 없음</p>
+                  ) : (
+                    hits.map((h) => (
+                      <button
+                        key={h.ticker}
+                        onClick={() => addFromHit(h)}
+                        className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-sm text-[var(--text)]">{h.name}</span>
+                        <span className="text-[11px] font-mono text-[var(--text-muted)]">
+                          {h.ticker.replace(/\.(KS|KQ)$/, '')}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* US: 티커 직접 입력 */
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value.trim())}
+                onKeyDown={(e) => e.key === 'Enter' && addByCode()}
+                placeholder="티커 (예: TSLA)"
+                className="flex-1 bg-white/5 border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50"
+              />
+              <button
+                onClick={addByCode}
+                className="px-4 py-2 bg-white/10 hover:bg-white/15 text-[var(--text)] rounded-xl text-sm transition-colors border border-[var(--border)]"
+              >
+                추가
+              </button>
+            </div>
+          )}
+
+          {/* 추가된 종목 칩 */}
           {customTickers.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
+            <div className="flex flex-wrap gap-1.5 mt-3">
               {customTickers.map((t) => (
-                <span key={t} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg bg-sky-500/15 text-sky-400 border border-sky-500/30">
-                  {t.replace('.KS', '').replace('.KQ', '')}
-                  <button onClick={() => removeCustom(t)} className="hover:text-white transition-colors">×</button>
+                <span
+                  key={t}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-sky-500/15 text-sky-400 border border-sky-500/30"
+                >
+                  <span className="font-medium">{chipLabel(t)}</span>
+                  <span className="text-[10px] opacity-60 font-mono">
+                    {t.replace(/\.(KS|KQ)$/, '')}
+                  </span>
+                  <button
+                    onClick={() => removeCustom(t)}
+                    className="ml-0.5 hover:text-white transition-colors leading-none"
+                  >
+                    ×
+                  </button>
                 </span>
               ))}
             </div>
           )}
         </div>
 
-        {/* Analyze button */}
+        {/* 분석하기 버튼 */}
         <button
           onClick={handleAnalyze}
-          disabled={isLoading}
-          className="w-full py-3 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+          disabled={isLoading || activeTickers.length === 0}
+          className="w-full py-3 bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>
@@ -513,10 +595,12 @@ export default function ScreenerPage() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              분석 중... (Yahoo Finance 조회, 최대 15초)
+              분석 중… (Yahoo Finance 조회, 최대 15초)
             </>
+          ) : activeTickers.length === 0 ? (
+            '종목을 추가한 후 분석하기'
           ) : (
-            <>🔍 {activeTickers.length}개 종목 버핏 분석하기</>
+            `🔍 ${activeTickers.length}개 종목 버핏 분석하기`
           )}
         </button>
       </div>
@@ -526,13 +610,11 @@ export default function ScreenerPage() {
         <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-5 mb-4">
           <p className="text-red-400 font-semibold text-sm mb-1">⚠️ 데이터를 가져올 수 없습니다</p>
           <p className="text-xs text-[var(--text-muted)] mb-3">
-            {typeof error === 'string'
-              ? error
-              : 'Yahoo Finance API에 일시적인 문제가 있습니다.'}
+            {typeof error === 'string' ? error : 'Yahoo Finance API에 일시적인 문제가 있습니다.'}
           </p>
           <p className="text-xs text-[var(--text-muted)]">
             💡 <strong className="text-[var(--text)]">해결 방법:</strong>{' '}
-            잠시 후(30초~1분) 다시 분석하기를 눌러보세요. Yahoo Finance 서버 측 인증이 필요한 경우 자동으로 재시도됩니다.
+            잠시 후(30초~1분) 다시 분석하기를 눌러보세요.
           </p>
           <button
             onClick={() => { setQuery(null); setTimeout(() => handleAnalyze(), 100); }}
@@ -545,7 +627,7 @@ export default function ScreenerPage() {
 
       {isLoading && (
         <div className="space-y-3">
-          {[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}
+          {[...Array(customTickers.length || 3)].map((_, i) => <SkeletonCard key={i} />)}
         </div>
       )}
 
@@ -555,7 +637,6 @@ export default function ScreenerPage() {
           <div className="flex flex-wrap items-center gap-2 mb-3">
             <span className="text-xs text-[var(--text-muted)]">{sorted.length}개 표시</span>
             <div className="flex gap-1 ml-auto flex-wrap">
-              {/* Min score filter */}
               <div className="flex items-center gap-1 text-xs text-[var(--text-muted)] mr-2">
                 <span>최소 점수</span>
                 <select
@@ -568,7 +649,6 @@ export default function ScreenerPage() {
                   ))}
                 </select>
               </div>
-              {/* Sort */}
               {SORT_OPTIONS.map((s) => (
                 <button
                   key={s.key}
@@ -597,7 +677,7 @@ export default function ScreenerPage() {
                   r={r}
                   market={market}
                   localName={
-                    LOCAL_NAMES[r.ticker] ??
+                    localNames[r.ticker] ??
                     (r.name !== r.ticker ? r.name : r.ticker.replace(/\.(KS|KQ)$/, ''))
                   }
                 />
@@ -605,19 +685,31 @@ export default function ScreenerPage() {
             </div>
           )}
 
-          {/* Data note */}
           <p className="text-center text-xs text-[var(--text-muted)] mt-6 opacity-50">
             * Yahoo Finance 재무 데이터 기준 (1시간 캐시) · 투자 참고용
           </p>
         </>
       )}
 
-      {/* ── No query yet ── */}
+      {/* 종목 미추가 안내 */}
       {!query && !isLoading && (
         <div className="text-center py-16 text-[var(--text-muted)]">
           <p className="text-4xl mb-3">🔍</p>
-          <p className="text-sm">위에서 시장을 선택하고 <strong className="text-[var(--text)]">분석하기</strong> 버튼을 누르세요</p>
-          <p className="text-xs mt-1 opacity-60">Yahoo Finance에서 재무 데이터를 실시간으로 가져옵니다</p>
+          {activeTickers.length === 0 ? (
+            <>
+              <p className="text-sm">
+                {market === 'KR'
+                  ? '주식명(예: 삼성전자) 또는 종목코드(예: 005930)를 검색해 종목을 추가하세요'
+                  : '티커(예: AAPL, TSLA)를 입력해 종목을 추가하세요'}
+              </p>
+              <p className="text-xs mt-1 opacity-60">추가한 종목에 버핏 7가지 기준을 적용해 분석합니다</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm"><strong className="text-[var(--text)]">분석하기</strong> 버튼을 눌러 시작하세요</p>
+              <p className="text-xs mt-1 opacity-60">Yahoo Finance에서 재무 데이터를 실시간으로 가져옵니다</p>
+            </>
+          )}
         </div>
       )}
     </div>
