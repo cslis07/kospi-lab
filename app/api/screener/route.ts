@@ -1,45 +1,137 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const HOSTS = [
-  'https://query1.finance.yahoo.com',
-  'https://query2.finance.yahoo.com',
-];
+const UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
-async function fetchSummary(ticker: string) {
+// ── Module-level auth cache (재사용: Lambda warm 상태에서 재요청 시 절약) ──
+let _crumb  = '';
+let _cookie = '';
+let _authTs = 0;
+
+// ── Ticker-level result cache ─────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const RCACHE = new Map<string, { d: any; ts: number }>();
+const CACHE_TTL = 60 * 60 * 1000; // 1h
+
+// ── Yahoo Finance 쿠키 + crumb 취득 ──────────────────────────────────────
+async function ensureCrumb() {
+  if (_crumb && Date.now() - _authTs < 20 * 60_000) return; // 20분 캐시
+
+  try {
+    // 1) Yahoo Finance 홈에서 세션 쿠키 취득
+    const r1 = await fetch('https://finance.yahoo.com/', {
+      headers: {
+        'User-Agent': UA,
+        Accept:
+          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      redirect: 'follow',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(9000),
+    });
+
+    // Set-Cookie 헤더 수집 (Node 18+: getSetCookie / 구버전 fallback)
+    let rawCookies: string[] = [];
+    const gsc = (r1.headers as Headers & { getSetCookie?: () => string[] })
+      .getSetCookie;
+    if (typeof gsc === 'function') {
+      rawCookies = gsc.call(r1.headers);
+    } else {
+      rawCookies = (r1.headers.get('set-cookie') ?? '')
+        .split(/,(?=\s*[A-Za-z0-9_-]+=)/)
+        .filter(Boolean);
+    }
+    const cookie = rawCookies
+      .flatMap((c) => c.split(/;/)[0].trim())
+      .filter((c) => c.includes('='))
+      .join('; ');
+
+    // 2) crumb 취득
+    const r2 = await fetch(
+      'https://query1.finance.yahoo.com/v1/test/getcrumb',
+      {
+        headers: { 'User-Agent': UA, Cookie: cookie },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(6000),
+      }
+    );
+
+    if (r2.ok) {
+      const crumb = (await r2.text()).trim();
+      // 유효한 crumb인지 확인 (JSON 에러 응답이 아닌지)
+      if (crumb && crumb.length < 50 && !crumb.startsWith('{')) {
+        _crumb  = crumb;
+        _cookie = cookie;
+        _authTs = Date.now();
+      }
+    }
+  } catch {
+    /* crumb 없이 진행 */
+  }
+}
+
+// ── Yahoo Finance v10/quoteSummary fetch ──────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchSummary(ticker: string): Promise<any | null> {
+  // 캐시 확인
+  const cached = RCACHE.get(ticker);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.d;
+
+  await ensureCrumb();
+
   const modules = [
-    'price',
     'financialData',
     'defaultKeyStatistics',
     'summaryDetail',
-    'balanceSheetHistoryQuarterly',
     'assetProfile',
+    'balanceSheetHistoryQuarterly',
   ].join(',');
+
+  const crumbQ = _crumb  ? `&crumb=${encodeURIComponent(_crumb)}`   : '';
+  const ckHdr  = _cookie ? { Cookie: _cookie }                       : {};
+
+  const HOSTS = [
+    'https://query1.finance.yahoo.com',
+    'https://query2.finance.yahoo.com',
+  ];
 
   for (const host of HOSTS) {
     try {
-      const res = await fetch(
-        `${host}/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}`,
-        {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            Accept: 'application/json',
-            'Accept-Language': 'en-US,en;q=0.9',
-          },
-          next: { revalidate: 3600 }, // cache 1h — financial data doesn't change minute-to-minute
-          signal: AbortSignal.timeout(8000),
-        }
-      );
-      if (!res.ok) continue;
+      const url = `${host}/v10/finance/quoteSummary/${encodeURIComponent(
+        ticker
+      )}?modules=${modules}${crumbQ}`;
+
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': UA,
+          Accept: 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9',
+          Referer: 'https://finance.yahoo.com/',
+          ...ckHdr,
+        },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(9000),
+      });
+
+      if (!res.ok) {
+        // 인증 만료 → 다음 요청 시 재취득
+        if (res.status === 401 || res.status === 403) _authTs = 0;
+        continue;
+      }
+
       const json = await res.json();
       const result = json?.quoteSummary?.result?.[0];
-      if (result) return result;
-    } catch { /* try next host */ }
+      if (result) {
+        RCACHE.set(ticker, { d: result, ts: Date.now() });
+        return result;
+      }
+    } catch { /* 다음 host 시도 */ }
   }
   return null;
 }
 
-// Safe deep-get for Yahoo's {raw, fmt} value objects
+// ── 안전한 raw number 추출 ─────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function raw(obj: any, ...keys: string[]): number | null {
   let cur = obj;
@@ -49,7 +141,6 @@ function raw(obj: any, ...keys: string[]): number | null {
   }
   return typeof cur === 'number' ? cur : null;
 }
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function str(obj: any, ...keys: string[]): string | null {
   let cur = obj;
@@ -57,9 +148,13 @@ function str(obj: any, ...keys: string[]): string | null {
     if (cur == null) return null;
     cur = cur[k];
   }
-  return typeof cur === 'string' ? cur : null;
+  return typeof cur === 'string' && cur ? cur : null;
+}
+function pct(v: number | null, dp = 1) {
+  return v != null ? Math.round(v * Math.pow(10, dp + 2)) / Math.pow(10, dp) : null;
 }
 
+// ── GET handler ────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const tickers = (searchParams.get('tickers') ?? '')
@@ -69,11 +164,9 @@ export async function GET(req: NextRequest) {
     .slice(0, 12);
   const market = (searchParams.get('market') ?? 'US') as 'KR' | 'US';
 
-  if (!tickers.length) {
+  if (!tickers.length)
     return NextResponse.json({ error: 'tickers required' }, { status: 400 });
-  }
 
-  // ROE threshold differs by market
   const roeMin = market === 'KR' ? 10 : 15;
 
   const settled = await Promise.allSettled(
@@ -81,62 +174,63 @@ export async function GET(req: NextRequest) {
       const d = await fetchSummary(ticker);
       if (!d) return null;
 
-      const pr  = d.price ?? {};
-      const fd  = d.financialData ?? {};
+      const pr  = d.price               ?? {};
+      const fd  = d.financialData        ?? {};
       const ks  = d.defaultKeyStatistics ?? {};
-      const sd  = d.summaryDetail ?? {};
-      const ap  = d.assetProfile ?? {};
+      const sd  = d.summaryDetail        ?? {};
+      const ap  = d.assetProfile         ?? {};
       const bs0 = d.balanceSheetHistoryQuarterly?.balanceSheetStatements?.[0] ?? {};
 
       const name: string =
-        str(pr, 'longName') ?? str(pr, 'shortName') ?? str(ap, 'longName') ?? ticker;
+        str(pr, 'longName')  ??
+        str(pr, 'shortName') ??
+        str(ap, 'longName')  ??
+        str(sd, 'longName')  ??
+        ticker;
       const currency: string =
         str(pr, 'currency') ??
         (ticker.endsWith('.KS') || ticker.endsWith('.KQ') ? 'KRW' : 'USD');
-      const marketCap = raw(pr, 'marketCap', 'raw') ?? raw(sd, 'marketCap', 'raw');
-      const sector    = str(ap, 'sector');
-      const industry  = str(ap, 'industry');
+      const marketCap =
+        raw(pr, 'marketCap', 'raw') ?? raw(sd, 'marketCap', 'raw');
+      const sector   = str(ap, 'sector');
+      const industry = str(ap, 'industry');
 
-      // ── financial metrics ──────────────────────────────
-      const roeRaw    = raw(fd, 'returnOnEquity', 'raw');
-      const marginRaw = raw(fd, 'operatingMargins', 'raw');
-      const fcf       = raw(fd, 'freeCashflow', 'raw');
-      const revGrRaw  = raw(fd, 'revenueGrowth', 'raw');
-      const netInc    = raw(fd, 'netIncomeToCommon', 'raw');
-      const totLiab   = raw(bs0, 'totalLiab', 'raw');
-      const totEq     = raw(bs0, 'totalStockholderEquity', 'raw');
-
-      // Convert decimals → percentages, round to 1dp
-      const roe           = roeRaw    != null ? Math.round(roeRaw    * 1000) / 10 : null;
-      const opMargin      = marginRaw != null ? Math.round(marginRaw * 1000) / 10 : null;
-      const revenueGrowth = revGrRaw  != null ? Math.round(revGrRaw  * 1000) / 10 : null;
-      const debtRatio     =
+      // ── 재무 지표 (소수 → 퍼센트 변환) ──
+      const roe        = pct(raw(fd, 'returnOnEquity',   'raw'));
+      const opMargin   = pct(raw(fd, 'operatingMargins', 'raw'));
+      const fcf        = raw(fd, 'freeCashflow', 'raw');
+      const revGrowth  = pct(raw(fd, 'revenueGrowth',    'raw'));
+      const netInc     = raw(fd, 'netIncomeToCommon', 'raw');
+      const totLiab    = raw(bs0, 'totalLiab', 'raw');
+      const totEq      = raw(bs0, 'totalStockholderEquity', 'raw');
+      const debtRatio  =
         totLiab != null && totEq != null && totEq > 0
           ? Math.round((totLiab / totEq) * 1000) / 10
           : null;
 
-      // PER / PEG / Forward PE
-      const per   = raw(ks, 'trailingPE', 'raw') ?? raw(sd, 'trailingPE', 'raw');
-      const peg   = raw(ks, 'pegRatio', 'raw');
-      const fwdPE = raw(ks, 'forwardPE', 'raw') ?? raw(sd, 'forwardPE', 'raw');
+      // PER / PEG / fwdPE
+      const perRaw   = raw(ks, 'trailingPE', 'raw') ?? raw(sd, 'trailingPE', 'raw');
+      const fwdPERaw = raw(ks, 'forwardPE',  'raw') ?? raw(sd, 'forwardPE',  'raw');
+      const pegRaw   = raw(ks, 'pegRatio',   'raw');
+      const per   = perRaw   != null ? Math.round(perRaw   * 10) / 10 : null;
+      const fwdPE = fwdPERaw != null ? Math.round(fwdPERaw * 10) / 10 : null;
+      const peg   = pegRaw   != null ? Math.round(pegRaw   * 100) / 100 : null;
 
-      // ── 7 Buffett criteria ─────────────────────────────
+      // ── 버핏 7가지 기준 ────────────────────────────────
       const details = {
-        roe:    roe       != null ? roe    >= roeMin         : null,
-        margin: opMargin  != null ? opMargin >= 15           : null,
-        fcf:    fcf       != null ? fcf    >  0              : null,
-        debt:   debtRatio != null ? debtRatio < 100          : null,
-        growth: revenueGrowth != null ? revenueGrowth > 0   : null,
+        roe:    roe       != null ? roe       >= roeMin      : null,
+        margin: opMargin  != null ? opMargin  >= 15          : null,
+        fcf:    fcf       != null ? fcf       >  0           : null,
+        debt:   debtRatio != null ? debtRatio <  100         : null,
+        growth: revGrowth != null ? revGrowth >  0           : null,
         per:    per       != null ? per > 0 && per < 35      : null,
-        profit: netInc    != null ? netInc  >  0             : null,
+        profit: netInc    != null ? netInc    >  0           : null,
       };
 
       return {
         ticker, name, currency, marketCap, sector, industry,
-        per:   per   != null ? Math.round(per   * 10) / 10 : null,
-        peg:   peg   != null ? Math.round(peg   * 100) / 100 : null,
-        fwdPE: fwdPE != null ? Math.round(fwdPE * 10) / 10 : null,
-        roe, opMargin, fcf, debtRatio, revenueGrowth, netInc,
+        per, peg, fwdPE, roe, opMargin, fcf, debtRatio,
+        revenueGrowth: revGrowth, netInc,
         buffettScore:   Object.values(details).filter((v) => v === true).length,
         buffettDetails: details,
       };
@@ -147,6 +241,14 @@ export async function GET(req: NextRequest) {
     .filter((r) => r.status === 'fulfilled' && r.value !== null)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((r) => (r as PromiseFulfilledResult<any>).value);
+
+  // 모두 실패했을 때 → 클라이언트에 명시적 오류 전달
+  if (results.length === 0) {
+    return NextResponse.json(
+      { error: 'Yahoo Finance에서 데이터를 가져올 수 없습니다. 잠시 후 재시도해주세요.' },
+      { status: 502 }
+    );
+  }
 
   return NextResponse.json(results);
 }

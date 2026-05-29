@@ -334,13 +334,18 @@ export default function ScreenerPage() {
     ? `/api/screener?tickers=${query.tickers.join(',')}&market=${query.market}`
     : null;
 
-  const { data, isLoading, error } = useSWR<ScreenerResult[]>(apiUrl, fetcher, {
-    revalidateOnFocus: false,
-  });
+  const { data: rawData, isLoading, error: swrError } = useSWR<
+    ScreenerResult[] | { error: string }
+  >(apiUrl, fetcher, { revalidateOnFocus: false });
+
+  // API가 { error: string }을 반환하는 경우 처리
+  const apiErrorMsg = (rawData as { error?: string })?.error ?? null;
+  const data = Array.isArray(rawData) ? rawData : null;
+  const error = swrError || apiErrorMsg;
 
   // Sort + filter
   const sorted = useMemo(() => {
-    if (!Array.isArray(data)) return [];
+    if (!data) return [];
     return [...data]
       .filter((r) => r.buffettScore >= minScore)
       .sort((a, b) => {
@@ -512,8 +517,23 @@ export default function ScreenerPage() {
 
       {/* ── Results ── */}
       {error && !isLoading && (
-        <div className="text-center text-red-400 text-sm py-8">
-          데이터를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-5 mb-4">
+          <p className="text-red-400 font-semibold text-sm mb-1">⚠️ 데이터를 가져올 수 없습니다</p>
+          <p className="text-xs text-[var(--text-muted)] mb-3">
+            {typeof error === 'string'
+              ? error
+              : 'Yahoo Finance API에 일시적인 문제가 있습니다.'}
+          </p>
+          <p className="text-xs text-[var(--text-muted)]">
+            💡 <strong className="text-[var(--text)]">해결 방법:</strong>{' '}
+            잠시 후(30초~1분) 다시 분석하기를 눌러보세요. Yahoo Finance 서버 측 인증이 필요한 경우 자동으로 재시도됩니다.
+          </p>
+          <button
+            onClick={() => { setQuery(null); setTimeout(() => handleAnalyze(), 100); }}
+            className="mt-3 px-4 py-1.5 text-xs rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors"
+          >
+            🔄 재시도
+          </button>
         </div>
       )}
 
@@ -523,7 +543,7 @@ export default function ScreenerPage() {
         </div>
       )}
 
-      {Array.isArray(data) && !isLoading && (
+      {data && !isLoading && (
         <>
           {/* Sort + filter bar */}
           <div className="flex flex-wrap items-center gap-2 mb-3">
