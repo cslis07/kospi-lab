@@ -210,17 +210,26 @@ export async function GET(req: NextRequest) {
       const opMargin   = pct(raw(fd, 'operatingMargins', 'raw'));
       const fcf        = raw(fd, 'freeCashflow', 'raw');
       const revGrowth  = pct(raw(fd, 'revenueGrowth',    'raw'));
-      // 순이익: financialData → 손익계산서 폴백
-      const netInc     =
-        raw(fd, 'netIncomeToCommon', 'raw') ??
-        raw(is0, 'netIncome', 'raw');
-      // 부채비율: 분기/연간 재무상태표에서 추출
-      const totLiab    = raw(bs0, 'totalLiab', 'raw');
-      const totEq      = raw(bs0, 'totalStockholderEquity', 'raw');
-      const debtRatio  =
+      // 순이익: 4단계 폴백 (한국 주식은 경로마다 null 케이스 다름)
+      const netInc =
+        raw(fd, 'netIncomeToCommon', 'raw') ??           // financialData
+        raw(ks, 'netIncomeToCommon', 'raw') ??           // defaultKeyStatistics
+        raw(is0, 'netIncome', 'raw') ??                   // incomeStatementHistory
+        raw(is0, 'netIncomeApplicableToCommonShares', 'raw'); // 일부 종목 대체 필드
+
+      // 부채비율: financialData.debtToEquity 직접 사용 (Yahoo Finance가 안정적으로 제공)
+      // 값은 이미 % 단위 (예: D/E 1.5 → 150.0). balanceSheetHistory는 한국 주식에서 누락됨
+      const debtRatioFD = raw(fd, 'debtToEquity', 'raw'); // %단위 D/E
+      // balanceSheetHistory 폴백 (미국 주식 등 제공되는 경우)
+      const totLiab = raw(bs0, 'totalLiab', 'raw');
+      const totEq   = raw(bs0, 'totalStockholderEquity', 'raw');
+      const debtRatioBs =
         totLiab != null && totEq != null && totEq > 0
           ? Math.round((totLiab / totEq) * 1000) / 10
           : null;
+      const debtRatio = debtRatioFD != null
+        ? Math.round(debtRatioFD * 10) / 10
+        : debtRatioBs;
 
       // PER / PEG / fwdPE
       // 한국 주식은 trailingPE 미제공 → 시가총액/순이익으로 근사 계산
