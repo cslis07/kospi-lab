@@ -300,7 +300,8 @@ export default function ScreenerPage() {
   // ── 자동완성 검색 상태 ───────────────────────────────────────────────────────
   const [hits, setHits]           = useState<SearchHit[]>([]);
   const [showDrop, setShowDrop]   = useState(false);
-  const dropRef = useRef<HTMLDivElement>(null);
+  const dropRef    = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
@@ -313,19 +314,40 @@ export default function ScreenerPage() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // 한국 시장: 로컬 리스트에서 즉시 검색 (네트워크 불필요)
+  // 한국 시장: 로컬 즉시검색 + KRX API debounce 검색
   const handleKRInput = useCallback((val: string) => {
     setCustomInput(val);
     const trimmed = val.trim();
-    // 6자리 숫자면 코드 직접 입력 → 드롭다운 불필요
+
+    // 빈값 또는 6자리 숫자 코드 → 드롭다운 불필요
     if (!trimmed || /^\d+$/.test(trimmed)) {
       setHits([]);
       setShowDrop(false);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       return;
     }
-    const results = searchKrStocks(trimmed).map((s) => ({ ticker: s.ticker, name: s.name }));
-    setHits(results);
-    setShowDrop(results.length > 0);
+
+    // 1) 로컬 리스트 즉시 검색 (~90개 주요 종목)
+    const localResults = searchKrStocks(trimmed).map((s) => ({ ticker: s.ticker, name: s.name }));
+    setHits(localResults);
+    setShowDrop(localResults.length > 0);
+
+    // 2) KRX API 검색 (400ms debounce — 전 종목 커버)
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/stock-search?q=${encodeURIComponent(trimmed)}`);
+        if (!res.ok) return;
+        const apiHits: SearchHit[] = await res.json();
+        if (!Array.isArray(apiHits) || apiHits.length === 0) return;
+        setHits((prev) => {
+          const seen = new Set(prev.map((h) => h.ticker));
+          const merged = [...prev, ...apiHits.filter((h) => !seen.has(h.ticker))];
+          return merged.slice(0, 8);
+        });
+        setShowDrop(true);
+      } catch { /* 네트워크 오류 무시 */ }
+    }, 400);
   }, []);
 
   // 검색 결과에서 종목 선택
@@ -337,9 +359,10 @@ export default function ScreenerPage() {
     setCustomInput('');
     setShowDrop(false);
     setHits([]);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
   };
 
-  // 코드 직접 입력 추가 (한국 6자리, 미국 티커)
+  // 코드 직접 입력 추가 (한국 6자리 숫자만, 미국 알파벳 티커)
   const normalizeTicker = (t: string): string => {
     const u = t.toUpperCase().trim();
     if (market === 'KR' && /^\d{6}$/.test(u)) return `${u}.KS`;
@@ -347,7 +370,10 @@ export default function ScreenerPage() {
   };
 
   const addByCode = () => {
-    const t = normalizeTicker(customInput);
+    const raw = customInput.trim();
+    // KR 시장: 6자리 숫자 코드만 직접 추가 허용 (이름 입력은 드롭다운으로만)
+    if (market === 'KR' && !/^\d{6}$/.test(raw)) return;
+    const t = normalizeTicker(raw);
     if (!t || customTickers.includes(t)) return;
     setCustomTickers((prev) => [...prev, t]);
     setCustomInput('');
@@ -413,6 +439,7 @@ export default function ScreenerPage() {
     setCustomInput('');
     setHits([]);
     setShowDrop(false);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
   };
 
   const SORT_OPTIONS: { key: SortKey; label: string }[] = [
