@@ -88,8 +88,7 @@ async function fetchSummary(ticker: string): Promise<any | null> {
     'balanceSheetHistoryQuarterly',
   ].join(',');
 
-  const crumbQ = _crumb  ? `&crumb=${encodeURIComponent(_crumb)}`   : '';
-  const ckHdr  = _cookie ? { Cookie: _cookie }                       : {};
+  const crumbQ = _crumb ? `&crumb=${encodeURIComponent(_crumb)}` : '';
 
   const HOSTS = [
     'https://query1.finance.yahoo.com',
@@ -102,14 +101,17 @@ async function fetchSummary(ticker: string): Promise<any | null> {
         ticker
       )}?modules=${modules}${crumbQ}`;
 
+      // Record<string,string> 으로 명시해야 HeadersInit 타입 오류 없음
+      const reqHeaders: Record<string, string> = {
+        'User-Agent': UA,
+        Accept: 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+        Referer: 'https://finance.yahoo.com/',
+      };
+      if (_cookie) reqHeaders['Cookie'] = _cookie;
+
       const res = await fetch(url, {
-        headers: {
-          'User-Agent': UA,
-          Accept: 'application/json',
-          'Accept-Language': 'en-US,en;q=0.9',
-          Referer: 'https://finance.yahoo.com/',
-          ...ckHdr,
-        },
+        headers: reqHeaders,
         cache: 'no-store',
         signal: AbortSignal.timeout(9000),
       });
