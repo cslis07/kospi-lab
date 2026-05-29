@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
+import { searchKrStocks } from '@/lib/krStocks';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -280,11 +281,9 @@ export default function ScreenerPage() {
   const [minScore, setMinScore]       = useState(0);
 
   // ── 자동완성 검색 상태 ───────────────────────────────────────────────────────
-  const [hits, setHits]               = useState<SearchHit[]>([]);
-  const [searching, setSearching]     = useState(false);
-  const [showDrop, setShowDrop]       = useState(false);
-  const dropRef   = useRef<HTMLDivElement>(null);
-  const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [hits, setHits]           = useState<SearchHit[]>([]);
+  const [showDrop, setShowDrop]   = useState(false);
+  const dropRef = useRef<HTMLDivElement>(null);
 
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
@@ -297,32 +296,19 @@ export default function ScreenerPage() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // 한국 시장: 주식명 자동완성 검색 (디바운스 300ms)
+  // 한국 시장: 로컬 리스트에서 즉시 검색 (네트워크 불필요)
   const handleKRInput = useCallback((val: string) => {
     setCustomInput(val);
-    if (timerRef.current) clearTimeout(timerRef.current);
-
     const trimmed = val.trim();
-    // 6자리 숫자면 코드 직접 입력 → 검색 불필요
+    // 6자리 숫자면 코드 직접 입력 → 드롭다운 불필요
     if (!trimmed || /^\d+$/.test(trimmed)) {
       setHits([]);
       setShowDrop(false);
       return;
     }
-
-    setSearching(true);
-    setShowDrop(true);
-    timerRef.current = setTimeout(async () => {
-      try {
-        const res  = await fetch(`/api/stock-search?q=${encodeURIComponent(trimmed)}&market=KR`);
-        const data = await res.json() as SearchHit[];
-        setHits(data);
-      } catch {
-        setHits([]);
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
+    const results = searchKrStocks(trimmed).map((s) => ({ ticker: s.ticker, name: s.name }));
+    setHits(results);
+    setShowDrop(results.length > 0);
   }, []);
 
   // 검색 결과에서 종목 선택
@@ -516,26 +502,20 @@ export default function ScreenerPage() {
               </div>
 
               {/* 드롭다운 */}
-              {showDrop && (
+              {showDrop && hits.length > 0 && (
                 <div className="absolute z-50 left-0 right-0 mt-1 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl overflow-hidden">
-                  {searching ? (
-                    <p className="text-xs text-[var(--text-muted)] px-4 py-3">검색 중…</p>
-                  ) : hits.length === 0 ? (
-                    <p className="text-xs text-[var(--text-muted)] px-4 py-3">검색 결과 없음</p>
-                  ) : (
-                    hits.map((h) => (
-                      <button
-                        key={h.ticker}
-                        onClick={() => addFromHit(h)}
-                        className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
-                      >
-                        <span className="text-sm text-[var(--text)]">{h.name}</span>
-                        <span className="text-[11px] font-mono text-[var(--text-muted)]">
-                          {h.ticker.replace(/\.(KS|KQ)$/, '')}
-                        </span>
-                      </button>
-                    ))
-                  )}
+                  {hits.map((h) => (
+                    <button
+                      key={h.ticker}
+                      onClick={() => addFromHit(h)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-white/5 transition-colors border-b border-[var(--border)] last:border-0"
+                    >
+                      <span className="text-sm text-[var(--text)]">{h.name}</span>
+                      <span className="text-[11px] font-mono text-[var(--text-muted)]">
+                        {h.ticker.replace(/\.(KS|KQ)$/, '')}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
