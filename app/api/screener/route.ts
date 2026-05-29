@@ -86,6 +86,8 @@ async function fetchSummary(ticker: string): Promise<any | null> {
     'summaryDetail',
     'assetProfile',
     'balanceSheetHistoryQuarterly',
+    'balanceSheetHistory',       // 연간 재무상태표 (분기 없을 때 폴백)
+    'incomeStatementHistory',    // 연간 손익계산서 (순이익·EPS 폴백)
   ].join(',');
 
   const crumbQ = _crumb ? `&crumb=${encodeURIComponent(_crumb)}` : '';
@@ -181,7 +183,13 @@ export async function GET(req: NextRequest) {
       const ks  = d.defaultKeyStatistics ?? {};
       const sd  = d.summaryDetail        ?? {};
       const ap  = d.assetProfile         ?? {};
-      const bs0 = d.balanceSheetHistoryQuarterly?.balanceSheetStatements?.[0] ?? {};
+      // 분기 재무상태표 → 없으면 연간 폴백
+      const bs0 =
+        d.balanceSheetHistoryQuarterly?.balanceSheetStatements?.[0] ??
+        d.balanceSheetHistory?.balanceSheetStatements?.[0] ??
+        {};
+      // 연간 손익계산서 (순이익·EPS 폴백용)
+      const is0 = d.incomeStatementHistory?.incomeStatementHistory?.[0] ?? {};
 
       const name: string =
         str(pr, 'longName')  ??
@@ -202,7 +210,11 @@ export async function GET(req: NextRequest) {
       const opMargin   = pct(raw(fd, 'operatingMargins', 'raw'));
       const fcf        = raw(fd, 'freeCashflow', 'raw');
       const revGrowth  = pct(raw(fd, 'revenueGrowth',    'raw'));
-      const netInc     = raw(fd, 'netIncomeToCommon', 'raw');
+      // 순이익: financialData → 손익계산서 폴백
+      const netInc     =
+        raw(fd, 'netIncomeToCommon', 'raw') ??
+        raw(is0, 'netIncome', 'raw');
+      // 부채비율: 분기/연간 재무상태표에서 추출
       const totLiab    = raw(bs0, 'totalLiab', 'raw');
       const totEq      = raw(bs0, 'totalStockholderEquity', 'raw');
       const debtRatio  =
@@ -211,7 +223,13 @@ export async function GET(req: NextRequest) {
           : null;
 
       // PER / PEG / fwdPE
-      const perRaw   = raw(ks, 'trailingPE', 'raw') ?? raw(sd, 'trailingPE', 'raw');
+      // 한국 주식은 trailingPE 미제공 → 시가총액/순이익으로 근사 계산
+      const perRaw   =
+        raw(ks, 'trailingPE', 'raw') ??
+        raw(sd, 'trailingPE', 'raw') ??
+        (marketCap != null && netInc != null && netInc > 0
+          ? marketCap / netInc
+          : null);
       const fwdPERaw = raw(ks, 'forwardPE',  'raw') ?? raw(sd, 'forwardPE',  'raw');
       const pegRaw   = raw(ks, 'pegRatio',   'raw');
       const per   = perRaw   != null ? Math.round(perRaw   * 10) / 10 : null;
