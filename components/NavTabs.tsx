@@ -6,9 +6,9 @@ import { usePathname } from 'next/navigation';
 const TABS = [
   { label: '대시보드', href: '/' },
   { label: '가상투자', href: '/virtual' },
+  { label: '스크리너', href: '/screener' },
   { label: '캘린더',   href: '/calendar' },
   { label: '공시',     href: '/dart' },
-  { label: '리포트',   href: '/report' },
   { label: '뉴스',     href: '/news' },
 ];
 
