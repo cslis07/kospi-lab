@@ -61,6 +61,11 @@ const US_DEFAULT = [
   { ticker: 'BRK-B', name: 'Berkshire' },
 ];
 
+// ── Local name lookup (Korean/US stock names we know up-front) ─────────────────
+const LOCAL_NAMES: Record<string, string> = Object.fromEntries(
+  [...KR_DEFAULT, ...US_DEFAULT].map(({ ticker, name }) => [ticker, name])
+);
+
 // ── Criteria labels ────────────────────────────────────────────────────────────
 const CRITERIA_INFO: { key: keyof BDetails; short: string; full: string }[] = [
   { key: 'roe',    short: 'ROE',    full: 'ROE ≥ 10~15%  (자기자본이익률)' },
@@ -150,11 +155,12 @@ function MetricCell({
 }
 
 // ── Stock card ────────────────────────────────────────────────────────────────
-function StockCard({ r, market }: { r: ScreenerResult; market: 'KR' | 'US' }) {
+function StockCard({ r, market, localName }: { r: ScreenerResult; market: 'KR' | 'US'; localName: string }) {
   const [expanded, setExpanded] = useState(false);
   const pctColor = (v: number | null) =>
     v == null ? '' : v >= 0 ? 'text-emerald-400' : 'text-red-400';
-  const displayName = r.name.length > 20 ? r.name.slice(0, 20) + '…' : r.name;
+  const displayName = localName.length > 20 ? localName.slice(0, 20) + '…' : localName;
+  const codeLabel = r.ticker.replace(/\.(KS|KQ)$/, '');
   const roeMin = market === 'KR' ? 10 : 15;
 
   return (
@@ -174,7 +180,7 @@ function StockCard({ r, market }: { r: ScreenerResult; market: 'KR' | 'US' }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-bold text-[var(--text)]">{displayName}</span>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-[var(--text-muted)]">
-              {r.ticker.replace('.KS', '').replace('.KQ', '')}
+              {codeLabel}
             </span>
             {r.sector && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
@@ -586,7 +592,15 @@ export default function ScreenerPage() {
           ) : (
             <div className="space-y-3">
               {sorted.map((r) => (
-                <StockCard key={r.ticker} r={r} market={market} />
+                <StockCard
+                  key={r.ticker}
+                  r={r}
+                  market={market}
+                  localName={
+                    LOCAL_NAMES[r.ticker] ??
+                    (r.name !== r.ticker ? r.name : r.ticker.replace(/\.(KS|KQ)$/, ''))
+                  }
+                />
               ))}
             </div>
           )}
