@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
 import { searchKrStocks } from '@/lib/krStocks';
+import type { KrxDailyData } from '@/app/api/krx/daily/route';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -130,8 +131,13 @@ function MetricCell({
 
 // ── Stock card ────────────────────────────────────────────────────────────────
 function StockCard({
-  r, market, localName,
-}: { r: ScreenerResult; market: 'KR' | 'US'; localName: string }) {
+  r, market, localName, krxDaily,
+}: {
+  r: ScreenerResult;
+  market: 'KR' | 'US';
+  localName: string;
+  krxDaily?: KrxDailyData;
+}) {
   const [expanded, setExpanded] = useState(false);
   const pctColor = (v: number | null) =>
     v == null ? '' : v >= 0 ? 'text-emerald-400' : 'text-red-400';
@@ -198,11 +204,22 @@ function StockCard({
         </div>
 
         {/* Quick metrics */}
-        <div className="shrink-0 text-right">
-          <p className={`text-sm font-bold tabular-nums ${pctColor(r.roe)}`}>
+        <div className="shrink-0 text-right space-y-0.5">
+          {/* KRX 실거래 가격 (한국 주식만) */}
+          {krxDaily && krxDaily.close > 0 && (
+            <>
+              <p className="text-sm font-bold tabular-nums text-[var(--text)]">
+                {krxDaily.close.toLocaleString()}원
+              </p>
+              <p className={`text-[11px] font-semibold tabular-nums ${krxDaily.changeRate >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {krxDaily.changeRate >= 0 ? '▲' : '▼'} {Math.abs(krxDaily.changeRate).toFixed(2)}%
+              </p>
+            </>
+          )}
+          <p className={`text-xs font-bold tabular-nums ${pctColor(r.roe)}`}>
             ROE {r.roe != null ? `${r.roe.toFixed(1)}%` : '-'}
           </p>
-          <p className="text-xs text-[var(--text-muted)] tabular-nums">
+          <p className="text-[10px] text-[var(--text-muted)] tabular-nums">
             PER {fmtPer(r.per)}
           </p>
         </div>
@@ -353,6 +370,16 @@ export default function ScreenerPage() {
   const apiErrorMsg = (rawData as { error?: string })?.error ?? null;
   const data  = Array.isArray(rawData) ? rawData : null;
   const error = swrError || apiErrorMsg;
+
+  // ── KRX 일별 데이터 (한국 주식만) ───────────────────────────────────────────
+  const krxCodesKey = market === 'KR' && query && query.tickers.length > 0
+    ? query.tickers.map((t) => t.replace(/\.(KS|KQ)$/, '')).join(',')
+    : null;
+  const { data: krxDailyMap } = useSWR<Record<string, KrxDailyData>>(
+    krxCodesKey ? `/api/krx/daily?codes=${krxCodesKey}` : null,
+    fetcher,
+    { revalidateOnFocus: false },
+  );
 
   // ── 정렬·필터 ────────────────────────────────────────────────────────────────
   const sorted = useMemo(() => {
@@ -660,6 +687,7 @@ export default function ScreenerPage() {
                     localNames[r.ticker] ??
                     (r.name !== r.ticker ? r.name : r.ticker.replace(/\.(KS|KQ)$/, ''))
                   }
+                  krxDaily={krxDailyMap?.[r.ticker.replace(/\.(KS|KQ)$/, '')]}
                 />
               ))}
             </div>

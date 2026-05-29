@@ -1,71 +1,48 @@
+/**
+ * 종목 검색 API
+ * 1차: KRX 종목기본정보 API (전 종목 커버)
+ * 2차: 로컬 하드코딩 리스트 폴백
+ */
 import { NextRequest, NextResponse } from 'next/server';
+import { KR_STOCKS } from '@/lib/krStocks';
 
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const KRX_BASE = process.env.NEXT_PUBLIC_SITE_URL
+  ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/krx/stock-list`
+  : 'http://localhost:3000/api/krx/stock-list';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function pickName(q: any): string {
-  return (q.shortname ?? q.longname ?? q.symbol ?? '') as string;
+// ── 로컬 폴백 검색 ────────────────────────────────────────────────────────────
+function localSearch(q: string) {
+  const lower = q.toLowerCase();
+  return KR_STOCKS.filter((s) => {
+    const name = s.name.toLowerCase();
+    const alt  = (s.alt ?? '').toLowerCase();
+    return name.includes(lower) || s.ticker.includes(q) || alt.includes(lower) ||
+           s.ticker.replace(/\.(KS|KQ)$/, '').startsWith(q);
+  }).slice(0, 8).map((s) => ({ ticker: s.ticker, name: s.name, code: s.ticker.replace(/\.(KS|KQ)$/, ''), market: s.ticker.endsWith('.KS') ? 'KOSPI' : 'KOSDAQ' }));
 }
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const query  = (searchParams.get('q') ?? '').trim();
-  const market = searchParams.get('market') ?? 'KR';
+  const q = (searchParams.get('q') ?? '').trim();
+  if (!q) return NextResponse.json([]);
 
-  if (!query) return NextResponse.json([]);
+  // KRX 내부 라우트 호출 (서버→서버)
+  try {
+    const krxUrl = new URL(req.url);
+    krxUrl.pathname = '/api/krx/stock-list';
+    krxUrl.search   = `?q=${encodeURIComponent(q)}`;
 
-  const HOSTS = [
-    'https://query1.finance.yahoo.com',
-    'https://query2.finance.yahoo.com',
-  ];
+    const res = await fetch(krxUrl.toString(), {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return NextResponse.json(data);
+      }
+    }
+  } catch { /* fall through to local */ }
 
-  for (const host of HOSTS) {
-    try {
-      const url =
-        `${host}/v1/finance/search` +
-        `?q=${encodeURIComponent(query)}` +
-        `&lang=${market === 'KR' ? 'ko-KR' : 'en-US'}` +
-        `&region=${market === 'KR' ? 'KR' : 'US'}` +
-        `&quotesCount=8&newsCount=0&enableFuzzyQuery=true` +
-        `&quotesQueryId=tss_match_phrase_query`;
-
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': UA,
-          Accept: 'application/json',
-          'Accept-Language': market === 'KR' ? 'ko-KR,ko;q=0.9' : 'en-US,en;q=0.9',
-        },
-        cache: 'no-store',
-        signal: AbortSignal.timeout(5000),
-      });
-
-      if (!res.ok) continue;
-
-      const json = await res.json();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const quotes: any[] = json?.quotes ?? [];
-
-      // KR: .KS / .KQ / KSC / KOE 거래소만 허용
-      // US: 점(.)이 없는 순수 미국 티커, EQUITY 타입만
-      const filtered = market === 'KR'
-        ? quotes.filter((q) =>
-            q.quoteType === 'EQUITY' &&
-            (q.symbol?.endsWith('.KS') || q.symbol?.endsWith('.KQ') ||
-             q.exchange === 'KSC'     || q.exchange === 'KOE')
-          )
-        : quotes.filter((q) =>
-            q.quoteType === 'EQUITY' && !String(q.symbol ?? '').includes('.')
-          );
-
-      return NextResponse.json(
-        filtered.slice(0, 6).map((q) => ({
-          ticker: q.symbol as string,
-          name:   pickName(q),
-        }))
-      );
-    } catch { /* next host */ }
-  }
-
-  return NextResponse.json([]);
+  // 폴백: 로컬 리스트
+  return NextResponse.json(localSearch(q));
 }
