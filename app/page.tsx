@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import SearchBar from '@/components/SearchBar';
 import OverseasSearchBar from '@/components/OverseasSearchBar';
@@ -62,14 +63,21 @@ function MarketTabBar({
   );
 }
 
-/* ── 메인 페이지 ────────────────────────────────────── */
-export default function DashboardPage() {
-  // 탭 상태 (localStorage 유지)
+/* ── 메인 페이지 (내부) ─────────────────────────────── */
+function DashboardInner() {
+  const searchParams = useSearchParams();
+
+  // URL ?market= 파라미터 우선, 없으면 localStorage
   const [marketTab, setMarketTab] = useState<MarketTab>('domestic');
   useEffect(() => {
+    const urlMarket = searchParams.get('market') as MarketTab | null;
+    if (urlMarket && ['domestic', 'overseas', 'crypto'].includes(urlMarket)) {
+      setMarketTab(urlMarket);
+      return;
+    }
     const stored = localStorage.getItem('kospi-lab-market-tab') as MarketTab | null;
     if (stored) setMarketTab(stored);
-  }, []);
+  }, [searchParams]);
   const switchTab = (t: MarketTab) => {
     setMarketTab(t);
     localStorage.setItem('kospi-lab-market-tab', t);
@@ -309,6 +317,21 @@ export default function DashboardPage() {
         )
       )}
     </div>
+  );
+}
+
+/* ── 메인 export (Suspense 래핑) ─────────────────────── */
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] h-[360px] animate-pulse" />
+        ))}
+      </div>
+    }>
+      <DashboardInner />
+    </Suspense>
   );
 }
 

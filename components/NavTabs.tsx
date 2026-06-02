@@ -1,26 +1,29 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 const TABS = [
-  { label: '대시보드', href: '/' },
-  { label: '가상투자', href: '/virtual' },
-  { label: '스크리너', href: '/screener' },
-  { label: '캘린더',   href: '/calendar' },
-  { label: '공시',     href: '/dart' },
-  { label: '뉴스',     href: '/news' },
+  { label: '대시보드',  href: '/',                  matchFn: (p: string, q: URLSearchParams) => p === '/' && !q.get('market') },
+  { label: '국내주식',  href: '/?market=domestic',  matchFn: (p: string, q: URLSearchParams) => p === '/' && q.get('market') === 'domestic' },
+  { label: '해외주식',  href: '/?market=overseas',  matchFn: (p: string, q: URLSearchParams) => p === '/' && q.get('market') === 'overseas' },
+  { label: '코인',     href: '/?market=crypto',    matchFn: (p: string, q: URLSearchParams) => p === '/' && q.get('market') === 'crypto' },
+  { label: '내주식',   href: '/virtual',            matchFn: (p: string) => p.startsWith('/virtual') },
+  { label: '리포트',   href: '/report',             matchFn: (p: string) => p.startsWith('/report') },
+  { label: '뉴스',     href: '/news',               matchFn: (p: string) => p.startsWith('/news') },
+  { label: '공시',     href: '/dart',               matchFn: (p: string) => p.startsWith('/dart') },
+  { label: '캘린더',   href: '/calendar',           matchFn: (p: string) => p.startsWith('/calendar') },
 ];
 
-export default function NavTabs() {
+function NavTabsInner() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   return (
     <nav className="flex border-b border-[var(--border)] mb-6 overflow-x-auto no-scrollbar">
       {TABS.map((tab) => {
-        const active =
-          tab.href === '/'
-            ? pathname === '/' || pathname.startsWith('/stock') || pathname.startsWith('/crypto')
-            : pathname.startsWith(tab.href);
+        const active = tab.matchFn(pathname, searchParams);
         return (
           <Link
             key={tab.href}
@@ -37,5 +40,22 @@ export default function NavTabs() {
         );
       })}
     </nav>
+  );
+}
+
+export default function NavTabs() {
+  return (
+    <Suspense fallback={
+      <nav className="flex border-b border-[var(--border)] mb-6 overflow-x-auto no-scrollbar">
+        {TABS.map((tab) => (
+          <Link key={tab.href} href={tab.href}
+            className="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-[var(--text-muted)] whitespace-nowrap">
+            {tab.label}
+          </Link>
+        ))}
+      </nav>
+    }>
+      <NavTabsInner />
+    </Suspense>
   );
 }
