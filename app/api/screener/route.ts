@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchNaverData } from '@/lib/naverFinance';
 import type { NaverData } from '@/lib/naverFinance';
+import { fetchDartFinancials, fetchDartDividends } from '@/lib/dartClient';
+import type { DartFinancials } from '@/lib/dartClient';
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -249,6 +251,40 @@ function buildFromYahoo(d: any, ticker: string, roeMin: number) {
   };
 }
 
+// ── DART 데이터 → 스크리너 결과 변환 ──────────────────────────────────────────
+function buildFromDart(d: DartFinancials, ticker: string, roeMin: number) {
+  const details = {
+    roe:    d.roe       != null ? d.roe       >= roeMin : null,
+    margin: d.opMargin  != null ? d.opMargin  >= 15     : null,
+    fcf:    null,
+    debt:   d.debtRatio != null ? d.debtRatio < 100     : null,
+    growth: null,
+    per:    null,
+    profit: d.netIncome != null ? d.netIncome > 0       : null,
+  };
+
+  return {
+    ticker,
+    name:          ticker.replace(/\.(KS|KQ)$/, ''),
+    currency:      'KRW',
+    marketCap:     null,
+    sector:        null,
+    industry:      null,
+    per:           null,
+    peg:           null,
+    fwdPE:         null,
+    roe:           d.roe,
+    opMargin:      d.opMargin,
+    fcf:           null,
+    debtRatio:     d.debtRatio,
+    revenueGrowth: null,
+    netInc:        d.netIncome,
+    buffettScore:  Object.values(details).filter((v) => v === true).length,
+    buffettDetails: details,
+    source:        'dart',
+  };
+}
+
 // ── GET handler ───────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -290,6 +326,20 @@ export async function GET(req: NextRequest) {
             return buildFromNaver(nd, correctTicker, roeMin);
           }
         } catch { /* ignore */ }
+
+        // ── 3순위: DART 재무 데이터 (Yahoo + Naver 모두 실패 시) ────────────────
+        if (process.env.DART_API_KEY) {
+          try {
+            const currentYear = new Date().getFullYear();
+            const dartYear = currentYear - 1;
+            const dartFin = await fetchDartFinancials(code, dartYear);
+            if (dartFin) {
+              // 배당 데이터로 순이익 보정 시도 (선택적)
+              await fetchDartDividends(code, dartYear);
+              return buildFromDart(dartFin, ticker, roeMin);
+            }
+          } catch { /* ignore */ }
+        }
       }
 
       return null;

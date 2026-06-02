@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import useSWR from 'swr';
 import Link from 'next/link';
 import {
-  ComposedChart, AreaChart, Area, Line, Bar,
+  ComposedChart, AreaChart, Area, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ReferenceLine, Legend,
 } from 'recharts';
@@ -13,6 +13,7 @@ import { usePortfolio } from '@/hooks/usePortfolio';
 import { useAlerts } from '@/hooks/useAlerts';
 import { calcMA, calcRSI, calcBB } from '@/lib/indicators';
 import type { StockData, ChartPoint } from '@/lib/types';
+import type { DartCompany, DartFinancials, DartDividend } from '@/lib/dartClient';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -61,6 +62,150 @@ function InvestorSection({ ticker }: { ticker: string }) {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/* ── DART 기업 정보 컴포넌트 ─────────────────────────── */
+function DartCompanySection({ code }: { code: string }) {
+  const { data, error } = useSWR<DartCompany>(
+    code ? `/api/dart/company?code=${code}` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+  if (error || !data || 'error' in data) return null;
+
+  const formatDate = (s: string) =>
+    s && s.length === 8
+      ? `${s.slice(0, 4)}.${s.slice(4, 6)}.${s.slice(6, 8)}`
+      : s ?? '-';
+
+  const rows: { label: string; value: string }[] = [
+    { label: '대표이사',   value: data.ceoNm    || '-' },
+    { label: '주소',       value: data.adres     || '-' },
+    { label: '홈페이지',   value: data.hm_url    || '-' },
+    { label: '설립일',     value: formatDate(data.estDt) },
+    { label: '결산월',     value: data.accMt ? `${data.accMt}월` : '-' },
+    { label: '법인구분',   value: data.corpCls === 'Y' ? '유가증권' : data.corpCls === 'K' ? '코스닥' : data.corpCls || '-' },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-4">
+      <h2 className="text-sm font-semibold text-[var(--text)] mb-3">기업 개요 (DART)</h2>
+      <div className="space-y-2">
+        {rows.map(({ label, value }) => (
+          <div key={label} className="flex gap-3 text-xs">
+            <span className="text-[var(--text-muted)] w-16 shrink-0">{label}</span>
+            {label === '홈페이지' && value !== '-' ? (
+              <a href={value.startsWith('http') ? value : `https://${value}`}
+                 target="_blank" rel="noopener noreferrer"
+                 className="text-sky-400 hover:underline truncate">{value}</a>
+            ) : (
+              <span className="text-[var(--text)] break-words">{value}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── DART 재무 정보 컴포넌트 ─────────────────────────── */
+function DartFinancialSection({ code }: { code: string }) {
+  const currentYear = new Date().getFullYear();
+  const year1 = currentYear - 1;
+  const year2 = currentYear - 2;
+
+  const { data: fin1 } = useSWR<DartFinancials>(
+    code ? `/api/dart/financials?code=${code}&year=${year1}` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+  const { data: fin2 } = useSWR<DartFinancials>(
+    code ? `/api/dart/financials?code=${code}&year=${year2}` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
+  const hasData = (fin1 && !('error' in fin1)) || (fin2 && !('error' in fin2));
+  if (!hasData) return null;
+
+  const fmt100m = (n: number | null | undefined) => {
+    if (n == null) return '-';
+    const abs = Math.abs(n);
+    if (abs >= 1e12) return `${(n / 1e12).toFixed(1)}조`;
+    if (abs >= 1e8)  return `${(n / 1e8).toFixed(0)}억`;
+    if (abs >= 1e4)  return `${(n / 1e4).toFixed(0)}만`;
+    return String(n);
+  };
+  const fmtPct = (n: number | null | undefined) =>
+    n != null ? `${n.toFixed(1)}%` : '-';
+
+  const rows = [
+    { label: '매출액',     v1: fmt100m(fin1?.revenue),         v2: fmt100m(fin2?.revenue) },
+    { label: '영업이익',   v1: fmt100m(fin1?.operatingIncome), v2: fmt100m(fin2?.operatingIncome) },
+    { label: '당기순이익', v1: fmt100m(fin1?.netIncome),       v2: fmt100m(fin2?.netIncome) },
+    { label: '부채비율',   v1: fmtPct(fin1?.debtRatio),        v2: fmtPct(fin2?.debtRatio) },
+    { label: 'ROE',        v1: fmtPct(fin1?.roe),              v2: fmtPct(fin2?.roe) },
+    { label: '영업이익률', v1: fmtPct(fin1?.opMargin),         v2: fmtPct(fin2?.opMargin) },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-4">
+      <h2 className="text-sm font-semibold text-[var(--text)] mb-3">재무 요약 (DART)</h2>
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="text-[var(--text-muted)]">
+            <th className="text-left py-1 font-medium w-24">구분</th>
+            <th className="text-right py-1 font-medium">{year1}년</th>
+            <th className="text-right py-1 font-medium">{year2}년</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ label, v1, v2 }) => (
+            <tr key={label} className="border-t border-[var(--border)]">
+              <td className="py-1.5 text-[var(--text-muted)]">{label}</td>
+              <td className="py-1.5 text-right text-[var(--text)] tabular-nums">{v1}</td>
+              <td className="py-1.5 text-right text-[var(--text)] tabular-nums opacity-70">{v2}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-60">
+        출처: DART 전자공시 (금융감독원) · {fin1?.fsDiv === 'CFS' ? '연결재무제표' : '개별재무제표'}
+      </p>
+    </div>
+  );
+}
+
+/* ── DART 배당 정보 컴포넌트 ─────────────────────────── */
+function DartDividendSection({ code }: { code: string }) {
+  const year = new Date().getFullYear() - 1;
+  const { data, error } = useSWR<DartDividend>(
+    code ? `/api/dart/dividends?code=${code}&year=${year}` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+  if (error || !data || 'error' in data) return null;
+  if (data.dps == null && data.yieldPct == null && data.payoutRatio == null) return null;
+
+  const items = [
+    { label: '주당 배당금 (DPS)', value: data.dps != null ? `₩${new Intl.NumberFormat('ko-KR').format(data.dps)}` : '-' },
+    { label: '배당수익률',        value: data.yieldPct   != null ? `${data.yieldPct.toFixed(2)}%`   : '-' },
+    { label: '배당성향',          value: data.payoutRatio != null ? `${data.payoutRatio.toFixed(1)}%` : '-' },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-4">
+      <h2 className="text-sm font-semibold text-[var(--text)] mb-3">배당 정보 (DART · {year}년)</h2>
+      <div className="grid grid-cols-3 gap-3">
+        {items.map(({ label, value }) => (
+          <div key={label} className="text-center p-3 rounded-xl bg-white/5">
+            <p className="text-[10px] text-[var(--text-muted)] mb-1 leading-snug">{label}</p>
+            <p className="font-bold text-sm text-[var(--text)] tabular-nums">{value}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -452,6 +597,18 @@ export default function StockDetailPage() {
 
       {/* ── 수급 동향 ── */}
       <InvestorSection ticker={ticker} />
+
+      {/* ── DART 섹션 (KR 주식만) ── */}
+      {(ticker.endsWith('.KS') || ticker.endsWith('.KQ')) && (() => {
+        const code = ticker.replace(/\.(KS|KQ)$/, '');
+        return (
+          <>
+            <DartCompanySection code={code} />
+            <DartFinancialSection code={code} />
+            <DartDividendSection code={code} />
+          </>
+        );
+      })()}
 
       {/* ── AI 분석 ── */}
       <AiAnalysis stock={stock} />
