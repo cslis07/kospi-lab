@@ -72,6 +72,21 @@ async function ensureCrumb() {
 }
 
 // ── Yahoo Finance v10/quoteSummary fetch ──────────────────────────────────
+// 모듈 목록: full → essential → minimal 순으로 폴백
+const MODULE_LISTS = [
+  // 1) 전체 (재무상태표·손익계산서 포함)
+  'financialData,defaultKeyStatistics,summaryDetail,assetProfile,balanceSheetHistoryQuarterly,balanceSheetHistory,incomeStatementHistory',
+  // 2) 핵심 (신규 상장·소형주에서 재무상태표 없을 때)
+  'financialData,defaultKeyStatistics,summaryDetail,assetProfile',
+  // 3) 최소 (어떤 모듈도 없을 때 이름·시총만이라도)
+  'financialData,defaultKeyStatistics,summaryDetail',
+];
+
+const HOSTS = [
+  'https://query1.finance.yahoo.com',
+  'https://query2.finance.yahoo.com',
+];
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchSummary(ticker: string): Promise<any | null> {
   // 캐시 확인
@@ -80,57 +95,44 @@ async function fetchSummary(ticker: string): Promise<any | null> {
 
   await ensureCrumb();
 
-  const modules = [
-    'financialData',
-    'defaultKeyStatistics',
-    'summaryDetail',
-    'assetProfile',
-    'balanceSheetHistoryQuarterly',
-    'balanceSheetHistory',       // 연간 재무상태표 (분기 없을 때 폴백)
-    'incomeStatementHistory',    // 연간 손익계산서 (순이익·EPS 폴백)
-  ].join(',');
-
   const crumbQ = _crumb ? `&crumb=${encodeURIComponent(_crumb)}` : '';
+  const reqHeaders: Record<string, string> = {
+    'User-Agent': UA,
+    Accept: 'application/json',
+    'Accept-Language': 'en-US,en;q=0.9',
+    Referer: 'https://finance.yahoo.com/',
+  };
+  if (_cookie) reqHeaders['Cookie'] = _cookie;
 
-  const HOSTS = [
-    'https://query1.finance.yahoo.com',
-    'https://query2.finance.yahoo.com',
-  ];
+  // 모듈 목록 × 호스트 폴백 시도
+  for (const modules of MODULE_LISTS) {
+    for (const host of HOSTS) {
+      try {
+        const url =
+          `${host}/v10/finance/quoteSummary/${encodeURIComponent(ticker)}` +
+          `?modules=${modules}${crumbQ}`;
 
-  for (const host of HOSTS) {
-    try {
-      const url = `${host}/v10/finance/quoteSummary/${encodeURIComponent(
-        ticker
-      )}?modules=${modules}${crumbQ}`;
+        const res = await fetch(url, {
+          headers: reqHeaders,
+          cache: 'no-store',
+          signal: AbortSignal.timeout(9000),
+        });
 
-      // Record<string,string> 으로 명시해야 HeadersInit 타입 오류 없음
-      const reqHeaders: Record<string, string> = {
-        'User-Agent': UA,
-        Accept: 'application/json',
-        'Accept-Language': 'en-US,en;q=0.9',
-        Referer: 'https://finance.yahoo.com/',
-      };
-      if (_cookie) reqHeaders['Cookie'] = _cookie;
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) _authTs = 0;
+          continue;
+        }
 
-      const res = await fetch(url, {
-        headers: reqHeaders,
-        cache: 'no-store',
-        signal: AbortSignal.timeout(9000),
-      });
-
-      if (!res.ok) {
-        // 인증 만료 → 다음 요청 시 재취득
-        if (res.status === 401 || res.status === 403) _authTs = 0;
-        continue;
-      }
-
-      const json = await res.json();
-      const result = json?.quoteSummary?.result?.[0];
-      if (result) {
-        RCACHE.set(ticker, { d: result, ts: Date.now() });
-        return result;
-      }
-    } catch { /* 다음 host 시도 */ }
+        const json = await res.json();
+        const result = json?.quoteSummary?.result?.[0];
+        if (result) {
+          RCACHE.set(ticker, { d: result, ts: Date.now() });
+          return result;
+        }
+        // result null이면 다음 모듈 목록 시도
+        break; // 같은 모듈 목록으로 다른 호스트는 시도하지 않음
+      } catch { /* 다음 host 시도 */ }
+    }
   }
   return null;
 }
@@ -271,11 +273,18 @@ export async function GET(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((r) => (r as PromiseFulfilledResult<any>).value);
 
-  // 모두 실패했을 때 → 클라이언트에 명시적 오류 전달
+  // 일부 또는 전체 실패 시 → 실패 목록을 함께 반환 (200 유지)
+  const failedTickers = tickers.filter(
+    (t) => !results.some((r) => r.ticker === t)
+  );
+
   if (results.length === 0) {
     return NextResponse.json(
-      { error: 'Yahoo Finance에서 데이터를 가져올 수 없습니다. 잠시 후 재시도해주세요.' },
-      { status: 502 }
+      {
+        error: `Yahoo Finance에서 데이터를 가져올 수 없습니다.\n실패 종목: ${failedTickers.join(', ')}\n잠시 후 재시도하거나, 해당 종목이 Yahoo Finance에 등록되어 있는지 확인하세요.`,
+        failedTickers,
+      },
+      { status: 200 }   // 502 → 200 (클라이언트 재시도 UX 개선)
     );
   }
 

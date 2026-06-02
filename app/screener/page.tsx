@@ -390,10 +390,11 @@ export default function ScreenerPage() {
     : null;
 
   const { data: rawData, isLoading, error: swrError } = useSWR<
-    ScreenerResult[] | { error: string }
+    ScreenerResult[] | { error: string; failedTickers?: string[] }
   >(apiUrl, fetcher, { revalidateOnFocus: false });
 
-  const apiErrorMsg = (rawData as { error?: string })?.error ?? null;
+  const apiErrorMsg   = (rawData as { error?: string })?.error ?? null;
+  const failedTickers = (rawData as { failedTickers?: string[] })?.failedTickers ?? [];
   const data  = Array.isArray(rawData) ? rawData : null;
   const error = swrError || apiErrorMsg;
 
@@ -642,13 +643,23 @@ export default function ScreenerPage() {
       {/* ── Results ── */}
       {error && !isLoading && (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-5 mb-4">
-          <p className="text-red-400 font-semibold text-sm mb-1">⚠️ 데이터를 가져올 수 없습니다</p>
-          <p className="text-xs text-[var(--text-muted)] mb-3">
-            {typeof error === 'string' ? error : 'Yahoo Finance API에 일시적인 문제가 있습니다.'}
+          <p className="text-red-400 font-semibold text-sm mb-2">⚠️ 재무 데이터를 가져올 수 없습니다</p>
+          {failedTickers.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {failedTickers.map((t) => (
+                <span key={t} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-500/20 text-red-300">
+                  {localNames[t] ?? t}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-[var(--text-muted)] mb-2">
+            Yahoo Finance에 해당 종목의 재무 데이터가 없거나, 일시적으로 조회할 수 없습니다.
           </p>
           <p className="text-xs text-[var(--text-muted)]">
             💡 <strong className="text-[var(--text)]">해결 방법:</strong>{' '}
-            잠시 후(30초~1분) 다시 분석하기를 눌러보세요.
+            신규 상장 종목이나 소형주는 Yahoo Finance에 데이터가 없을 수 있습니다.
+            삼성전자(005930), SK하이닉스(000660) 등 대형주로 먼저 테스트해 보세요.
           </p>
           <button
             onClick={() => { setQuery(null); setTimeout(() => handleAnalyze(), 100); }}
