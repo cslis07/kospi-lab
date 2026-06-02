@@ -270,19 +270,22 @@ export async function GET(req: NextRequest) {
 
   const settled = await Promise.allSettled(
     tickers.map(async (ticker) => {
-      // ── KR 시장: Naver Finance 우선 ─────────────────────────────────────────
+      // ── 1순위: Yahoo Finance (재무 데이터 최우선) ───────────────────────────
+      // 삼성전자·SK하이닉스 등 대형주는 Yahoo Finance에서 안정적으로 제공
+      const d = await fetchYahoo(ticker);
+      if (d) return buildFromYahoo(d, ticker, roeMin);
+
+      // ── 2순위: Naver Finance (Yahoo 실패 시 KR 주식만) ─────────────────────
+      // 신규 상장·소형주 등 Yahoo에 없는 종목 대응
       if (market === 'KR') {
         const code = ticker.replace(/\.(KS|KQ)$/, '');
         try {
           const nd = await fetchNaverData(code);
           if (nd) return buildFromNaver(nd, ticker, roeMin);
-        } catch { /* fall through to Yahoo */ }
+        } catch { /* ignore */ }
       }
 
-      // ── Yahoo Finance (US 또는 Naver 실패 시) ───────────────────────────────
-      const d = await fetchYahoo(ticker);
-      if (!d) return null;
-      return buildFromYahoo(d, ticker, roeMin);
+      return null;
     })
   );
 
