@@ -131,20 +131,16 @@ function pct(v: number | null, dp = 1) {
 
 // ── Naver Finance 데이터 → 스크리너 결과 변환 ─────────────────────────────────
 function buildFromNaver(nd: NaverData, ticker: string, roeMin: number) {
-  const opMargin =
-    nd.revenue && nd.operatingProfit && nd.revenue > 0
+  // Naver finance/annual rowList가 영업이익률을 직접 제공 (이미 %)
+  const opMargin = nd.opMargin ??
+    (nd.revenue && nd.operatingProfit && nd.revenue > 0
       ? Math.round((nd.operatingProfit / nd.revenue) * 1000) / 10
-      : null;
+      : null);
   const revGrowth =
     nd.revenue && nd.prevRevenue && nd.prevRevenue !== 0
       ? Math.round(((nd.revenue - nd.prevRevenue) / Math.abs(nd.prevRevenue)) * 1000) / 10
       : null;
-  // PER: Naver에서 제공하거나 시가총액/순이익으로 계산
-  const perCalc =
-    nd.marketCap && nd.netIncome && nd.netIncome > 0
-      ? Math.round((nd.marketCap / nd.netIncome) * 10) / 10
-      : null;
-  const per = nd.per ?? perCalc;
+  const per = nd.per; // Naver rowList에서 직접 제공
 
   const details = {
     roe:    nd.roe        != null ? nd.roe        >= roeMin : null,
@@ -270,18 +266,29 @@ export async function GET(req: NextRequest) {
 
   const settled = await Promise.allSettled(
     tickers.map(async (ticker) => {
-      // ── 1순위: Yahoo Finance (재무 데이터 최우선) ───────────────────────────
-      // 삼성전자·SK하이닉스 등 대형주는 Yahoo Finance에서 안정적으로 제공
+      // ── 1순위: Yahoo Finance (대형주는 여기서 완전한 데이터 제공) ────────────
       const d = await fetchYahoo(ticker);
       if (d) return buildFromYahoo(d, ticker, roeMin);
 
-      // ── 2순위: Naver Finance (Yahoo 실패 시 KR 주식만) ─────────────────────
-      // 신규 상장·소형주 등 Yahoo에 없는 종목 대응
+      // ── KR 주식 Yahoo 실패 시: Naver로 올바른 시장 코드 확인 후 재시도 ────────
+      // 원인: 검색 단계에서 KS/KQ가 잘못 저장된 경우 (예: 에이피알 278470.KQ → 실제 278470.KS)
       if (market === 'KR') {
         const code = ticker.replace(/\.(KS|KQ)$/, '');
         try {
           const nd = await fetchNaverData(code);
-          if (nd) return buildFromNaver(nd, ticker, roeMin);
+          if (nd) {
+            const correctTicker = `${code}${nd.yfSuffix}`;
+
+            // 티커 접미사가 달랐다면 Yahoo Finance로 재시도
+            if (correctTicker !== ticker) {
+              const d2 = await fetchYahoo(correctTicker);
+              if (d2) return buildFromYahoo(d2, correctTicker, roeMin);
+            }
+
+            // Yahoo가 모두 실패하면 Naver 재무 데이터 직접 사용
+            // (ROE·부채비율·매출 등 finance/annual rowList에서 파싱)
+            return buildFromNaver(nd, correctTicker, roeMin);
+          }
         } catch { /* ignore */ }
       }
 

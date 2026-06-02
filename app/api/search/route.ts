@@ -40,8 +40,8 @@ async function naverSearch(q: string): Promise<SearchResult[] | null> {
     const name = item[0];
     const code = item[1]; // 6자리 코드
     if (!code || !/^\d{6}$/.test(code)) continue;
-    // item[4]: "0" = KOSPI, "1" = KOSDAQ
-    const market = item[4] === '1' ? 'KOSDAQ' : 'KOSPI';
+    // item[4]: 디버그 확인 결과 에이피알(KOSPI)=>"1", 따라서 "1"=KOSPI, "0"=KOSDAQ
+    const market = item[4] === '0' ? 'KOSDAQ' : 'KOSPI';
     results.push({ ticker: code, name, market });
   }
   return results.length > 0 ? results : null;
