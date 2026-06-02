@@ -5,19 +5,59 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
 const TABS = [
-  { label: '대시보드',  href: '/',                  matchFn: (p: string, q: URLSearchParams) => p === '/' && !q.get('market') },
-  { label: '국내주식',  href: '/?market=domestic',  matchFn: (p: string, q: URLSearchParams) => p === '/' && q.get('market') === 'domestic' },
-  { label: '해외주식',  href: '/?market=overseas',  matchFn: (p: string, q: URLSearchParams) => p === '/' && q.get('market') === 'overseas' },
-  { label: '코인',     href: '/?market=crypto',    matchFn: (p: string, q: URLSearchParams) => p === '/' && q.get('market') === 'crypto' },
-  { label: '내주식',   href: '/virtual',            matchFn: (p: string) => p.startsWith('/virtual') },
-  { label: '리포트',   href: '/report',             matchFn: (p: string) => p.startsWith('/report') },
-  { label: '뉴스',     href: '/news',               matchFn: (p: string) => p.startsWith('/news') },
-  { label: '공시',     href: '/dart',               matchFn: (p: string) => p.startsWith('/dart') },
-  { label: '캘린더',   href: '/calendar',           matchFn: (p: string) => p.startsWith('/calendar') },
+  {
+    label: '대시보드',
+    href: '/',
+    matchFn: (p: string, q: URLSearchParams) => p === '/' && !q.get('market'),
+  },
+  {
+    label: '국내주식',
+    href: '/my-stocks?market=domestic',
+    matchFn: (p: string, q: URLSearchParams) =>
+      p.startsWith('/my-stocks') && q.get('market') === 'domestic',
+  },
+  {
+    label: '해외주식',
+    href: '/my-stocks?market=overseas',
+    matchFn: (p: string, q: URLSearchParams) =>
+      p.startsWith('/my-stocks') && q.get('market') === 'overseas',
+  },
+  {
+    label: '코인',
+    href: '/my-stocks?market=crypto',
+    matchFn: (p: string, q: URLSearchParams) =>
+      p.startsWith('/my-stocks') && q.get('market') === 'crypto',
+  },
+  {
+    label: '내주식',
+    href: '/my-stocks',
+    matchFn: (p: string, q: URLSearchParams) =>
+      p.startsWith('/my-stocks') && !q.get('market'),
+  },
+  {
+    label: '리포트',
+    href: '/report',
+    matchFn: (p: string) => p.startsWith('/report'),
+  },
+  {
+    label: '뉴스',
+    href: '/news',
+    matchFn: (p: string) => p.startsWith('/news'),
+  },
+  {
+    label: '공시',
+    href: '/dart',
+    matchFn: (p: string) => p.startsWith('/dart'),
+  },
+  {
+    label: '캘린더',
+    href: '/calendar',
+    matchFn: (p: string) => p.startsWith('/calendar'),
+  },
 ];
 
 function NavTabsInner() {
-  const pathname = usePathname();
+  const pathname     = usePathname();
   const searchParams = useSearchParams();
 
   return (
