@@ -158,6 +158,20 @@ function StockPicks({ risk }: { risk: RiskType }) {
             const px   = prices?.[p.code];
             const up   = (px?.changeRate ?? 0) >= 0;
             const per  = px && p.eps && p.eps > 0 ? px.price / p.eps : null;
+            // 우량 점수: ROE≥10 · 부채<100 · 매출성장>0 · PER 0~35 (보유 지표만 평가)
+            const checks = [
+              p.roe != null ? p.roe >= 10 : null,
+              p.debtRatio != null ? p.debtRatio < 100 : null,
+              p.revenueGrowth != null ? p.revenueGrowth > 0 : null,
+              per != null ? per > 0 && per < 35 : null,
+            ];
+            const known = checks.filter((c) => c != null).length;
+            const score = checks.filter((c) => c === true).length;
+            const scoreColor =
+              known === 0 ? 'bg-white/5 text-[var(--text-muted)] border-[var(--border)]' :
+              score / known >= 0.75 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' :
+              score / known >= 0.5  ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
+                                      'bg-red-500/15 text-red-400 border-red-500/30';
             return (
               <a key={p.code} href={`/stock/${p.code}`}
                 className="block rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3 hover:border-sky-500/40 transition-colors">
@@ -165,6 +179,11 @@ function StockPicks({ risk }: { risk: RiskType }) {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-[var(--text)]">{p.name}</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">{p.tag}</span>
+                    {known > 0 && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-semibold ${scoreColor}`}>
+                        우량 {score}/{known}
+                      </span>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold tabular-nums text-[var(--text)]">
