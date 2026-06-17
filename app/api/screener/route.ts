@@ -3,6 +3,8 @@ import { fetchNaverData } from '@/lib/naverFinance';
 import type { NaverData } from '@/lib/naverFinance';
 import { fetchDartFinancials, fetchDartDividends } from '@/lib/dartClient';
 import type { DartFinancials } from '@/lib/dartClient';
+import { fetchKisFinancialRatio } from '@/lib/kisFinance';
+import type { KisFinancials } from '@/lib/kisFinance';
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -251,6 +253,40 @@ function buildFromYahoo(d: any, ticker: string, roeMin: number) {
   };
 }
 
+// ── KIS 재무비율 → 스크리너 결과 변환 ─────────────────────────────────────────
+function buildFromKis(f: KisFinancials, ticker: string, roeMin: number) {
+  const details = {
+    roe:    f.roe           != null ? f.roe           >= roeMin : null,
+    margin: null,  // KIS 재무비율은 영업이익률 미제공
+    fcf:    null,
+    debt:   f.debtRatio     != null ? f.debtRatio     < 100     : null,
+    growth: f.revenueGrowth != null ? f.revenueGrowth > 0       : null,
+    per:    null,
+    profit: f.netIncomePositive,
+  };
+
+  return {
+    ticker,
+    name:          ticker.replace(/\.(KS|KQ)$/, ''),
+    currency:      'KRW',
+    marketCap:     null,
+    sector:        null,
+    industry:      null,
+    per:           null,
+    peg:           null,
+    fwdPE:         null,
+    roe:           f.roe,
+    opMargin:      null,
+    fcf:           null,
+    debtRatio:     f.debtRatio,
+    revenueGrowth: f.revenueGrowth,
+    netInc:        null,
+    buffettScore:  Object.values(details).filter((v) => v === true).length,
+    buffettDetails: details,
+    source:        'kis',
+  };
+}
+
 // ── DART 데이터 → 스크리너 결과 변환 ──────────────────────────────────────────
 function buildFromDart(d: DartFinancials, ticker: string, roeMin: number) {
   const details = {
@@ -327,7 +363,15 @@ export async function GET(req: NextRequest) {
           }
         } catch { /* ignore */ }
 
-        // ── 3순위: DART 재무 데이터 (Yahoo + Naver 모두 실패 시) ────────────────
+        // ── 3순위: KIS 재무비율 (Vercel에서 안정적 · ROE/부채/매출성장/흑자) ──────
+        try {
+          const kf = await fetchKisFinancialRatio(code);
+          if (kf && (kf.roe != null || kf.debtRatio != null || kf.revenueGrowth != null)) {
+            return buildFromKis(kf, ticker, roeMin);
+          }
+        } catch { /* ignore */ }
+
+        // ── 4순위: DART 재무 데이터 (Yahoo + Naver + KIS 모두 실패 시) ───────────
         if (process.env.DART_API_KEY) {
           try {
             const currentYear = new Date().getFullYear();

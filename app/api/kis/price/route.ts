@@ -1,32 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { KIS_BASE, getKisToken, getKisHeaders } from '@/lib/kis';
+import { kisGet } from '@/lib/kis';
 
 export async function GET(req: NextRequest) {
   const ticker = req.nextUrl.searchParams.get('ticker');
   if (!ticker) return NextResponse.json({ error: 'ticker required' }, { status: 400 });
 
-  let token: string;
   try {
-    token = await getKisToken();
-  } catch (e) {
-    return NextResponse.json({ error: `token fetch failed: ${String(e)}` }, { status: 502 });
-  }
-
-  try {
-    const res = await fetch(
-      `${KIS_BASE}/uapi/domestic-stock/v1/quotations/inquire-price` +
-      `?FID_COND_MRKT_DIV_CODE=J&FID_INPUT_ISCD=${ticker}`,
-      {
-        headers: getKisHeaders(token, 'FHKST01010100'),
-        cache: 'no-store',
-      }
+    const json = await kisGet(
+      '/uapi/domestic-stock/v1/quotations/inquire-price',
+      'FHKST01010100',
+      { FID_COND_MRKT_DIV_CODE: 'J', FID_INPUT_ISCD: ticker },
     );
-
-    if (!res.ok) return NextResponse.json({ error: `KIS ${res.status}` }, { status: 502 });
-
-    const d = await res.json();
-    const o = d.output;
-    if (!o) return NextResponse.json({ error: `KIS no data: ${d.msg1 ?? ''}` }, { status: 502 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const o = json.output as any;
+    if (!o) return NextResponse.json({ error: 'KIS no data' }, { status: 502 });
 
     return NextResponse.json({
       ticker,

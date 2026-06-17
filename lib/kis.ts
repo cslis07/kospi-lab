@@ -98,3 +98,60 @@ export function getKisHeaders(token: string, trId: string) {
     custtype: 'P',
   };
 }
+
+/* ── 호출 직렬화(throttle) ─────────────────────────────────────────────
+ * KIS VTS 도메인은 "초당 거래건수" 제한(EGW00201)이 빡빡하다. 스크리너처럼
+ * 한 요청에서 여러 종목을 조회할 때 동시 호출하면 즉시 막히므로, 모든 KIS
+ * 데이터 호출을 한 줄로 세우고 최소 간격을 둔다. (모듈 스코프 = 같은 람다 내 공유)
+ */
+const KIS_MIN_GAP_MS = 500;
+let _gate: Promise<void> = Promise.resolve();
+
+export function kisThrottle<T>(fn: () => Promise<T>): Promise<T> {
+  const prev = _gate;
+  let release!: () => void;
+  _gate = new Promise<void>((res) => { release = res; });
+  return (async () => {
+    await prev;
+    try {
+      return await fn();
+    } finally {
+      setTimeout(release, KIS_MIN_GAP_MS);
+    }
+  })();
+}
+
+/** throttle·토큰·헤더·rt_cd 검사를 묶은 KIS GET 헬퍼. 실패 시 throw. */
+export async function kisGet(
+  path: string,
+  trId: string,
+  params: Record<string, string>,
+): Promise<Record<string, unknown>> {
+  const token = await getKisToken();
+  const qs = new URLSearchParams(params).toString();
+  const url = `${KIS_BASE}${path}?${qs}`;
+
+  const doFetch = async () => {
+    const res = await fetch(url, {
+      headers: getKisHeaders(token, trId),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(8000),
+    });
+    const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!res.ok) throw new Error(`KIS HTTP ${res.status}`);
+    if (json.rt_cd != null && json.rt_cd !== '0') {
+      throw new Error(`KIS ${json.msg_cd ?? ''}: ${json.msg1 ?? ''}`);
+    }
+    return json;
+  };
+
+  try {
+    return await kisThrottle(doFetch);
+  } catch (e) {
+    // 초당 제한이면 간격 후 1회 재시도
+    if (String(e).includes('EGW00201')) {
+      return await kisThrottle(doFetch);
+    }
+    throw e;
+  }
+}
