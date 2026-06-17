@@ -409,9 +409,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          `재무 데이터를 가져올 수 없습니다 (Naver Finance + Yahoo Finance 모두 실패).\n` +
+          `재무 데이터를 가져올 수 없습니다 (Yahoo·Naver·KIS·DART 모두 실패).\n` +
           `실패 종목: ${failedTickers.join(', ')}\n` +
-          `Naver Finance가 이 서버 IP에서 차단된 경우 일부 종목은 조회 불가합니다.`,
+          `신규 상장·소형주이거나 일시적 조회 불가일 수 있습니다.`,
         failedTickers,
       },
       { status: 200 }

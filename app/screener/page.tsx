@@ -630,7 +630,7 @@ export default function ScreenerPage() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              분석 중… (Yahoo Finance 조회, 최대 15초)
+              분석 중… (재무 데이터 조회, 최대 15초)
             </>
           ) : activeTickers.length === 0 ? (
             '종목을 추가한 후 분석하기'
@@ -732,7 +732,7 @@ export default function ScreenerPage() {
           )}
 
           <p className="text-center text-xs text-[var(--text-muted)] mt-6 opacity-50">
-            * Yahoo Finance 재무 데이터 기준 (1시간 캐시) · 투자 참고용
+            * Yahoo · Naver · 한국투자증권 · DART 재무 데이터 (1시간 캐시) · 투자 참고용
           </p>
         </>
       )}
@@ -753,7 +753,7 @@ export default function ScreenerPage() {
           ) : (
             <>
               <p className="text-sm"><strong className="text-[var(--text)]">분석하기</strong> 버튼을 눌러 시작하세요</p>
-              <p className="text-xs mt-1 opacity-60">Yahoo Finance에서 재무 데이터를 실시간으로 가져옵니다</p>
+              <p className="text-xs mt-1 opacity-60">Yahoo·Naver·한국투자증권·DART에서 재무 데이터를 가져옵니다</p>
             </>
           )}
         </div>
