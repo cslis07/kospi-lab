@@ -9,7 +9,15 @@
  *  3) 라이브 발급 — env 토큰이 없을 때만(주로 로컬 dev). 1분당 1회 제한 있음.
  */
 
-export const KIS_BASE = 'https://openapi.koreainvestment.com:9443';
+/**
+ * 도메인 선택:
+ *  - 실전투자: https://openapi.koreainvestment.com:9443  (실전 앱키 필요)
+ *  - 모의투자: https://openapivts.koreainvestment.com:29443  (모의 앱키, 시세 조회는 실데이터)
+ * 현재 발급된 앱키가 모의투자(VTS) 키이므로 VTS 도메인을 기본값으로 사용한다.
+ * 실전 키로 교체 시 env KIS_API_BASE 만 실전 도메인으로 바꾸면 된다.
+ */
+export const KIS_BASE =
+  process.env.KIS_API_BASE || 'https://openapivts.koreainvestment.com:29443';
 
 let cached: { token: string; expiresAt: number } | null = null;
 
