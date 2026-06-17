@@ -85,6 +85,10 @@ function DashboardInner() {
           <QuickCard href="/dart"                      emoji="📋" title="공시"           desc="전자공시 조회" />
           <QuickCard href="/report"                    emoji="📊" title="리포트"         desc="증권사 리포트" />
           <QuickCard href="/calendar"                  emoji="📅" title="캘린더"         desc="경제 이벤트" />
+          <QuickCard href="/invest"                    emoji="🎯" title="투자설계"         desc="계좌·자산 추천" />
+          <QuickCard href="/tax"                       emoji="💸" title="세제혜택"         desc="ISA·IRP·연금 절세" />
+          <QuickCard href="/simulate"                  emoji="📈" title="수익 시뮬레이션"  desc="복리 FV 계산" />
+          <QuickCard href="/brokerage"                 emoji="🏦" title="증권사 비교"      desc="수수료·CMA 비교" />
         </div>
       </div>
     </div>
