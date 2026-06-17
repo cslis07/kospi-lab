@@ -1,48 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const KIS_BASE = 'https://openapi.koreainvestment.com:9443';
-
-async function getToken(): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/api/kis/token`,
-      { next: { revalidate: 0 } }
-    );
-    if (!res.ok) return null;
-    const d = await res.json();
-    return d.access_token ?? null;
-  } catch {
-    return null;
-  }
-}
+import { KIS_BASE, getKisToken, getKisHeaders } from '@/lib/kis';
 
 export async function GET(req: NextRequest) {
   const ticker = req.nextUrl.searchParams.get('ticker');
   if (!ticker) return NextResponse.json({ error: 'ticker required' }, { status: 400 });
 
-  const appKey    = process.env.KIS_APP_KEY;
-  const appSecret = process.env.KIS_APP_SECRET;
-  if (!appKey || !appSecret) {
-    return NextResponse.json({ error: 'KIS keys not configured' }, { status: 500 });
+  let token: string;
+  try {
+    token = await getKisToken();
+  } catch (e) {
+    return NextResponse.json({ error: `token fetch failed: ${String(e)}` }, { status: 502 });
   }
-
-  const token = await getToken();
-  if (!token) return NextResponse.json({ error: 'token fetch failed' }, { status: 502 });
 
   try {
     const res = await fetch(
       `${KIS_BASE}/uapi/domestic-stock/v1/quotations/inquire-price` +
       `?FID_COND_MRKT_DIV_CODE=J&FID_INPUT_ISCD=${ticker}`,
       {
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${token}`,
-          appkey: appKey,
-          appsecret: appSecret,
-          tr_id: 'FHKST01010100',
-          custtype: 'P',
-        },
-        next: { revalidate: 0 },
+        headers: getKisHeaders(token, 'FHKST01010100'),
+        cache: 'no-store',
       }
     );
 
@@ -50,6 +26,7 @@ export async function GET(req: NextRequest) {
 
     const d = await res.json();
     const o = d.output;
+    if (!o) return NextResponse.json({ error: `KIS no data: ${d.msg1 ?? ''}` }, { status: 502 });
 
     return NextResponse.json({
       ticker,
