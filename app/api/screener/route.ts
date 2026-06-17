@@ -3,8 +3,11 @@ import { fetchNaverData } from '@/lib/naverFinance';
 import type { NaverData } from '@/lib/naverFinance';
 import { fetchDartFinancials, fetchDartDividends } from '@/lib/dartClient';
 import type { DartFinancials } from '@/lib/dartClient';
-import { fetchKisFinancialRatio } from '@/lib/kisFinance';
+import { fetchKisFinancialRatio, fetchKisOpMargin } from '@/lib/kisFinance';
 import type { KisFinancials } from '@/lib/kisFinance';
+
+// 여러 소스(Yahoo·Naver·KIS·DART)를 직렬로 조회하므로 기본 10s로는 부족할 수 있다
+export const maxDuration = 30;
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -253,11 +256,13 @@ function buildFromYahoo(d: any, ticker: string, roeMin: number) {
   };
 }
 
-// ── KIS 재무비율 → 스크리너 결과 변환 ─────────────────────────────────────────
-function buildFromKis(f: KisFinancials, ticker: string, roeMin: number) {
+// ── KIS 재무비율(+손익계산서 영업이익률) → 스크리너 결과 변환 ─────────────────
+function buildFromKis(
+  f: KisFinancials, ticker: string, roeMin: number, opMargin: number | null,
+) {
   const details = {
     roe:    f.roe           != null ? f.roe           >= roeMin : null,
-    margin: null,  // KIS 재무비율은 영업이익률 미제공
+    margin: opMargin        != null ? opMargin        >= 15     : null,
     fcf:    null,
     debt:   f.debtRatio     != null ? f.debtRatio     < 100     : null,
     growth: f.revenueGrowth != null ? f.revenueGrowth > 0       : null,
@@ -276,7 +281,7 @@ function buildFromKis(f: KisFinancials, ticker: string, roeMin: number) {
     peg:           null,
     fwdPE:         null,
     roe:           f.roe,
-    opMargin:      null,
+    opMargin,
     fcf:           null,
     debtRatio:     f.debtRatio,
     revenueGrowth: f.revenueGrowth,
@@ -363,11 +368,12 @@ export async function GET(req: NextRequest) {
           }
         } catch { /* ignore */ }
 
-        // ── 3순위: KIS 재무비율 (Vercel에서 안정적 · ROE/부채/매출성장/흑자) ──────
+        // ── 3순위: KIS 재무비율(+영업이익률) (Vercel에서 안정적) ──────────────────
         try {
           const kf = await fetchKisFinancialRatio(code);
           if (kf && (kf.roe != null || kf.debtRatio != null || kf.revenueGrowth != null)) {
-            return buildFromKis(kf, ticker, roeMin);
+            const opMargin = await fetchKisOpMargin(code); // best-effort, 실패 시 null
+            return buildFromKis(kf, ticker, roeMin, opMargin);
           }
         } catch { /* ignore */ }
 

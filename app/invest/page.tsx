@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import useSWR from 'swr';
 
 /* ── 타입 ──────────────────────────────────────────────── */
 type RiskType   = 'safe' | 'neutral' | 'aggressive' | 'ultra';
@@ -111,6 +112,85 @@ const RISK_LABELS: Record<RiskType, string> = {
 const GOAL_LABELS: Record<GoalType, string> = {
   retirement: '노후준비', home: '내집마련', education: '자녀교육', wealth: '자산증식', fire: 'FIRE',
 };
+
+/* ── 성향별 대표 국내 우량주 (KIS 재무지표 + KRX 시세) ───── */
+interface Pick {
+  code: string; name: string; tag: string;
+  roe: number | null; debtRatio: number | null; revenueGrowth: number | null; eps: number | null;
+}
+interface BatchQuote { price: number; changeRate: number }
+
+const swrFetch = (u: string) => fetch(u).then((r) => r.json());
+
+function StockPicks({ risk }: { risk: RiskType }) {
+  const { data, isLoading } = useSWR<Pick[]>(
+    `/api/invest/picks?risk=${risk}`, swrFetch, { revalidateOnFocus: false },
+  );
+  const codes = Array.isArray(data) ? data.map((p) => p.code).join(',') : '';
+  const { data: prices } = useSWR<Record<string, BatchQuote>>(
+    codes ? `/api/stock/batch?tickers=${codes}` : null, swrFetch, { revalidateOnFocus: false },
+  );
+
+  const Metric = ({ label, value, good }: { label: string; value: string; good?: boolean | null }) => (
+    <div className="text-center">
+      <p className="text-[9px] text-[var(--text-muted)]">{label}</p>
+      <p className={`text-xs font-bold tabular-nums ${good === true ? 'text-emerald-400' : good === false ? 'text-red-400' : 'text-[var(--text)]'}`}>{value}</p>
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+      <h2 className="text-sm font-semibold text-[var(--text)] mb-1">
+        성향 맞춤 국내 우량주{' '}
+        <span className="text-[var(--text-muted)] font-normal text-xs">({RISK_LABELS[risk]} · 실시간 KIS)</span>
+      </h2>
+      <p className="text-[11px] text-[var(--text-muted)] mb-3">각 성향의 대표 종목을 실시간 재무지표로 보여줍니다 · 투자 참고용</p>
+
+      {isLoading || !Array.isArray(data) ? (
+        <div className="space-y-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-16 rounded-xl bg-white/5 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {data.map((p) => {
+            const px   = prices?.[p.code];
+            const up   = (px?.changeRate ?? 0) >= 0;
+            const per  = px && p.eps && p.eps > 0 ? px.price / p.eps : null;
+            return (
+              <a key={p.code} href={`/stock/${p.code}`}
+                className="block rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3 hover:border-sky-500/40 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-[var(--text)]">{p.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">{p.tag}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold tabular-nums text-[var(--text)]">
+                      {px ? `${px.price.toLocaleString()}원` : '-'}
+                    </p>
+                    {px && (
+                      <p className={`text-[11px] font-semibold ${up ? 'text-red-400' : 'text-blue-400'}`}>
+                        {up ? '▲' : '▼'} {Math.abs(px.changeRate).toFixed(2)}%
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-1 pt-2 border-t border-[var(--border)]">
+                  <Metric label="PER"     value={per != null && per > 0 ? `${per.toFixed(1)}배` : '-'} />
+                  <Metric label="ROE"     value={p.roe != null ? `${p.roe.toFixed(1)}%` : '-'} good={p.roe != null ? p.roe >= 10 : null} />
+                  <Metric label="부채비율" value={p.debtRatio != null ? `${p.debtRatio.toFixed(0)}%` : '-'} good={p.debtRatio != null ? p.debtRatio < 100 : null} />
+                  <Metric label="매출성장" value={p.revenueGrowth != null ? `${p.revenueGrowth > 0 ? '+' : ''}${p.revenueGrowth.toFixed(0)}%` : '-'} good={p.revenueGrowth != null ? p.revenueGrowth > 0 : null} />
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function InvestPage() {
   const [step, setStep] = useState<'input' | 'result'>('input');
@@ -348,6 +428,9 @@ export default function InvestPage() {
             </table>
           </div>
         </div>
+
+        {/* 성향 맞춤 국내 우량주 (실시간 KIS) */}
+        <StockPicks risk={inp.risk} />
 
         {/* 절세 효과 */}
         {taxSavings.length > 0 && (

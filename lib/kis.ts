@@ -104,7 +104,7 @@ export function getKisHeaders(token: string, trId: string) {
  * 한 요청에서 여러 종목을 조회할 때 동시 호출하면 즉시 막히므로, 모든 KIS
  * 데이터 호출을 한 줄로 세우고 최소 간격을 둔다. (모듈 스코프 = 같은 람다 내 공유)
  */
-const KIS_MIN_GAP_MS = 500;
+const KIS_MIN_GAP_MS = 700;
 let _gate: Promise<void> = Promise.resolve();
 
 export function kisThrottle<T>(fn: () => Promise<T>): Promise<T> {
@@ -145,13 +145,15 @@ export async function kisGet(
     return json;
   };
 
-  try {
-    return await kisThrottle(doFetch);
-  } catch (e) {
-    // 초당 제한이면 간격 후 1회 재시도
-    if (String(e).includes('EGW00201')) {
+  // 초당 제한(EGW00201)이면 throttle 간격을 두고 최대 3회 재시도
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
       return await kisThrottle(doFetch);
+    } catch (e) {
+      lastErr = e;
+      if (!String(e).includes('EGW00201')) throw e;
     }
-    throw e;
   }
+  throw lastErr;
 }
