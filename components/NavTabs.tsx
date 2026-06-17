@@ -12,15 +12,13 @@ const TABS = [
   },
   {
     label: '국내주식',
-    href: '/my-stocks?market=domestic',
-    matchFn: (p: string, q: URLSearchParams) =>
-      p.startsWith('/my-stocks') && q.get('market') === 'domestic',
+    href: '/domestic',
+    matchFn: (p: string) => p.startsWith('/domestic'),
   },
   {
     label: '해외주식',
-    href: '/my-stocks?market=overseas',
-    matchFn: (p: string, q: URLSearchParams) =>
-      p.startsWith('/my-stocks') && q.get('market') === 'overseas',
+    href: '/overseas',
+    matchFn: (p: string) => p.startsWith('/overseas'),
   },
   {
     label: '코인',
@@ -29,7 +27,7 @@ const TABS = [
       p.startsWith('/my-stocks') && q.get('market') === 'crypto',
   },
   {
-    label: '내주식',
+    label: '내 주식',
     href: '/my-stocks',
     matchFn: (p: string, q: URLSearchParams) =>
       p.startsWith('/my-stocks') && !q.get('market'),
@@ -53,6 +51,26 @@ const TABS = [
     label: '캘린더',
     href: '/calendar',
     matchFn: (p: string) => p.startsWith('/calendar'),
+  },
+  {
+    label: '투자설계',
+    href: '/invest',
+    matchFn: (p: string) => p.startsWith('/invest'),
+  },
+  {
+    label: '세제혜택',
+    href: '/tax',
+    matchFn: (p: string) => p.startsWith('/tax'),
+  },
+  {
+    label: '시뮬레이션',
+    href: '/simulate',
+    matchFn: (p: string) => p.startsWith('/simulate'),
+  },
+  {
+    label: '증권사비교',
+    href: '/brokerage',
+    matchFn: (p: string) => p.startsWith('/brokerage'),
   },
 ];
 
