@@ -105,6 +105,21 @@ function calcRecommendation(inp: Inputs) {
 const fmtW = (n: number) =>
   n >= 100000000 ? `${(n/100000000).toFixed(1)}억` :
   n >= 10000     ? `${(n/10000).toFixed(0)}만원` : `${n.toLocaleString()}원`;
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, isNaN(n) ? lo : n));
+
+/* 슬라이더 옆 수기 입력 (만원 단위 금액 / 단위 라벨) */
+function NumInput({ value, min, max, onChange, unit, w = 'w-16' }: {
+  value: number; min: number; max: number; onChange: (v: number) => void; unit: string; w?: string;
+}) {
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      <input type="number" value={value} min={min} max={max}
+        onChange={(e) => onChange(clamp(+e.target.value, min, max))}
+        className={`${w} bg-white/5 border border-[var(--border)] rounded-md px-1.5 py-1 text-sm font-semibold text-right text-[var(--text)] outline-none focus:border-sky-500/50`} />
+      <span className="text-xs text-[var(--text-muted)] w-8">{unit}</span>
+    </div>
+  );
+}
 
 const RISK_LABELS: Record<RiskType, string> = {
   safe: '안정형', neutral: '중립형', aggressive: '공격형', ultra: '초공격형',
@@ -275,7 +290,8 @@ export default function InvestPage() {
               <input type="range" min={20} max={70} value={inp.age}
                 onChange={(e) => setInp({ ...inp, age: +e.target.value })}
                 className="flex-1 accent-sky-500" />
-              <span className="text-sm font-semibold text-[var(--text)] w-10 text-right">{inp.age}세</span>
+              <NumInput value={inp.age} min={20} max={70} unit="세" w="w-14"
+                onChange={(v) => setInp({ ...inp, age: v })} />
             </div>
           </label>
           <label className="flex flex-col gap-1.5">
@@ -284,7 +300,8 @@ export default function InvestPage() {
               <input type="range" min={50000} max={5000000} step={50000} value={inp.monthly}
                 onChange={(e) => setInp({ ...inp, monthly: +e.target.value })}
                 className="flex-1 accent-sky-500" />
-              <span className="text-sm font-semibold text-[var(--text)] w-20 text-right">{fmtW(inp.monthly)}</span>
+              <NumInput value={Math.round(inp.monthly / 10000)} min={5} max={500} unit="만원"
+                onChange={(v) => setInp({ ...inp, monthly: v * 10000 })} />
             </div>
           </label>
           <label className="flex flex-col gap-1.5">
@@ -293,7 +310,8 @@ export default function InvestPage() {
               <input type="range" min={0} max={500000000} step={1000000} value={inp.assets}
                 onChange={(e) => setInp({ ...inp, assets: +e.target.value })}
                 className="flex-1 accent-sky-500" />
-              <span className="text-sm font-semibold text-[var(--text)] w-20 text-right">{fmtW(inp.assets)}</span>
+              <NumInput value={Math.round(inp.assets / 10000)} min={0} max={50000} unit="만원" w="w-20"
+                onChange={(v) => setInp({ ...inp, assets: v * 10000 })} />
             </div>
           </label>
         </div>

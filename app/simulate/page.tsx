@@ -8,6 +8,33 @@ const fmtW = (n: number) =>
   n >= 100000000 ? `${(n/100000000).toFixed(2)}억원` :
   n >= 10000     ? `${(n/10000).toLocaleString('ko-KR', { maximumFractionDigits: 0 })}만원` :
   `${n.toLocaleString()}원`;
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, isNaN(n) ? lo : n));
+
+/* 슬라이더 + 수기 입력 한 줄 */
+function SimSlider({
+  label, sliderValue, sliderMin, sliderMax, sliderStep, onSlider,
+  numValue, numMin, numMax, numStep, unit, onNum, numW = 'w-20',
+}: {
+  label: string;
+  sliderValue: number; sliderMin: number; sliderMax: number; sliderStep: number; onSlider: (v: number) => void;
+  numValue: number; numMin: number; numMax: number; numStep: number; unit: string; onNum: (v: number) => void; numW?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex justify-between items-center">
+        <span className="text-xs text-[var(--text-muted)]">{label}</span>
+        <div className="flex items-center gap-1">
+          <input type="number" value={numValue} min={numMin} max={numMax} step={numStep}
+            onChange={(e) => onNum(clamp(+e.target.value, numMin, numMax))}
+            className={`${numW} bg-white/5 border border-[var(--border)] rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] outline-none focus:border-sky-500/50`} />
+          <span className="text-xs text-[var(--text-muted)] w-8">{unit}</span>
+        </div>
+      </div>
+      <input type="range" min={sliderMin} max={sliderMax} step={sliderStep} value={sliderValue}
+        onChange={(e) => onSlider(+e.target.value)} className="w-full accent-sky-500" />
+    </div>
+  );
+}
 
 type Preset = { label: string; rate: number; desc: string };
 const PRESETS: Preset[] = [
@@ -95,24 +122,24 @@ export default function SimulatePage() {
             </div>
           </div>
 
-          {/* 슬라이더들 */}
-          {[
-            { label: '초기 투자금',  value: initial,  min: 0,      max: 100000000, step: 1000000,  set: setInitial },
-            { label: '월 적립액',    value: monthly,  min: 0,      max: 5000000,   step: 50000,   set: setMonthly },
-            { label: `연 수익률: ${rate}%`, value: rate*10, min: 0, max: 300,      step: 5,       set: (v: number) => { setRate(v/10); setPreset('직접입력'); } },
-            { label: `투자 기간: ${years}년`, value: years, min: 1, max: 40,       step: 1,       set: setYears },
-          ].map(({ label, value, min, max, step, set }) => (
-            <div key={label} className="space-y-1.5">
-              <div className="flex justify-between">
-                <span className="text-xs text-[var(--text-muted)]">{label}</span>
-                {label.startsWith('초기') && <span className="text-xs font-semibold text-[var(--text)]">{fmtW(value)}</span>}
-                {label.startsWith('월')   && <span className="text-xs font-semibold text-[var(--text)]">{fmtW(value)}</span>}
-              </div>
-              <input type="range" min={min} max={max} step={step} value={value}
-                onChange={(e) => set(+e.target.value)}
-                className="w-full accent-sky-500" />
-            </div>
-          ))}
+          {/* 슬라이더 + 수기 입력 */}
+          <SimSlider label="초기 투자금"
+            sliderValue={initial} sliderMin={0} sliderMax={100000000} sliderStep={1000000} onSlider={setInitial}
+            numValue={Math.round(initial / 10000)} numMin={0} numMax={10000} numStep={1} unit="만원"
+            onNum={(v) => setInitial(v * 10000)} />
+          <SimSlider label="월 적립액"
+            sliderValue={monthly} sliderMin={0} sliderMax={5000000} sliderStep={50000} onSlider={setMonthly}
+            numValue={Math.round(monthly / 10000)} numMin={0} numMax={500} numStep={1} unit="만원"
+            onNum={(v) => setMonthly(v * 10000)} />
+          <SimSlider label="연 수익률"
+            sliderValue={rate * 10} sliderMin={0} sliderMax={300} sliderStep={5}
+            onSlider={(v) => { setRate(v / 10); setPreset('직접입력'); }}
+            numValue={rate} numMin={0} numMax={30} numStep={0.5} unit="%"
+            onNum={(v) => { setRate(v); setPreset('직접입력'); }} numW="w-16" />
+          <SimSlider label="투자 기간"
+            sliderValue={years} sliderMin={1} sliderMax={40} sliderStep={1} onSlider={setYears}
+            numValue={years} numMin={1} numMax={40} numStep={1} unit="년"
+            onNum={setYears} numW="w-14" />
         </div>
 
         {/* 결과 카드 */}

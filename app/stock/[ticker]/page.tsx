@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import useSWR from 'swr';
 import Link from 'next/link';
+import { searchKrStocks } from '@/lib/krStocks';
 import {
   ComposedChart, AreaChart, Area, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -282,7 +283,67 @@ export default function StockDetailPage() {
   const [showRSI, setShowRSI]       = useState(false);
   const [showVol, setShowVol]       = useState(true);
   const [compareTicker, setCompare] = useState('');
+  const [compareName, setCompareName] = useState('');
   const [compareInput, setCompareInput] = useState('');
+  const [compareHits, setCompareHits] = useState<{ ticker: string; name: string }[]>([]);
+  const [showCompareDrop, setShowCompareDrop] = useState(false);
+  const compareDropRef  = useRef<HTMLDivElement>(null);
+  const compareDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (compareDropRef.current && !compareDropRef.current.contains(e.target as Node)) {
+        setShowCompareDrop(false);
+      }
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  // 비교 종목 검색 (이름/코드) — 로컬 즉시 + API debounce
+  const handleCompareInput = (val: string) => {
+    setCompareInput(val);
+    const t = val.trim();
+    if (!t || /^\d{6}$/.test(t)) {
+      setCompareHits([]); setShowCompareDrop(false);
+      if (compareDebounce.current) clearTimeout(compareDebounce.current);
+      return;
+    }
+    const local = searchKrStocks(t).map((s) => ({ ticker: s.ticker, name: s.name }));
+    setCompareHits(local);
+    setShowCompareDrop(local.length > 0);
+    if (compareDebounce.current) clearTimeout(compareDebounce.current);
+    compareDebounce.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/stock-search?q=${encodeURIComponent(t)}`);
+        if (!res.ok) return;
+        const apiHits = await res.json();
+        if (!Array.isArray(apiHits) || !apiHits.length) return;
+        setCompareHits((prev) => {
+          const seen = new Set(prev.map((h) => h.ticker));
+          return [...prev, ...apiHits.filter((h: { ticker: string }) => !seen.has(h.ticker))].slice(0, 8);
+        });
+        setShowCompareDrop(true);
+      } catch { /* 무시 */ }
+    }, 350);
+  };
+
+  const pickCompare = (hit: { ticker: string; name: string }) => {
+    const code = hit.ticker.replace(/\.(KS|KQ)$/, '');
+    setCompare(code); setCompareName(hit.name); setCompareInput(hit.name);
+    setShowCompareDrop(false); setCompareHits([]);
+  };
+
+  const submitCompare = () => {
+    if (compareHits.length) { pickCompare(compareHits[0]); return; }
+    const t = compareInput.trim().replace(/\.(KS|KQ)$/, '');
+    if (/^\d{6}$/.test(t)) { setCompare(t); setCompareName(t); setShowCompareDrop(false); }
+  };
+
+  const clearCompare = () => {
+    setCompare(''); setCompareName(''); setCompareInput(''); setCompareHits([]); setShowCompareDrop(false);
+  };
 
   const tf = TIMEFRAMES[tfIdx];
 
@@ -464,21 +525,37 @@ export default function StockDetailPage() {
           ))}
         </div>
 
-        {/* 비교 차트 입력 */}
+        {/* 비교 차트 입력 (이름/코드 검색) */}
         <div className="flex items-center gap-2 mb-4">
-          <input
-            type="text" placeholder="비교 종목코드 (예: 000660)"
-            value={compareInput}
-            onChange={(e) => setCompareInput(e.target.value.trim())}
-            onKeyDown={(e) => e.key === 'Enter' && setCompare(compareInput)}
-            className="flex-1 max-w-[200px] bg-white/5 border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50"
-          />
-          <button onClick={() => setCompare(compareInput)}
+          <div className="relative flex-1 max-w-[240px]" ref={compareDropRef}>
+            <input
+              type="text" placeholder="비교 종목 (이름·코드, 예: 삼성전자)"
+              value={compareInput}
+              onChange={(e) => handleCompareInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitCompare();
+                if (e.key === 'Escape') setShowCompareDrop(false);
+              }}
+              className="w-full bg-white/5 border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50"
+            />
+            {showCompareDrop && compareHits.length > 0 && (
+              <div className="absolute z-50 left-0 right-0 mt-1 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl overflow-hidden">
+                {compareHits.map((h) => (
+                  <button key={h.ticker} onClick={() => pickCompare(h)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/5 transition-colors border-b border-[var(--border)] last:border-0">
+                    <span className="text-xs text-[var(--text)]">{h.name}</span>
+                    <span className="text-[10px] font-mono text-[var(--text-muted)]">{h.ticker.replace(/\.(KS|KQ)$/, '')}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button onClick={submitCompare}
             className="px-3 py-1.5 text-xs rounded-lg bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 transition-colors">
             비교
           </button>
           {compareTicker && (
-            <button onClick={() => { setCompare(''); setCompareInput(''); }}
+            <button onClick={clearCompare}
               className="text-xs text-[var(--text-muted)] hover:text-red-400">✕ 해제</button>
           )}
         </div>
@@ -508,7 +585,7 @@ export default function StockDetailPage() {
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Line type="monotone" dataKey="mainRet" name={stock.name} stroke={isPos ? '#10b981' : '#ef4444'}
                     strokeWidth={1.5} dot={false} />
-                  <Line type="monotone" dataKey="compareRet" name={compareTicker} stroke="#f59e0b"
+                  <Line type="monotone" dataKey="compareRet" name={compareName || compareTicker} stroke="#f59e0b"
                     strokeWidth={1.5} dot={false} connectNulls />
                   <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 4" />
                 </ComposedChart>
