@@ -18,8 +18,12 @@ interface AccountResp {
 }
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
-const fmtUsd = (n: number) =>
-  n >= 1 ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : n.toPrecision(4);
+const fmtUsd = (n: number) => {
+  if (n <= 0) return '0';
+  if (n < 0.01) return '<0.01';
+  if (n < 1) return n.toFixed(4);
+  return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+};
 
 export default function BitgetPage() {
   const { data, isLoading } = useSWR<AccountResp>('/api/bitget/account', fetcher, {
