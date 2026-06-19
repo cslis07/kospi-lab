@@ -86,6 +86,17 @@ export default function CryptoDetailPage() {
     { refreshInterval: 60000 }
   );
 
+  // 선물(USDT-Perp) 시세 — 같은 심볼 1개만 발췌
+  const { data: futuresAll } = useSWR<{ symbol: string; price: number; changeRate: number; fundingRate: number | null; quoteVolume: number }[]>(
+    '/api/futures/tickers',
+    fetcher,
+    { refreshInterval: 10000, revalidateOnFocus: false },
+  );
+  const futures = Array.isArray(futuresAll) ? futuresAll.find((f) => f.symbol === symbol) : undefined;
+  const premium = crypto && futures && crypto.price > 0
+    ? ((futures.price - crypto.price) / crypto.price) * 100
+    : null;
+
   const isPos = (crypto?.changeRate ?? 0) >= 0;
   const chartData = Array.isArray(chart) ? chart : [];
 
@@ -144,7 +155,7 @@ export default function CryptoDetailPage() {
                   {base}/USDT
                 </span>
               </div>
-              <span className="text-sm text-[var(--text-muted)] font-mono">Yahoo Finance 실시간</span>
+              <span className="text-sm text-[var(--text-muted)] font-mono">Bitget 실시간</span>
             </div>
             <div className="text-right">
               <p className="text-3xl font-bold tabular-nums text-[var(--text)]">
@@ -176,6 +187,40 @@ export default function CryptoDetailPage() {
             <div>
               <p className="text-[var(--text-muted)] text-xs mb-0.5">24h 거래대금</p>
               <p className="font-medium text-[var(--text)]">${fmtVol(crypto.quoteVolume24h)}</p>
+            </div>
+          </div>
+        )}
+
+        {/* 선물(USDT-Perp) 시세 */}
+        {crypto && futures && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-[var(--border)] text-sm">
+            <div>
+              <p className="text-[var(--text-muted)] text-xs mb-0.5">선물 현재가</p>
+              <p className="font-medium tabular-nums text-[var(--text)]">${fmtPrice(futures.price)}</p>
+            </div>
+            <div>
+              <p className="text-[var(--text-muted)] text-xs mb-0.5">선물 24h%</p>
+              <p className={`font-medium tabular-nums ${futures.changeRate >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {futures.changeRate >= 0 ? '+' : ''}{futures.changeRate.toFixed(2)}%
+              </p>
+            </div>
+            <div>
+              <p className="text-[var(--text-muted)] text-xs mb-0.5">선물 프리미엄</p>
+              <p className={`font-medium tabular-nums ${
+                premium == null ? 'text-[var(--text-muted)]' :
+                premium > 0 ? 'text-emerald-400' : 'text-red-400'
+              }`}>
+                {premium != null ? `${premium > 0 ? '+' : ''}${premium.toFixed(3)}%` : '-'}
+              </p>
+            </div>
+            <div>
+              <p className="text-[var(--text-muted)] text-xs mb-0.5">펀딩비 (8h)</p>
+              <p className={`font-medium tabular-nums ${
+                futures.fundingRate == null ? 'text-[var(--text-muted)]' :
+                futures.fundingRate > 0 ? 'text-emerald-400' : 'text-red-400'
+              }`}>
+                {futures.fundingRate != null ? `${futures.fundingRate > 0 ? '+' : ''}${futures.fundingRate.toFixed(4)}%` : '-'}
+              </p>
             </div>
           </div>
         )}

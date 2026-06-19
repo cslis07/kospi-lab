@@ -17,6 +17,55 @@ interface AccountResp {
   error?: string;
 }
 
+interface Bill {
+  billId: string;
+  ts: number;
+  coin: string;
+  groupType: string;
+  businessType: string;
+  size: number;
+  fees: number;
+}
+interface Fill {
+  tradeId: string;
+  ts: number;
+  symbol: string;
+  side: string;
+  priceAvg: number;
+  size: number;
+  amount: number | null;
+  fee: number;
+}
+interface ActivityResp {
+  configured: boolean;
+  bills?: Bill[];
+  fills?: Fill[];
+  error?: string;
+}
+
+const fmtTs = (ts: number) => {
+  if (!ts) return '-';
+  const d = new Date(ts);
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+const fmtAmount = (n: number) => {
+  const abs = Math.abs(n);
+  if (abs >= 1) return n.toLocaleString('en-US', { maximumFractionDigits: 4 });
+  return n.toFixed(8).replace(/\.?0+$/, '');
+};
+const BIZ_LABEL: Record<string, string> = {
+  TRANSFER_IN:  '내부 입금',
+  TRANSFER_OUT: '내부 출금',
+  DEPOSIT:      '입금',
+  WITHDRAW:     '출금',
+  BUY:          '매수',
+  SELL:         '매도',
+  TRADE:        '거래',
+  CONVERT:      '환전',
+  REWARD:       '보상',
+};
+const bizLabel = (b: string) => BIZ_LABEL[b] ?? b.toLowerCase().replace(/_/g, ' ');
+
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const fmtUsd = (n: number) => {
   if (n <= 0) return '0';
@@ -30,6 +79,11 @@ export default function BitgetPage() {
     refreshInterval: 30000,
     revalidateOnFocus: false,
   });
+  const { data: act } = useSWR<ActivityResp>(
+    data?.configured ? '/api/bitget/activity' : null,
+    fetcher,
+    { refreshInterval: 60000, revalidateOnFocus: false },
+  );
 
   return (
     <div className="max-w-lg mx-auto pb-12">
@@ -120,6 +174,59 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* ── 최근 체결 (Fills) ── */}
+          {act?.fills && act.fills.length > 0 && (
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+              <h2 className="text-sm font-semibold text-[var(--text)] mb-3">최근 체결 내역</h2>
+              <div className="space-y-1.5">
+                {act.fills.slice(0, 8).map((f) => {
+                  const buy = f.side.toLowerCase() === 'buy';
+                  return (
+                    <div key={f.tradeId} className="flex items-center justify-between text-xs rounded-lg bg-white/3 px-3 py-2">
+                      <div>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold mr-1.5 ${buy ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                          {buy ? '매수' : '매도'}
+                        </span>
+                        <span className="font-mono text-[var(--text)]">{f.symbol}</span>
+                        <span className="text-[10px] text-[var(--text-muted)] ml-1.5">{fmtTs(f.ts)}</span>
+                      </div>
+                      <div className="text-right tabular-nums">
+                        <p className="text-[var(--text)]">{fmtAmount(f.size)} @ ${fmtUsd(f.priceAvg)}</p>
+                        {f.amount != null && <p className="text-[10px] text-[var(--text-muted)]">≈ ${fmtUsd(f.amount)}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── 입출금·이체 (Bills) ── */}
+          {act?.bills && act.bills.length > 0 && (
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+              <h2 className="text-sm font-semibold text-[var(--text)] mb-3">입출금·이체 내역</h2>
+              <div className="space-y-1.5">
+                {act.bills.slice(0, 10).map((b) => {
+                  const inflow = b.size > 0;
+                  return (
+                    <div key={b.billId} className="flex items-center justify-between text-xs rounded-lg bg-white/3 px-3 py-2">
+                      <div>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium mr-1.5 ${inflow ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                          {bizLabel(b.businessType)}
+                        </span>
+                        <span className="font-mono text-[var(--text)]">{b.coin}</span>
+                        <span className="text-[10px] text-[var(--text-muted)] ml-1.5">{fmtTs(b.ts)}</span>
+                      </div>
+                      <span className={`tabular-nums font-semibold ${inflow ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {inflow ? '+' : ''}{fmtAmount(b.size)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

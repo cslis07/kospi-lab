@@ -90,6 +90,7 @@ function DashboardInner() {
           <QuickCard href="/simulate"                  emoji="📈" title="수익 시뮬레이션"  desc="복리 FV 계산" />
           <QuickCard href="/brokerage"                 emoji="🏦" title="증권사 비교"      desc="수수료·CMA 비교" />
           <QuickCard href="/bitget"                    emoji="🪙" title="비트겟 포트폴리오" desc="내 코인 잔고 조회" />
+          <QuickCard href="/futures"                   emoji="⚡" title="선물 시세"        desc="USDT 무기한·펀딩비" />
         </div>
       </div>
     </div>

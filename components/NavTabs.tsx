@@ -72,6 +72,16 @@ const TABS = [
     href: '/brokerage',
     matchFn: (p: string) => p.startsWith('/brokerage'),
   },
+  {
+    label: '선물',
+    href: '/futures',
+    matchFn: (p: string) => p.startsWith('/futures'),
+  },
+  {
+    label: '비트겟',
+    href: '/bitget',
+    matchFn: (p: string) => p.startsWith('/bitget'),
+  },
 ];
 
 function NavTabsInner() {
