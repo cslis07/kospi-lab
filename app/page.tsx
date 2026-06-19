@@ -63,6 +63,16 @@ function WatchlistSummary() {
   );
 }
 
+/* ── 카테고리 섹션 래퍼 ─────────────────────────────────── */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h2 className="text-xs font-semibold text-[var(--text-muted)] mb-2 uppercase tracking-wide">{title}</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">{children}</div>
+    </div>
+  );
+}
+
 /* ── 대시보드 내부 ──────────────────────────────────────── */
 function DashboardInner() {
   return (
@@ -73,26 +83,33 @@ function DashboardInner() {
       {/* 관심종목 바로가기 */}
       <WatchlistSummary />
 
-      {/* 빠른 이동 그리드 */}
-      <div>
-        <h2 className="text-sm font-semibold text-[var(--text-muted)] mb-3 uppercase tracking-wide">바로가기</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          <QuickCard href="/my-stocks?market=domestic" emoji="🇰🇷" title="국내주식"      desc="KR 관심종목 보기" />
-          <QuickCard href="/my-stocks?market=overseas" emoji="🌐" title="해외주식"      desc="US 관심종목 보기" />
-          <QuickCard href="/my-stocks?market=crypto"   emoji="₿"  title="코인"          desc="암호화폐 보기" />
-          <QuickCard href="/screener"                  emoji="🔍" title="버핏 스크리너"  desc="종목 분석하기" />
-          <QuickCard href="/news"                      emoji="📰" title="뉴스"           desc="시장 소식 보기" />
-          <QuickCard href="/dart"                      emoji="📋" title="공시"           desc="전자공시 조회" />
-          <QuickCard href="/report"                    emoji="📊" title="리포트"         desc="증권사 리포트" />
-          <QuickCard href="/calendar"                  emoji="📅" title="캘린더"         desc="경제 이벤트" />
-          <QuickCard href="/invest"                    emoji="🎯" title="투자설계"         desc="계좌·자산 추천" />
-          <QuickCard href="/tax"                       emoji="💸" title="세제혜택"         desc="ISA·IRP·연금 절세" />
-          <QuickCard href="/simulate"                  emoji="📈" title="수익 시뮬레이션"  desc="복리 FV 계산" />
-          <QuickCard href="/brokerage"                 emoji="🏦" title="증권사 비교"      desc="수수료·CMA 비교" />
-          <QuickCard href="/bitget"                    emoji="🪙" title="비트겟 포트폴리오" desc="내 코인 잔고 조회" />
-          <QuickCard href="/futures"                   emoji="⚡" title="선물 시세"        desc="USDT 무기한·펀딩비" />
-        </div>
-      </div>
+      {/* 카테고리별 바로가기 — NavTabs 그룹과 동일 구조 */}
+      <Section title="📈 시장">
+        <QuickCard href="/domestic"               emoji="🇰🇷" title="국내주식" desc="KOSPI·KOSDAQ" />
+        <QuickCard href="/overseas"               emoji="🌐" title="해외주식" desc="US 등 글로벌" />
+        <QuickCard href="/my-stocks?market=crypto" emoji="₿"  title="코인"     desc="실시간 시세" />
+        <QuickCard href="/futures"                emoji="⚡" title="선물"     desc="USDT 무기한" />
+      </Section>
+
+      <Section title="💼 내 자산">
+        <QuickCard href="/my-stocks" emoji="⭐" title="내 주식"           desc="관심·포트폴리오" />
+        <QuickCard href="/bitget"    emoji="🪙" title="비트겟 포트폴리오" desc="내 코인 잔고" />
+      </Section>
+
+      <Section title="📊 분석">
+        <QuickCard href="/screener" emoji="🔍" title="버핏 스크리너" desc="ROE·PER 7기준" />
+        <QuickCard href="/news"     emoji="📰" title="뉴스"          desc="시장 소식" />
+        <QuickCard href="/dart"     emoji="📋" title="공시"          desc="DART 전자공시" />
+        <QuickCard href="/report"   emoji="📊" title="리포트"        desc="증권사 리포트" />
+        <QuickCard href="/calendar" emoji="📅" title="캘린더"        desc="경제 이벤트" />
+      </Section>
+
+      <Section title="🎯 설계">
+        <QuickCard href="/invest"    emoji="🧭" title="투자설계"   desc="계좌·자산 추천" />
+        <QuickCard href="/tax"       emoji="💸" title="세제혜택"   desc="ISA·IRP·연금 절세" />
+        <QuickCard href="/simulate"  emoji="📈" title="시뮬레이션" desc="복리 FV 계산" />
+        <QuickCard href="/brokerage" emoji="🏦" title="증권사 비교" desc="수수료·CMA" />
+      </Section>
     </div>
   );
 }
