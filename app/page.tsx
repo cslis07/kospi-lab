@@ -92,6 +92,7 @@ function DashboardInner() {
       </Section>
 
       <Section title="💼 내 자산">
+        <QuickCard href="/portfolio" emoji="💰" title="통합 자산"         desc="국내·해외·코인 합산" />
         <QuickCard href="/my-stocks" emoji="⭐" title="내 주식"           desc="관심·포트폴리오" />
         <QuickCard href="/bitget"    emoji="🪙" title="비트겟 포트폴리오" desc="내 코인 잔고" />
       </Section>

@@ -3,6 +3,7 @@
 import useSWR from 'swr';
 import { useState, useEffect } from 'react';
 import ThemeToggle from './ThemeToggle';
+import GlobalSearch from './GlobalSearch';
 import type { FxRate } from '@/lib/types';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -72,7 +73,7 @@ function FxPill({ label, rate }: { label: string; rate: FxRate }) {
   const isPos = rate.change >= 0;
   const changeColor = isPos ? 'text-emerald-400' : 'text-red-400';
   return (
-    <div className="pill-shadow hidden sm:flex items-center gap-1.5 text-xs border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
+    <div className="pill-shadow hidden sm:flex items-center gap-1.5 text-xs border border-[var(--border)] rounded-full px-2.5 py-1 bg-[var(--pill-bg)]">
       <span className="text-[var(--text-muted)] font-medium">{label}</span>
       <span className="text-[var(--text)] font-bold font-mono">
         ₩{Math.round(rate.value).toLocaleString('ko-KR')}
@@ -103,78 +104,58 @@ export default function Header() {
 
   return (
     <header className="site-header border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-md sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center gap-3">
 
-        {/* ── Left: 시장 상태 ── */}
-        <div className="flex items-center gap-2 text-xs shrink-0 min-w-0">
-          {/* 해외 */}
-          <div className="flex items-center gap-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-              isUsOpen ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'
-            }`} />
-            <span className="text-[var(--text-muted)] whitespace-nowrap">해외 정규장</span>
+        {/* ── Left: 로고 + 시장 상태 ── */}
+        <div className="flex items-center gap-3 shrink-0 min-w-0">
+          <div className="leading-tight">
+            <h1 className="text-sm font-bold tracking-wider text-[var(--text)]">KOSPI LAB</h1>
+            <p className="text-[9px] text-[var(--text-muted)] leading-none mt-0.5 hidden sm:block">실시간 시세</p>
           </div>
-          <span className="text-[var(--text-muted)] opacity-40">·</span>
-          <span className="text-[var(--text-muted)] whitespace-nowrap hidden sm:inline">{usLabel}</span>
-          <span className="text-[var(--text-muted)] opacity-40 hidden sm:inline">·</span>
-
-          {/* 국내 */}
-          <div className="flex items-center gap-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-              isKrOpen ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'
-            }`} />
-            <span className="text-[var(--text-muted)] whitespace-nowrap">
-              {isKrOpen ? '국내장개장' : '국내장마감'}
-            </span>
+          {/* 시장 상태 dot — md+ 에서만 표시 */}
+          <div className="hidden md:flex items-center gap-2 text-xs ml-2 pl-3 border-l border-[var(--border)]">
+            <div className="flex items-center gap-1.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${isUsOpen ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'}`} />
+              <span className="text-[var(--text-muted)] whitespace-nowrap" title={usLabel}>해외</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${isKrOpen ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'}`} />
+              <span className="text-[var(--text-muted)] whitespace-nowrap" title={krLabel}>
+                {isKrOpen ? '국내 개장' : '국내 마감'}
+              </span>
+            </div>
           </div>
-          <span className="text-[var(--text-muted)] opacity-40">·</span>
-          <span className="text-[var(--text-muted)] whitespace-nowrap hidden md:inline">{krLabel}</span>
         </div>
 
-        {/* ── Center: 로고 ── */}
-        <div className="text-center absolute left-1/2 -translate-x-1/2 pointer-events-none">
-          <h1 className="text-sm font-bold tracking-widest text-[var(--text)]">KOSPI LAB</h1>
-          <p className="text-[10px] text-[var(--text-muted)] leading-none mt-0.5">실시간 시세 제공</p>
+        {/* ── Center: 글로벌 검색 (항상 표시, 모바일에서도) ── */}
+        <div className="flex-1 flex justify-center min-w-0">
+          <GlobalSearch />
         </div>
 
         {/* ── Right: 환율 + 시계 + 토글 ── */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* USD/KRW */}
-          {usdkrw && <FxPill label="USD/KRW" rate={usdkrw} />}
+          {/* USD/KRW — sm+ */}
+          {usdkrw && <FxPill label="USD" rate={usdkrw} />}
 
-          {/* JPY/KRW (per 100엔) */}
+          {/* JPY/KRW — lg+ */}
           {jpykrw && (
-            <div className="pill-shadow hidden md:flex items-center gap-1.5 text-xs border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
-              <span className="text-[var(--text-muted)] font-medium">JPY/KRW</span>
+            <div className="pill-shadow hidden lg:flex items-center gap-1.5 text-xs border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
+              <span className="text-[var(--text-muted)] font-medium">JPY</span>
               <span className="text-[var(--text)] font-bold font-mono">
                 ₩{Math.round(jpykrw.value).toLocaleString('ko-KR')}
               </span>
               <span className={`font-mono ${jpykrw.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {jpykrw.change >= 0 ? '+' : ''}{jpykrw.change.toFixed(2)}
               </span>
-              <span className="text-[var(--text-muted)] opacity-50 text-[10px]">100엔</span>
             </div>
           )}
 
-          {/* 시계 */}
-          <div className="pill-shadow hidden sm:flex items-center gap-1 text-xs text-[var(--text-muted)] font-mono border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
-            {/* 새로고침 아이콘 */}
-            <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+          {/* 시계 — md+ */}
+          <div className="pill-shadow hidden md:flex items-center gap-1 text-xs text-[var(--text-muted)] font-mono border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
             <span>{time}</span>
           </div>
 
           <ThemeToggle />
-
-          {/* 유저 아이콘 */}
-          <div className="pill-shadow w-7 h-7 rounded-full bg-[var(--pill-bg)] border border-[var(--border)] flex items-center justify-center">
-            <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
         </div>
 
       </div>
