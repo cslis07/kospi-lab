@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>KOSPI LAB · 이용가이드</title>
+<meta name="description" content="국내·해외 주식 + 코인 + 선물 통합 투자 대시보드. 시세·재무·뉴스·공시·내 자산을 한 화면에.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="KOSPI LAB 이용가이드">
+<meta property="og:description" content="국내·해외 주식 + 코인 + 선물 통합 투자 대시보드 사용법 한 페이지 안내">
+<meta property="og:url" content="https://kospi-lab.vercel.app/guide.html">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;font-family:'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);background:var(--bg);line-height:1.7;font-size:15px}
+
+:root{
+  --primary:#3b82f6;
+  --primary-dark:#1d4ed8;
+  --primary-lt:#eff6ff;
+
+  --c1:#3b82f6;--c1-lt:#eff6ff;       /* 시장 - 블루 */
+  --c2:#0ea5e9;--c2-lt:#f0f9ff;       /* 시안 */
+  --c3:#10b981;--c3-lt:#ecfdf5;       /* 분석 - 그린 */
+  --c4:#f59e0b;--c4-lt:#fffbeb;       /* 내 자산 - 앰버 */
+  --c5:#8b5cf6;--c5-lt:#f5f3ff;       /* 설계 - 퍼플 */
+  --c6:#ec4899;--c6-lt:#fdf2f8;       /* 부가 - 핑크 */
+
+  --text:#1e293b;--text2:#475569;--text3:#94a3b8;
+  --border:#e2e8f0;--surface:#fff;--bg:#f8fafc;
+  --radius:10px;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 16px rgba(0,0,0,.10);
+  --sidebar:260px;
+}
+
+/* ── Top Bar ── */
+.top-bar{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);height:60px}
+.top-bar-inner{max-width:1200px;margin:0 auto;padding:0 20px;height:100%;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.top-logo{font-weight:800;font-size:17px;color:var(--text);text-decoration:none;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
+.top-logo .em{font-size:20px}
+.top-nav{display:flex;gap:6px}
+.top-nav a{color:var(--text2);text-decoration:none;font-size:13.5px;font-weight:500;padding:6px 12px;border-radius:8px;transition:all .15s}
+.top-nav a:hover{background:var(--primary-lt);color:var(--primary-dark)}
+.top-nav a.cta{background:var(--primary);color:#fff}
+.top-nav a.cta:hover{background:var(--primary-dark);color:#fff}
+
+/* ── Hero ── */
+.hero{background:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 60%,#8b5cf6 100%);color:#fff;padding:54px 20px 64px;text-align:center}
+.hero-inner{max-width:900px;margin:0 auto}
+.hero-badge{display:inline-block;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);padding:5px 14px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.3px;margin-bottom:18px;border:1px solid rgba(255,255,255,.25)}
+.hero h1{font-size:36px;font-weight:800;margin:0 0 14px;letter-spacing:-.5px;line-height:1.2}
+.hero p{font-size:15.5px;opacity:.94;max-width:660px;margin:0 auto;line-height:1.65}
+.hero-chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:22px}
+.hero-chips span{background:rgba(255,255,255,.16);padding:5px 13px;border-radius:999px;font-size:12.5px;font-weight:500;border:1px solid rgba(255,255,255,.22)}
+
+/* ── Layout ── */
+.layout{max-width:1200px;margin:0 auto;padding:0 20px;display:flex;gap:30px;position:relative}
+.sidebar{width:var(--sidebar);flex-shrink:0;position:sticky;top:80px;align-self:flex-start;max-height:calc(100vh - 100px);overflow-y:auto;padding:32px 0 32px;border-right:1px solid var(--border)}
+.sidebar-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;margin:0 12px 14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.sidebar-section{margin-bottom:4px}
+.sidebar-link{display:flex;align-items:center;gap:10px;padding:8px 12px;color:var(--text2);text-decoration:none;font-size:13.5px;font-weight:500;border-radius:8px;margin:1px 6px;transition:all .15s}
+.sidebar-link:hover{background:var(--bg);color:var(--text)}
+.sidebar-link.active{background:var(--primary-lt);color:var(--primary-dark);font-weight:600}
+.sidebar-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sidebar-sub{padding:2px 0 4px 30px;display:flex;flex-direction:column;gap:2px}
+.sidebar-sub a{color:var(--text3);text-decoration:none;font-size:12.5px;padding:3px 0;transition:color .15s}
+.sidebar-sub a:hover{color:var(--primary-dark)}
+
+.main{flex:1;min-width:0;padding:40px 0 40px 10px}
+
+/* ── Section ── */
+.guide-section{margin-bottom:48px;scroll-margin-top:80px}
+.section-header{display:flex;align-items:center;gap:14px;padding:20px 24px;border-radius:14px;color:#fff;margin-bottom:20px;box-shadow:var(--shadow-md)}
+.section-icon{font-size:30px;line-height:1}
+.section-title{font-size:20px;font-weight:800;letter-spacing:-.3px}
+.section-subtitle{font-size:12.5px;opacity:.92;font-weight:500;margin-top:2px}
+.sh-update{background:linear-gradient(135deg,#b91c1c,#ef4444)}
+.sh-overview{background:linear-gradient(135deg,#475569,#94a3b8)}
+.sh-1{background:linear-gradient(135deg,#1d4ed8,#3b82f6)}
+.sh-2{background:linear-gradient(135deg,#0c4a6e,#0ea5e9)}
+.sh-3{background:linear-gradient(135deg,#065f46,#10b981)}
+.sh-4{background:linear-gradient(135deg,#92400e,#f59e0b)}
+.sh-5{background:linear-gradient(135deg,#5b21b6,#8b5cf6)}
+.sh-6{background:linear-gradient(135deg,#9d174d,#ec4899)}
+
+.feature{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px 24px;margin-bottom:14px;box-shadow:var(--shadow);scroll-margin-top:80px}
+.feature h3{margin:0 0 10px;font-size:16.5px;font-weight:700;color:var(--text);letter-spacing:-.2px}
+.feature p{margin:0 0 8px;color:var(--text2);font-size:14px}
+.feature p:last-child{margin-bottom:0}
+
+/* ── Update card ── */
+.update-card{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:var(--radius);padding:18px 22px;margin-bottom:12px;box-shadow:var(--shadow)}
+.update-card.new{border-left-color:#ef4444}
+.update-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.update-date{font-size:12px;color:var(--text3);font-weight:500;font-variant-numeric:tabular-nums}
+.update-badge{font-size:10.5px;font-weight:700;background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:5px;letter-spacing:.5px}
+.update-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px}
+.update-body{color:var(--text2);font-size:13.5px;line-height:1.65}
+.update-body ul{margin:6px 0 0;padding-left:20px}
+.update-body li{margin:3px 0}
+
+/* ── Steps ── */
+.steps{display:flex;flex-direction:column;gap:14px;margin-top:14px}
+.step{display:flex;gap:14px;align-items:flex-start;position:relative}
+.step:not(:last-child)::after{content:"";position:absolute;left:13px;top:34px;bottom:-20px;width:2px;background:var(--border)}
+.step-num{width:28px;height:28px;border-radius:50%;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;z-index:1}
+.step-body{flex:1;padding-top:2px}
+.step-label{font-weight:700;font-size:14px;color:var(--text);margin-bottom:3px}
+.step-text{color:var(--text2);font-size:13.5px;line-height:1.65}
+
+/* ── Feat grid ── */
+.feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.feat-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;transition:all .15s}
+.feat-card:hover{border-color:var(--primary);background:var(--surface);box-shadow:var(--shadow)}
+.feat-card-icon{font-size:22px;margin-bottom:8px;line-height:1}
+.feat-card-title{font-weight:700;font-size:14px;color:var(--text);margin-bottom:4px}
+.feat-card-desc{font-size:12.5px;color:var(--text2);line-height:1.55}
+
+/* ── Tips ── */
+.tip{background:var(--primary-lt);border-left:3px solid var(--primary);border-radius:6px;padding:10px 14px;margin-top:12px;font-size:13px;color:var(--text2);line-height:1.6}
+.tip-warn{background:#fef2f2;border-left-color:#ef4444;color:#991b1b}
+.tip-green{background:#ecfdf5;border-left-color:#10b981;color:#065f46}
+.tip-amber{background:#fffbeb;border-left-color:#f59e0b;color:#92400e}
+
+/* ── Func list ── */
+.func-list{list-style:none;padding:0;margin:14px 0 0;display:flex;flex-direction:column;gap:8px}
+.func-list li{display:flex;gap:12px;align-items:flex-start;padding:10px 14px;background:var(--bg);border-radius:8px;border:1px solid var(--border)}
+.fi{font-size:18px;flex-shrink:0;line-height:1.4}
+.func-list li>div{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.ft{font-weight:600;font-size:13.5px;color:var(--text)}
+.fd{font-size:12.5px;color:var(--text2);line-height:1.55}
+
+/* ── Info table ── */
+.info-table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px;background:var(--surface);border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.info-table thead{background:var(--bg)}
+.info-table th{text-align:left;padding:10px 14px;font-weight:600;color:var(--text);font-size:12.5px;border-bottom:1px solid var(--border)}
+.info-table td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top}
+.info-table tr:last-child td{border-bottom:0}
+.info-table strong{color:var(--text);font-weight:600}
+
+/* ── Code / kbd ── */
+code{background:var(--bg);padding:2px 6px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.88em;color:#dc2626;border:1px solid var(--border)}
+kbd{background:linear-gradient(180deg,#fff,#f1f5f9);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.86em;color:var(--text);font-weight:600}
+
+/* ── Footer ── */
+.guide-footer{background:var(--text);color:#cbd5e1;padding:32px 20px;text-align:center;margin-top:48px;font-size:13px}
+.guide-footer p{margin:4px 0}
+.guide-footer a{color:#93c5fd;text-decoration:none}
+.guide-footer a:hover{text-decoration:underline}
+
+/* ── Mobile FAB & Drawer ── */
+.toc-fab{display:none;position:fixed;right:18px;bottom:calc(20px + env(safe-area-inset-bottom));width:54px;height:54px;border-radius:50%;background:var(--primary);color:#fff;border:0;box-shadow:0 4px 16px rgba(59,130,246,.4);cursor:pointer;z-index:60;font-size:22px;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.toc-drawer{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);z-index:70;align-items:flex-end;justify-content:center;padding:20px}
+.toc-drawer.open{display:flex}
+.toc-drawer-panel{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:500px;max-height:75vh;overflow-y:auto;padding:24px 18px;-webkit-overflow-scrolling:touch}
+.toc-drawer-panel .sidebar-title{margin-left:6px}
+
+/* ── Mobile ── */
+@media (max-width:900px){
+  .sidebar{display:none}
+  .layout{padding:0 14px;gap:0}
+  .main{padding:24px 0;width:100%}
+  .toc-fab{display:flex}
+  .hero{padding:42px 18px 50px}
+  .hero h1{font-size:26px}
+  .hero p{font-size:14px}
+  .top-nav a:not(.cta){display:none}
+  .top-bar-inner{padding:0 14px}
+  .feat-grid{grid-template-columns:1fr}
+  .section-header{padding:16px}
+  .section-title{font-size:17px}
+  .section-icon{font-size:24px}
+  .feature{padding:18px 16px}
+  .feature h3{font-size:15.5px}
+  .info-table{font-size:12.5px}
+  .info-table th,.info-table td{padding:8px 10px}
+}
+@media (max-width:640px){
+  .hero h1{font-size:22px}
+  .hero-chips span{font-size:11.5px;padding:4px 10px}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Top Bar ── -->
+<header class="top-bar">
+  <div class="top-bar-inner">
+    <a href="/" class="top-logo"><span class="em">📊</span> KOSPI LAB</a>
+    <nav class="top-nav">
+      <a href="/">대시보드</a>
+      <a href="/portfolio">통합 자산</a>
+      <a href="/screener">스크리너</a>
+      <a href="/" class="cta">앱 시작 →</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">📖 이용가이드 · v2026.06</div>
+    <h1>국내·해외 주식 + 코인 + 선물 한 화면</h1>
+    <p>실시간 시세, 재무지표, 뉴스·공시, 본인 성향 맞춤 투자 설계와 절세·시뮬레이션을 한 곳에서.<br>로그인 없이 시작, Bitget만 본인 API 키로 잔고 조회.</p>
+    <div class="hero-chips">
+      <span>🇰🇷 KOSPI·KOSDAQ 실시간</span>
+      <span>🌐 해외주식·환율</span>
+      <span>₿ Bitget 코인·선물</span>
+      <span>📊 KIS 실시간 재무</span>
+      <span>🎯 투자설계·절세</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Layout ── -->
+<div class="layout">
+
+  <!-- Sidebar (Desktop) -->
+  <aside class="sidebar">
+    <div class="sidebar-title">목차</div>
+
+    <div class="sidebar-section">
+      <a class="sidebar-link" href="#sec-updates">
+        <span class="sidebar-dot" style="background:#ef4444"></span>수정된 사항
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      <a class="sidebar-link" href="#sec-overview">
+        <span class="sidebar-dot" style="background:#94a3b8"></span>화면 구성
+      </a>
+      <div class="sidebar-sub">
+        <a href="#sub-nav">네비게이션</a>
+        <a href="#sub-search">글로벌 검색</a>
+        <a href="#sub-header">헤더 정보</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <a class="sidebar-link" href="#sec-market">
+        <span class="sidebar-dot" style="background:var(--c1)"></span>시장
+      </a>
+      <div class="sidebar-sub">
+        <a href="#sub-domestic">국내주식</a>
+        <a href="#sub-overseas">해외주식</a>
+        <a href="#sub-crypto">코인</a>
+        <a href="#sub-futures">선물</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <a class="sidebar-link" href="#sec-holdings">
+        <span class="sidebar-dot" style="background:var(--c4)"></span>내 자산
+      </a>
+      <div class="sidebar-sub">
+        <a href="#sub-portfolio">통합 자산</a>
+        <a href="#sub-mystocks">내 주식</a>
+        <a href="#sub-bitget">비트겟 포트폴리오</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <a class="sidebar-link" href="#sec-analysis">
+        <span class="sidebar-dot" style="background:var(--c3)"></span>분석
+      </a>
+      <div class="sidebar-sub">
+        <a href="#sub-screener">버핏 스크리너</a>
+        <a href="#sub-news">뉴스·공시·리포트</a>
+        <a href="#sub-calendar">캘린더</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <a class="sidebar-link" href="#sec-planning">
+        <span class="sidebar-dot" style="background:var(--c5)"></span>설계
+      </a>
+      <div class="sidebar-sub">
+        <a href="#sub-invest">투자설계</a>
+        <a href="#sub-tax">세제혜택</a>
+        <a href="#sub-simulate">시뮬레이션</a>
+        <a href="#sub-brokerage">증권사비교</a>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <a class="sidebar-link" href="#sec-tools">
+        <span class="sidebar-dot" style="background:var(--c6)"></span>부가 기능
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- ───────────────── 0. 수정된 사항 ───────────────── -->
+    <section class="guide-section" id="sec-updates">
+      <div class="section-header sh-update">
+        <span class="section-icon">🔔</span>
+        <div>
+          <div class="section-title">수정된 사항</div>
+          <div class="section-subtitle">최근 변경 내역 · 최신순</div>
+        </div>
+      </div>
+
+      <div class="update-card new">
+        <div class="update-head">
+          <span class="update-date">2026.06.19</span>
+          <span class="update-badge">NEW</span>
+        </div>
+        <div class="update-title">📱 모바일 네비 + 글로벌 검색 + 통합 자산</div>
+        <div class="update-body">
+          <ul>
+            <li>네비게이션을 <strong>4그룹 드롭다운</strong>으로 정리 (15개 → 5개 최상위)</li>
+            <li><strong>모바일 햄버거 메뉴</strong>: 좁은 화면에서 펼침 패널로 전 메뉴 표시</li>
+            <li><strong>글로벌 검색</strong>: 헤더에서 종목명·코드 검색 → 상세 페이지 이동 (<kbd>⌘K</kbd>/<kbd>Ctrl</kbd>+<kbd>K</kbd>)</li>
+            <li><strong>통합 자산 페이지</strong> 신규: 국내 보유 + Bitget 코인 합계를 KRW로 환산</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="update-card new">
+        <div class="update-head">
+          <span class="update-date">2026.06.18</span>
+          <span class="update-badge">NEW</span>
+        </div>
+        <div class="update-title">⚡ 비트겟 연동 & 선물 시세 페이지</div>
+        <div class="update-body">
+          <ul>
+            <li><strong>코인 시세</strong>를 Bitget 기반으로 전환 (Vercel에서 안정적, Yahoo 폴백 유지)</li>
+            <li>선물 시세 페이지 신규: USDT 무기한 <strong>649종</strong>, 펀딩비 표시</li>
+            <li>코인 상세에 <strong>선물 프리미엄·펀딩비</strong> 한 줄 추가</li>
+            <li>비트겟 포트폴리오에 <strong>체결 내역·입출금/이체</strong> 섹션 추가</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="update-card">
+        <div class="update-head">
+          <span class="update-date">2026.06.17</span>
+          <span class="update-badge">NEW</span>
+        </div>
+        <div class="update-title">📈 한국투자증권(KIS) 실시간 재무 연동</div>
+        <div class="update-body">
+          <ul>
+            <li>종목 상세 모달에 <strong>PER·PBR·EPS + 52주 위치 바</strong> 추가</li>
+            <li>버핏 스크리너 데이터 소스 확장: Yahoo → Naver → <strong>KIS</strong> → DART 4-단 폴백</li>
+            <li>투자설계 결과에 <strong>성향별 KR 우량주 4종</strong> (실시간 KIS 재무지표) 표시</li>
+            <li>토큰 만료 시 자동 재발급 (cron 불필요)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="update-card">
+        <div class="update-head">
+          <span class="update-date">2026.06.17</span>
+        </div>
+        <div class="update-title">🎯 설계 카테고리 4페이지 신규</div>
+        <div class="update-body">
+          <ul>
+            <li><strong>투자설계</strong>: 나이·금액·성향 기반 추천 계좌(ISA/IRP/연금) + 자산배분</li>
+            <li><strong>세제혜택</strong>: ISA·IRP·연금저축 세액공제 실시간 계산</li>
+            <li><strong>시뮬레이션</strong>: 복리 FV 계산기 + 4가지 프리셋</li>
+            <li><strong>증권사비교</strong>: 7개 증권사 + 7개 은행 수수료·CMA 한눈에</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="update-card">
+        <div class="update-head">
+          <span class="update-date">2026.06.16</span>
+        </div>
+        <div class="update-title">🔍 종목 비교 차트 이름 검색</div>
+        <div class="update-body">종목 상세 비교 입력이 6자리 코드만 받던 것을 <strong>이름 자동완성</strong>으로 개선. 슬라이더 옆에 <strong>수기 숫자 입력</strong>도 추가 (투자설계·시뮬레이션).</div>
+      </div>
+    </section>
+
+    <!-- ───────────────── 1. 화면 구성 ───────────────── -->
+    <section class="guide-section" id="sec-overview">
+      <div class="section-header sh-overview">
+        <span class="section-icon">🗺️</span>
+        <div>
+          <div class="section-title">화면 구성 & 메뉴</div>
+          <div class="section-subtitle">앱 전체 구조 한 화면 안내</div>
+        </div>
+      </div>
+
+      <div class="feature" id="sub-nav">
+        <h3>네비게이션 구조</h3>
+        <p>상단 메뉴는 <strong>대시보드 + 4개 카테고리</strong>로 정리됩니다. 데스크탑에서는 드롭다운, 모바일에서는 햄버거 메뉴로 펼쳐집니다.</p>
+        <table class="info-table">
+          <thead><tr><th>그룹</th><th>포함 메뉴</th></tr></thead>
+          <tbody>
+            <tr><td><strong>📈 시장</strong></td><td>국내주식 · 해외주식 · 코인 · 선물</td></tr>
+            <tr><td><strong>💼 내 자산</strong></td><td>통합 자산 · 내 주식 · 비트겟 포트폴리오</td></tr>
+            <tr><td><strong>📊 분석</strong></td><td>버핏 스크리너 · 뉴스 · 공시 · 리포트 · 캘린더</td></tr>
+            <tr><td><strong>🎯 설계</strong></td><td>투자설계 · 세제혜택 · 시뮬레이션 · 증권사비교</td></tr>
+          </tbody>
+        </table>
+        <div class="tip">💡 현재 보고 있는 페이지가 속한 그룹은 자동으로 <strong>활성 표시</strong>됩니다.</div>
+      </div>
+
+      <div class="feature" id="sub-search">
+        <h3>글로벌 검색 — 헤더 중앙</h3>
+        <p>어떤 화면에서든 헤더의 검색창에 종목명·코드를 입력하면 <strong>즉시 자동완성</strong>이 뜹니다. 선택 시 해당 종목 상세 페이지로 이동합니다.</p>
+        <ul class="func-list">
+          <li><span class="fi">🔍</span><div><span class="ft">이름 검색</span><span class="fd">"삼성전자", "카카오" 등 한글 종목명</span></div></li>
+          <li><span class="fi">🔢</span><div><span class="ft">코드 검색</span><span class="fd">"005930", "035720" 등 6자리 종목코드</span></div></li>
+          <li><span class="fi">⌨️</span><div><span class="ft">키보드</span><span class="fd"><kbd>⌘K</kbd>/<kbd>Ctrl</kbd>+<kbd>K</kbd> 포커스 · <kbd>↑↓</kbd> 항목 이동 · <kbd>Enter</kbd> 선택</span></div></li>
+        </ul>
+      </div>
+
+      <div class="feature" id="sub-header">
+        <h3>헤더 정보 띠</h3>
+        <p>헤더 좌측은 <strong>로고 + 시장 개·폐장 상태</strong>(녹색 dot은 개장), 우측은 <strong>실시간 환율</strong>(USD/KRW, JPY/KRW)과 한국 시각을 표시합니다.</p>
+        <table class="info-table">
+          <thead><tr><th>표시</th><th>의미</th></tr></thead>
+          <tbody>
+            <tr><td>🟢 해외</td><td>미국 정규장 진행 중 (KST 22:30~05:00)</td></tr>
+            <tr><td>🟢 국내 개장</td><td>한국 정규장 진행 중 (KST 09:00~15:30)</td></tr>
+            <tr><td>USD ₩1,517 +8.23</td><td>USD/KRW 환율과 전일 대비 변동</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ───────────────── 2. 시장 ───────────────── -->
+    <section class="guide-section" id="sec-market">
+      <div class="section-header sh-1">
+        <span class="section-icon">📈</span>
+        <div>
+          <div class="section-title">시장</div>
+          <div class="section-subtitle">국내·해외 주식, 코인, 선물 실시간 시세</div>
+        </div>
+      </div>
+
+      <div class="feature" id="sub-domestic">
+        <h3>국내주식 — KOSPI · KOSDAQ</h3>
+        <p>관심 등록한 국내 종목을 시세·등락률과 함께 한 화면에서 조회합니다. 카드를 클릭하면 <strong>상세 모달</strong>이 열립니다 (차트·재무·수급·KIS 투자지표).</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num" style="background:var(--c1)">1</div>
+            <div class="step-body">
+              <div class="step-label">종목 추가</div>
+              <div class="step-text">상단 검색창 또는 헤더 글로벌 검색에서 이름·코드 입력 → 관심 추가</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:var(--c1)">2</div>
+            <div class="step-body">
+              <div class="step-label">상세 보기</div>
+              <div class="step-text">종목 카드 클릭 → 차트(1개월/3개월/1년) + DART 재무 + 실시간 PER·PBR·EPS</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:var(--c1)">3</div>
+            <div class="step-body">
+              <div class="step-label">보유 입력</div>
+              <div class="step-text"><code>/stock/[code]</code> 페이지에서 <strong>보유 수량 · 평균 매입가</strong>를 입력하면 <strong>통합 자산</strong>에 자동 반영</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature" id="sub-overseas">
+        <h3>해외주식 — 미국 등 글로벌</h3>
+        <p>미국 주식 티커 기반 시세 조회. 검색 시 <code>AAPL</code>, <code>NVDA</code> 등 영문 티커를 입력합니다.</p>
+        <div class="tip tip-amber">⚠️ 해외 시장은 한국 시각 <strong>22:30 ~ 05:00</strong> 진행 (서머타임 적용). 헤더의 🟢 dot으로 개장 여부 확인.</div>
+      </div>
+
+      <div class="feature" id="sub-crypto">
+        <h3>코인 — Bitget 실시간</h3>
+        <p>비트코인·이더리움 등 주요 암호화폐 시세. 가격·차트는 <strong>Bitget 공개 API</strong>에서 직접 조회합니다 (API 키 불필요).</p>
+        <ul class="func-list">
+          <li><span class="fi">💹</span><div><span class="ft">스팟 시세</span><span class="fd">BTC, ETH, XRP, SOL 등 1,000+ 종목 · 10초 갱신</span></div></li>
+          <li><span class="fi">📊</span><div><span class="ft">일봉 차트</span><span class="fd">1개월/3개월/6개월/1년 OHLCV</span></div></li>
+          <li><span class="fi">⚖️</span><div><span class="ft">선물 프리미엄</span><span class="fd">스팟 vs 선물 가격차(베이시스) 한 줄로 표시</span></div></li>
+        </ul>
+      </div>
+
+      <div class="feature" id="sub-futures">
+        <h3>선물 — USDT 무기한 649종</h3>
+        <p>Bitget USDT-Margined Perpetual Futures 전체 시세를 한 화면에서 비교합니다. 검색·필터·정렬 가능.</p>
+        <div class="feat-grid">
+          <div class="feat-card">
+            <div class="feat-card-icon">🔎</div>
+            <div class="feat-card-title">심볼 검색</div>
+            <div class="feat-card-desc">"BTC" 입력으로 BTCUSDT 등 즉시 필터</div>
+          </div>
+          <div class="feat-card">
+            <div class="feat-card-icon">↕️</div>
+            <div class="feat-card-title">상승/하락 필터</div>
+            <div class="feat-card-desc">24h 등락 방향으로만 보기</div>
+          </div>
+          <div class="feat-card">
+            <div class="feat-card-icon">💰</div>
+            <div class="feat-card-title">정렬</div>
+            <div class="feat-card-desc">거래대금 · 상승률 · 펀딩비 순</div>
+          </div>
+          <div class="feat-card">
+            <div class="feat-card-icon">⏱️</div>
+            <div class="feat-card-title">펀딩비</div>
+            <div class="feat-card-desc">8시간마다 정산되는 무기한 금리</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────── 3. 내 자산 ───────────────── -->
+    <section class="guide-section" id="sec-holdings">
+      <div class="section-header sh-4">
+        <span class="section-icon">💼</span>
+        <div>
+          <div class="section-title">내 자산</div>
+          <div class="section-subtitle">보유·관심·잔고를 한눈에</div>
+        </div>
+      </div>
+
+      <div class="feature" id="sub-portfolio">
+        <h3>통합 자산 — <code>/portfolio</code></h3>
+        <p>국내주식 보유 + Bitget 코인 잔고를 <strong>실시간 환율</strong>로 KRW 환산해 한 화면에 표시합니다. 자산군 비중 바, 종목별 평가·손익률, 관심종목 카운트까지.</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num" style="background:var(--c4)">1</div>
+            <div class="step-body">
+              <div class="step-label">국내주식 보유 입력</div>
+              <div class="step-text">국내 종목 상세 페이지에서 <strong>보유 수량 + 평균 매입가</strong> 저장 → 자동 반영</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:var(--c4)">2</div>
+            <div class="step-body">
+              <div class="step-label">비트겟 키 설정</div>
+              <div class="step-text"><code>/bitget</code>에서 API 키 등록 → 잔고 자동 합산 (USDT → KRW 환산)</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:var(--c4)">3</div>
+            <div class="step-body">
+              <div class="step-label">손익 확인</div>
+              <div class="step-text">평균 매입가 대비 현재가로 종목별·전체 <strong>실현 손익률</strong> 자동 계산</div>
+            </div>
+          </div>
+        </div>
+        <div class="tip">💡 보유·관심 데이터는 모두 <strong>브라우저 localStorage</strong>에 저장됩니다. 로그인·서버 동기화 없음.</div>
+      </div>
+
+      <div class="feature" id="sub-mystocks">
+        <h3>내 주식 — 관심 · 알림</h3>
+        <p>관심 종목 리스트, 가격 알림 설정(브라우저 푸시), 가상 매매 시뮬레이션을 한 페이지에서 관리합니다.</p>
+        <ul class="func-list">
+          <li><span class="fi">⭐</span><div><span class="ft">관심 등록</span><span class="fd">국내·해외·코인 각각 별도 watchlist</span></div></li>
+          <li><span class="fi">🔔</span><div><span class="ft">가격 알림</span><span class="fd">목표가 도달 시 브라우저 알림 (권한 필요)</span></div></li>
+          <li><span class="fi">🎮</span><div><span class="ft">가상 매매</span><span class="fd">실제 돈 없이 매매 시뮬레이션</span></div></li>
+        </ul>
+      </div>
+
+      <div class="feature" id="sub-bitget">
+        <h3>비트겟 포트폴리오 — <code>/bitget</code></h3>
+        <p>본인 Bitget 계좌의 잔고·체결·이체를 실시간 조회합니다. <strong>읽기 전용 API 키</strong>로 안전하게 동작.</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num" style="background:var(--c4)">1</div>
+            <div class="step-body">
+              <div class="step-label">키 발급 (Bitget)</div>
+              <div class="step-text">Bitget → API keys → <strong>System-generated (HMAC)</strong>, <strong>Read-only</strong> 모드, <strong>Spot Trade</strong> 권한만</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:var(--c4)">2</div>
+            <div class="step-body">
+              <div class="step-label">키 등록</div>
+              <div class="step-text"><code>.env.local</code>(로컬) + Vercel 환경변수에 <code>BITGET_API_KEY</code> / <code>BITGET_API_SECRET</code> / <code>BITGET_API_PASSPHRASE</code></div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:var(--c4)">3</div>
+            <div class="step-body">
+              <div class="step-label">자동 동기화</div>
+              <div class="step-text">잔고 30초·체결/이체 60초 간격 갱신</div>
+            </div>
+          </div>
+        </div>
+        <div class="tip tip-warn">⚠️ <strong>출금 권한 절대 체크 금지.</strong> 키 노출 시 자산 보호를 위해 IP 화이트리스트는 비워두고 Read-only로만 발급하세요.</div>
+      </div>
+    </section>
+
+    <!-- ───────────────── 4. 분석 ───────────────── -->
+    <section class="guide-section" id="sec-analysis">
+      <div class="section-header sh-3">
+        <span class="section-icon">📊</span>
+        <div>
+          <div class="section-title">분석</div>
+          <div class="section-subtitle">재무·뉴스·공시·일정 종합 분석 도구</div>
+        </div>
+      </div>
+
+      <div class="feature" id="sub-screener">
+        <h3>버핏 스크리너 — <code>/screener</code></h3>
+        <p>워런 버핏 스타일 <strong>7가지 기준</strong>으로 종목을 자동 평가합니다. 4개 데이터 소스 폴백으로 안정적.</p>
+        <div class="feat-grid">
+          <div class="feat-card"><div class="feat-card-icon">📊</div><div class="feat-card-title">ROE ≥ 10~15%</div><div class="feat-card-desc">자기자본이익률 — 해자 강도</div></div>
+          <div class="feat-card"><div class="feat-card-icon">💰</div><div class="feat-card-title">영업이익률 ≥ 15%</div><div class="feat-card-desc">가격 결정권 여부</div></div>
+          <div class="feat-card"><div class="feat-card-icon">💵</div><div class="feat-card-title">FCF 플러스</div><div class="feat-card-desc">잉여현금흐름 — 버핏의 최우선 지표</div></div>
+          <div class="feat-card"><div class="feat-card-icon">🏦</div><div class="feat-card-title">부채비율 &lt; 100%</div><div class="feat-card-desc">불황·금리 상승 대응</div></div>
+          <div class="feat-card"><div class="feat-card-icon">📈</div><div class="feat-card-title">매출 성장 &gt; 0</div><div class="feat-card-desc">YoY 성장세</div></div>
+          <div class="feat-card"><div class="feat-card-icon">💲</div><div class="feat-card-title">PER 0~35</div><div class="feat-card-desc">적정 밸류에이션</div></div>
+        </div>
+        <div class="tip tip-green">✅ 데이터 폴백 체인: <strong>Yahoo → Naver → KIS → DART</strong>. 한 소스가 막혀도 다른 소스에서 자동 보강.</div>
+      </div>
+
+      <div class="feature" id="sub-news">
+        <h3>뉴스 · 공시 · 리포트</h3>
+        <ul class="func-list">
+          <li><span class="fi">📰</span><div><span class="ft">뉴스</span><span class="fd">Naver 금융 시장 뉴스 (실시간)</span></div></li>
+          <li><span class="fi">📋</span><div><span class="ft">공시</span><span class="fd">DART 전자공시 — 기업별 정정·실적·주주 정보</span></div></li>
+          <li><span class="fi">📊</span><div><span class="ft">리포트</span><span class="fd">증권사 종목 분석 리포트 모음</span></div></li>
+        </ul>
+      </div>
+
+      <div class="feature" id="sub-calendar">
+        <h3>캘린더 — 경제 이벤트</h3>
+        <p>FOMC, 한국은행 금통위, 실적 발표, 경제지표 발표, 휴장일을 한 캘린더에 모았습니다. 중요도 high/medium/low로 색상 구분.</p>
+      </div>
+    </section>
+
+    <!-- ───────────────── 5. 설계 ───────────────── -->
+    <section class="guide-section" id="sec-planning">
+      <div class="section-header sh-5">
+        <span class="section-icon">🎯</span>
+        <div>
+          <div class="section-title">설계</div>
+          <div class="section-subtitle">투자 계획 · 절세 · 시뮬레이션</div>
+        </div>
+      </div>
+
+      <div class="feature" id="sub-invest">
+        <h3>투자설계 — <code>/invest</code></h3>
+        <p>나이·월 투자금·보유 자산·성향·목표를 입력하면 <strong>추천 계좌(ISA/IRP/연금) + 자산배분 + 성향별 KR 우량주 4종</strong>을 한 화면에서 제시합니다.</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num" style="background:var(--c5)">1</div>
+            <div class="step-body">
+              <div class="step-label">입력</div>
+              <div class="step-text">슬라이더 또는 <strong>숫자 직접 입력</strong>으로 정확한 값 지정 가능</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:var(--c5)">2</div>
+            <div class="step-body">
+              <div class="step-label">성향 선택</div>
+              <div class="step-text">안정형 · 중립형 · 공격형 · 초공격형 4단계</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:var(--c5)">3</div>
+            <div class="step-body">
+              <div class="step-label">결과 확인</div>
+              <div class="step-text">계좌 순위 · 자산배분 도넛 · 월 배분 표 · <strong>성향별 우량주(KIS 실시간 ROE·부채·성장)</strong> · 절세 효과</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature" id="sub-tax">
+        <h3>세제혜택 — <code>/tax</code></h3>
+        <p>연봉·납입액을 입력하면 ISA·IRP·연금저축 <strong>세액공제 환급액</strong>을 실시간 자동 계산합니다.</p>
+        <table class="info-table">
+          <thead><tr><th>제도</th><th>한도</th><th>공제율</th></tr></thead>
+          <tbody>
+            <tr><td><strong>IRP</strong></td><td>연 1,800만원</td><td>16.5% (연봉≤5,500만) / 13.2%</td></tr>
+            <tr><td><strong>연금저축</strong></td><td>연 600만원 (IRP 합산 한도 900만)</td><td>16.5% / 13.2%</td></tr>
+            <tr><td><strong>ISA</strong></td><td>연 2,000만원 (납입한도)</td><td>비과세 400만(서민형) / 200만(일반형)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="feature" id="sub-simulate">
+        <h3>시뮬레이션 — <code>/simulate</code></h3>
+        <p>복리 미래가치(FV) 계산기. 초기 투자금·월 적립액·연 수익률·투자 기간을 조정하면 <strong>20년 후 예상 자산</strong>과 차트가 즉시 갱신됩니다.</p>
+        <div class="feat-grid">
+          <div class="feat-card"><div class="feat-card-icon">💵</div><div class="feat-card-title">CMA/예금 3.5%</div><div class="feat-card-desc">원금 보장</div></div>
+          <div class="feat-card"><div class="feat-card-icon">🇺🇸</div><div class="feat-card-title">S&P500 10.5%</div><div class="feat-card-desc">장기 역사 수익률</div></div>
+          <div class="feat-card"><div class="feat-card-icon">💻</div><div class="feat-card-title">NASDAQ100 14%</div><div class="feat-card-desc">장기 역사 수익률</div></div>
+          <div class="feat-card"><div class="feat-card-icon">⚖️</div><div class="feat-card-title">균형포트 7%</div><div class="feat-card-desc">채권+주식 혼합</div></div>
+        </div>
+        <p style="margin-top:10px"><code>FV = PV·(1+r)ⁿ + PMT·[(1+r)ⁿ−1]/r</code> (월 복리)</p>
+      </div>
+
+      <div class="feature" id="sub-brokerage">
+        <h3>증권사비교 — <code>/brokerage</code></h3>
+        <p>7개 주요 증권사(토스·NH나무·키움·미래에셋·KB·삼성·신한) + 7개 은행(예금·적금·CMA)의 수수료·금리를 한 화면 비교.</p>
+        <ul class="func-list">
+          <li><span class="fi">💸</span><div><span class="ft">필터</span><span class="fd">ISA 가능 / IRP 가능 / 전체</span></div></li>
+          <li><span class="fi">📊</span><div><span class="ft">정렬</span><span class="fd">국내 수수료 / 미국 수수료 / CMA 금리</span></div></li>
+          <li><span class="fi">✓✗</span><div><span class="ft">장단점</span><span class="fd">증권사별 pros/cons 요약</span></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ───────────────── 6. 부가 기능 ───────────────── -->
+    <section class="guide-section" id="sec-tools">
+      <div class="section-header sh-6">
+        <span class="section-icon">🛠️</span>
+        <div>
+          <div class="section-title">부가 기능</div>
+          <div class="section-subtitle">테마·단축키·종목 상세 등</div>
+        </div>
+      </div>
+
+      <div class="feature">
+        <h3>종목 상세 페이지 — <code>/stock/[code]</code></h3>
+        <p>국내 종목별 가장 풍부한 정보가 모인 페이지. 차트는 MA5/20/60·볼린저밴드·RSI·거래량 토글 가능.</p>
+        <ul class="func-list">
+          <li><span class="fi">📈</span><div><span class="ft">기술적 지표</span><span class="fd">MA · BB · RSI · 거래량 (체크박스로 on/off)</span></div></li>
+          <li><span class="fi">⚖️</span><div><span class="ft">종목 비교</span><span class="fd">"비교 종목" 입력에 <strong>이름 자동완성</strong> 지원 (코드 몰라도 OK)</span></div></li>
+          <li><span class="fi">👥</span><div><span class="ft">수급 동향</span><span class="fd">개인·외국인·기관 매수/매도 추이</span></div></li>
+          <li><span class="fi">📋</span><div><span class="ft">DART 정보</span><span class="fd">기업 개요 · 재무 요약 · 배당</span></div></li>
+          <li><span class="fi">💡</span><div><span class="ft">투자지표 (KIS)</span><span class="fd">PER · PBR · EPS · 52주 위치 바 (실시간)</span></div></li>
+          <li><span class="fi">🤖</span><div><span class="ft">AI 분석</span><span class="fd">Claude AI로 종목 자동 분석 (운영자 환경변수 필요)</span></div></li>
+        </ul>
+      </div>
+
+      <div class="feature">
+        <h3>다크 / 라이트 모드</h3>
+        <p>헤더 우측 ☀️/🌙 아이콘 클릭으로 테마 전환. 시스템 설정에 따라 자동 전환되며, 선택 시 브라우저에 저장됩니다.</p>
+      </div>
+
+      <div class="feature">
+        <h3>모바일 PWA</h3>
+        <p>모바일 브라우저에서 <strong>"홈 화면에 추가"</strong>로 설치 가능. 햄버거 메뉴, 카드 그리드 1열 자동 전환, 글로벌 검색 항상 표시 등 모바일에 최적화되어 있습니다.</p>
+        <div class="tip tip-amber">💡 차트는 가로 스와이프 또는 회전(landscape) 시 더 잘 보입니다.</div>
+      </div>
+
+      <div class="feature">
+        <h3>단축키</h3>
+        <table class="info-table">
+          <thead><tr><th>키</th><th>동작</th></tr></thead>
+          <tbody>
+            <tr><td><kbd>⌘</kbd>+<kbd>K</kbd> / <kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>헤더 글로벌 검색 포커스</td></tr>
+            <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>검색 결과 항목 이동</td></tr>
+            <tr><td><kbd>Enter</kbd></td><td>현재 선택 종목으로 이동</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>드롭다운·메뉴 닫기</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="feature">
+        <h3>데이터 소스</h3>
+        <ul class="func-list">
+          <li><span class="fi">🇰🇷</span><div><span class="ft">국내 시세</span><span class="fd">Naver Finance (주력) + KRX 일별매매</span></div></li>
+          <li><span class="fi">📊</span><div><span class="ft">국내 재무</span><span class="fd">한국투자증권 Open API + DART 전자공시</span></div></li>
+          <li><span class="fi">🌐</span><div><span class="ft">해외 시세</span><span class="fd">Yahoo Finance</span></div></li>
+          <li><span class="fi">₿</span><div><span class="ft">코인·선물</span><span class="fd">Bitget 공개 API (시세) + 본인 키 (잔고)</span></div></li>
+          <li><span class="fi">💱</span><div><span class="ft">환율</span><span class="fd">Frankfurter (ECB 공식)</span></div></li>
+        </ul>
+        <div class="tip">💡 모든 시세는 <strong>참고용</strong>이며 실제 매매 가격과 다를 수 있습니다. 투자 판단의 책임은 본인에게 있습니다.</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ── Footer ── -->
+<footer class="guide-footer">
+  <p><strong>KOSPI LAB</strong> · 국내·해외 주식 + 코인 + 선물 통합 대시보드</p>
+  <p>데이터 출처: 네이버 금융 · KRX · 한국투자증권 · DART · Yahoo Finance · Bitget · Frankfurter</p>
+  <p style="margin-top:12px"><a href="/">메인 대시보드 →</a> · <a href="/portfolio">통합 자산</a> · <a href="/screener">버핏 스크리너</a></p>
+  <p style="margin-top:14px;color:#64748b;font-size:11.5px">본 페이지의 모든 정보는 투자 참고용입니다. 매매 손실에 대한 책임은 사용자 본인에게 있습니다.</p>
+</footer>
+
+<!-- ── Mobile FAB ── -->
+<button class="toc-fab" id="toc-fab" aria-label="목차 열기">📑</button>
+<div class="toc-drawer" id="toc-drawer">
+  <div class="toc-drawer-panel">
+    <div class="sidebar-title">목차</div>
+    <a class="sidebar-link" href="#sec-updates"><span class="sidebar-dot" style="background:#ef4444"></span>수정된 사항</a>
+    <a class="sidebar-link" href="#sec-overview"><span class="sidebar-dot" style="background:#94a3b8"></span>화면 구성</a>
+    <a class="sidebar-link" href="#sec-market"><span class="sidebar-dot" style="background:var(--c1)"></span>시장</a>
+    <a class="sidebar-link" href="#sec-holdings"><span class="sidebar-dot" style="background:var(--c4)"></span>내 자산</a>
+    <a class="sidebar-link" href="#sec-analysis"><span class="sidebar-dot" style="background:var(--c3)"></span>분석</a>
+    <a class="sidebar-link" href="#sec-planning"><span class="sidebar-dot" style="background:var(--c5)"></span>설계</a>
+    <a class="sidebar-link" href="#sec-tools"><span class="sidebar-dot" style="background:var(--c6)"></span>부가 기능</a>
+  </div>
+</div>
+
+<script>
+// ── 모바일 드로어 ──
+(() => {
+  const fab = document.getElementById('toc-fab');
+  const drawer = document.getElementById('toc-drawer');
+  fab.addEventListener('click', () => drawer.classList.add('open'));
+  drawer.addEventListener('click', (e) => { if (e.target === drawer) drawer.classList.remove('open'); });
+  drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', () => drawer.classList.remove('open')));
+})();
+
+// ── 사이드바 active 갱신 (scroll-spy) ──
+(() => {
+  const links = document.querySelectorAll('.sidebar-link[href^="#sec-"]');
+  const sections = [...links].map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  function update() {
+    const y = window.scrollY + 100;
+    let cur = sections[0];
+    for (const s of sections) { if (s.offsetTop <= y) cur = s; }
+    if (!cur) return;
+    links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + cur.id));
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

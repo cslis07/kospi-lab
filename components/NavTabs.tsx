@@ -147,6 +147,11 @@ function NavTabsInner() {
             </div>
           );
         })}
+        {/* 이용가이드 (정적 HTML) — 우측 끝 */}
+        <a href="/guide.html"
+          className="ml-auto px-4 py-3 text-sm font-medium border-b-2 border-transparent text-[var(--text-muted)] hover:text-[var(--text)] transition-colors -mb-px whitespace-nowrap">
+          📖 이용가이드
+        </a>
       </div>
 
       {/* ── 모바일: 햄버거 트리거 + 펼침 패널 (md 미만) ── */}
@@ -200,6 +205,13 @@ function NavTabsInner() {
                 })}
               </div>
             ))}
+            {/* 이용가이드 (정적) */}
+            <div className="border-t border-[var(--border)]">
+              <a href="/guide.html"
+                className="block px-4 py-3 text-sm border-l-2 border-transparent text-[var(--text)] font-medium">
+                📖 이용가이드
+              </a>
+            </div>
           </div>
         )}
       </div>
