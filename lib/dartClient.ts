@@ -290,7 +290,7 @@ export async function fetchDartDividends(
       return null;
     }
 
-    const data = await dartFetch('alotDvdnd.json', {
+    const data = await dartFetch('alotMatter.json', {
       corp_code:  corpCode,
       bsns_year:  String(year),
       reprt_code: '11011',
