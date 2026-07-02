@@ -90,8 +90,16 @@ export async function getCorpCode(ticker: string): Promise<string | null> {
   if (cached && Date.now() - cached.ts < TTL_CORP_CODE) return cached.value;
 
   try {
+    // list.json은 날짜 범위 없이 stock_code만 주면 최근 하루만 조회돼
+    // 공시 없는 날엔 빈 결과("013")를 반환한다. 넓은 범위(약 5년)를 줘서
+    // 상장사라면 반드시 공시가 걸리도록 해 corp_code를 확실히 얻는다.
+    const now = new Date();
+    const end = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const bgn = `${now.getFullYear() - 5}${end.slice(4)}`;
     const data = await dartFetch('list.json', {
       stock_code: code,
+      bgn_de:     bgn,
+      end_de:     end,
       page_no:    '1',
       page_count: '1',
     }) as { status: string; list?: Array<{ corp_code: string }> };
