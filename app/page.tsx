@@ -99,7 +99,7 @@ function DashboardInner() {
 
       <Section title="📊 분석">
         <QuickCard href="/screener" emoji="🔍" title="버핏 스크리너" desc="ROE·PER 7기준" />
-        <QuickCard href="/krx"      emoji="🏅" title="KRX 랭킹"     desc="전종목 등락·거래 순위" />
+        <QuickCard href="/krx"      emoji="🏅" title="KRX 시장"     desc="지수·랭킹·ETF·상품" />
         <QuickCard href="/news"     emoji="📰" title="뉴스"          desc="시장 소식" />
         <QuickCard href="/dart"     emoji="📋" title="공시"          desc="DART 전자공시" />
         <QuickCard href="/report"   emoji="📊" title="리포트"        desc="증권사 리포트" />

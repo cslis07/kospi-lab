@@ -76,7 +76,7 @@ async function fetchMarket(endpoint: string, basDd: string): Promise<Map<string,
         low:          n(r.TDD_LWPRC),
         volume:       n(r.ACC_TRDVOL),
         tradingValue: n(r.ACC_TRDVAL),
-        marketCap:    n(r.MKTCAP) * 1_000_000,
+        marketCap:    n(r.MKTCAP), // KRX MKTCAP은 원 단위 (full)
         shares:       n(r.LIST_SHRS),
       });
     }
@@ -157,4 +157,116 @@ export async function fetchKrxRankings(top = 30): Promise<KrxRankings> {
       marketcap: [...all].sort((a, b) => b.marketCap - a.marketCap).slice(0, top),
     },
   };
+}
+
+// ── 범용 GET 호출 + 최근영업일 재시도 (지수·ETF·상품용) ─────────────────────
+const _rawCache = new Map<string, { rows: Record<string, string>[]; date: string; ts: number }>();
+
+async function krxRaw(path: string, basDd: string): Promise<Record<string, string>[]> {
+  try {
+    const res = await fetch(`${KRX_BASE}/${path}?basDd=${basDd}`, {
+      headers: { AUTH_KEY: KRX_KEY() },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json?.OutBlock_1 as Record<string, string>[]) ?? [];
+  } catch { return []; }
+}
+
+async function krxRawRecent(path: string): Promise<{ rows: Record<string, string>[]; date: string }> {
+  const c = _rawCache.get(path);
+  if (c && Date.now() - c.ts < DAILY_TTL) return { rows: c.rows, date: c.date };
+  if (!KRX_KEY()) return { rows: [], date: '' };
+  for (const d of candidateDays(6)) {
+    const rows = await krxRaw(path, d);
+    if (rows.length) {
+      _rawCache.set(path, { rows, date: d, ts: Date.now() });
+      return { rows, date: d };
+    }
+  }
+  return { rows: [], date: '' };
+}
+
+// ── 주요 지수 ──────────────────────────────────────────────────────────────────
+export interface KrxIndex {
+  name: string; close: number; change: number; changeRate: number;
+  open: number; high: number; low: number; tradingValue: number;
+}
+const MAJOR_INDICES = ['코스피', '코스피 200', '코스닥', '코스닥 150', 'KRX 300', 'KRX 100'];
+
+let _idxCache: { list: KrxIndex[]; date: string; ts: number } | null = null;
+
+export async function fetchKrxIndices(): Promise<{ list: KrxIndex[]; date: string }> {
+  if (!KRX_KEY()) return { list: [], date: '' };
+  if (_idxCache && Date.now() - _idxCache.ts < DAILY_TTL) {
+    return { list: _idxCache.list, date: _idxCache.date };
+  }
+  for (const d of candidateDays(6)) {
+    const [kospi, kosdaq, krx] = await Promise.all([
+      krxRaw('idx/kospi_dd_trd', d),
+      krxRaw('idx/kosdaq_dd_trd', d),
+      krxRaw('idx/krx_dd_trd', d),
+    ]);
+    const all = [...kospi, ...kosdaq, ...krx];
+    if (!all.length) continue;
+    const list: KrxIndex[] = [];
+    for (const nm of MAJOR_INDICES) {
+      const r = all.find((x) => (x.IDX_NM ?? '').trim() === nm);
+      if (!r) continue;
+      list.push({
+        name: nm,
+        close: n(r.CLSPRC_IDX), change: n(r.CMPPREVDD_IDX), changeRate: Number(r.FLUC_RT ?? 0),
+        open: n(r.OPNPRC_IDX), high: n(r.HGPRC_IDX), low: n(r.LWPRC_IDX),
+        tradingValue: n(r.ACC_TRDVAL),
+      });
+    }
+    _idxCache = { list, date: d, ts: Date.now() };
+    return { list, date: d };
+  }
+  return { list: [], date: '' };
+}
+
+// ── ETF 랭킹 ──────────────────────────────────────────────────────────────────
+export interface KrxEtfItem {
+  code: string; name: string; close: number; changeRate: number;
+  nav: number; tradingValue: number; netAsset: number; baseIndex: string;
+}
+export async function fetchKrxEtf(top = 30): Promise<{ value: KrxEtfItem[]; gainers: KrxEtfItem[]; losers: KrxEtfItem[]; count: number; date: string }> {
+  const { rows, date } = await krxRawRecent('etp/etf_bydd_trd');
+  const items: KrxEtfItem[] = rows.map((r) => ({
+    code: (r.ISU_CD ?? '').trim(),
+    name: (r.ISU_NM ?? '').trim(),
+    close: n(r.TDD_CLSPRC),
+    changeRate: Number(r.FLUC_RT ?? 0),
+    nav: n(r.NAV),
+    tradingValue: n(r.ACC_TRDVAL),
+    netAsset: n(r.INVSTASST_NETASST_TOTAMT),
+    baseIndex: (r.IDX_IND_NM ?? '').trim(),
+  })).filter((x) => x.close > 0);
+  return {
+    value:   [...items].sort((a, b) => b.tradingValue - a.tradingValue).slice(0, top),
+    gainers: [...items].sort((a, b) => b.changeRate - a.changeRate).slice(0, top),
+    losers:  [...items].sort((a, b) => a.changeRate - b.changeRate).slice(0, top),
+    count: items.length, date,
+  };
+}
+
+// ── 일반상품 (금·석유) ────────────────────────────────────────────────────────
+export interface KrxCommodity { name: string; price: number; changeRate: number; tradingValue: number }
+export async function fetchKrxCommodities(): Promise<{ gold: KrxCommodity[]; oil: KrxCommodity[]; date: string }> {
+  const [g, o] = await Promise.all([
+    krxRawRecent('gen/gold_bydd_trd'),
+    krxRawRecent('gen/oil_bydd_trd'),
+  ]);
+  const gold: KrxCommodity[] = g.rows.map((r) => ({
+    name: (r.ISU_NM ?? '').trim(), price: n(r.TDD_CLSPRC),
+    changeRate: Number(r.FLUC_RT ?? 0), tradingValue: n(r.ACC_TRDVAL),
+  })).filter((x) => x.price > 0);
+  const oil: KrxCommodity[] = o.rows.map((r) => ({
+    name: (r.OIL_NM ?? '').trim(), price: n(r.WT_AVG_PRC),
+    changeRate: 0, tradingValue: n(r.ACC_TRDVAL),
+  })).filter((x) => x.price > 0);
+  return { gold, oil, date: g.date || o.date };
 }

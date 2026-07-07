@@ -42,7 +42,7 @@ const GROUPS: NavGroup[] = [
     label: '분석',
     items: [
       { label: '버핏 스크리너', href: '/screener', desc: 'ROE·PER·재무 분석' },
-      { label: 'KRX 랭킹',      href: '/krx',      desc: '전종목 등락·거래대금 순위' },
+      { label: 'KRX 시장',      href: '/krx',      desc: '지수·전종목 랭킹·ETF·상품' },
       { label: '뉴스',          href: '/news',     desc: '시장 소식' },
       { label: '공시',          href: '/dart',     desc: 'DART 전자공시' },
       { label: '리포트',        href: '/report',   desc: '증권사 리포트' },
