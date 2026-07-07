@@ -270,3 +270,48 @@ export async function fetchKrxCommodities(): Promise<{ gold: KrxCommodity[]; oil
   })).filter((x) => x.price > 0);
   return { gold, oil, date: g.date || o.date };
 }
+
+// ── 종목 기본정보 (상장주식수·액면가·소속부·상장일) ─────────────────────────
+export interface KrxStockInfo {
+  code: string; name: string; engName: string;
+  market: string; secGroup: string; sector: string;
+  stockKind: string; parValue: string; listShares: number; listDate: string;
+}
+let _infoCache: { map: Map<string, KrxStockInfo>; ts: number } | null = null;
+const INFO_TTL = 24 * 60 * 60 * 1000; // 24h (상장정보는 거의 안 바뀜)
+
+async function buildStockInfoMap(): Promise<Map<string, KrxStockInfo>> {
+  if (_infoCache && Date.now() - _infoCache.ts < INFO_TTL) return _infoCache.map;
+  const map = new Map<string, KrxStockInfo>();
+  if (!KRX_KEY()) return map;
+  const d = candidateDays(1)[0];
+  const [stk, ksq, knx] = await Promise.all([
+    krxRaw('sto/stk_isu_base_info', d),
+    krxRaw('sto/ksq_isu_base_info', d),
+    krxRaw('sto/knx_isu_base_info', d),
+  ]);
+  for (const r of [...stk, ...ksq, ...knx]) {
+    const code = (r.ISU_SRT_CD ?? '').trim();
+    if (!code || code.length !== 6) continue;
+    map.set(code, {
+      code,
+      name: (r.ISU_NM ?? '').trim(),
+      engName: (r.ISU_ENG_NM ?? '').trim(),
+      market: (r.MKT_TP_NM ?? '').trim(),
+      secGroup: (r.SECUGRP_NM ?? '').trim(),
+      sector: (r.SECT_TP_NM ?? '').trim(),
+      stockKind: (r.KIND_STKCERT_TP_NM ?? '').trim(),
+      parValue: (r.PARVAL ?? '').trim(),
+      listShares: n(r.LIST_SHRS),
+      listDate: (r.LIST_DD ?? '').trim(),
+    });
+  }
+  if (map.size > 0) _infoCache = { map, ts: Date.now() };
+  return map;
+}
+
+export async function fetchKrxStockInfo(code: string): Promise<KrxStockInfo | null> {
+  const c = code.replace(/\.(KS|KQ)$/, '');
+  const map = await buildStockInfoMap();
+  return map.get(c) ?? null;
+}

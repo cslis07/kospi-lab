@@ -68,6 +68,40 @@ function InvestorSection({ ticker }: { ticker: string }) {
   );
 }
 
+/* ── KRX 상장정보 컴포넌트 ───────────────────────────── */
+interface KrxInfo {
+  name: string; engName: string; market: string; secGroup: string;
+  sector: string; stockKind: string; parValue: string; listShares: number; listDate: string;
+}
+function KrxListingSection({ code }: { code: string }) {
+  const { data } = useSWR<{ configured: boolean; found?: boolean; info?: KrxInfo }>(
+    code ? `/api/krx/stock-info?code=${code}` : null, fetcher, { revalidateOnFocus: false }
+  );
+  if (!data?.found || !data.info) return null;
+  const i = data.info;
+  const fmtDate = (s: string) => (s && s.length === 8 ? `${s.slice(0, 4)}.${s.slice(4, 6)}.${s.slice(6, 8)}` : s || '-');
+  const rows: [string, string][] = [
+    ['시장', `${i.market}${i.sector ? ` · ${i.sector}` : ''}`],
+    ['상장주식수', i.listShares ? `${i.listShares.toLocaleString()}주` : '-'],
+    ['액면가', i.parValue && i.parValue !== '0' ? `${Number(i.parValue).toLocaleString()}원` : '무액면'],
+    ['상장일', fmtDate(i.listDate)],
+    ['영문명', i.engName || '-'],
+  ];
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-4">
+      <h2 className="text-sm font-semibold text-[var(--text)] mb-3">상장 정보 (KRX)</h2>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex gap-3 text-xs">
+            <span className="text-[var(--text-muted)] w-16 shrink-0">{k}</span>
+            <span className="text-[var(--text)] break-words">{v}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── DART 기업 정보 컴포넌트 ─────────────────────────── */
 function DartCompanySection({ code }: { code: string }) {
   const { data, error } = useSWR<DartCompany>(
@@ -680,6 +714,7 @@ export default function StockDetailPage() {
         const code = ticker.replace(/\.(KS|KQ)$/, '');
         return (
           <>
+            <KrxListingSection code={code} />
             <DartCompanySection code={code} />
             <DartFinancialSection code={code} />
             <DartDividendSection code={code} />
