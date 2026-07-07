@@ -269,6 +269,7 @@ kbd{background:linear-gradient(180deg,#fff,#f1f5f9);border:1px solid var(--borde
       </a>
       <div class="sidebar-sub">
         <a href="#sub-screener">버핏 스크리너</a>
+        <a href="#sub-krx">KRX 랭킹</a>
         <a href="#sub-news">뉴스·공시·리포트</a>
         <a href="#sub-calendar">캘린더</a>
       </div>
@@ -610,6 +611,17 @@ kbd{background:linear-gradient(180deg,#fff,#f1f5f9);border:1px solid var(--borde
           <div class="feat-card"><div class="feat-card-icon">💲</div><div class="feat-card-title">PER 0~35</div><div class="feat-card-desc">적정 밸류에이션</div></div>
         </div>
         <div class="tip tip-green">✅ 데이터 폴백 체인: <strong>Yahoo → Naver → KIS → DART</strong>. 한 소스가 막혀도 다른 소스에서 자동 보강.</div>
+      </div>
+
+      <div class="feature" id="sub-krx">
+        <h3>KRX 랭킹 — 전종목 순위</h3>
+        <p>한국거래소(KRX) 공식 일별매매정보로 <strong>KOSPI+KOSDAQ 전종목</strong>을 순위화합니다.</p>
+        <ul class="func-list">
+          <li><span class="fi">🔺</span><div><span class="ft">상승률 · 하락률</span><span class="fd">거래대금 1억원 이상 종목 등락률 Top 30</span></div></li>
+          <li><span class="fi">💰</span><div><span class="ft">거래대금 · 거래량</span><span class="fd">당일 가장 활발히 거래된 종목</span></div></li>
+          <li><span class="fi">🏢</span><div><span class="ft">시가총액</span><span class="fd">시총 상위 종목</span></div></li>
+        </ul>
+        <div class="tip tip-amber">💡 KRX 공식 API 키(<code>KRX_API_KEY</code>)가 필요합니다. 키 미설정 시 안내가 표시됩니다.</div>
       </div>
 
       <div class="feature" id="sub-news">
