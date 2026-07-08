@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
+import CoinCandleChart, { ChartCandle } from '@/components/CoinCandleChart';
+import { useCoinJournal } from '@/hooks/useCoinJournal';
+import { useCoinAlerts } from '@/hooks/useCoinAlerts';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -30,13 +33,16 @@ interface Fib {
   r382: number; r50: number; r618: number; e1272: number; e1618: number;
   nearest: string | null;
 }
+interface LSPoint { ts: number; longRatio: number; shortRatio: number; ratio: number }
 interface AnalysisData {
   symbol: string; name: string; updatedAt: number;
   price: number; change24h: number | null; high24h: number | null; low24h: number | null;
   quoteVolume: number | null; markPrice: number | null; openInterest: number | null;
   funding: { rate: number; ratePct: number; nextTs: number | null; intervalH: number };
+  longShort: { latest: LSPoint | null; history: LSPoint[] };
   timeframes: { h1: TF; m15: TF; m5: TF };
   zones: Zone[]; fib: Fib | null;
+  chart: { candles: ChartCandle[]; interval: string };
   verdict: {
     state: string; score: number; direction: 'long' | 'short' | 'wait';
     entryOk: boolean; entryNote: string;
@@ -165,19 +171,55 @@ function PositionCalc({ stopPct, levCons, levAggr }: { stopPct: number; levCons:
 /* ── 메인 ────────────────────────────────────────────── */
 export default function CoinAnalysisPage() {
   const [symbol, setSymbol] = useState('BTCUSDT');
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const { data, isLoading, isValidating, mutate } = useSWR<AnalysisData>(
     `/api/coin-analysis?symbol=${symbol}`,
     fetcher,
-    { revalidateOnFocus: false, refreshInterval: 0 },
+    { revalidateOnFocus: false, refreshInterval: autoRefresh ? 60000 : 0 },
   );
 
+  const journal = useCoinJournal();
+  const coinAlerts = useCoinAlerts();
+
   const v = data?.verdict;
+
+  // 분석 결과 갱신 시 조건 알림 체크
+  useEffect(() => {
+    if (data && !data.error && data.verdict) {
+      coinAlerts.check(data.symbol, data.name, data.verdict.direction, data.verdict.entryOk, data.verdict.score);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.symbol, data?.updatedAt]);
+
   const nextFundingMin = useMemo(() => {
     if (!data?.funding?.nextTs) return null;
     return Math.max(0, Math.round((data.funding.nextTs - Date.now()) / 60000));
   }, [data]);
 
   const priceDigits = data && data.price < 10 ? 4 : data && data.price < 1000 ? 2 : 1;
+  const alertRule = coinAlerts.rules[symbol];
+
+  const saveToJournal = () => {
+    if (!data || !v) return;
+    journal.add({
+      ts: Date.now(), symbol: data.symbol, name: data.name,
+      direction: v.direction, state: v.state, score: v.score, price: data.price,
+      entry: v.entry, stop: v.stop, target1: v.target1, target2: v.target2,
+      leverage: v.leverage.conservative, reasonsTop: v.reasons.slice(0, 3),
+    });
+  };
+
+  const toggleAlert = async (kind: 'entry' | 'long' | 'short') => {
+    if (coinAlerts.permission !== 'granted') {
+      const p = await coinAlerts.requestPermission();
+      if (p !== 'granted') return;
+    }
+    if (kind === 'entry') {
+      coinAlerts.setRule(symbol, { onEntryOk: !alertRule?.onEntryOk });
+    } else {
+      coinAlerts.setRule(symbol, { onDirection: alertRule?.onDirection === kind ? null : kind });
+    }
+  };
 
   return (
     <div className="pb-12">
@@ -202,12 +244,41 @@ export default function CoinAnalysisPage() {
           {data && !data.error && (
             <span className="text-[10px] text-[var(--text-muted)]">{timeAgo(data.updatedAt)} 분석</span>
           )}
+          <button onClick={() => setAutoRefresh((v) => !v)}
+            className={`px-3 py-1.5 rounded-xl border text-xs transition-colors ${
+              autoRefresh ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
+            }`}>
+            {autoRefresh ? '● 자동 1분' : '○ 자동갱신'}
+          </button>
           <button onClick={() => mutate()} disabled={isValidating}
             className="px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs text-[var(--text)] hover:border-[var(--border-hover)] disabled:opacity-50 transition-colors">
             {isValidating ? '분석 중…' : '⟳ 재분석'}
           </button>
         </div>
       </div>
+
+      {/* 알림 설정 바 */}
+      {data && !data.error && (
+        <div className="flex flex-wrap items-center gap-2 mb-4 text-xs">
+          <span className="text-[var(--text-muted)]">🔔 {COINS.find((c) => c.symbol === symbol)?.short} 알림:</span>
+          <button onClick={() => toggleAlert('entry')}
+            className={`px-2.5 py-1 rounded-lg border transition-colors ${
+              alertRule?.onEntryOk ? 'bg-sky-500/15 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
+            }`}>진입조건 충족 시</button>
+          <button onClick={() => toggleAlert('long')}
+            className={`px-2.5 py-1 rounded-lg border transition-colors ${
+              alertRule?.onDirection === 'long' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
+            }`}>롱 전환 시</button>
+          <button onClick={() => toggleAlert('short')}
+            className={`px-2.5 py-1 rounded-lg border transition-colors ${
+              alertRule?.onDirection === 'short' ? 'bg-red-500/15 text-red-400 border-red-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
+            }`}>숏 전환 시</button>
+          {coinAlerts.permission === 'denied' && (
+            <span className="text-[10px] text-amber-400">브라우저 알림이 차단되어 있습니다</span>
+          )}
+          <span className="text-[10px] text-[var(--text-muted)]">· 페이지 열린 상태 + 자동갱신에서 동작</span>
+        </div>
+      )}
 
       {(isLoading || (isValidating && !data)) && (
         <div className="space-y-4">
@@ -253,6 +324,23 @@ export default function CoinAnalysisPage() {
                   <p className="font-bold tabular-nums text-[var(--text)]">{data.quoteVolume ? `$${(data.quoteVolume / 1e9).toFixed(2)}B` : '-'}</p></div>
               </div>
             </div>
+
+            {/* 롱숏 계정 비율 심리 바 */}
+            {data.longShort.latest && (
+              <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                <div className="flex items-center justify-between text-[10px] mb-1">
+                  <span className="text-emerald-400 font-semibold">롱 {(data.longShort.latest.longRatio * 100).toFixed(1)}%</span>
+                  <span className="text-[var(--text-muted)]">롱숏 계정 비율 {data.longShort.latest.ratio.toFixed(2)}
+                    {data.longShort.latest.ratio >= 2.0 ? ' · 롱 과밀 주의' : data.longShort.latest.ratio <= 0.6 ? ' · 숏 과밀 주의' : ''}
+                  </span>
+                  <span className="text-red-400 font-semibold">숏 {(data.longShort.latest.shortRatio * 100).toFixed(1)}%</span>
+                </div>
+                <div className="flex h-2 rounded-full overflow-hidden">
+                  <div className="bg-emerald-500/70" style={{ width: `${data.longShort.latest.longRatio * 100}%` }} />
+                  <div className="bg-red-500/70" style={{ width: `${data.longShort.latest.shortRatio * 100}%` }} />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 종합 판단 */}
@@ -265,6 +353,10 @@ export default function CoinAnalysisPage() {
               }`}>
                 {v.entryOk ? '✓ 진입 조건 충족' : '진입 대기'}
               </span>
+              <button onClick={saveToJournal}
+                className="ml-auto px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-hover)] transition-colors">
+                📓 매매일지 기록
+              </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-5">
@@ -334,6 +426,28 @@ export default function CoinAnalysisPage() {
                 ) : <p className="text-[11px] text-[var(--text-muted)]">현재 특이 경고 없음</p>}
               </div>
             </div>
+          </div>
+
+          {/* 캔들 차트 (5m, EMA·지지저항·진입레벨 오버레이) */}
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-[var(--text)]">5분봉 차트 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 60봉 · EMA20/60 · 지지저항·피보나치·진입레벨</span></h3>
+              <div className="flex items-center gap-2.5 text-[10px]">
+                <span className="text-purple-400">— EMA20</span>
+                <span className="text-sky-400">— EMA60</span>
+                <span className="text-emerald-400">■ 양봉</span>
+                <span className="text-red-400">■ 음봉</span>
+              </div>
+            </div>
+            <CoinCandleChart
+              candles={data.chart.candles}
+              supports={data.zones.filter((z) => z.kind === 'support').map((z) => z.price)}
+              resistances={data.zones.filter((z) => z.kind === 'resistance').map((z) => z.price)}
+              fib={data.fib}
+              entry={v.entry} stop={v.stop} target1={v.target1} target2={v.target2}
+              direction={v.direction}
+              digits={priceDigits}
+            />
           </div>
 
           {/* AI 브리핑 */}
@@ -434,6 +548,72 @@ export default function CoinAnalysisPage() {
                 </div>
               ) : <p className="text-xs text-[var(--text-muted)]">뉴스를 가져올 수 없습니다.</p>}
             </div>
+          </div>
+
+          {/* 매매일지 */}
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-[var(--text)]">매매일지 <span className="text-[10px] font-normal text-[var(--text-muted)]">복기용 · 기기에만 저장</span></h3>
+              {journal.stats.closed > 0 && (
+                <div className="flex items-center gap-3 text-[10px]">
+                  <span className="text-[var(--text-muted)]">기록 {journal.stats.total}</span>
+                  <span className="text-[var(--text)]">승률 <span className="font-bold">{journal.stats.winRate?.toFixed(0)}%</span></span>
+                  <span className={`font-bold ${(journal.stats.avgR ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    평균 {journal.stats.avgR! >= 0 ? '+' : ''}{journal.stats.avgR?.toFixed(2)}R
+                  </span>
+                </div>
+              )}
+            </div>
+            {!journal.mounted ? null : journal.entries.length === 0 ? (
+              <p className="text-xs text-[var(--text-muted)] py-4 text-center">아직 기록이 없습니다. 판정 카드의 &ldquo;📓 매매일지 기록&rdquo;으로 현재 분석을 저장하고, 결과를 나중에 입력해 복기하세요.</p>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {journal.entries.map((e) => (
+                  <div key={e.id} className="rounded-xl border border-[var(--border)] p-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-bold text-[var(--text)]">{e.name}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                          e.direction === 'long' ? 'bg-emerald-500/15 text-emerald-400' : e.direction === 'short' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'
+                        }`}>{e.direction === 'long' ? '롱' : e.direction === 'short' ? '숏' : '관망'}</span>
+                        <span className="text-[10px] text-[var(--text-muted)]">{e.state} · {e.score > 0 ? '+' : ''}{e.score}</span>
+                        <span className="text-[10px] text-[var(--text-muted)]">{new Date(e.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <button onClick={() => journal.remove(e.id)} className="text-[10px] text-[var(--text-muted)] hover:text-red-400">삭제</button>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1.5 text-[10px] text-[var(--text-muted)] tabular-nums">
+                      <span>진입 ${fmtP(e.price, e.price < 10 ? 4 : e.price < 1000 ? 2 : 1)}</span>
+                      <span className="text-red-400">손절 ${fmtP(e.stop, e.price < 10 ? 4 : e.price < 1000 ? 2 : 1)}</span>
+                      <span className="text-emerald-400">T1 ${fmtP(e.target1, e.price < 10 ? 4 : e.price < 1000 ? 2 : 1)}</span>
+                      <span>{e.leverage}배</span>
+                    </div>
+                    {/* 결과 입력 */}
+                    <div className="flex items-center gap-1.5 mt-2">
+                      {(['open', 'win', 'loss', 'even'] as const).map((r) => (
+                        <button key={r} onClick={() => journal.update(e.id, { result: r, resultR: r === 'win' ? 1.5 : r === 'loss' ? -1 : 0 })}
+                          className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
+                            e.result === r
+                              ? (r === 'win' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : r === 'loss' ? 'bg-red-500/20 text-red-400 border-red-500/40' : r === 'even' ? 'bg-slate-500/20 text-[var(--text)] border-[var(--border)]' : 'bg-amber-500/15 text-amber-400 border-amber-500/40')
+                              : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
+                          }`}>
+                          {r === 'open' ? '진행중' : r === 'win' ? '익절' : r === 'loss' ? '손절' : '본전'}
+                        </button>
+                      ))}
+                      {e.result !== 'open' && (
+                        <input
+                          value={e.resultR ?? ''} inputMode="decimal"
+                          onChange={(ev) => journal.update(e.id, { resultR: parseFloat(ev.target.value) || 0 })}
+                          className="ml-1 w-16 px-1.5 py-0.5 text-[10px] bg-transparent border border-[var(--border)] rounded text-[var(--text)] outline-none tabular-nums"
+                          placeholder="실현 R" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {journal.entries.length > 0 && (
+                  <button onClick={journal.clear} className="text-[10px] text-[var(--text-muted)] hover:text-red-400 mt-1">전체 삭제</button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 면책 */}

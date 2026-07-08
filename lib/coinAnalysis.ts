@@ -282,6 +282,7 @@ export function buildVerdict(
   h1: TimeframeAnalysis, m15: TimeframeAnalysis, m5: TimeframeAnalysis,
   fundingRate: number, nextFundingTs: number | null,
   fib: FibLevels | null, zones: SRZone[],
+  longShortRatio: number | null = null,
 ): Verdict {
   const price = m5.close;
   const reasons: string[] = [];
@@ -362,6 +363,17 @@ export function buildVerdict(
   const minToFunding = nextFundingTs ? (nextFundingTs - Date.now()) / 60000 : null;
   const nearFunding = minToFunding !== null && minToFunding >= 0 && minToFunding <= 10;
   if (nearFunding) warnings.push(`다음 펀딩까지 ${Math.round(minToFunding!)}분 — 펀딩 직전 5~10분 진입 회피 구간`);
+
+  /* 5-1) 롱숏 계정 비율 — 과도한 쏠림은 역방향 스퀴즈 위험(문서: OI·펀딩 쏠림 체제 신호) */
+  if (longShortRatio !== null) {
+    if (longShortRatio >= 2.0) {
+      warnings.push(`롱숏 계정 비율 ${longShortRatio.toFixed(2)} — 롱 과밀, 하락 스퀴즈(롱 청산) 위험`);
+      if (score > 0) { score -= 6; reasons.push('롱 쏠림 과열 — 추격 롱 신중'); }
+    } else if (longShortRatio <= 0.6) {
+      warnings.push(`롱숏 계정 비율 ${longShortRatio.toFixed(2)} — 숏 과밀, 상승 스퀴즈(숏 청산) 위험`);
+      if (score < 0) { score += 6; reasons.push('숏 쏠림 과열 — 추격 숏 신중'); }
+    }
+  }
 
   /* 6) 시장 상태 분류 */
   let state: string;

@@ -32,7 +32,9 @@
 - **비트겟 포트폴리오** `/bitget` — 실시간 잔고·총평가·체결·이체 (읽기전용 키)
 
 ### 분석 (Analysis)
-- **코인선물 분석** `/coin-analysis` — 🆕 BTC·ETH·XRP·SOL 단타 분석. 1H→15m→5m 다중 타임프레임(EMA·VWAP·RSI·MACD·볼린저·ATR·시장구조), 지지저항·피보나치, 펀딩비·OI, 뉴스(Google→Bing RSS), 룰 엔진 롱/숏/관망 + 권장 레버리지·손절·익절 + 포지션 계산기 + AI 브리핑(ANTHROPIC_API_KEY 필요)
+- **코인선물 분석** `/coin-analysis` — 🆕 BTC·ETH·XRP·SOL 단타 분석. 1H→15m→5m 다중 타임프레임(EMA·VWAP·RSI·MACD·볼린저·ATR·시장구조), 지지저항·피보나치, 펀딩비·OI·**롱숏 계정비율**, 뉴스(Google→Bing RSS), 룰 엔진 롱/숏/관망 + 권장 레버리지·손절·익절 + 포지션 계산기 + AI 브리핑(ANTHROPIC_API_KEY 필요)
+  - **캔들 차트**(5m 60봉, Recharts 커스텀 shape) — EMA20/60·지지저항·피보나치·진입/손절/익절 레벨 오버레이
+  - **자동갱신**(1분 토글) · **조건 알림**(진입충족/롱숏 전환 시 브라우저 Notification, 페이지 열림+자동갱신 시 동작) · **매매일지**(localStorage, 익절/손절/본전 + 실현R 기록·승률·평균R 통계)
 - **버핏 스크리너** `/screener` — 7기준 4-소스 폴백(Yahoo→Naver→KIS→DART)
 - **KRX 시장** `/krx` — 🆕 주요지수 + 전종목 랭킹(5탭) + ETF 랭킹(3탭) + 상품(금·유가)
 - **뉴스** `/news` · **공시** `/dart` · **리포트** `/report` · **캘린더** `/calendar`

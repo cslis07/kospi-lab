@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  Candle, analyzeTimeframe, buildVerdict, atr, srZones, fibonacci,
+  Candle, analyzeTimeframe, buildVerdict, atr, srZones, fibonacci, emaSeries,
   TimeframeAnalysis,
 } from '@/lib/coinAnalysis';
 import { BITGET_BASE, fetchBitgetFuturesTickers } from '@/lib/bitget';
@@ -43,6 +43,28 @@ async function fetchFundingInfo(symbol: string): Promise<{ rate: number; nextTs:
     };
   } catch {
     return { rate: 0, nextTs: null, intervalH: 8 };
+  }
+}
+
+/* ── 롱숏 계정 비율 (최근 이력) ──────────────────────── */
+interface LSPoint { ts: number; longRatio: number; shortRatio: number; ratio: number }
+async function fetchLongShort(symbol: string): Promise<{ latest: LSPoint | null; history: LSPoint[] }> {
+  try {
+    const res = await fetch(
+      `${BITGET_BASE}/api/v2/mix/market/account-long-short?symbol=${symbol}&productType=USDT-FUTURES&period=5m`,
+      { cache: 'no-store', signal: AbortSignal.timeout(8000) },
+    );
+    const json = await res.json();
+    const rows = (json?.data ?? []) as { longAccountRatio: string; shortAccountRatio: string; longShortAccountRatio: string; ts: string }[];
+    const history: LSPoint[] = rows.map((r) => ({
+      ts: Number(r.ts),
+      longRatio: Number(r.longAccountRatio),
+      shortRatio: Number(r.shortAccountRatio),
+      ratio: Number(r.longShortAccountRatio),
+    })).slice(-30);
+    return { latest: history[history.length - 1] ?? null, history };
+  } catch {
+    return { latest: null, history: [] };
   }
 }
 
@@ -156,13 +178,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [c1h, c15m, c5m, funding, tickers, news] = await Promise.all([
+    const [c1h, c15m, c5m, funding, tickers, news, longShort] = await Promise.all([
       fetchCandles(symbol, '1H', 200),
       fetchCandles(symbol, '15m', 200),
       fetchCandles(symbol, '5m', 200),
       fetchFundingInfo(symbol),
       fetchBitgetFuturesTickers().catch(() => null),
       fetchNews(coin.newsQuery),
+      fetchLongShort(symbol),
     ]);
 
     const t = tickers?.map.get(symbol);
@@ -173,14 +196,24 @@ export async function GET(req: NextRequest) {
     const m5  = analyzeTimeframe('5m', c5m);
     const zones = srZones(c15m, price, atr(c15m));
     const fib = fibonacci(c15m, price);
-    const verdict = buildVerdict(h1, m15, m5, funding.rate, funding.nextTs, fib, zones);
+    const verdict = buildVerdict(h1, m15, m5, funding.rate, funding.nextTs, fib, zones, longShort.latest?.ratio ?? null);
+
+    // 5분봉 캔들 차트(EMA20/60 오버레이) — 최근 60봉
+    const closes5 = c5m.map((c) => c.c);
+    const ema20s = emaSeries(closes5, 20);
+    const ema60s = emaSeries(closes5, 60);
+    const chartCandles = c5m.map((c, i) => ({
+      ts: c.ts, o: c.o, h: c.h, l: c.l, c: c.c, v: c.v,
+      ema20: ema20s[i], ema60: ema60s[i],
+    })).slice(-60);
 
     // AI 브리핑용 요약 문자열
     const tfSummary = [h1, m15, m5].map((tf: TimeframeAnalysis) =>
       `[${tf.tf}] 구조:${tf.structure} EMA:${tf.emaAlign} RSI:${tf.rsi.toFixed(0)} ` +
       `MACD히스토:${tf.macd.hist > 0 ? '+' : ''}${tf.macd.hist.toFixed(2)} ATR:${tf.atrPct.toFixed(2)}% ` +
       `거래량비:${tf.volumeRatio.toFixed(1)}x${tf.bb.squeeze ? ' 밴드수축' : ''}`
-    ).join('\n') + `\n펀딩비: ${(funding.rate * 100).toFixed(4)}% / OI: ${t?.holdingAmount ?? '-'}`;
+    ).join('\n') + `\n펀딩비: ${(funding.rate * 100).toFixed(4)}% / OI: ${t?.holdingAmount ?? '-'}` +
+      `${longShort.latest ? ` / 롱숏계정비율: ${longShort.latest.ratio.toFixed(2)}(롱 ${(longShort.latest.longRatio * 100).toFixed(0)}%)` : ''}`;
     const verdictSummary =
       `상태:${verdict.state} 점수:${verdict.score} 방향:${verdict.direction} 진입가능:${verdict.entryOk}\n` +
       `근거: ${verdict.reasons.slice(0, 5).join(' / ')}\n경고: ${verdict.warnings.join(' / ') || '없음'}`;
@@ -199,9 +232,14 @@ export async function GET(req: NextRequest) {
       markPrice: t?.markPrice ? Number(t.markPrice) : null,
       openInterest: t?.holdingAmount ? Number(t.holdingAmount) : null,
       funding: { rate: funding.rate, ratePct: funding.rate * 100, nextTs: funding.nextTs, intervalH: funding.intervalH },
+      longShort: {
+        latest: longShort.latest,
+        history: longShort.history,
+      },
       timeframes: { h1, m15, m5 },
       zones,
       fib,
+      chart: { candles: chartCandles, interval: '5m' },
       verdict,
       news,
       aiBriefing: ai.text ?? null,
