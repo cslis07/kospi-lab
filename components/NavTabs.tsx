@@ -41,6 +41,7 @@ const GROUPS: NavGroup[] = [
   {
     label: '분석',
     items: [
+      { label: '코인선물 분석', href: '/coin-analysis', desc: 'BTC·ETH·XRP·SOL 롱숏 판단' },
       { label: '버핏 스크리너', href: '/screener', desc: 'ROE·PER·재무 분석' },
       { label: 'KRX 시장',      href: '/krx',      desc: '지수·전종목 랭킹·ETF·상품' },
       { label: '뉴스',          href: '/news',     desc: '시장 소식' },
@@ -49,6 +50,7 @@ const GROUPS: NavGroup[] = [
       { label: '캘린더',        href: '/calendar', desc: '경제 이벤트' },
     ],
     matchFn: (p) =>
+      p.startsWith('/coin-analysis') ||
       p.startsWith('/screener') || p.startsWith('/krx') || p.startsWith('/news') ||
       p.startsWith('/dart')     || p.startsWith('/report') ||
       p.startsWith('/calendar'),
