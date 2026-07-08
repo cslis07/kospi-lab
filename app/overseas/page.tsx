@@ -71,6 +71,9 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 
 type ExchangeFilter = 'all' | 'NASDAQ' | 'NYSE';
 
+// 목록(정적+실시간 검색) 공용 아이템 타입
+type MarketItem = { symbol: string; name: string; exchange: string };
+
 // ── 해외 종목 상세 모달 ────────────────────────────────────────
 function OverseasDetailModal({
   symbol, name, exchange, data, usdRate, onClose,
@@ -216,17 +219,41 @@ export default function OverseasPage() {
   const { data: market } = useSWR('/api/market', fetcher, { refreshInterval: 10000 });
   const usdRate = market?.usdkrw?.value as number | undefined;
 
-  const allData: Record<string, OverseasStockData> = useMemo(
-    () => ({ ...d1, ...d2, ...d3, ...d4, ...d5 }),
-    [d1, d2, d3, d4, d5]
+  const [query,          setQuery]          = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [sort,           setSort]           = useState<SortKey>('marketCap');
+  const [exchFilter,     setExchFilter]     = useState<ExchangeFilter>('all');
+  const [watchOnly,      setWatchOnly]      = useState(false);
+  const [selected,       setSelected]       = useState<MarketItem | null>(null);
+  const [updatedAt,      setUpdatedAt]      = useState('');
+
+  // 검색어 디바운스 (실시간 검색 API 과호출 방지)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  // 정적 목록에 없는 종목(레버리지 ETF 등)은 Yahoo 실시간 검색으로 보완
+  const staticSymbolSet = useMemo(() => new Set(allSymbols), [allSymbols]);
+  const { data: remoteResults } = useSWR<MarketItem[]>(
+    debouncedQuery.length >= 2 ? `/api/overseas/search?q=${encodeURIComponent(debouncedQuery)}` : null,
+    fetcher
+  );
+  const remoteItems: MarketItem[] = useMemo(
+    () => (remoteResults ?? []).filter((r) => !staticSymbolSet.has(r.symbol)).slice(0, 15),
+    [remoteResults, staticSymbolSet]
+  );
+  const remoteSymbolsKey = remoteItems.map((r) => r.symbol).join(',');
+  const { data: remoteData } = useSWR<Record<string, OverseasStockData>>(
+    remoteSymbolsKey ? `/api/overseas/batch?symbols=${remoteSymbolsKey}` : null,
+    fetcher,
+    { refreshInterval: 15000 }
   );
 
-  const [query,      setQuery]      = useState('');
-  const [sort,       setSort]       = useState<SortKey>('marketCap');
-  const [exchFilter, setExchFilter] = useState<ExchangeFilter>('all');
-  const [watchOnly,  setWatchOnly]  = useState(false);
-  const [selected,   setSelected]   = useState<typeof OVERSEAS_LIST[0] | null>(null);
-  const [updatedAt,  setUpdatedAt]  = useState('');
+  const allData: Record<string, OverseasStockData> = useMemo(
+    () => ({ ...d1, ...d2, ...d3, ...d4, ...d5, ...remoteData }),
+    [d1, d2, d3, d4, d5, remoteData]
+  );
 
   useEffect(() => {
     if (Object.keys(allData).length > 0) {
@@ -245,7 +272,7 @@ export default function OverseasPage() {
   );
 
   const toggleWatch = useCallback(
-    (e: React.MouseEvent, item: typeof OVERSEAS_LIST[0]) => {
+    (e: React.MouseEvent, item: MarketItem) => {
       e.stopPropagation();
       if (watchSet.has(item.symbol)) {
         remove(item.symbol);
@@ -259,19 +286,25 @@ export default function OverseasPage() {
   const isLoading = Object.keys(allData).length === 0;
 
   const filtered = useMemo(() => {
-    let list = OVERSEAS_LIST;
+    let list: MarketItem[] = OVERSEAS_LIST;
     if (exchFilter !== 'all') list = list.filter((s) => s.exchange === exchFilter);
     if (watchOnly && mounted) list = list.filter((s) => watchSet.has(s.symbol));
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       list = list.filter((s) => s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
+
+      // 정적 목록에 없던 실시간 검색 결과(레버리지 ETF 등) 병합
+      let remote = remoteItems;
+      if (exchFilter !== 'all') remote = remote.filter((s) => s.exchange === exchFilter);
+      if (watchOnly && mounted) remote = remote.filter((s) => watchSet.has(s.symbol));
+      list = [...list, ...remote];
     }
     if (sort === 'changeRateDesc') return [...list].sort((a, b) => (allData[b.symbol]?.changeRate ?? 0) - (allData[a.symbol]?.changeRate ?? 0));
     if (sort === 'changeRateAsc')  return [...list].sort((a, b) => (allData[a.symbol]?.changeRate ?? 0) - (allData[b.symbol]?.changeRate ?? 0));
     if (sort === 'marketCap')      return [...list].sort((a, b) => (allData[b.symbol]?.marketCap  ?? 0) - (allData[a.symbol]?.marketCap  ?? 0));
     if (sort === 'volume')         return [...list].sort((a, b) => (allData[b.symbol]?.volume      ?? 0) - (allData[a.symbol]?.volume      ?? 0));
     return list;
-  }, [query, sort, exchFilter, watchOnly, watchSet, mounted, allData]);
+  }, [query, sort, exchFilter, watchOnly, watchSet, mounted, allData, remoteItems]);
 
   return (
     <div className="pb-12">
