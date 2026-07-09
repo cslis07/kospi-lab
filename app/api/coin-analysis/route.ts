@@ -9,6 +9,8 @@ import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 import { BITGET_BASE, fetchBitgetFuturesTickers } from '@/lib/bitget';
 
 export const maxDuration = 30;
+// Bybit(OI)·업비트가 미국 데이터센터 IP를 차단하므로 이 라우트만 서울 리전에서 실행
+export const preferredRegion = 'icn1';
 
 /* ── 지원 코인 ────────────────────────────────────────── */
 const COINS: Record<string, { name: string; newsQuery: string; upbit: string }> = {
