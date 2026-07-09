@@ -11,6 +11,7 @@ import {
 import { backtestStock, StockBacktestResult } from '@/lib/stockBacktest';
 import { fetchKisFinancialRatio } from '@/lib/kisFinance';
 import { cioViewFor, MUST_WATCH, MERRILL_CIO } from '@/lib/marketReference';
+import { fetchMacroIndicators } from '@/lib/macroIndicators';
 const MERRILL_SRC = `${MERRILL_CIO.source} ${MERRILL_CIO.date}`;
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 
@@ -311,13 +312,14 @@ export async function GET(req: NextRequest) {
 
   try {
     const basic = await fetchBasic(ticker);
-    const [candles, investor, fin0, macro, news, disclosures] = await Promise.all([
+    const [candles, investor, fin0, macro, news, disclosures, macroInd] = await Promise.all([
       fetchDaily(ticker, basic.market),
       fetchInvestor(ticker),
       fetchFinancials(ticker),
       fetchMacro(origin),
       fetchNews(ticker),
       fetchDisclosures(ticker),
+      fetchMacroIndicators(),
     ]);
     const kospi = macro.market;
     if (candles.length < 60) return NextResponse.json({ error: '차트 데이터 부족(신규상장·거래정지 가능)' }, { status: 502 });
@@ -347,13 +349,19 @@ export async function GET(req: NextRequest) {
     };
     const verdict = buildStockVerdict(daily, candles, fib, zones, extras);
 
-    // 필수 경제 지표 (라이브 값 + CPI 일정 매핑)
+    // 필수 경제 지표 (라이브 환율 + CPI 일정 + 실측 매크로)
     const cpi = nextCpi();
+    const macroByKey: Record<string, { value: number; unit: string; label: string; change: number | null; changeLabel: string; source: string } | null> = {
+      us_cpi: macroInd.usCpi, semicon: macroInd.semiconExport, debt: macroInd.householdDebt,
+    };
+    // 부동산은 별도 항목이 아니라 debt 항목과 함께 — MUST_WATCH의 debt는 '가계부채·부동산'이므로 둘 다 노출
     const indicators = MUST_WATCH.map((m) => ({
       key: m.key, label: m.label, why: m.why,
       value: m.liveKey === 'usdkrw' ? macro.usdkrw : m.liveKey === 'jpykrw' ? macro.jpykrw : null,
       unit: m.liveKey ? '원' : null,
       event: m.eventCategory === 'cpi' && cpi ? cpi : null,
+      macro: macroByKey[m.key] ?? null,               // 실측 지표값(있으면)
+      realEstate: m.key === 'debt' ? macroInd.realEstate : null, // 가계부채 카드에 부동산 병기
     }));
 
     // 차트 오버레이 (일봉 60개 + EMA20/60)
@@ -380,7 +388,11 @@ export async function GET(req: NextRequest) {
       (disclosures.length ? `최근 공시: ${disclosures.slice(0, 5).map((d) => `${d.date} ${d.type}${d.sentiment !== 'neu' ? `(${d.sentiment === 'pos' ? '호재' : '악재'})` : ''}`).join(' / ')}\n` : '') +
       (policy.length ? `정책·테마: ${policy.map((p) => p.label).join(' / ')}\n` : '') +
       (cio ? `메릴린치 CIO 업종의견: ${cio.sector} ${cio.label}(${MERRILL_SRC})\n` : '') +
-      `필수지표: 원달러 ${macro.usdkrw ? `${Math.round(macro.usdkrw.value)}원(${macro.usdkrw.changeRate >= 0 ? '+' : ''}${macro.usdkrw.changeRate.toFixed(2)}%)` : '-'}, 엔화 ${macro.jpykrw ? `${macro.jpykrw.value.toFixed(1)}원` : '-'}${cpi ? `, 미CPI ${cpi.daysUntil}일 후` : ''}\n` +
+      `필수지표: 원달러 ${macro.usdkrw ? `${Math.round(macro.usdkrw.value)}원(${macro.usdkrw.changeRate >= 0 ? '+' : ''}${macro.usdkrw.changeRate.toFixed(2)}%)` : '-'}, 엔화 ${macro.jpykrw ? `${macro.jpykrw.value.toFixed(1)}원` : '-'}` +
+      `${macroInd.usCpi ? `, 미국CPI ${macroInd.usCpi.value}%(YoY, ${macroInd.usCpi.label})` : cpi ? `, 미CPI ${cpi.daysUntil}일 후` : ''}` +
+      `${macroInd.semiconExport ? `, 반도체수출 ${macroInd.semiconExport.value}억달러(${macroInd.semiconExport.change !== null ? `YoY ${macroInd.semiconExport.change >= 0 ? '+' : ''}${macroInd.semiconExport.change}%` : ''})` : ''}` +
+      `${macroInd.householdDebt ? `, 가계신용 ${macroInd.householdDebt.value}조원` : ''}` +
+      `${macroInd.realEstate ? `, 주택가격지수 ${macroInd.realEstate.value}(${macroInd.realEstate.change !== null ? `MoM ${macroInd.realEstate.change >= 0 ? '+' : ''}${macroInd.realEstate.change}%` : ''})` : ''}\n` +
       `판정: ${verdict.state} / 점수 ${verdict.score} / ${verdict.stance} / 진입가능 ${verdict.entryOk}\n` +
       `근거: ${verdict.reasons.slice(0, 5).join(' / ')}`;
     const ai = await aiBriefing(basic.name, ticker, summary, news.map((n) => n.title));

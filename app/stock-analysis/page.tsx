@@ -43,7 +43,13 @@ interface Data {
   policy: { tone: 'pos' | 'neg'; label: string }[];
   cio: { sector: string; stance: 'overweight' | 'neutral' | 'underweight'; label: string; tone: 'up' | 'down' | 'neutral'; source: string; date: string } | null;
   cioSource: string;
-  indicators: { key: string; label: string; why: string; value: { value: number; changeRate: number } | null; unit: string | null; event: { date: string; daysUntil: number } | null }[];
+  indicators: {
+    key: string; label: string; why: string;
+    value: { value: number; changeRate: number } | null; unit: string | null;
+    event: { date: string; daysUntil: number } | null;
+    macro: { value: number; unit: string; label: string; change: number | null; changeLabel: string; source: string } | null;
+    realEstate: { value: number; unit: string; label: string; change: number | null; changeLabel: string; source: string } | null;
+  }[];
   aiBriefing: string | null; aiError: string | null;
   error?: string;
 }
@@ -424,11 +430,27 @@ export default function StockAnalysisPage() {
                 <div key={ind.key} className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
                   <p className="text-xs font-bold text-[var(--text)]">{ind.label}</p>
                   {ind.value ? (
+                    /* 라이브 환율 */
                     <p className={`text-sm font-bold tabular-nums mt-0.5 ${ind.value.changeRate >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
                       {ind.key === 'jpy' ? `${ind.value.value.toFixed(1)}원` : `${Math.round(ind.value.value).toLocaleString()}원`}
                       <span className="text-[10px] font-normal ml-1">{ind.value.changeRate >= 0 ? '+' : ''}{ind.value.changeRate.toFixed(2)}%</span>
                     </p>
+                  ) : ind.macro ? (
+                    /* 실측 매크로 (CPI·반도체수출·가계부채) */
+                    <>
+                      <p className="text-sm font-bold tabular-nums mt-0.5 text-[var(--text)]">
+                        {ind.macro.value.toLocaleString()}<span className="text-[10px] font-normal ml-0.5">{ind.macro.unit}</span>
+                        {ind.macro.change !== null && (
+                          <span className={`text-[10px] font-normal ml-1 ${ind.macro.change >= 0 ? 'text-red-400' : 'text-blue-400'}`}>{ind.macro.change >= 0 ? '+' : ''}{ind.macro.change}%{ind.macro.changeLabel !== 'YoY' ? '' : ' YoY'}</span>
+                        )}
+                      </p>
+                      {ind.realEstate && (
+                        <p className="text-[10px] text-[var(--text-muted)] mt-0.5">주택가격 {ind.realEstate.value}{ind.realEstate.change !== null ? ` (${ind.realEstate.change >= 0 ? '+' : ''}${ind.realEstate.change}% MoM)` : ''}</p>
+                      )}
+                      <p className="text-[9px] text-[var(--text-dim)]">{ind.macro.label} · {ind.macro.source}{ind.event ? ` · 다음발표 D-${ind.event.daysUntil}` : ''}</p>
+                    </>
                   ) : ind.event ? (
+                    /* CPI 발표일만 (BLS 실패 시 폴백) */
                     <p className={`text-sm font-bold tabular-nums mt-0.5 ${ind.event.daysUntil <= 3 ? 'text-amber-400' : 'text-[var(--text)]'}`}>
                       {ind.event.daysUntil === 0 ? '오늘 발표' : `D-${ind.event.daysUntil}`}
                     </p>
