@@ -692,15 +692,31 @@ export default function CoinAnalysisPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="space-y-1 max-h-28 overflow-y-auto">
-                    {data.backtest.trades.map((tr, i) => (
-                      <div key={i} className="flex items-center justify-between text-[10px] tabular-nums">
-                        <span className="text-[var(--text-muted)]">{new Date(tr.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                        <span className={tr.direction === 'long' ? 'text-emerald-400' : 'text-red-400'}>{tr.direction === 'long' ? '롱' : '숏'} ({tr.score > 0 ? '+' : ''}{tr.score})</span>
-                        <span className="text-[var(--text-muted)]">{(tr.bars * 5 / 60).toFixed(1)}h</span>
-                        <span className={`font-bold ${tr.result === 'win' ? 'text-emerald-400' : 'text-red-400'}`}>{tr.result === 'win' ? '+1R' : '-1R'}</span>
-                      </div>
-                    ))}
+                  <div className="max-h-32 overflow-y-auto rounded-lg border border-[var(--border)]">
+                    <table className="w-full text-[10px] tabular-nums">
+                      <thead>
+                        <tr className="text-[var(--text-muted)] bg-[var(--bg)] sticky top-0">
+                          <th className="text-left px-2 py-1 font-medium">시각</th>
+                          <th className="text-left px-2 py-1 font-medium">방향</th>
+                          <th className="text-right px-2 py-1 font-medium">진입가</th>
+                          <th className="text-right px-2 py-1 font-medium">손절가</th>
+                          <th className="text-right px-2 py-1 font-medium">보유</th>
+                          <th className="text-right px-2 py-1 font-medium">결과</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.backtest.trades.map((tr, i) => (
+                          <tr key={i} className={i % 2 === 1 ? 'bg-[var(--bg)]/30' : ''}>
+                            <td className="px-2 py-1 text-[var(--text-muted)]">{new Date(tr.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                            <td className={`px-2 py-1 ${tr.direction === 'long' ? 'text-emerald-400' : 'text-red-400'}`}>{tr.direction === 'long' ? '롱' : '숏'} ({tr.score > 0 ? '+' : ''}{tr.score})</td>
+                            <td className="px-2 py-1 text-right text-[var(--text)]">${fmtP(tr.entry, priceDigits)}</td>
+                            <td className="px-2 py-1 text-right text-[var(--text-muted)]">${fmtP(tr.stop, priceDigits)}</td>
+                            <td className="px-2 py-1 text-right text-[var(--text-muted)]">{(tr.bars * 5 / 60).toFixed(1)}h</td>
+                            <td className={`px-2 py-1 text-right font-bold ${tr.result === 'win' ? 'text-emerald-400' : 'text-red-400'}`}>{tr.result === 'win' ? '+1R' : '-1R'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                   <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-60">
                     {data.backtest.winRate !== null && data.backtest.winRate < 45
