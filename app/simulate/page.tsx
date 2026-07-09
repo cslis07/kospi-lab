@@ -201,10 +201,10 @@ function LeverageCalc() {
   const [margin, setMargin]   = useState(100);   // 증거금 USDT
   const [lev,    setLev]      = useState(10);     // 배율
   const [dir,    setDir]      = useState<'long' | 'short'>('long');
-  const [target, setTarget]   = useState(0);      // 목표가(USDT), 0이면 현재가로 간주
+  const [targetStr, setTargetStr] = useState('');  // 목표가 입력(빈칸이면 현재가로 간주)
 
   // 코인 전환 시 목표가 초기화(현재가 기준으로)
-  useEffect(() => { setTarget(0); }, [symbol]);
+  useEffect(() => { setTargetStr(''); }, [symbol]);
 
   const { data: prices } = useSWR<Record<string, { price: number }>>(
     `/api/crypto/batch?symbols=${COINS.map((c) => c.symbol).join(',')}`,
@@ -221,7 +221,8 @@ function LeverageCalc() {
   const position = margin * lev;                       // 포지션 명목가치
   const qty = price > 0 ? position / price : 0;        // 코인 수량
   const dirSign = dir === 'long' ? 1 : -1;
-  const effTarget = target > 0 ? target : price;       // 목표가(미입력 시 현재가)
+  const targetNum = parseFloat(targetStr);
+  const effTarget = targetStr !== '' && !isNaN(targetNum) && targetNum > 0 ? targetNum : price; // 미입력 시 현재가
   const changePct = price > 0 ? ((effTarget - price) / price) * 100 : 0; // 부호 있는 가격 변동%
   const pnl = price > 0 ? position * ((effTarget - price) / price) * dirSign : 0; // 예상 손익(USDT)
   const roe = margin > 0 ? (pnl / margin) * 100 : 0;   // 증거금 대비 수익률
@@ -295,16 +296,16 @@ function LeverageCalc() {
           <div className="flex justify-between items-center">
             <span className="text-xs text-[var(--text-muted)]">목표가 (USDT)</span>
             <div className="flex items-center gap-1">
-              <input type="number" value={target > 0 ? target : (price ? +price.toFixed(dg) : 0)}
-                min={0} step={priceStep}
-                onChange={(e) => setTarget(Math.max(0, +e.target.value))}
-                className="w-28 bg-white/5 border border-[var(--border)] rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] outline-none focus:border-sky-500/50" />
-              <button onClick={() => setTarget(0)} className="text-[10px] text-[var(--text-muted)] hover:text-sky-400 w-12" title="현재가로 초기화">현재가</button>
+              <input type="number" inputMode="decimal" value={targetStr}
+                placeholder={price ? String(+price.toFixed(dg)) : ''} min={0} step={priceStep}
+                onChange={(e) => setTargetStr(e.target.value)}
+                className="w-28 bg-white/5 border border-[var(--border)] rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-sky-500/50" />
+              <button onClick={() => setTargetStr('')} className="text-[10px] text-[var(--text-muted)] hover:text-sky-400 w-12" title="현재가로 초기화">현재가</button>
             </div>
           </div>
           <input type="range" min={priceLo} max={priceHi} step={priceStep}
             value={clamp(effTarget, priceLo, priceHi)}
-            onChange={(e) => setTarget(+e.target.value)} disabled={!price}
+            onChange={(e) => setTargetStr(e.target.value)} disabled={!price}
             className="w-full accent-sky-500 disabled:opacity-40" />
           <div className="flex justify-between text-[10px]">
             <span className="text-[var(--text-muted)]">현재가 대비{' '}
