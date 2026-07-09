@@ -116,28 +116,40 @@ async function _realEstate(): Promise<MacroValue | null> {
   };
 }
 
-/* 반도체 수출 = 관세청 품목별 수출실적(HS 8542). 키 없으면 null */
+/* 반도체 수출 = 관세청 품목별 수출실적(HS 8542, 응답 XML). 키 없으면 null.
+ * 단월 조회 → hsCd="-" 총계행이 그 달 전체 수출액. 최근 완료월 탐색 + 전년동월 YoY. */
+async function _customsMonth(key: string, ym: string): Promise<number | null> {
+  const url = `https://apis.data.go.kr/1220000/nitemtrade/getNitemtradeList?serviceKey=${encodeURIComponent(key)}&strtYymm=${ym}&endYymm=${ym}&hsSgn=8542&numOfRows=500`;
+  const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(9000) });
+  const xml = await res.text();
+  const items = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
+  for (const it of items) {
+    const hs = it.match(/<hsCd>([^<]*)<\/hsCd>/)?.[1] ?? '';
+    if (hs.trim() === '-') {
+      const exp = Number(it.match(/<expDlr>([^<]*)<\/expDlr>/)?.[1] ?? 0);
+      return exp > 0 ? exp : null;
+    }
+  }
+  return null;
+}
 async function _semiconExport(): Promise<MacroValue | null> {
   const key = process.env.CUSTOMS_API_KEY;
   if (!key) return null;
   const now = new Date();
-  const ym = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`;
-  const start = new Date(now); start.setMonth(start.getMonth() - 13);
-  const url = `https://apis.data.go.kr/1220000/nitemtrade/getNitemtradeList?serviceKey=${encodeURIComponent(key)}&strtYymm=${ym(start)}&endYymm=${ym(now)}&hsSgn=8542&type=json`;
-  const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
-  const j = await res.json();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const items = (j?.response?.body?.items?.item ?? []) as any[];
-  const monthly = items.filter((x) => x.year && String(x.year).length === 6).sort((a, b) => (a.year < b.year ? -1 : 1));
-  if (monthly.length < 2) return null;
-  const cur = monthly[monthly.length - 1];
-  const yearAgo = monthly.find((x) => Number(x.year) === Number(cur.year) - 100);
-  const expUsd = Number(cur.expDlr) || 0; // 수출 달러
-  if (!expUsd) return null;
-  const yoy = yearAgo && Number(yearAgo.expDlr) ? (expUsd / Number(yearAgo.expDlr) - 1) * 100 : null;
+  const ymOf = (off: number) => { const d = new Date(now.getFullYear(), now.getMonth() - off, 1); return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`; };
+  // 데이터 확정 지연(~10~40일) 대비 최근 4개월 역순 탐색
+  let latestYm: string | null = null, latestVal: number | null = null;
+  for (let off = 0; off <= 4; off++) {
+    const v = await _customsMonth(key, ymOf(off));
+    if (v) { latestYm = ymOf(off); latestVal = v; break; }
+  }
+  if (!latestYm || !latestVal) return null;
+  const prevYm = `${Number(latestYm.slice(0, 4)) - 1}${latestYm.slice(4)}`;
+  const prevVal = await _customsMonth(key, prevYm);
+  const yoy = prevVal ? (latestVal / prevVal - 1) * 100 : null;
   return {
-    value: Math.round(expUsd / 1e8) / 10, unit: '억달러',
-    label: `${String(cur.year).slice(0, 4)}.${String(cur.year).slice(4, 6)}`,
+    value: Math.round(latestVal / 1e8 * 10) / 10, unit: '억달러',
+    label: `${latestYm.slice(0, 4)}.${latestYm.slice(4)}`,
     change: yoy !== null ? Math.round(yoy * 10) / 10 : null, changeLabel: 'YoY',
     source: '관세청',
   };
