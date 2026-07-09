@@ -127,6 +127,55 @@ export function gradeFinancials(f: {
   return { ...f, grade, notes };
 }
 
+/* ── DART 공시 분류 (호재/악재/중요도) ──────────────── */
+export interface Disclosure {
+  date: string; type: string; url: string;
+  sentiment: 'pos' | 'neg' | 'neu';
+  importance: 'high' | 'mid' | 'low';
+  label: string; // 사람이 읽을 한 줄 해석
+}
+
+// 공시명(report_nm) 키워드 → 의미. 앞쪽일수록 우선.
+const DISCLOSURE_RULES: { kw: RegExp; sentiment: 'pos' | 'neg' | 'neu'; importance: 'high' | 'mid' | 'low'; label: string }[] = [
+  { kw: /횡령|배임/, sentiment: 'neg', importance: 'high', label: '횡령·배임 발생 — 강한 악재, 거래정지 위험' },
+  { kw: /관리종목|상장폐지|불성실공시/, sentiment: 'neg', importance: 'high', label: '관리종목·불성실공시 — 상장 리스크' },
+  { kw: /유상증자/, sentiment: 'neg', importance: 'high', label: '유상증자 — 주식수 희석, 단기 수급 부담' },
+  { kw: /전환사채|신주인수권부사채|교환사채|CB|BW/, sentiment: 'neg', importance: 'mid', label: '메자닌(CB·BW) 발행 — 잠재적 물량 부담' },
+  { kw: /감자/, sentiment: 'neg', importance: 'high', label: '감자 — 자본 축소, 통상 악재' },
+  { kw: /자기주식.*취득|자사주.*취득|자기주식취득\s*신탁/, sentiment: 'pos', importance: 'high', label: '자사주 매입 — 주주환원·수급 개선 신호' },
+  { kw: /자기주식.*소각|자사주.*소각/, sentiment: 'pos', importance: 'high', label: '자사주 소각 — 주당가치 상승, 강한 호재' },
+  { kw: /무상증자/, sentiment: 'pos', importance: 'mid', label: '무상증자 — 유동성·심리 호재' },
+  { kw: /단일판매|공급계약|수주/, sentiment: 'pos', importance: 'high', label: '대규모 공급계약·수주 — 실적 기대' },
+  { kw: /흑자전환/, sentiment: 'pos', importance: 'high', label: '흑자전환 — 펀더멘털 개선' },
+  { kw: /적자전환|적자지속/, sentiment: 'neg', importance: 'high', label: '적자 — 펀더멘털 악화' },
+  { kw: /현금.*배당|현물.*배당|배당.*결정/, sentiment: 'pos', importance: 'mid', label: '배당 결정 — 주주환원' },
+  { kw: /영업.*실적|잠정실적|매출액.*손익/, sentiment: 'neu', importance: 'high', label: '잠정실적 발표 — 내용 확인 필요' },
+  { kw: /최대주주.*변경|경영권/, sentiment: 'neu', importance: 'high', label: '최대주주·경영권 변동 — 중대 이벤트' },
+  { kw: /주식분할|액면분할/, sentiment: 'pos', importance: 'mid', label: '액면분할 — 거래 접근성 개선' },
+  { kw: /주식병합/, sentiment: 'neu', importance: 'mid', label: '주식병합 — 유통주식수 감소' },
+];
+
+export function classifyDisclosure(type: string): { sentiment: 'pos' | 'neg' | 'neu'; importance: 'high' | 'mid' | 'low'; label: string } {
+  for (const r of DISCLOSURE_RULES) if (r.kw.test(type)) return { sentiment: r.sentiment, importance: r.importance, label: r.label };
+  return { sentiment: 'neu', importance: 'low', label: type };
+}
+
+/* ── 정책·테마 신호 감지 (뉴스·공시 제목 스캔) ────────── */
+const POLICY_KW: { kw: RegExp; tone: 'pos' | 'neg'; label: string }[] = [
+  { kw: /금리\s*인하|기준금리\s*인하|완화적|피벗/, tone: 'pos', label: '금리 인하 기대 — 성장주·유동성 우호' },
+  { kw: /금리\s*인상|긴축/, tone: 'neg', label: '금리 인상·긴축 — 밸류에이션 부담' },
+  { kw: /보조금|지원책|육성|세제\s*지원|세액공제|감세|국책|정부.*투자|부양책/, tone: 'pos', label: '정부 지원·부양 정책 — 업종 수혜 기대' },
+  { kw: /규제\s*강화|과징금|제재|수출\s*규제|관세|반독점|공정위/, tone: 'neg', label: '규제·제재 리스크 — 정책 역풍' },
+  { kw: /반도체\s*특별법|K-칩스|칩스법|첨단전략산업/, tone: 'pos', label: '반도체 지원 정책 — 반도체 섹터 수혜' },
+  { kw: /밸류업|기업가치\s*제고|주주환원\s*정책/, tone: 'pos', label: '밸류업 정책 — 저PBR·주주환원주 수혜' },
+];
+
+export function detectPolicy(titles: string[]): { tone: 'pos' | 'neg'; label: string }[] {
+  const found = new Map<string, { tone: 'pos' | 'neg'; label: string }>();
+  for (const t of titles) for (const p of POLICY_KW) if (p.kw.test(t)) found.set(p.label, { tone: p.tone, label: p.label });
+  return [...found.values()].slice(0, 3);
+}
+
 /* ── 시장(코스피) 컨텍스트 ───────────────────────────── */
 export interface MarketContext {
   kospiChange: number | null;   // 코스피 등락률
@@ -151,6 +200,7 @@ export interface StockExtras {
   supply?: SupplyDemand | null;
   fin?: FinancialQuality | null;
   market?: MarketContext | null;
+  catalyst?: { discPos: number; discNeg: number; policyPos: number; policyNeg: number } | null;
 }
 
 export function buildStockVerdict(
@@ -229,7 +279,16 @@ export function buildStockVerdict(
     else if (extras.fin.grade === 'D' && score > 0) { warnings.push('재무 D등급 — 상승에 펀더멘털 근거 약함, 단기 테마성 주의'); }
   }
 
-  /* 7) 시장(코스피) 동조 */
+  /* 7) 공시·정책 촉매 (재료 기반 가감) */
+  if (extras.catalyst) {
+    const cat = extras.catalyst;
+    if (cat.discPos > 0) { score += Math.min(10, cat.discPos * 6); reasons.push(`중요 호재성 공시 ${cat.discPos}건(자사주·수주·흑자 등) — 재료 우위`); }
+    if (cat.discNeg > 0) { score -= Math.min(12, cat.discNeg * 7); warnings.push(`중요 악재성 공시 ${cat.discNeg}건(증자·CB·감자 등) — 수급 부담 재료`); }
+    if (cat.policyPos > 0) { score += Math.min(8, cat.policyPos * 4); reasons.push('정부 정책·테마 수혜 신호 — 섹터 우호 재료'); }
+    if (cat.policyNeg > 0) { score -= Math.min(8, cat.policyNeg * 4); warnings.push('정책·규제 역풍 신호 — 정책 리스크'); }
+  }
+
+  /* 8) 시장(코스피) 동조 */
   if (extras.market?.kospiTrend) {
     if (extras.market.kospiTrend === 'down' && score > 0) warnings.push('코스피 약세 국면 — 개별 강세도 시장 반락에 취약');
     else if (extras.market.kospiTrend === 'up' && score > 0) { score += 3; }

@@ -5,7 +5,8 @@ import {
 } from '@/lib/coinAnalysis';
 import {
   analyzeSupply, gradeFinancials, buildStockVerdict,
-  InvestorDay, SupplyDemand, MarketContext, StockExtras,
+  classifyDisclosure, detectPolicy,
+  InvestorDay, SupplyDemand, MarketContext, StockExtras, Disclosure,
 } from '@/lib/stockAnalysis';
 import { backtestStock, StockBacktestResult } from '@/lib/stockBacktest';
 import { fetchKisFinancialRatio } from '@/lib/kisFinance';
@@ -162,6 +163,30 @@ async function fetchNews(ticker: string): Promise<NewsItem[]> {
   } catch { return []; }
 }
 
+/* ── DART 공시 (최근 30일) — 분류 포함 ──────────────── */
+async function fetchDisclosures(ticker: string): Promise<Disclosure[]> {
+  const key = process.env.DART_API_KEY;
+  if (!key) return [];
+  try {
+    const end = new Date(); const start = new Date(end); start.setDate(start.getDate() - 30);
+    const fmt = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, '');
+    const p = new URLSearchParams({ crtfc_key: key, stock_code: ticker, bgn_de: fmt(start), end_de: fmt(end), sort: 'date', sort_mth: 'desc', page_no: '1', page_count: '30' });
+    const res = await fetch(`https://opendart.fss.or.kr/api/list.json?${p}`, { next: { revalidate: 300 }, signal: AbortSignal.timeout(8000) });
+    const j = await res.json();
+    if (j.status !== '000') return [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (j.list ?? []).map((d: any) => {
+      const cls = classifyDisclosure(d.report_nm ?? '');
+      const dt = String(d.rcept_dt ?? '');
+      return {
+        date: dt.length === 8 ? `${dt.slice(4, 6)}/${dt.slice(6, 8)}` : dt,
+        type: d.report_nm ?? '', url: `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${d.rcept_no}`,
+        ...cls,
+      } as Disclosure;
+    });
+  } catch { return []; }
+}
+
 /* ── 백테스트 캐시 ───────────────────────────────────── */
 const _btCache = new Map<string, { r: StockBacktestResult; ts: number }>();
 function cachedBt(ticker: string, candles: Candle[]): StockBacktestResult {
@@ -173,7 +198,7 @@ function cachedBt(ticker: string, candles: Candle[]): StockBacktestResult {
 }
 
 /* ── "왜 오르나/내리나" 드라이버 ─────────────────────── */
-function buildMovement(name: string, candles: Candle[], supply: SupplyDemand | null, news: NewsItem[], market: MarketContext, changeRate: number) {
+function buildMovement(name: string, candles: Candle[], supply: SupplyDemand | null, news: NewsItem[], market: MarketContext, changeRate: number, disclosures: Disclosure[], policy: { tone: 'pos' | 'neg'; label: string }[]) {
   const n = candles.length;
   const c = candles[n - 1];
   const pct5d = n > 5 ? ((c.c - candles[n - 6].c) / candles[n - 6].c) * 100 : 0;
@@ -205,6 +230,13 @@ function buildMovement(name: string, candles: Candle[], supply: SupplyDemand | n
   if (market.kospiTrend === 'down' && dir === 'down') drivers.push({ text: `코스피 약세(${market.kospiChange?.toFixed(2)}%) 동조 — 시장 전반 위험회피`, tone: 'down' });
   else if (market.kospiTrend === 'up' && dir === 'up') drivers.push({ text: `코스피 강세(${market.kospiChange?.toFixed(2)}%) 동조 — 시장 순풍`, tone: 'up' });
 
+  // 공시 (중요도 high 우선)
+  const bigDisc = disclosures.filter((d) => d.importance === 'high' && d.sentiment !== 'neu').slice(0, 2);
+  for (const d of bigDisc) drivers.push({ text: `공시(${d.date}): ${d.label}`, tone: d.sentiment === 'pos' ? 'up' : 'down' });
+
+  // 정책·테마
+  for (const p of policy) drivers.push({ text: `정책 재료: ${p.label}`, tone: p.tone === 'pos' ? 'up' : 'down' });
+
   // 뉴스
   const pos = news.filter((x) => x.sentiment === 'pos').length, neg = news.filter((x) => x.sentiment === 'neg').length;
   if (neg >= 2 && neg > pos) drivers.push({ text: `최신 뉴스 악재성 ${neg}건 — 심리 압박 요인`, tone: 'down' });
@@ -230,15 +262,16 @@ ${summary}
 ${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(없음)'}
 
 ## 요청 (각 항목 "【제목】"으로 시작)
-【지금 왜 움직이나】 현재 오르/내리는 이유를 수급·뉴스 근거로 2~3문장 추정.
+【지금 왜 움직이나】 현재 오르/내리는 이유를 수급·공시·정책·뉴스 근거로 2~3문장 추정.
 【수급 해석】 외국인·기관 흐름의 의미 1~2문장.
+【공시·정책 체크】 최근 공시나 정부 정책·테마가 주가에 미칠 영향 1~2문장 (해당 없으면 "특이 공시·정책 없음").
 【종합 판단】 매수우위/중립/비중축소 + 근거 2문장.
 한국어. 마지막 줄에 "투자 권유가 아닌 참고 정보입니다."`;
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 900, messages: [{ role: 'user', content: prompt }] }),
+      body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 1100, messages: [{ role: 'user', content: prompt }] }),
       signal: AbortSignal.timeout(20000),
     });
     if (!res.ok) throw new Error(`Anthropic ${res.status}`);
@@ -257,12 +290,13 @@ export async function GET(req: NextRequest) {
 
   try {
     const basic = await fetchBasic(ticker);
-    const [candles, investor, fin0, kospi, news] = await Promise.all([
+    const [candles, investor, fin0, kospi, news, disclosures] = await Promise.all([
       fetchDaily(ticker, basic.market),
       fetchInvestor(ticker),
       fetchFinancials(ticker),
       fetchKospi(origin),
       fetchNews(ticker),
+      fetchDisclosures(ticker),
     ]);
     if (candles.length < 60) return NextResponse.json({ error: '차트 데이터 부족(신규상장·거래정지 가능)' }, { status: 502 });
 
@@ -276,7 +310,15 @@ export async function GET(req: NextRequest) {
       debtRatio: fin0.debtRatio ?? null, revenueGrowth: fin0.revenueGrowth ?? null,
       netIncomePositive: fin0.netIncomePositive ?? null,
     });
-    const extras: StockExtras = { supply, fin, market: kospi };
+    // 정책·테마 신호 + 공시 촉매 (뉴스 + 공시 제목 스캔)
+    const policy = detectPolicy([...news.map((n) => n.title), ...disclosures.map((d) => d.type)]);
+    const discPos = disclosures.filter((d) => d.sentiment === 'pos' && d.importance === 'high').length;
+    const discNeg = disclosures.filter((d) => d.sentiment === 'neg' && d.importance === 'high').length;
+
+    const extras: StockExtras = {
+      supply, fin, market: kospi,
+      catalyst: { discPos, discNeg, policyPos: policy.filter((p) => p.tone === 'pos').length, policyNeg: policy.filter((p) => p.tone === 'neg').length },
+    };
     const verdict = buildStockVerdict(daily, candles, fib, zones, extras);
 
     // 차트 오버레이 (일봉 60개 + EMA20/60)
@@ -285,7 +327,7 @@ export async function GET(req: NextRequest) {
     const chart = candles.map((c, i) => ({ ts: c.ts, o: c.o, h: c.h, l: c.l, c: c.c, v: c.v, ema20: e20[i], ema60: e60[i] })).slice(-60);
 
     const divergence = detectRsiDivergence(candles);
-    const movement = buildMovement(basic.name, candles, supply, news, kospi, basic.changeRate);
+    const movement = buildMovement(basic.name, candles, supply, news, kospi, basic.changeRate, disclosures, policy);
     const backtest = cachedBt(ticker, candles);
 
     const summary =
@@ -293,6 +335,8 @@ export async function GET(req: NextRequest) {
       `추세: 일봉 EMA ${daily.emaAlign}, 구조 ${daily.structure}, RSI ${daily.rsi.toFixed(0)}, 200일선 ${daily.ema200 && price >= daily.ema200 ? '위' : '아래'}\n` +
       (supply ? `수급(5일): 외국인 ${supply.foreign5d >= 0 ? '+' : ''}${supply.foreign5d.toLocaleString()}주(${supply.foreignStreak}일연속), 기관 ${supply.inst5d >= 0 ? '+' : ''}${supply.inst5d.toLocaleString()}주, 개인 ${supply.indiv5d >= 0 ? '+' : ''}${supply.indiv5d.toLocaleString()}주, 외국인보유율 ${supply.holdRatioNow?.toFixed(2)}%(${supply.holdRatioChange5d !== null ? `${supply.holdRatioChange5d >= 0 ? '+' : ''}${supply.holdRatioChange5d.toFixed(2)}%p` : '-'})\n` : '') +
       `밸류: PER ${basic.per ?? '-'}, PBR ${basic.pbr ?? '-'}, 재무 ${fin.grade ?? '-'}등급\n` +
+      (disclosures.length ? `최근 공시: ${disclosures.slice(0, 5).map((d) => `${d.date} ${d.type}${d.sentiment !== 'neu' ? `(${d.sentiment === 'pos' ? '호재' : '악재'})` : ''}`).join(' / ')}\n` : '') +
+      (policy.length ? `정책·테마: ${policy.map((p) => p.label).join(' / ')}\n` : '') +
       `판정: ${verdict.state} / 점수 ${verdict.score} / ${verdict.stance} / 진입가능 ${verdict.entryOk}\n` +
       `근거: ${verdict.reasons.slice(0, 5).join(' / ')}`;
     const ai = await aiBriefing(basic.name, ticker, summary, news.map((n) => n.title));
@@ -305,6 +349,7 @@ export async function GET(req: NextRequest) {
       per: basic.per, pbr: basic.pbr,
       daily, zones, fib, chart, divergence,
       supply, investor, fin, kospi, movement, verdict, backtest, news,
+      disclosures, policy,
       aiBriefing: ai.text ?? null, aiError: ai.error ?? null,
     });
   } catch (e) {

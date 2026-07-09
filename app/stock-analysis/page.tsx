@@ -39,9 +39,12 @@ interface Data {
   };
   backtest: { spanDays: number; signals: number; wins: number; losses: number; open: number; winRate: number | null; avgR: number | null; trades: { ts: number; score: number; entry: number; stop: number; target: number; result: 'win' | 'loss'; days: number }[] };
   news: { title: string; source: string; datetime: string; link: string; sentiment: 'pos' | 'neg' | 'neu' }[];
+  disclosures: { date: string; type: string; url: string; sentiment: 'pos' | 'neg' | 'neu'; importance: 'high' | 'mid' | 'low'; label: string }[];
+  policy: { tone: 'pos' | 'neg'; label: string }[];
   aiBriefing: string | null; aiError: string | null;
   error?: string;
 }
+interface SearchHit { code: string; name: string; market: string }
 
 const won = (n: number) => n.toLocaleString('ko-KR');
 const wonQty = (n: number) => {
@@ -71,7 +74,6 @@ function StanceBadge({ stance }: { stance: 'buy' | 'neutral' | 'reduce' }) {
 
 export default function StockAnalysisPage() {
   const [ticker, setTicker] = useState('005930');
-  const [input, setInput] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
 
   const { data, isLoading, isValidating, mutate } = useSWR<Data>(
@@ -80,24 +82,60 @@ export default function StockAnalysisPage() {
   );
   const v = data?.verdict;
 
-  const submit = () => { const t = input.trim(); if (/^\d{6}$/.test(t)) setTicker(t); };
+  // 종목명 자동완성
+  const [query, setQuery] = useState('');
+  const [showDrop, setShowDrop] = useState(false);
+  const { data: hits } = useSWR<{ code: string; name: string; market: string }[]>(
+    query.trim().length >= 1 && !/^\d{6}$/.test(query.trim()) ? `/api/stock-search?q=${encodeURIComponent(query.trim())}` : null,
+    fetcher,
+  );
+  // 우선주 뒤로, 보통주/대표주 우선 정렬
+  const suggestions: SearchHit[] = useMemo(() => {
+    const raw = Array.isArray(hits) ? hits : [];
+    return [...raw]
+      .map((h) => ({ code: h.code, name: h.name, market: h.market }))
+      .sort((a, b) => (a.name.includes('우선주') ? 1 : 0) - (b.name.includes('우선주') ? 1 : 0))
+      .slice(0, 8);
+  }, [hits]);
+
+  const pick = (code: string) => { setTicker(code); setQuery(''); setShowDrop(false); };
+  const submit = () => {
+    const t = query.trim();
+    if (/^\d{6}$/.test(t)) { pick(t); return; }
+    if (suggestions.length) pick(suggestions[0].code);
+  };
 
   const posInRange = useMemo(() => {
     if (!data?.high52w || !data?.low52w || data.high52w <= data.low52w) return null;
     return ((data.price - data.low52w) / (data.high52w - data.low52w)) * 100;
   }, [data]);
 
-  useEffect(() => { if (data && !data.error) setInput(''); }, [data?.ticker]);
 
   return (
     <div className="pb-12">
       {/* 검색 + 프리셋 */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <div className="flex items-center gap-1.5">
-          <input value={input} onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submit()}
-            placeholder="종목코드 6자리 (예: 005930)" inputMode="numeric" maxLength={6}
-            className="w-44 px-3 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-[var(--text)] outline-none focus:border-sky-500/50" />
+        <div className="flex items-center gap-1.5 relative">
+          <div className="relative">
+            <input value={query}
+              onChange={(e) => { setQuery(e.target.value); setShowDrop(true); }}
+              onFocus={() => setShowDrop(true)}
+              onBlur={() => setTimeout(() => setShowDrop(false), 150)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              placeholder="종목명 또는 코드 (예: 삼성전자, 005930)"
+              className="w-56 px-3 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-[var(--text)] outline-none focus:border-sky-500/50" />
+            {showDrop && suggestions.length > 0 && (
+              <div className="absolute z-30 top-full mt-1 left-0 w-64 max-h-72 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl">
+                {suggestions.map((s) => (
+                  <button key={s.code} onMouseDown={() => pick(s.code)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 text-left">
+                    <span className="text-[var(--text)]">{s.name}</span>
+                    <span className="text-[10px] text-[var(--text-muted)]">{s.code} · {s.market}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button onClick={submit} className="px-3 py-1.5 rounded-xl bg-sky-500/20 text-sky-400 border border-sky-500/40 text-xs font-semibold">분석</button>
         </div>
         <div className="flex gap-1 flex-wrap">
@@ -365,9 +403,50 @@ export default function StockAnalysisPage() {
             </div>
           </div>
 
+          {/* 공시 + 정책 */}
+          {(data.disclosures.length > 0 || data.policy.length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                <h3 className="text-sm font-bold text-[var(--text)] mb-3">DART 공시 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 30일 · 자동 분류</span></h3>
+                {data.disclosures.length ? (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {data.disclosures.slice(0, 12).map((d, i) => (
+                      <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="block group">
+                        <div className="flex items-start gap-2">
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${
+                            d.sentiment === 'pos' ? 'bg-red-500/15 text-red-400' : d.sentiment === 'neg' ? 'bg-blue-500/15 text-blue-400' : 'bg-white/10 text-[var(--text-muted)]'
+                          }`}>{d.sentiment === 'pos' ? '호재' : d.sentiment === 'neg' ? '악재' : '중립'}{d.importance === 'high' ? '·중요' : ''}</span>
+                          <div className="min-w-0">
+                            <p className="text-xs text-[var(--text)] group-hover:text-sky-400 transition-colors leading-snug truncate">{d.type}</p>
+                            {d.sentiment !== 'neu' && <p className="text-[10px] text-[var(--text-muted)] leading-snug">{d.label}</p>}
+                            <p className="text-[10px] text-[var(--text-dim)]">{d.date}</p>
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                ) : <p className="text-xs text-[var(--text-muted)]">최근 30일 공시 없음</p>}
+              </div>
+
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                <h3 className="text-sm font-bold text-[var(--text)] mb-3">정책·테마 신호 <span className="text-[10px] font-normal text-[var(--text-muted)]">뉴스·공시 기반</span></h3>
+                {data.policy.length ? (
+                  <div className="space-y-2">
+                    {data.policy.map((p, i) => (
+                      <div key={i} className={`flex items-start gap-2 rounded-xl border p-2.5 text-xs ${p.tone === 'pos' ? 'border-red-500/20 bg-red-500/5 text-red-400' : 'border-blue-500/20 bg-blue-500/5 text-blue-400'}`}>
+                        <span className="shrink-0">{p.tone === 'pos' ? '▲' : '▼'}</span>{p.label}
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-[var(--text-muted)] mt-1 opacity-60">뉴스·공시 제목에서 금리·정부지원·규제·밸류업 등 정책 키워드를 자동 감지</p>
+                  </div>
+                ) : <p className="text-xs text-[var(--text-muted)]">현재 감지된 정책·테마 재료 없음</p>}
+              </div>
+            </div>
+          )}
+
           <p className="text-[10px] text-[var(--text-muted)] text-center opacity-60 leading-relaxed">
             본 분석은 공개 데이터 기반 자동 계산 참고 정보이며 투자 권유가 아닙니다. 투자 판단과 책임은 본인에게 있습니다.<br />
-            데이터: 네이버 금융·KIS·Yahoo · 수급은 장 마감 후 확정치 기준
+            데이터: 네이버 금융·KIS·Yahoo·DART 공시 · 수급은 장 마감 후 확정치 기준
           </p>
         </div>
       )}
