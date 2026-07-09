@@ -21,6 +21,7 @@ interface Props {
   entry?: number; stop?: number; target1?: number; target2?: number;
   direction: 'long' | 'short' | 'wait';
   digits: number;
+  xAxis?: 'time' | 'date';   // 코인=시간(기본), 주식 일봉=날짜
 }
 
 /* 캔들 커스텀 shape — dataKey=[low,high] 범위 막대의 픽셀 좌표로 몸통 재계산 */
@@ -58,10 +59,15 @@ function hhmm(ts: number) {
   const kst = new Date(ts + 9 * 3600_000);
   return `${String(kst.getUTCHours()).padStart(2, '0')}:${String(kst.getUTCMinutes()).padStart(2, '0')}`;
 }
+function mmdd(ts: number) {
+  const kst = new Date(ts + 9 * 3600_000);
+  return `${String(kst.getUTCMonth() + 1).padStart(2, '0')}/${String(kst.getUTCDate()).padStart(2, '0')}`;
+}
 
 export default function CoinCandleChart({
-  candles, supports, resistances, fib, entry, stop, target1, target2, direction, digits,
+  candles, supports, resistances, fib, entry, stop, target1, target2, direction, digits, xAxis = 'time',
 }: Props) {
+  const xfmt = xAxis === 'date' ? mmdd : hhmm;
   const data = useMemo(
     () => candles.map((c) => ({ ...c, range: [c.l, c.h] as [number, number] })),
     [candles],
@@ -101,7 +107,7 @@ export default function CoinCandleChart({
       <ComposedChart data={data} margin={{ top: 6, right: 62, left: 6, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
         <XAxis
-          dataKey="ts" tickFormatter={hhmm}
+          dataKey="ts" tickFormatter={xfmt}
           tick={{ fontSize: 9, fill: 'var(--text-muted)' }}
           tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={40}
         />
@@ -117,7 +123,7 @@ export default function CoinCandleChart({
             const up = d.c >= d.o;
             return (
               <div className="bg-gray-900 border border-white/10 rounded-lg px-3 py-2 text-[11px] space-y-0.5">
-                <p className="text-gray-400 mb-1">{hhmm(d.ts)}</p>
+                <p className="text-gray-400 mb-1">{xfmt(d.ts)}</p>
                 <p className={up ? 'text-emerald-400' : 'text-red-400'}>종가 ${fmt(d.c, digits)}</p>
                 <p className="text-gray-400">시 ${fmt(d.o, digits)} · 고 ${fmt(d.h, digits)} · 저 ${fmt(d.l, digits)}</p>
                 <p className="text-purple-400">EMA20 ${fmt(d.ema20, digits)}</p>

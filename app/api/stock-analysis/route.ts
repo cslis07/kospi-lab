@@ -1,0 +1,313 @@
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  Candle, analyzeTimeframe, srZones, fibonacci, atr, emaSeries,
+  detectRsiDivergence,
+} from '@/lib/coinAnalysis';
+import {
+  analyzeSupply, gradeFinancials, buildStockVerdict,
+  InvestorDay, SupplyDemand, MarketContext, StockExtras,
+} from '@/lib/stockAnalysis';
+import { backtestStock, StockBacktestResult } from '@/lib/stockBacktest';
+import { fetchKisFinancialRatio } from '@/lib/kisFinance';
+
+export const maxDuration = 30;
+export const preferredRegion = 'icn1'; // 네이버·KIS 한국 API → 서울 리전
+
+const NAVER_H = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  'Referer': 'https://m.stock.naver.com/',
+  'Accept': 'application/json',
+};
+const YF_H = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'application/json' };
+
+function parseNum(s: unknown) { return parseFloat(String(s ?? 0).replace(/[,+%\s]/g, '')) || 0; }
+
+/* ── 기본 정보 (가격·종목명·시장·52주) ────────────────── */
+async function fetchBasic(ticker: string) {
+  const [basicRes, integRes] = await Promise.all([
+    fetch(`https://m.stock.naver.com/api/stock/${ticker}/basic`, { headers: NAVER_H, cache: 'no-store', signal: AbortSignal.timeout(7000) }),
+    fetch(`https://m.stock.naver.com/api/stock/${ticker}/integration`, { headers: NAVER_H, cache: 'no-store', signal: AbortSignal.timeout(7000) }),
+  ]);
+  if (!basicRes.ok) throw new Error(`basic ${basicRes.status}`);
+  const basic = await basicRes.json();
+  const integ = integRes.ok ? await integRes.json() : {};
+  const infos: { key: string; value: string }[] = integ.totalInfos ?? [];
+  const get = (k: string) => infos.find((i) => i.key === k)?.value ?? '-';
+  return {
+    name: basic.stockName ?? ticker,
+    price: parseNum(basic.closePrice),
+    change: parseNum(basic.compareToPreviousClosePrice),
+    changeRate: parseNum(basic.fluctuationsRatio),
+    market: basic.stockExchangeType?.name ?? 'KOSPI',
+    volume: get('거래량'), tradingValue: get('거래대금'), marketCap: get('시가총액'),
+    high52w: parseNum(get('52주최고')) || parseNum(get('52주 최고')) || null,
+    low52w: parseNum(get('52주최저')) || parseNum(get('52주 최저')) || null,
+    per: parseNum(get('PER')) || null, pbr: parseNum(get('PBR')) || null,
+  };
+}
+
+/* ── 일봉 (Yahoo 1y → Naver 폴백) → Candle[] ─────────── */
+async function fetchDaily(ticker: string, market: string): Promise<Candle[]> {
+  const suffix = market.includes('KOSDAQ') ? '.KQ' : '.KS';
+  const tryYf = async (sym: string) => {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1y&includePrePost=false`;
+    let r = await fetch(url, { headers: YF_H, cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    if (!r.ok) r = await fetch(url.replace('query1', 'query2'), { headers: YF_H, cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    return r;
+  };
+  try {
+    let res = await tryYf(ticker + suffix);
+    if (!res.ok && suffix === '.KS') res = await tryYf(ticker + '.KQ');
+    if (res.ok) {
+      const data = await res.json();
+      const result = data?.chart?.result?.[0];
+      const ts: number[] = result?.timestamp ?? [];
+      const q = result?.indicators?.quote?.[0] ?? {};
+      const candles: Candle[] = ts.map((t, i) => ({
+        ts: t * 1000,
+        o: q.open?.[i] ?? q.close?.[i] ?? 0,
+        h: q.high?.[i] ?? q.close?.[i] ?? 0,
+        l: q.low?.[i] ?? q.close?.[i] ?? 0,
+        c: q.close?.[i] ?? 0,
+        v: q.volume?.[i] ?? 0,
+        qv: 0,
+      })).filter((c) => c.c > 0);
+      if (candles.length > 60) return candles;
+    }
+  } catch { /* naver 폴백 */ }
+  // Naver 폴백 (최대 ~1년)
+  try {
+    const end = new Date(); const start = new Date(end); start.setFullYear(start.getFullYear() - 1);
+    const fmt = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, '');
+    const url = `https://m.stock.naver.com/api/stock/${ticker}/price?startDate=${fmt(start)}&endDate=${fmt(end)}&timeframe=day`;
+    const res = await fetch(url, { headers: NAVER_H, cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    const raw: Record<string, unknown>[] = await res.json();
+    return raw.map((r) => {
+      const d = String(r.localTradedAt ?? '').replace(/-/g, '');
+      const ts = d.length === 8 ? new Date(`${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T00:00:00+09:00`).getTime() : 0;
+      return { ts, o: parseNum(r.openPrice), h: parseNum(r.highPrice), l: parseNum(r.lowPrice), c: parseNum(r.closePrice), v: Number(r.accumulatedTradingVolume ?? 0), qv: 0 };
+    }).filter((c) => c.c > 0).sort((a, b) => a.ts - b.ts);
+  } catch { return []; }
+}
+
+/* ── 투자자 수급 (10일) ──────────────────────────────── */
+async function fetchInvestor(ticker: string): Promise<InvestorDay[]> {
+  try {
+    const res = await fetch(`https://m.stock.naver.com/api/stock/${ticker}/trend`, { headers: NAVER_H, cache: 'no-store', signal: AbortSignal.timeout(7000) });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw: any[] = await res.json();
+    if (!Array.isArray(raw)) return [];
+    const num = (s: unknown) => Number(String(s ?? '').replace(/,/g, '').replace(/[+\s]/g, '')) || 0;
+    const fmtD = (s: string) => (String(s).length === 8 ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : String(s));
+    return raw.slice(0, 10).map((r) => ({
+      date: fmtD(r.bizdate ?? r.localTradedAt ?? ''),
+      individual: num(r.individualPureBuyQuant),
+      foreign: num(r.foreignerPureBuyQuant),
+      institution: num(r.organPureBuyQuant),
+      foreignHoldRatio: r.foreignerHoldRatio != null ? (parseFloat(String(r.foreignerHoldRatio).replace(/[%,\s]/g, '')) || null) : null,
+      close: num(r.closePrice),
+    }));
+  } catch { return []; }
+}
+
+/* ── KIS 재무 (ROE·부채·성장) — 서울 리전에서 안정 ───── */
+async function fetchFinancials(ticker: string): Promise<{ roe: number|null; debtRatio: number|null; revenueGrowth: number|null; netIncomePositive: boolean|null }> {
+  const empty = { roe: null, debtRatio: null, revenueGrowth: null, netIncomePositive: null };
+  try {
+    const r = await fetchKisFinancialRatio(ticker);
+    if (!r) return empty;
+    return { roe: r.roe, debtRatio: r.debtRatio, revenueGrowth: r.revenueGrowth, netIncomePositive: r.netIncomePositive };
+  } catch { return empty; }
+}
+
+/* ── 코스피 컨텍스트 ─────────────────────────────────── */
+async function fetchKospi(origin: string): Promise<MarketContext> {
+  try {
+    const res = await fetch(`${origin}/api/market`, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
+    const j = await res.json();
+    const chg = j?.kospi?.changeRate ?? null;
+    return { kospiChange: chg, kospiTrend: chg === null ? null : chg >= 0.3 ? 'up' : chg <= -0.3 ? 'down' : 'flat' };
+  } catch { return { kospiChange: null, kospiTrend: null }; }
+}
+
+/* ── 종목 뉴스 (네이버) ──────────────────────────────── */
+interface NewsItem { title: string; source: string; datetime: string; link: string; sentiment: 'pos' | 'neg' | 'neu' }
+const POS = ['상승', '급등', '신고가', '돌파', '호재', '수주', '흑자', '개선', '순매수', '목표가 상향', '최대 실적', '성장', '기대', '수혜'];
+const NEG = ['하락', '급락', '신저가', '이탈', '악재', '적자', '감소', '순매도', '목표가 하향', '리스크', '소송', '규제', '부진', '우려', '경고'];
+function sentiment(t: string): 'pos' | 'neg' | 'neu' {
+  const p = POS.filter((w) => t.includes(w)).length, n = NEG.filter((w) => t.includes(w)).length;
+  return p > n ? 'pos' : n > p ? 'neg' : 'neu';
+}
+async function fetchNews(ticker: string): Promise<NewsItem[]> {
+  try {
+    const res = await fetch(`https://m.stock.naver.com/api/news/stock/${ticker}?pageSize=8&page=1`, { headers: NAVER_H, cache: 'no-store', signal: AbortSignal.timeout(7000) });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw: any[] = await res.json();
+    const items: NewsItem[] = [];
+    for (const grp of raw ?? []) {
+      for (const it of grp.items ?? []) {
+        const dt = String(it.datetime ?? '');
+        items.push({
+          title: String(it.title ?? '').replace(/&quot;/g, '"').replace(/&amp;/g, '&'),
+          source: it.officeName ?? '',
+          datetime: dt.length === 12 ? `${dt.slice(4, 6)}/${dt.slice(6, 8)} ${dt.slice(8, 10)}:${dt.slice(10, 12)}` : dt,
+          link: `https://n.news.naver.com/mnews/article/${it.officeId}/${it.articleId}`,
+          sentiment: sentiment(String(it.title ?? '')),
+        });
+        if (items.length >= 8) break;
+      }
+      if (items.length >= 8) break;
+    }
+    return items;
+  } catch { return []; }
+}
+
+/* ── 백테스트 캐시 ───────────────────────────────────── */
+const _btCache = new Map<string, { r: StockBacktestResult; ts: number }>();
+function cachedBt(ticker: string, candles: Candle[]): StockBacktestResult {
+  const hit = _btCache.get(ticker);
+  if (hit && Date.now() - hit.ts < 10 * 60 * 1000) return hit.r;
+  const r = backtestStock(candles);
+  _btCache.set(ticker, { r, ts: Date.now() });
+  return r;
+}
+
+/* ── "왜 오르나/내리나" 드라이버 ─────────────────────── */
+function buildMovement(name: string, candles: Candle[], supply: SupplyDemand | null, news: NewsItem[], market: MarketContext, changeRate: number) {
+  const n = candles.length;
+  const c = candles[n - 1];
+  const pct5d = n > 5 ? ((c.c - candles[n - 6].c) / candles[n - 6].c) * 100 : 0;
+  const dir: 'up' | 'down' | 'flat' = changeRate >= 0.5 ? 'up' : changeRate <= -0.5 ? 'down' : Math.abs(pct5d) >= 2 ? (pct5d > 0 ? 'up' : 'down') : 'flat';
+  const drivers: { text: string; tone: 'up' | 'down' | 'warn' | 'info' }[] = [];
+
+  if (supply) {
+    if (supply.foreignStreak >= 2) drivers.push({ text: `외국인 ${supply.foreignStreak}일 연속 순매수 — 스마트머니가 가격을 떠받치는 중`, tone: 'up' });
+    else if (supply.foreignStreak <= -2) drivers.push({ text: `외국인 ${Math.abs(supply.foreignStreak)}일 연속 순매도 — 외국인 이탈이 하락 압력`, tone: 'down' });
+    if (supply.foreign5d > 0 && supply.inst5d > 0) drivers.push({ text: '외국인·기관 동반 순매수(5일) — 수급 주도 상승', tone: 'up' });
+    else if (supply.foreign5d < 0 && supply.inst5d < 0) drivers.push({ text: '외국인·기관 동반 순매도(5일) — 기관성 자금 이탈', tone: 'down' });
+    if (supply.indiv5d > 0 && supply.foreign5d < 0) drivers.push({ text: '개인만 순매수·외국인 순매도 — 개인이 물량 받는 전형적 약세 구도', tone: 'warn' });
+    if (supply.holdRatioChange5d !== null && Math.abs(supply.holdRatioChange5d) >= 0.1) {
+      drivers.push({ text: `외국인 보유율 5일 ${supply.holdRatioChange5d >= 0 ? '+' : ''}${supply.holdRatioChange5d.toFixed(2)}%p — ${supply.holdRatioChange5d >= 0 ? '지분 확대' : '지분 축소'} 진행`, tone: supply.holdRatioChange5d >= 0 ? 'up' : 'down' });
+    }
+  }
+
+  // 거래량
+  const avgVol = candles.slice(-21, -1).reduce((a, x) => a + x.v, 0) / 20;
+  const volRatio = avgVol > 0 ? c.v / avgVol : 1;
+  if (volRatio >= 2) drivers.push({ text: `거래량 평균 ${volRatio.toFixed(1)}배 급증 — 대량 매매로 방향에 실체 있음`, tone: 'info' });
+
+  // 52주
+  const yh = Math.max(...candles.map((x) => x.h)), yl = Math.min(...candles.map((x) => x.l));
+  if (c.c >= yh * 0.99) drivers.push({ text: '52주 신고가 근접·돌파 — 저항 없는 구간, 모멘텀 강세', tone: 'up' });
+  else if (c.c <= yl * 1.02) drivers.push({ text: '52주 신저가 근접 — 매물 압박 지속, 바닥 미확인', tone: 'down' });
+
+  // 시장 동조
+  if (market.kospiTrend === 'down' && dir === 'down') drivers.push({ text: `코스피 약세(${market.kospiChange?.toFixed(2)}%) 동조 — 시장 전반 위험회피`, tone: 'down' });
+  else if (market.kospiTrend === 'up' && dir === 'up') drivers.push({ text: `코스피 강세(${market.kospiChange?.toFixed(2)}%) 동조 — 시장 순풍`, tone: 'up' });
+
+  // 뉴스
+  const pos = news.filter((x) => x.sentiment === 'pos').length, neg = news.filter((x) => x.sentiment === 'neg').length;
+  if (neg >= 2 && neg > pos) drivers.push({ text: `최신 뉴스 악재성 ${neg}건 — 심리 압박 요인`, tone: 'down' });
+  else if (pos >= 2 && pos > neg) drivers.push({ text: `최신 뉴스 호재성 ${pos}건 — 심리 지지 요인`, tone: 'up' });
+
+  if (!drivers.length) drivers.push({ text: '뚜렷한 단일 재료 없이 수급·추세 균형 구간 — 방향성 대기', tone: 'info' });
+  return { direction: dir, changeRate, pct5d, drivers };
+}
+
+/* ── AI 브리핑 (3분 캐시) ────────────────────────────── */
+const _aiCache = new Map<string, { text: string; ts: number }>();
+async function aiBriefing(name: string, ticker: string, summary: string, newsTitles: string[]) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return { error: 'ANTHROPIC_API_KEY 미설정 — 룰 기반 분석만 표시됩니다.' };
+  const hit = _aiCache.get(ticker);
+  if (hit && Date.now() - hit.ts < 3 * 60 * 1000) return { text: hit.text };
+  const prompt = `당신은 한국 주식 분석 도우미입니다. 방법론: ①일봉 추세(EMA 배열) ②투자자 수급(외국인·기관 순매수가 한국 시장의 핵심) ③외국인 보유율 추세 ④거래량 ⑤52주 위치 ⑥밸류에이션은 안전마진 필터. 개인은 공매도가 어려워 매수우위/중립/비중축소로 판단.
+
+## ${name}(${ticker}) 현황
+${summary}
+
+## 최신 뉴스
+${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(없음)'}
+
+## 요청 (각 항목 "【제목】"으로 시작)
+【지금 왜 움직이나】 현재 오르/내리는 이유를 수급·뉴스 근거로 2~3문장 추정.
+【수급 해석】 외국인·기관 흐름의 의미 1~2문장.
+【종합 판단】 매수우위/중립/비중축소 + 근거 2문장.
+한국어. 마지막 줄에 "투자 권유가 아닌 참고 정보입니다."`;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 900, messages: [{ role: 'user', content: prompt }] }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) throw new Error(`Anthropic ${res.status}`);
+    const j = await res.json();
+    const text = j?.content?.[0]?.text ?? '';
+    if (text) _aiCache.set(ticker, { text, ts: Date.now() });
+    return { text };
+  } catch (e) { return { error: `AI 브리핑 실패: ${String(e).slice(0, 100)}` }; }
+}
+
+/* ── 메인 ────────────────────────────────────────────── */
+export async function GET(req: NextRequest) {
+  const ticker = (req.nextUrl.searchParams.get('ticker') ?? '').trim();
+  if (!/^\d{6}$/.test(ticker)) return NextResponse.json({ error: '6자리 종목코드가 필요합니다.' }, { status: 400 });
+  const origin = req.nextUrl.origin;
+
+  try {
+    const basic = await fetchBasic(ticker);
+    const [candles, investor, fin0, kospi, news] = await Promise.all([
+      fetchDaily(ticker, basic.market),
+      fetchInvestor(ticker),
+      fetchFinancials(ticker),
+      fetchKospi(origin),
+      fetchNews(ticker),
+    ]);
+    if (candles.length < 60) return NextResponse.json({ error: '차트 데이터 부족(신규상장·거래정지 가능)' }, { status: 502 });
+
+    const price = basic.price || candles[candles.length - 1].c;
+    const daily = analyzeTimeframe('D', candles);
+    const zones = srZones(candles, price, atr(candles));
+    const fib = fibonacci(candles, price);
+    const supply = investor.length >= 3 ? analyzeSupply(investor) : null;
+    const fin = gradeFinancials({
+      per: basic.per, pbr: basic.pbr, roe: fin0.roe ?? null,
+      debtRatio: fin0.debtRatio ?? null, revenueGrowth: fin0.revenueGrowth ?? null,
+      netIncomePositive: fin0.netIncomePositive ?? null,
+    });
+    const extras: StockExtras = { supply, fin, market: kospi };
+    const verdict = buildStockVerdict(daily, candles, fib, zones, extras);
+
+    // 차트 오버레이 (일봉 60개 + EMA20/60)
+    const closes = candles.map((c) => c.c);
+    const e20 = emaSeries(closes, 20), e60 = emaSeries(closes, 60);
+    const chart = candles.map((c, i) => ({ ts: c.ts, o: c.o, h: c.h, l: c.l, c: c.c, v: c.v, ema20: e20[i], ema60: e60[i] })).slice(-60);
+
+    const divergence = detectRsiDivergence(candles);
+    const movement = buildMovement(basic.name, candles, supply, news, kospi, basic.changeRate);
+    const backtest = cachedBt(ticker, candles);
+
+    const summary =
+      `가격 ${price.toLocaleString()}원 (${basic.changeRate >= 0 ? '+' : ''}${basic.changeRate}%) · ${basic.market}\n` +
+      `추세: 일봉 EMA ${daily.emaAlign}, 구조 ${daily.structure}, RSI ${daily.rsi.toFixed(0)}, 200일선 ${daily.ema200 && price >= daily.ema200 ? '위' : '아래'}\n` +
+      (supply ? `수급(5일): 외국인 ${supply.foreign5d >= 0 ? '+' : ''}${supply.foreign5d.toLocaleString()}주(${supply.foreignStreak}일연속), 기관 ${supply.inst5d >= 0 ? '+' : ''}${supply.inst5d.toLocaleString()}주, 개인 ${supply.indiv5d >= 0 ? '+' : ''}${supply.indiv5d.toLocaleString()}주, 외국인보유율 ${supply.holdRatioNow?.toFixed(2)}%(${supply.holdRatioChange5d !== null ? `${supply.holdRatioChange5d >= 0 ? '+' : ''}${supply.holdRatioChange5d.toFixed(2)}%p` : '-'})\n` : '') +
+      `밸류: PER ${basic.per ?? '-'}, PBR ${basic.pbr ?? '-'}, 재무 ${fin.grade ?? '-'}등급\n` +
+      `판정: ${verdict.state} / 점수 ${verdict.score} / ${verdict.stance} / 진입가능 ${verdict.entryOk}\n` +
+      `근거: ${verdict.reasons.slice(0, 5).join(' / ')}`;
+    const ai = await aiBriefing(basic.name, ticker, summary, news.map((n) => n.title));
+
+    return NextResponse.json({
+      ticker, name: basic.name, market: basic.market, updatedAt: Date.now(),
+      price, change: basic.change, changeRate: basic.changeRate,
+      high52w: basic.high52w, low52w: basic.low52w,
+      volume: basic.volume, tradingValue: basic.tradingValue, marketCap: basic.marketCap,
+      per: basic.per, pbr: basic.pbr,
+      daily, zones, fib, chart, divergence,
+      supply, investor, fin, kospi, movement, verdict, backtest, news,
+      aiBriefing: ai.text ?? null, aiError: ai.error ?? null,
+    });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 502 });
+  }
+}
