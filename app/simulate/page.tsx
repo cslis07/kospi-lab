@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
@@ -201,7 +201,10 @@ function LeverageCalc() {
   const [margin, setMargin]   = useState(100);   // 증거금 USDT
   const [lev,    setLev]      = useState(10);     // 배율
   const [dir,    setDir]      = useState<'long' | 'short'>('long');
-  const [move,   setMove]     = useState(5);      // 목표 가격 변동 %
+  const [target, setTarget]   = useState(0);      // 목표가(USDT), 0이면 현재가로 간주
+
+  // 코인 전환 시 목표가 초기화(현재가 기준으로)
+  useEffect(() => { setTarget(0); }, [symbol]);
 
   const { data: prices } = useSWR<Record<string, { price: number }>>(
     `/api/crypto/batch?symbols=${COINS.map((c) => c.symbol).join(',')}`,
@@ -218,12 +221,19 @@ function LeverageCalc() {
   const position = margin * lev;                       // 포지션 명목가치
   const qty = price > 0 ? position / price : 0;        // 코인 수량
   const dirSign = dir === 'long' ? 1 : -1;
-  const pnl = position * (move / 100) * dirSign;       // 예상 손익(USDT)
+  const effTarget = target > 0 ? target : price;       // 목표가(미입력 시 현재가)
+  const changePct = price > 0 ? ((effTarget - price) / price) * 100 : 0; // 부호 있는 가격 변동%
+  const pnl = price > 0 ? position * ((effTarget - price) / price) * dirSign : 0; // 예상 손익(USDT)
   const roe = margin > 0 ? (pnl / margin) * 100 : 0;   // 증거금 대비 수익률
-  const targetPrice = price * (1 + (move / 100) * dirSign);
+  const targetPrice = effTarget;
   // 청산가(근사, 고립마진·수수료 제외): 진입가 × (1 ∓ 1/배율)
   const liqPrice = dir === 'long' ? price * (1 - 1 / lev) : price * (1 + 1 / lev);
   const liqMovePct = 100 / lev;                        // 청산까지 가격 변동 %
+
+  // 목표가 슬라이더 범위(현재가 ±50%)
+  const priceLo = price ? +(price * 0.5).toFixed(dg) : 0;
+  const priceHi = price ? +(price * 1.5).toFixed(dg) : 1;
+  const priceStep = price > 1000 ? 10 : price > 10 ? 0.1 : 0.0001;
 
   const krwOf = (u: number) => (usdtKrw ? u * usdtKrw : null);
 
@@ -280,8 +290,34 @@ function LeverageCalc() {
           numValue={margin} numMin={1} numMax={1000000} numStep={10} unit="USDT" onNum={setMargin} numW="w-24" />
         <SimSlider label="배율 (레버리지)" sliderValue={lev} sliderMin={1} sliderMax={125} sliderStep={1} onSlider={setLev}
           numValue={lev} numMin={1} numMax={125} numStep={1} unit="배" onNum={setLev} numW="w-16" />
-        <SimSlider label={`목표 가격 변동 (${dir === 'long' ? '상승' : '하락'} 시 수익)`} sliderValue={move} sliderMin={0} sliderMax={50} sliderStep={0.5} onSlider={setMove}
-          numValue={move} numMin={0} numMax={100} numStep={0.5} unit="%" onNum={setMove} numW="w-16" />
+        {/* 목표가 입력 */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-[var(--text-muted)]">목표가 (USDT)</span>
+            <div className="flex items-center gap-1">
+              <input type="number" value={target > 0 ? target : (price ? +price.toFixed(dg) : 0)}
+                min={0} step={priceStep}
+                onChange={(e) => setTarget(Math.max(0, +e.target.value))}
+                className="w-28 bg-white/5 border border-[var(--border)] rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] outline-none focus:border-sky-500/50" />
+              <button onClick={() => setTarget(0)} className="text-[10px] text-[var(--text-muted)] hover:text-sky-400 w-12" title="현재가로 초기화">현재가</button>
+            </div>
+          </div>
+          <input type="range" min={priceLo} max={priceHi} step={priceStep}
+            value={clamp(effTarget, priceLo, priceHi)}
+            onChange={(e) => setTarget(+e.target.value)} disabled={!price}
+            className="w-full accent-sky-500 disabled:opacity-40" />
+          <div className="flex justify-between text-[10px]">
+            <span className="text-[var(--text-muted)]">현재가 대비{' '}
+              <span className={changePct >= 0 ? 'text-emerald-400' : 'text-red-400'}>{changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%</span>
+            </span>
+            <span className={
+              (dir === 'long' ? changePct > 0 : changePct < 0) ? 'text-emerald-400'
+                : (dir === 'long' ? changePct < 0 : changePct > 0) ? 'text-red-400' : 'text-[var(--text-muted)]'
+            }>
+              {changePct === 0 ? '진입가' : (dir === 'long' ? changePct > 0 : changePct < 0) ? '수익 구간' : '손실 구간'}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* 손익 결과 */}
@@ -291,18 +327,21 @@ function LeverageCalc() {
           <p className={`text-3xl font-bold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {pnl >= 0 ? '+' : ''}{fmtUsdt(pnl)}
           </p>
-          <p className={`text-sm font-semibold mt-0.5 ${roe >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            증거금 대비 {roe >= 0 ? '+' : ''}{roe.toFixed(1)}%
-          </p>
           {krwOf(pnl) !== null && (
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">≈ {fmtW(krwOf(pnl)!)}</p>
+            <p className={`text-base font-bold mt-1 ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              ≈ 한화 {pnl >= 0 ? '+' : ''}{fmtW(krwOf(pnl)!)}
+            </p>
           )}
+          <p className={`text-sm font-semibold mt-1 ${roe >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            증거금 대비 {roe >= 0 ? '+' : ''}{roe.toFixed(1)}%
+            {usdtKrw ? <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1.5">1 USDT ≈ ₩{Math.round(usdtKrw).toLocaleString('ko-KR')}</span> : null}
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
           {[
             { label: '포지션 크기', value: fmtUsdt(position, 0), sub: price ? `${qty.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${coin.short}` : '' },
-            { label: '목표가', value: price ? `$${targetPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `${dir === 'long' ? '+' : '-'}${move}%` },
+            { label: '목표가', value: price ? `$${targetPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `현재가 대비 ${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` },
             { label: '청산가(근사)', value: price ? `$${liqPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `${dir === 'long' ? '-' : '+'}${liqMovePct.toFixed(1)}% 지점`, danger: true },
             { label: '최대 손실(청산 시)', value: `-${fmtUsdt(margin, 0)}`, sub: '증거금 전액', danger: true },
           ].map((c) => (
@@ -324,6 +363,7 @@ function LeverageCalc() {
               <tr className="border-b border-[var(--border)] bg-[var(--bg)]">
                 <th className="text-left px-3 py-2 text-[var(--text-muted)] font-medium">{dir === 'long' ? '상승' : '하락'}폭</th>
                 <th className="text-right px-3 py-2 text-[var(--text-muted)] font-medium">손익(USDT)</th>
+                <th className="text-right px-3 py-2 text-[var(--text-muted)] font-medium">한화</th>
                 <th className="text-right px-3 py-2 text-[var(--text-muted)] font-medium">증거금 대비</th>
               </tr>
             </thead>
@@ -332,6 +372,7 @@ function LeverageCalc() {
                 <tr key={r.move} className={i % 2 === 1 ? 'bg-[var(--bg)]/30' : ''}>
                   <td className="px-3 py-2 text-[var(--text-muted)]">{dir === 'long' ? '+' : '-'}{r.move}%</td>
                   <td className="px-3 py-2 text-right font-semibold text-emerald-400">+{fmtUsdt(r.pnl)}</td>
+                  <td className="px-3 py-2 text-right text-emerald-400">{krwOf(r.pnl) !== null ? `+${fmtW(krwOf(r.pnl)!)}` : '-'}</td>
                   <td className="px-3 py-2 text-right text-emerald-400">+{r.roe.toFixed(0)}%</td>
                 </tr>
               ))}
@@ -339,6 +380,7 @@ function LeverageCalc() {
               <tr className="border-t border-red-500/20 bg-red-500/5">
                 <td className="px-3 py-2 text-red-400">{dir === 'long' ? '-' : '+'}{liqMovePct.toFixed(1)}% (청산)</td>
                 <td className="px-3 py-2 text-right font-semibold text-red-400">-{fmtUsdt(margin)}</td>
+                <td className="px-3 py-2 text-right text-red-400">{krwOf(margin) !== null ? `-${fmtW(krwOf(margin)!)}` : '-'}</td>
                 <td className="px-3 py-2 text-right text-red-400">-100%</td>
               </tr>
             </tbody>
