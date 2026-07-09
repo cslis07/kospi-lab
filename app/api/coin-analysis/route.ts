@@ -196,17 +196,32 @@ async function fetchPositionLS(symbol: string): Promise<{ latest: number | null;
   } catch { return { latest: null, history: [] }; }
 }
 
-/* ── OI 히스토리 (Bybit — Bitget은 현재값만 제공) ────── */
+/* ── OI 히스토리 (Bybit → OKX 폴백 — Bitget은 현재값만, Bybit는 데이터센터 IP 차단) ── */
 async function fetchOiHistory(symbol: string): Promise<{ ts: number; oi: number }[]> {
+  // 1) Bybit (로컬·일반 IP에서 동작)
   try {
     const res = await fetch(
       `https://api.bybit.com/v5/market/open-interest?category=linear&symbol=${symbol}&intervalTime=5min&limit=48`,
-      { cache: 'no-store', signal: AbortSignal.timeout(8000) },
+      { cache: 'no-store', signal: AbortSignal.timeout(6000) },
     );
     const json = await res.json();
-    return ((json?.result?.list ?? []) as { timestamp: string; openInterest: string }[])
+    const rows = ((json?.result?.list ?? []) as { timestamp: string; openInterest: string }[])
       .map((r) => ({ ts: Number(r.timestamp), oi: Number(r.openInterest) }))
       .sort((a, b) => a.ts - b.ts);
+    if (rows.length > 0) return rows;
+  } catch { /* OKX 폴백 */ }
+  // 2) OKX rubik (USD 명목 OI — 변화율 계산엔 동일하게 유효)
+  try {
+    const ccy = symbol.replace('USDT', '');
+    const res = await fetch(
+      `https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-volume?ccy=${ccy}&period=5m`,
+      { cache: 'no-store', signal: AbortSignal.timeout(6000) },
+    );
+    const json = await res.json();
+    return ((json?.data ?? []) as string[][])
+      .map((r) => ({ ts: Number(r[0]), oi: Number(r[1]) }))
+      .sort((a, b) => a.ts - b.ts)
+      .slice(-48);
   } catch { return []; }
 }
 
