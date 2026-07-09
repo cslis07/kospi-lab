@@ -27,8 +27,26 @@ async function cached(key: string, fn: () => Promise<MacroValue | null>): Promis
   return v;
 }
 
-/* ── 미국 CPI (BLS 공개 API, 키 불필요) ──────────────── */
-async function _usCpi(): Promise<MacroValue | null> {
+/* ── 미국 CPI — FRED(키 있으면) → BLS(무키) 폴백 ─────── */
+async function _usCpiFred(): Promise<MacroValue | null> {
+  const key = process.env.FRED_API_KEY;
+  if (!key) return null;
+  const res = await fetch(
+    `https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&api_key=${key}&file_type=json&sort_order=desc&limit=16`,
+    { cache: 'no-store', signal: AbortSignal.timeout(8000) },
+  );
+  const j = await res.json();
+  const obs = (j?.observations ?? []).filter((o: { value: string }) => o.value !== '.');
+  if (obs.length < 13) return null;
+  const latest = obs[0], yearAgo = obs[12];
+  const yoy = (Number(latest.value) / Number(yearAgo.value) - 1) * 100;
+  const [y, m] = String(latest.date).split('-');
+  return {
+    value: Math.round(yoy * 100) / 100, unit: '% YoY',
+    label: `${y}.${m}`, change: null, changeLabel: 'YoY', source: 'FRED',
+  };
+}
+async function _usCpiBls(): Promise<MacroValue | null> {
   const res = await fetch('https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0', {
     cache: 'no-store', signal: AbortSignal.timeout(8000),
   });
@@ -37,12 +55,13 @@ async function _usCpi(): Promise<MacroValue | null> {
   if (data.length < 13) return null;
   const latest = data[0], yearAgo = data[12];
   const yoy = (Number(latest.value) / Number(yearAgo.value) - 1) * 100;
-  const monthNum = String(latest.period).replace('M', '');
   return {
     value: Math.round(yoy * 100) / 100, unit: '% YoY',
-    label: `${latest.year}.${monthNum}`, change: null, changeLabel: 'YoY',
-    source: 'BLS',
+    label: `${latest.year}.${String(latest.period).replace('M', '')}`, change: null, changeLabel: 'YoY', source: 'BLS',
   };
+}
+async function _usCpi(): Promise<MacroValue | null> {
+  return (await _usCpiFred()) ?? (await _usCpiBls());
 }
 
 /* ── ECOS 공통 ───────────────────────────────────────── */
@@ -82,8 +101,9 @@ async function _realEstate(): Promise<MacroValue | null> {
   const now = new Date();
   const ym = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`;
   const start = new Date(now); start.setMonth(start.getMonth() - 14);
-  const rows = await ecosRows('901Y062', 'M', ym(start), ym(now), 10);
-  const tot = rows.filter((r) => String(r.ITEM_NAME1).includes('총지수'));
+  const rows = await ecosRows('901Y062', 'M', ym(start), ym(now), 100);
+  // '총지수'(전국)만 — '총지수(서울)' 등 지역 지수 제외
+  const tot = rows.filter((r) => String(r.ITEM_NAME1).trim() === '총지수');
   if (tot.length < 1) return null;
   const sorted = tot.sort((a, b) => (a.TIME < b.TIME ? -1 : 1));
   const cur = sorted[sorted.length - 1]; const prev = sorted[sorted.length - 2];
