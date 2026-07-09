@@ -34,6 +34,7 @@ interface Fib {
   nearest: string | null;
 }
 interface LSPoint { ts: number; longRatio: number; shortRatio: number; ratio: number }
+interface Driver { text: string; tone: 'up' | 'down' | 'warn' | 'info' }
 interface AnalysisData {
   symbol: string; name: string; updatedAt: number;
   price: number; change24h: number | null; high24h: number | null; low24h: number | null;
@@ -42,7 +43,12 @@ interface AnalysisData {
   longShort: { latest: LSPoint | null; history: LSPoint[] };
   timeframes: { h1: TF; m15: TF; m5: TF };
   zones: Zone[]; fib: Fib | null;
-  chart: { candles: ChartCandle[]; interval: string };
+  charts: { m5: ChartCandle[]; m15: ChartCandle[]; h1: ChartCandle[] };
+  movement: { direction: 'up' | 'down' | 'flat'; pct15m: number; pct1h: number; pct24h: number; drivers: Driver[] };
+  divergence: 'bullish' | 'bearish' | null;
+  fearGreed: { value: number; label: string; prev: number | null } | null;
+  kimchi: { premiumPct: number; upbitKrw: number; usdKrw: number } | null;
+  fundingHistory: { ts: number; rate: number }[];
   verdict: {
     state: string; score: number; direction: 'long' | 'short' | 'wait';
     entryOk: boolean; entryNote: string;
@@ -51,7 +57,7 @@ interface AnalysisData {
     reasons: string[]; warnings: string[];
     checklist: { label: string; pass: boolean; note: string }[];
   };
-  news: { title: string; link: string; source: string; pubDate: string }[];
+  news: { title: string; link: string; source: string; pubDate: string; sentiment: 'pos' | 'neg' | 'neu' }[];
   aiBriefing: string | null; aiError: string | null;
   error?: string;
 }
@@ -172,6 +178,7 @@ function PositionCalc({ stopPct, levCons, levAggr }: { stopPct: number; levCons:
 export default function CoinAnalysisPage() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [chartTf, setChartTf] = useState<'m5' | 'm15' | 'h1'>('m5');
   const { data, isLoading, isValidating, mutate } = useSWR<AnalysisData>(
     `/api/coin-analysis?symbol=${symbol}`,
     fetcher,
@@ -309,10 +316,15 @@ export default function CoinAnalysisPage() {
                   </p>
                 )}
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs pt-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-2 text-xs pt-1">
                 <div><p className="text-[var(--text-muted)]">펀딩비</p>
                   <p className={`font-bold tabular-nums ${Math.abs(data.funding.ratePct) >= 0.05 ? 'text-amber-400' : 'text-[var(--text)]'}`}>
                     {data.funding.ratePct >= 0 ? '+' : ''}{data.funding.ratePct.toFixed(4)}%
+                    {data.fundingHistory.length >= 2 && (
+                      <span className="ml-1 text-[10px] font-normal">
+                        {data.funding.rate > data.fundingHistory[data.fundingHistory.length - 1].rate ? '↗' : data.funding.rate < data.fundingHistory[data.fundingHistory.length - 1].rate ? '↘' : '→'}
+                      </span>
+                    )}
                   </p></div>
                 <div><p className="text-[var(--text-muted)]">다음 펀딩</p>
                   <p className={`font-bold tabular-nums ${nextFundingMin !== null && nextFundingMin <= 10 ? 'text-red-400' : 'text-[var(--text)]'}`}>
@@ -322,6 +334,20 @@ export default function CoinAnalysisPage() {
                   <p className="font-bold tabular-nums text-[var(--text)]">{data.openInterest ? data.openInterest.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '-'}</p></div>
                 <div><p className="text-[var(--text-muted)]">24h 거래대금</p>
                   <p className="font-bold tabular-nums text-[var(--text)]">{data.quoteVolume ? `$${(data.quoteVolume / 1e9).toFixed(2)}B` : '-'}</p></div>
+                <div><p className="text-[var(--text-muted)]">공포탐욕지수</p>
+                  {data.fearGreed ? (
+                    <p className={`font-bold tabular-nums ${data.fearGreed.value <= 25 ? 'text-red-400' : data.fearGreed.value >= 75 ? 'text-amber-400' : 'text-[var(--text)]'}`}>
+                      {data.fearGreed.value} <span className="text-[10px] font-normal">{data.fearGreed.label}</span>
+                    </p>
+                  ) : <p className="font-bold text-[var(--text-muted)]">-</p>}
+                </div>
+                <div><p className="text-[var(--text-muted)]">김치 프리미엄</p>
+                  {data.kimchi ? (
+                    <p className={`font-bold tabular-nums ${Math.abs(data.kimchi.premiumPct) >= 2 ? 'text-amber-400' : 'text-[var(--text)]'}`}>
+                      {data.kimchi.premiumPct >= 0 ? '+' : ''}{data.kimchi.premiumPct.toFixed(2)}%
+                    </p>
+                  ) : <p className="font-bold text-[var(--text-muted)]">-</p>}
+                </div>
               </div>
             </div>
 
@@ -341,6 +367,39 @@ export default function CoinAnalysisPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* 지금 왜 움직이나 */}
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <h3 className="text-sm font-bold text-[var(--text)]">
+                {data.movement.direction === 'up' ? '📈 지금 왜 오르나' : data.movement.direction === 'down' ? '📉 지금 왜 내리나' : '📊 지금 흐름 읽기'}
+              </h3>
+              <div className="flex gap-1.5 ml-auto">
+                {[
+                  { k: '15분', v: data.movement.pct15m },
+                  { k: '1시간', v: data.movement.pct1h },
+                  { k: '24시간', v: data.movement.pct24h },
+                ].map((c) => (
+                  <span key={c.k} className={`px-2 py-0.5 rounded-lg text-[10px] font-bold tabular-nums border ${
+                    c.v >= 0 ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5' : 'text-red-400 border-red-500/30 bg-red-500/5'
+                  }`}>
+                    {c.k} {c.v >= 0 ? '+' : ''}{c.v.toFixed(2)}%
+                  </span>
+                ))}
+              </div>
+            </div>
+            <ul className="space-y-1.5">
+              {data.movement.drivers.map((d, i) => (
+                <li key={i} className={`text-[11px] flex gap-1.5 leading-relaxed ${
+                  d.tone === 'up' ? 'text-emerald-400/90' : d.tone === 'down' ? 'text-red-400/90' : d.tone === 'warn' ? 'text-amber-400/90' : 'text-[var(--text-muted)]'
+                }`}>
+                  <span className="shrink-0">{d.tone === 'up' ? '▲' : d.tone === 'down' ? '▼' : d.tone === 'warn' ? '⚠' : '•'}</span>
+                  {d.text}
+                </li>
+              ))}
+            </ul>
+            <p className="text-[10px] text-[var(--text-muted)] mt-2.5 opacity-60">수급·파생·뉴스 신호 기반 자동 추정 — 정확한 인과가 아닌 참고용 해석입니다.</p>
           </div>
 
           {/* 종합 판단 */}
@@ -428,19 +487,29 @@ export default function CoinAnalysisPage() {
             </div>
           </div>
 
-          {/* 캔들 차트 (5m, EMA·지지저항·진입레벨 오버레이) */}
+          {/* 캔들 차트 (5m/15m/1H, EMA·지지저항·진입레벨 오버레이) */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-[var(--text)]">5분봉 차트 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 60봉 · EMA20/60 · 지지저항·피보나치·진입레벨</span></h3>
-              <div className="flex items-center gap-2.5 text-[10px]">
-                <span className="text-purple-400">— EMA20</span>
-                <span className="text-sky-400">— EMA60</span>
-                <span className="text-emerald-400">■ 양봉</span>
-                <span className="text-red-400">■ 음봉</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-[var(--text)]">캔들 차트 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 60봉 · EMA20/60 · 지지저항·피보나치·진입레벨</span></h3>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="flex gap-1">
+                  {([['m5', '5분'], ['m15', '15분'], ['h1', '1시간']] as const).map(([k, label]) => (
+                    <button key={k} onClick={() => setChartTf(k)}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] border transition-colors ${
+                        chartTf === k ? 'bg-sky-500/20 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
+                      }`}>{label}</button>
+                  ))}
+                </div>
+                <div className="hidden sm:flex items-center gap-2 text-[10px]">
+                  <span className="text-purple-400">— EMA20</span>
+                  <span className="text-sky-400">— EMA60</span>
+                </div>
               </div>
             </div>
             <CoinCandleChart
-              candles={data.chart.candles}
+              candles={data.charts[chartTf]}
               supports={data.zones.filter((z) => z.kind === 'support').map((z) => z.price)}
               resistances={data.zones.filter((z) => z.kind === 'resistance').map((z) => z.price)}
               fib={data.fib}
@@ -454,7 +523,18 @@ export default function CoinAnalysisPage() {
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
             <h3 className="text-sm font-bold text-[var(--text)] mb-2">🤖 AI 종합 브리핑 <span className="text-[10px] font-normal text-[var(--text-muted)]">차트 + 뉴스 동향</span></h3>
             {data.aiBriefing ? (
-              <p className="text-xs text-[var(--text)] leading-relaxed whitespace-pre-line">{data.aiBriefing}</p>
+              <div className="space-y-2.5">
+                {data.aiBriefing.split(/(?=【)/).filter((s) => s.trim()).map((sec, i) => {
+                  const m = sec.match(/^【([^】]+)】([\s\S]*)$/);
+                  if (!m) return <p key={i} className="text-xs text-[var(--text)] leading-relaxed whitespace-pre-line">{sec.trim()}</p>;
+                  return (
+                    <div key={i}>
+                      <p className="text-[11px] font-bold text-sky-400 mb-0.5">{m[1]}</p>
+                      <p className="text-xs text-[var(--text)] leading-relaxed whitespace-pre-line">{m[2].trim()}</p>
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
               <p className="text-xs text-[var(--text-muted)]">{data.aiError ?? 'AI 브리핑을 사용할 수 없습니다.'}</p>
             )}
@@ -541,7 +621,11 @@ export default function CoinAnalysisPage() {
                 <div className="space-y-2.5">
                   {data.news.slice(0, 7).map((n, i) => (
                     <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" className="block group">
-                      <p className="text-xs text-[var(--text)] group-hover:text-sky-400 transition-colors leading-snug">{n.title}</p>
+                      <p className="text-xs text-[var(--text)] group-hover:text-sky-400 transition-colors leading-snug">
+                        {n.sentiment === 'pos' && <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 mr-1 align-middle">호재</span>}
+                        {n.sentiment === 'neg' && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/15 text-red-400 mr-1 align-middle">악재</span>}
+                        {n.title}
+                      </p>
                       <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{n.source}{n.pubDate ? ` · ${new Date(n.pubDate).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}</p>
                     </a>
                   ))}

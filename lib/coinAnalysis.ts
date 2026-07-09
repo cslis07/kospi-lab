@@ -231,6 +231,73 @@ export function fibonacci(candles: Candle[], price: number): FibLevels | null {
   return { direction, swingLow: lo, swingHigh: hi, r382, r50, r618, e1272, e1618, nearest };
 }
 
+/* ── RSI 다이버전스 (15m 권장) ───────────────────────── */
+function rsiSeries(closes: number[], period = 14): number[] {
+  const out: number[] = new Array(closes.length).fill(50);
+  if (closes.length < period + 1) return out;
+  let avgG = 0, avgL = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d >= 0) avgG += d; else avgL -= d;
+  }
+  avgG /= period; avgL /= period;
+  out[period] = avgL === 0 ? 100 : 100 - 100 / (1 + avgG / avgL);
+  for (let i = period + 1; i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    avgG = (avgG * (period - 1) + Math.max(d, 0)) / period;
+    avgL = (avgL * (period - 1) + Math.max(-d, 0)) / period;
+    out[i] = avgL === 0 ? 100 : 100 - 100 / (1 + avgG / avgL);
+  }
+  return out;
+}
+
+/**
+ * RSI 다이버전스: 가격 저점 하락 + RSI 저점 상승 = bullish / 반대 = bearish
+ * 최근 두 스윙 저점(또는 고점) 비교. 큰 지지·저항 근처에서만 참고(교육자료 원칙).
+ */
+export function detectRsiDivergence(candles: Candle[]): 'bullish' | 'bearish' | null {
+  if (candles.length < 40) return null;
+  const closes = candles.map((c) => c.c);
+  const rsis = rsiSeries(closes);
+  const swings = findSwings(candles, 3).filter((s) => s.idx >= 14 && s.idx < candles.length - 1);
+  const lows  = swings.filter((s) => s.kind === 'low').slice(-2);
+  const highs = swings.filter((s) => s.kind === 'high').slice(-2);
+  if (lows.length === 2) {
+    const [a, b] = lows;
+    if (b.price < a.price && rsis[b.idx] > rsis[a.idx] + 2 && rsis[b.idx] < 45) return 'bullish';
+  }
+  if (highs.length === 2) {
+    const [a, b] = highs;
+    if (b.price > a.price && rsis[b.idx] < rsis[a.idx] - 2 && rsis[b.idx] > 55) return 'bearish';
+  }
+  return null;
+}
+
+/* ── 최근 급변 캔들 이벤트 (청산 연쇄·돌파 추정용) ────── */
+export interface CandleEvent { ts: number; kind: '급등' | '급락'; rangePct: number; volRatio: number }
+
+export function recentBigCandles(candles: Candle[], lookback = 12): CandleEvent[] {
+  const n = candles.length;
+  if (n < 30) return [];
+  const atrVal = atr(candles);
+  const vols = candles.map((c) => c.v);
+  const avgVol = vols.slice(-31, -1).reduce((a, b) => a + b, 0) / 30;
+  const out: CandleEvent[] = [];
+  for (let i = Math.max(0, n - lookback); i < n; i++) {
+    const c = candles[i];
+    const range = c.h - c.l;
+    if (atrVal > 0 && range >= atrVal * 2.2) {
+      out.push({
+        ts: c.ts,
+        kind: c.c >= c.o ? '급등' : '급락',
+        rangePct: c.c > 0 ? (range / c.c) * 100 : 0,
+        volRatio: avgVol > 0 ? c.v / avgVol : 1,
+      });
+    }
+  }
+  return out.slice(-3);
+}
+
 /* ── 타임프레임 분석 ─────────────────────────────────── */
 export function analyzeTimeframe(tf: string, candles: Candle[]): TimeframeAnalysis {
   const closes = candles.map((c) => c.c);
