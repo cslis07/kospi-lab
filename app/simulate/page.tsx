@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
@@ -23,13 +23,29 @@ function SimSlider({
   sliderValue: number; sliderMin: number; sliderMax: number; sliderStep: number; onSlider: (v: number) => void;
   numValue: number; numMin: number; numMax: number; numStep: number; unit: string; onNum: (v: number) => void; numW?: string;
 }) {
+  // 자유 입력을 위한 내부 문자열 버퍼(빈칸 허용). 포커스 중이 아닐 때만 외부값과 동기화
+  const [text, setText] = useState(String(numValue));
+  const focused = useRef(false);
+  useEffect(() => { if (!focused.current) setText(String(numValue)); }, [numValue]);
+
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between items-center">
         <span className="text-xs text-[var(--text-muted)]">{label}</span>
         <div className="flex items-center gap-1">
-          <input type="number" value={numValue} min={numMin} max={numMax} step={numStep}
-            onChange={(e) => onNum(clamp(+e.target.value, numMin, numMax))}
+          <input type="number" inputMode="decimal" value={text} min={numMin} max={numMax} step={numStep}
+            onFocus={() => { focused.current = true; }}
+            onChange={(e) => {
+              setText(e.target.value);
+              const v = parseFloat(e.target.value);
+              if (!isNaN(v)) onNum(clamp(v, numMin, numMax));
+            }}
+            onBlur={() => {
+              focused.current = false;
+              const v = parseFloat(text);
+              if (isNaN(v)) { setText(String(numValue)); }
+              else { const c = clamp(v, numMin, numMax); setText(String(c)); onNum(c); }
+            }}
             className={`${numW} bg-white/5 border border-[var(--border)] rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] outline-none focus:border-sky-500/50`} />
           <span className="text-xs text-[var(--text-muted)] w-12">{unit}</span>
         </div>
