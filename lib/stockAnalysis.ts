@@ -201,6 +201,7 @@ export interface StockExtras {
   fin?: FinancialQuality | null;
   market?: MarketContext | null;
   catalyst?: { discPos: number; discNeg: number; policyPos: number; policyNeg: number } | null;
+  cio?: { sector: string; stance: 'overweight' | 'neutral' | 'underweight'; label: string } | null;
 }
 
 export function buildStockVerdict(
@@ -286,6 +287,13 @@ export function buildStockVerdict(
     if (cat.discNeg > 0) { score -= Math.min(12, cat.discNeg * 7); warnings.push(`중요 악재성 공시 ${cat.discNeg}건(증자·CB·감자 등) — 수급 부담 재료`); }
     if (cat.policyPos > 0) { score += Math.min(8, cat.policyPos * 4); reasons.push('정부 정책·테마 수혜 신호 — 섹터 우호 재료'); }
     if (cat.policyNeg > 0) { score -= Math.min(8, cat.policyNeg * 4); warnings.push('정책·규제 역풍 신호 — 정책 리스크'); }
+  }
+
+  /* 7-1) 메릴린치 CIO 업종 의견 (하향식 오버레이 — 소폭) */
+  if (extras.cio) {
+    if (extras.cio.stance === 'overweight') { score += 5; reasons.push(`메릴린치 CIO: ${extras.cio.sector} 비중확대 업종 — 하향식 우호`); }
+    else if (extras.cio.stance === 'underweight') { score -= 5; warnings.push(`메릴린치 CIO: ${extras.cio.sector} 비중축소 업종 — 하향식 역풍`); }
+    else reasons.push(`메릴린치 CIO: ${extras.cio.sector} 중립 업종`);
   }
 
   /* 8) 시장(코스피) 동조 */

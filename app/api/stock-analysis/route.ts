@@ -10,6 +10,9 @@ import {
 } from '@/lib/stockAnalysis';
 import { backtestStock, StockBacktestResult } from '@/lib/stockBacktest';
 import { fetchKisFinancialRatio } from '@/lib/kisFinance';
+import { cioViewFor, MUST_WATCH, MERRILL_CIO } from '@/lib/marketReference';
+const MERRILL_SRC = `${MERRILL_CIO.source} ${MERRILL_CIO.date}`;
+import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 
 export const maxDuration = 30;
 export const preferredRegion = 'icn1'; // 네이버·KIS 한국 API → 서울 리전
@@ -121,14 +124,31 @@ async function fetchFinancials(ticker: string): Promise<{ roe: number|null; debt
   } catch { return empty; }
 }
 
-/* ── 코스피 컨텍스트 ─────────────────────────────────── */
-async function fetchKospi(origin: string): Promise<MarketContext> {
+/* ── 코스피 + 매크로(환율) 컨텍스트 ──────────────────── */
+interface FxLite { value: number; changeRate: number }
+async function fetchMacro(origin: string): Promise<{ market: MarketContext; usdkrw: FxLite | null; jpykrw: FxLite | null }> {
   try {
     const res = await fetch(`${origin}/api/market`, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
     const j = await res.json();
     const chg = j?.kospi?.changeRate ?? null;
-    return { kospiChange: chg, kospiTrend: chg === null ? null : chg >= 0.3 ? 'up' : chg <= -0.3 ? 'down' : 'flat' };
-  } catch { return { kospiChange: null, kospiTrend: null }; }
+    const fx = (o: { value?: number; changeRate?: number } | null | undefined): FxLite | null =>
+      o && o.value != null ? { value: o.value, changeRate: o.changeRate ?? 0 } : null;
+    return {
+      market: { kospiChange: chg, kospiTrend: chg === null ? null : chg >= 0.3 ? 'up' : chg <= -0.3 ? 'down' : 'flat' },
+      usdkrw: fx(j?.usdkrw), jpykrw: fx(j?.jpykrw),
+    };
+  } catch { return { market: { kospiChange: null, kospiTrend: null }, usdkrw: null, jpykrw: null }; }
+}
+
+/* 다음 미국 CPI 발표일 (캘린더) */
+function nextCpi(): { date: string; daysUntil: number } | null {
+  const now = Date.now();
+  const upcoming = CALENDAR_EVENTS
+    .filter((e) => e.category === 'indicator' && e.title.includes('CPI'))
+    .map((e) => ({ date: e.date, ts: new Date(`${e.date}T21:30:00+09:00`).getTime() }))
+    .filter((e) => e.ts >= now - 6 * 3600_000)
+    .sort((a, b) => a.ts - b.ts)[0];
+  return upcoming ? { date: upcoming.date, daysUntil: Math.max(0, Math.round((upcoming.ts - now) / 86400_000)) } : null;
 }
 
 /* ── 종목 뉴스 (네이버) ──────────────────────────────── */
@@ -253,7 +273,7 @@ async function aiBriefing(name: string, ticker: string, summary: string, newsTit
   if (!key) return { error: 'ANTHROPIC_API_KEY 미설정 — 룰 기반 분석만 표시됩니다.' };
   const hit = _aiCache.get(ticker);
   if (hit && Date.now() - hit.ts < 3 * 60 * 1000) return { text: hit.text };
-  const prompt = `당신은 한국 주식 분석 도우미입니다. 방법론: ①일봉 추세(EMA 배열) ②투자자 수급(외국인·기관 순매수가 한국 시장의 핵심) ③외국인 보유율 추세 ④거래량 ⑤52주 위치 ⑥밸류에이션은 안전마진 필터. 개인은 공매도가 어려워 매수우위/중립/비중축소로 판단.
+  const prompt = `당신은 한국 주식 분석 도우미입니다. 방법론: ①일봉 추세(EMA 배열) ②투자자 수급(외국인·기관 순매수가 한국 시장의 핵심) ③외국인 보유율 추세 ④거래량 ⑤52주 위치 ⑥밸류에이션은 안전마진 필터 ⑦메릴린치 CIO 업종의견(하향식) ⑧필수 경제지표(미국물가·엔화·원달러·반도체수출·가계부채). 개인은 공매도가 어려워 매수우위/중립/비중축소로 판단.
 
 ## ${name}(${ticker}) 현황
 ${summary}
@@ -265,6 +285,7 @@ ${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(
 【지금 왜 움직이나】 현재 오르/내리는 이유를 수급·공시·정책·뉴스 근거로 2~3문장 추정.
 【수급 해석】 외국인·기관 흐름의 의미 1~2문장.
 【공시·정책 체크】 최근 공시나 정부 정책·테마가 주가에 미칠 영향 1~2문장 (해당 없으면 "특이 공시·정책 없음").
+【업종·매크로】 메릴린치 CIO 업종 의견과 필수 경제지표(원달러·엔화·미국물가·반도체수출)가 이 종목에 주는 시사점 1~2문장.
 【종합 판단】 매수우위/중립/비중축소 + 근거 2문장.
 한국어. 마지막 줄에 "투자 권유가 아닌 참고 정보입니다."`;
   try {
@@ -290,14 +311,15 @@ export async function GET(req: NextRequest) {
 
   try {
     const basic = await fetchBasic(ticker);
-    const [candles, investor, fin0, kospi, news, disclosures] = await Promise.all([
+    const [candles, investor, fin0, macro, news, disclosures] = await Promise.all([
       fetchDaily(ticker, basic.market),
       fetchInvestor(ticker),
       fetchFinancials(ticker),
-      fetchKospi(origin),
+      fetchMacro(origin),
       fetchNews(ticker),
       fetchDisclosures(ticker),
     ]);
+    const kospi = macro.market;
     if (candles.length < 60) return NextResponse.json({ error: '차트 데이터 부족(신규상장·거래정지 가능)' }, { status: 502 });
 
     const price = basic.price || candles[candles.length - 1].c;
@@ -315,11 +337,24 @@ export async function GET(req: NextRequest) {
     const discPos = disclosures.filter((d) => d.sentiment === 'pos' && d.importance === 'high').length;
     const discNeg = disclosures.filter((d) => d.sentiment === 'neg' && d.importance === 'high').length;
 
+    // 메릴린치 CIO 업종 의견
+    const cio = cioViewFor(ticker, basic.name);
+
     const extras: StockExtras = {
       supply, fin, market: kospi,
       catalyst: { discPos, discNeg, policyPos: policy.filter((p) => p.tone === 'pos').length, policyNeg: policy.filter((p) => p.tone === 'neg').length },
+      cio: cio ? { sector: cio.sector, stance: cio.stance, label: cio.label } : null,
     };
     const verdict = buildStockVerdict(daily, candles, fib, zones, extras);
+
+    // 필수 경제 지표 (라이브 값 + CPI 일정 매핑)
+    const cpi = nextCpi();
+    const indicators = MUST_WATCH.map((m) => ({
+      key: m.key, label: m.label, why: m.why,
+      value: m.liveKey === 'usdkrw' ? macro.usdkrw : m.liveKey === 'jpykrw' ? macro.jpykrw : null,
+      unit: m.liveKey ? '원' : null,
+      event: m.eventCategory === 'cpi' && cpi ? cpi : null,
+    }));
 
     // 차트 오버레이 (일봉 60개 + EMA20/60)
     const closes = candles.map((c) => c.c);
@@ -328,6 +363,13 @@ export async function GET(req: NextRequest) {
 
     const divergence = detectRsiDivergence(candles);
     const movement = buildMovement(basic.name, candles, supply, news, kospi, basic.changeRate, disclosures, policy);
+    if (cio && cio.stance !== 'neutral') {
+      movement.drivers.push({ text: `메릴린치 CIO ${cio.sector} ${cio.label} 의견 — 업종 차원 ${cio.stance === 'overweight' ? '우호' : '역풍'}`, tone: cio.stance === 'overweight' ? 'up' : 'down' });
+    }
+    // 환율 급변동 매크로 드라이버
+    if (macro.usdkrw && Math.abs(macro.usdkrw.changeRate) >= 0.5) {
+      movement.drivers.push({ text: `원-달러 ${macro.usdkrw.changeRate >= 0 ? '상승(원화 약세)' : '하락(원화 강세)'} ${macro.usdkrw.changeRate.toFixed(2)}% — 외국인 수급 ${macro.usdkrw.changeRate >= 0 ? '이탈 압력' : '우호'}`, tone: macro.usdkrw.changeRate >= 0 ? 'down' : 'up' });
+    }
     const backtest = cachedBt(ticker, candles);
 
     const summary =
@@ -337,6 +379,8 @@ export async function GET(req: NextRequest) {
       `밸류: PER ${basic.per ?? '-'}, PBR ${basic.pbr ?? '-'}, 재무 ${fin.grade ?? '-'}등급\n` +
       (disclosures.length ? `최근 공시: ${disclosures.slice(0, 5).map((d) => `${d.date} ${d.type}${d.sentiment !== 'neu' ? `(${d.sentiment === 'pos' ? '호재' : '악재'})` : ''}`).join(' / ')}\n` : '') +
       (policy.length ? `정책·테마: ${policy.map((p) => p.label).join(' / ')}\n` : '') +
+      (cio ? `메릴린치 CIO 업종의견: ${cio.sector} ${cio.label}(${MERRILL_SRC})\n` : '') +
+      `필수지표: 원달러 ${macro.usdkrw ? `${Math.round(macro.usdkrw.value)}원(${macro.usdkrw.changeRate >= 0 ? '+' : ''}${macro.usdkrw.changeRate.toFixed(2)}%)` : '-'}, 엔화 ${macro.jpykrw ? `${macro.jpykrw.value.toFixed(1)}원` : '-'}${cpi ? `, 미CPI ${cpi.daysUntil}일 후` : ''}\n` +
       `판정: ${verdict.state} / 점수 ${verdict.score} / ${verdict.stance} / 진입가능 ${verdict.entryOk}\n` +
       `근거: ${verdict.reasons.slice(0, 5).join(' / ')}`;
     const ai = await aiBriefing(basic.name, ticker, summary, news.map((n) => n.title));
@@ -349,7 +393,8 @@ export async function GET(req: NextRequest) {
       per: basic.per, pbr: basic.pbr,
       daily, zones, fib, chart, divergence,
       supply, investor, fin, kospi, movement, verdict, backtest, news,
-      disclosures, policy,
+      disclosures, policy, cio, indicators,
+      cioSource: MERRILL_SRC,
       aiBriefing: ai.text ?? null, aiError: ai.error ?? null,
     });
   } catch (e) {

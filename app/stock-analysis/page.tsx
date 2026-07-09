@@ -41,6 +41,9 @@ interface Data {
   news: { title: string; source: string; datetime: string; link: string; sentiment: 'pos' | 'neg' | 'neu' }[];
   disclosures: { date: string; type: string; url: string; sentiment: 'pos' | 'neg' | 'neu'; importance: 'high' | 'mid' | 'low'; label: string }[];
   policy: { tone: 'pos' | 'neg'; label: string }[];
+  cio: { sector: string; stance: 'overweight' | 'neutral' | 'underweight'; label: string; tone: 'up' | 'down' | 'neutral'; source: string; date: string } | null;
+  cioSource: string;
+  indicators: { key: string; label: string; why: string; value: { value: number; changeRate: number } | null; unit: string | null; event: { date: string; daysUntil: number } | null }[];
   aiBriefing: string | null; aiError: string | null;
   error?: string;
 }
@@ -181,6 +184,13 @@ export default function StockAnalysisPage() {
                 <div><p className="text-[var(--text-muted)]">재무등급</p><p className={`font-bold ${data.fin.grade === 'A' ? 'text-emerald-400' : data.fin.grade === 'D' ? 'text-red-400' : 'text-[var(--text)]'}`}>{data.fin.grade ?? '-'}</p></div>
                 <div><p className="text-[var(--text-muted)]">외국인 보유율</p><p className={`font-bold tabular-nums ${data.supply?.holdRatioChange5d != null && data.supply.holdRatioChange5d < 0 ? 'text-blue-400' : 'text-[var(--text)]'}`}>{data.supply?.holdRatioNow != null ? `${data.supply.holdRatioNow.toFixed(2)}%` : '-'}</p></div>
                 <div><p className="text-[var(--text-muted)]">52주 위치</p><p className="font-bold tabular-nums text-[var(--text)]">{posInRange !== null ? `하단서 ${posInRange.toFixed(0)}%` : '-'}</p></div>
+                {data.cio && (
+                  <div><p className="text-[var(--text-muted)]">CIO 업종의견</p>
+                    <p className={`font-bold ${data.cio.tone === 'up' ? 'text-red-400' : data.cio.tone === 'down' ? 'text-blue-400' : 'text-[var(--text)]'}`}>
+                      {data.cio.sector} <span className="text-[10px] font-normal">{data.cio.label}</span>
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -400,6 +410,34 @@ export default function StockAnalysisPage() {
                   ))}
                 </div>
               ) : <p className="text-xs text-[var(--text-muted)]">뉴스를 가져올 수 없습니다.</p>}
+            </div>
+          </div>
+
+          {/* 필수 경제 지표 (반드시 참고) */}
+          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.03] p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className="text-sm font-bold text-[var(--text)]">⭐ 반드시 봐야 하는 경제 지표</h3>
+              {data.cio && <span className="text-[10px] text-[var(--text-muted)] ml-auto">업종의견 출처: {data.cioSource}</span>}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+              {data.indicators.map((ind) => (
+                <div key={ind.key} className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
+                  <p className="text-xs font-bold text-[var(--text)]">{ind.label}</p>
+                  {ind.value ? (
+                    <p className={`text-sm font-bold tabular-nums mt-0.5 ${ind.value.changeRate >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
+                      {ind.key === 'jpy' ? `${ind.value.value.toFixed(1)}원` : `${Math.round(ind.value.value).toLocaleString()}원`}
+                      <span className="text-[10px] font-normal ml-1">{ind.value.changeRate >= 0 ? '+' : ''}{ind.value.changeRate.toFixed(2)}%</span>
+                    </p>
+                  ) : ind.event ? (
+                    <p className={`text-sm font-bold tabular-nums mt-0.5 ${ind.event.daysUntil <= 3 ? 'text-amber-400' : 'text-[var(--text)]'}`}>
+                      {ind.event.daysUntil === 0 ? '오늘 발표' : `D-${ind.event.daysUntil}`}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-[var(--text-muted)] mt-0.5">체크 필요</p>
+                  )}
+                  <p className="text-[10px] text-[var(--text-muted)] mt-1 leading-snug">{ind.why}</p>
+                </div>
+              ))}
             </div>
           </div>
 
