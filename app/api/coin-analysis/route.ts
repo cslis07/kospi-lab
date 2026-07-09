@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   Candle, analyzeTimeframe, buildVerdict, atr, srZones, fibonacci, emaSeries,
   detectRsiDivergence, recentBigCandles,
-  TimeframeAnalysis,
+  TimeframeAnalysis, VerdictExtras,
 } from '@/lib/coinAnalysis';
+import { backtestEngine, BacktestResult } from '@/lib/coinBacktest';
+import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 import { BITGET_BASE, fetchBitgetFuturesTickers } from '@/lib/bitget';
 
 export const maxDuration = 30;
@@ -161,6 +163,113 @@ async function fetchNews(query: string): Promise<NewsItem[]> {
     if (res.ok) return parseRssItems(await res.text());
   } catch { /* 뉴스 없이 진행 */ }
   return [];
+}
+
+/* ── 테이커 매수/매도 (주문 흐름) ─────────────────────── */
+async function fetchTakerFlow(symbol: string): Promise<{ ts: number; buy: number; sell: number }[]> {
+  try {
+    const res = await fetch(
+      `${BITGET_BASE}/api/v2/mix/market/taker-buy-sell?symbol=${symbol}&productType=USDT-FUTURES&period=5m`,
+      { cache: 'no-store', signal: AbortSignal.timeout(8000) },
+    );
+    const json = await res.json();
+    return ((json?.data ?? []) as { ts: string; buyVolume: string; sellVolume: string }[])
+      .map((r) => ({ ts: Number(r.ts), buy: Number(r.buyVolume), sell: Number(r.sellVolume) }))
+      .sort((a, b) => a.ts - b.ts);
+  } catch { return []; }
+}
+
+/* ── 포지션 금액 기준 롱숏 (큰손 지표) ───────────────── */
+async function fetchPositionLS(symbol: string): Promise<{ latest: number | null; history: { ts: number; ratio: number }[] }> {
+  try {
+    const res = await fetch(
+      `${BITGET_BASE}/api/v2/mix/market/position-long-short?symbol=${symbol}&productType=USDT-FUTURES&period=5m`,
+      { cache: 'no-store', signal: AbortSignal.timeout(8000) },
+    );
+    const json = await res.json();
+    const rows = ((json?.data ?? []) as { ts: string; longShortPositionRatio: string }[])
+      .map((r) => ({ ts: Number(r.ts), ratio: Number(r.longShortPositionRatio) }))
+      .sort((a, b) => a.ts - b.ts);
+    return { latest: rows.length ? rows[rows.length - 1].ratio : null, history: rows.slice(-30) };
+  } catch { return { latest: null, history: [] }; }
+}
+
+/* ── OI 히스토리 (Bybit — Bitget은 현재값만 제공) ────── */
+async function fetchOiHistory(symbol: string): Promise<{ ts: number; oi: number }[]> {
+  try {
+    const res = await fetch(
+      `https://api.bybit.com/v5/market/open-interest?category=linear&symbol=${symbol}&intervalTime=5min&limit=48`,
+      { cache: 'no-store', signal: AbortSignal.timeout(8000) },
+    );
+    const json = await res.json();
+    return ((json?.result?.list ?? []) as { timestamp: string; openInterest: string }[])
+      .map((r) => ({ ts: Number(r.timestamp), oi: Number(r.openInterest) }))
+      .sort((a, b) => a.ts - b.ts);
+  } catch { return []; }
+}
+
+/* ── BTC 옵션 내재변동성 지수 (Deribit DVOL) ─────────── */
+async function fetchDvol(): Promise<{ value: number; change24h: number | null } | null> {
+  try {
+    const end = Date.now();
+    const start = end - 26 * 3600_000;
+    const res = await fetch(
+      `https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=BTC&start_timestamp=${start}&end_timestamp=${end}&resolution=3600`,
+      { cache: 'no-store', signal: AbortSignal.timeout(8000) },
+    );
+    const json = await res.json();
+    const rows = (json?.result?.data ?? []) as number[][]; // [ts, o, h, l, c]
+    if (!rows.length) return null;
+    const cur = rows[rows.length - 1][4];
+    const dayAgo = rows.length >= 24 ? rows[rows.length - 24][4] : rows[0][4];
+    return { value: cur, change24h: dayAgo ? cur - dayAgo : null };
+  } catch { return null; }
+}
+
+/* ── BTC 도미넌스 (CoinGecko) ────────────────────────── */
+async function fetchDominance(): Promise<{ btc: number; eth: number; mcapChange24h: number } | null> {
+  try {
+    const res = await fetch('https://api.coingecko.com/api/v3/global', {
+      next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000),
+    });
+    const json = await res.json();
+    const d = json?.data;
+    if (!d) return null;
+    return {
+      btc: Number(d.market_cap_percentage?.btc ?? 0),
+      eth: Number(d.market_cap_percentage?.eth ?? 0),
+      mcapChange24h: Number(d.market_cap_change_percentage_24h_usd ?? 0),
+    };
+  } catch { return null; }
+}
+
+/* ── 임박 경제 이벤트 (앱 내 캘린더 재활용) ──────────── */
+function upcomingEvent(): { title: string; hoursUntil: number; date: string } | null {
+  const now = Date.now();
+  let best: { title: string; hoursUntil: number; date: string } | null = null;
+  for (const e of CALENDAR_EVENTS) {
+    if (e.importance !== 'high') continue;
+    if (e.category !== 'fomc' && e.category !== 'indicator') continue; // 코인에 영향 큰 미국 이벤트
+    // 발표 시각 근사: 지표(CPI·NFP)=당일 21:30 KST, FOMC=다음날 03:00 KST
+    const base = new Date(`${e.date}T00:00:00+09:00`).getTime();
+    const eventTs = e.category === 'fomc' ? base + 27 * 3600_000 : base + 21.5 * 3600_000;
+    const hoursUntil = (eventTs - now) / 3600_000;
+    if (hoursUntil < -2 || hoursUntil > 48) continue; // 발표 후 2시간까지 경계 유지
+    if (!best || hoursUntil < best.hoursUntil) best = { title: e.title, hoursUntil, date: e.date };
+  }
+  return best;
+}
+
+/* ── 백테스트 (10분 캐시 — CPU 절약) ─────────────────── */
+const _btCache = new Map<string, { result: BacktestResult; ts: number }>();
+const BT_TTL = 10 * 60 * 1000;
+
+function cachedBacktest(symbol: string, c5m: Candle[], c15m: Candle[], c1h: Candle[], fundingRate: number): BacktestResult {
+  const hit = _btCache.get(symbol);
+  if (hit && Date.now() - hit.ts < BT_TTL) return hit.result;
+  const result = backtestEngine(c5m, c15m, c1h, fundingRate);
+  _btCache.set(symbol, { result, ts: Date.now() });
+  return result;
 }
 
 /* ── 뉴스 헤드라인 간이 감성 분류 (키워드 기반) ───────── */
@@ -355,17 +464,26 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [c1h, c15m, c5m, funding, tickers, news, longShort, fundingHist, fearGreed] = await Promise.all([
-      fetchCandles(symbol, '1H', 200),
-      fetchCandles(symbol, '15m', 200),
-      fetchCandles(symbol, '5m', 200),
+    const [c1hFull, c15mFull, c5mFull, funding, tickers, news, longShort, fundingHist, fearGreed, takerFlow, positionLS, oiHist, dvol, dominance] = await Promise.all([
+      fetchCandles(symbol, '1H', 250),
+      fetchCandles(symbol, '15m', 500),
+      fetchCandles(symbol, '5m', 1000),
       fetchFundingInfo(symbol),
       fetchBitgetFuturesTickers().catch(() => null),
       fetchNews(coin.newsQuery),
       fetchLongShort(symbol),
       fetchFundingHistory(symbol),
       fetchFearGreed(),
+      fetchTakerFlow(symbol),
+      fetchPositionLS(symbol),
+      fetchOiHistory(symbol),
+      fetchDvol(),
+      fetchDominance(),
     ]);
+    // 실시간 분석은 최근 200봉, 백테스트는 전체 사용
+    const c1h = c1hFull.slice(-200);
+    const c15m = c15mFull.slice(-200);
+    const c5m = c5mFull.slice(-200);
 
     const t = tickers?.map.get(symbol);
     const price = c5m[c5m.length - 1].c;
@@ -376,7 +494,45 @@ export async function GET(req: NextRequest) {
     const m5  = analyzeTimeframe('5m', c5m);
     const zones = srZones(c15m, price, atr(c15m));
     const fib = fibonacci(c15m, price);
-    const verdict = buildVerdict(h1, m15, m5, funding.rate, funding.nextTs, fib, zones, longShort.latest?.ratio ?? null);
+
+    /* ── 수급 정밀 지표 계산 ── */
+    // 테이커 매수/매도 비율(최근 30분 = 6봉) + 주문흐름 다이버전스(최근 60분)
+    const recentTaker = takerFlow.slice(-6);
+    const takerBuy = recentTaker.reduce((a, r) => a + r.buy, 0);
+    const takerSell = recentTaker.reduce((a, r) => a + r.sell, 0);
+    const takerRatio = takerSell > 0 ? takerBuy / takerSell : null;
+    const flow12 = takerFlow.slice(-12);
+    const cumDelta = flow12.reduce((a, r) => a + (r.buy - r.sell), 0);
+    const closes5all = c5m.map((c) => c.c);
+    const p12ago = closes5all.length > 12 ? closes5all[closes5all.length - 13] : null;
+    const pChg12 = p12ago ? ((price - p12ago) / p12ago) * 100 : 0;
+    let takerDivergence: 'bullish' | 'bearish' | null = null;
+    if (flow12.length >= 8) {
+      if (pChg12 >= 0.3 && cumDelta < 0) takerDivergence = 'bearish';
+      else if (pChg12 <= -0.3 && cumDelta > 0) takerDivergence = 'bullish';
+    }
+
+    // OI 1시간 변화율 (Bybit 5분 간격 12개)
+    let oiChange1hPct: number | null = null;
+    if (oiHist.length >= 13) {
+      const oiNow = oiHist[oiHist.length - 1].oi;
+      const oi1h = oiHist[oiHist.length - 13].oi;
+      if (oi1h > 0) oiChange1hPct = ((oiNow - oi1h) / oi1h) * 100;
+    }
+
+    // 임박 이벤트
+    const event = upcomingEvent();
+
+    const extras: VerdictExtras = {
+      takerRatio, takerDivergence,
+      oiChange1hPct, priceChange1hPct: pChg12,
+      positionRatio: positionLS.latest,
+      event: event && event.hoursUntil <= 12 ? { title: event.title, hoursUntil: event.hoursUntil } : null,
+    };
+    const verdict = buildVerdict(h1, m15, m5, funding.rate, funding.nextTs, fib, zones, longShort.latest?.ratio ?? null, extras);
+
+    // 백테스트 (전체 캔들, 10분 캐시)
+    const backtest = cachedBacktest(symbol, c5mFull, c15mFull, c1hFull, funding.rate);
 
     // 캔들 차트(EMA20/60 오버레이) — 5m/15m/1H 각 최근 60봉
     const buildChart = (candles: Candle[]) => {
@@ -417,6 +573,37 @@ export async function GET(req: NextRequest) {
       fearGreed, kimchiPct: kimchi?.premiumPct ?? null,
     });
 
+    // 수급 정밀 드라이버 추가 (주문흐름·OI — 연구상 단기 예측력 상위 신호라 앞에 배치)
+    if (takerDivergence === 'bearish') movement.drivers.unshift({ text: '가격 상승 중인데 공격적 매수(테이커) 감소 — 주문흐름 다이버전스, 상승 동력 약화 신호', tone: 'down' });
+    else if (takerDivergence === 'bullish') movement.drivers.unshift({ text: '가격 하락 중인데 공격적 매도(테이커) 감소 — 매도 소진, 반등 시도 가능', tone: 'up' });
+    else if (takerRatio !== null && (takerRatio >= 1.4 || takerRatio <= 0.7)) {
+      movement.drivers.unshift({
+        text: `최근 30분 테이커 매수/매도 ${takerRatio.toFixed(2)} — 시장가 ${takerRatio >= 1.4 ? '매수' : '매도'} 공세가 가격을 미는 중`,
+        tone: takerRatio >= 1.4 ? 'up' : 'down',
+      });
+    }
+    if (oiChange1hPct !== null && Math.abs(oiChange1hPct) >= 0.3 && Math.abs(pChg12) >= 0.15) {
+      const oiUp = oiChange1hPct > 0, pUp = pChg12 > 0;
+      const label = pUp && oiUp ? '신규 롱 자금 유입' : pUp && !oiUp ? '숏커버(청산성 상승) — 연료 부족 주의' : !pUp && oiUp ? '신규 숏 자금 유입' : '롱 포지션 정리(청산성 하락)';
+      movement.drivers.push({
+        text: `1시간 OI ${oiChange1hPct > 0 ? '+' : ''}${oiChange1hPct.toFixed(2)}% × 가격 ${pChg12 >= 0 ? '+' : ''}${pChg12.toFixed(2)}% — ${label}`,
+        tone: (pUp && oiUp) ? 'up' : (!pUp && oiUp) ? 'down' : 'warn',
+      });
+    }
+    if (positionLS.latest !== null && longShort.latest && Math.abs(longShort.latest.ratio - positionLS.latest) >= 0.5) {
+      const gap = longShort.latest.ratio - positionLS.latest;
+      movement.drivers.push({
+        text: `계정 롱숏 ${longShort.latest.ratio.toFixed(2)} vs 포지션 금액 ${positionLS.latest.toFixed(2)} — ${gap > 0 ? '개미 롱·큰손 중립(하락 시 청산 연료)' : '개미 숏·큰손 롱(상승 스퀴즈 여지)'}`,
+        tone: 'warn',
+      });
+    }
+    if (event) {
+      movement.drivers.push({
+        text: `${event.title} ${event.hoursUntil <= 0 ? '직후 변동성 구간' : `약 ${Math.round(event.hoursUntil)}시간 후`} — 이벤트 전후 방향성 신호 신뢰도 하락`,
+        tone: 'warn',
+      });
+    }
+
     // AI 브리핑용 요약 문자열
     const tfSummary = [h1, m15, m5].map((tf: TimeframeAnalysis) =>
       `[${tf.tf}] 구조:${tf.structure} EMA:${tf.emaAlign} RSI:${tf.rsi.toFixed(0)} ` +
@@ -432,7 +619,12 @@ export async function GET(req: NextRequest) {
       `15분 ${pct15m >= 0 ? '+' : ''}${pct15m.toFixed(2)}% / 1시간 ${pct1h >= 0 ? '+' : ''}${pct1h.toFixed(2)}% / 24시간 ${pct24h >= 0 ? '+' : ''}${pct24h.toFixed(2)}%\n` +
       movement.drivers.map((d) => `- ${d.text}`).join('\n') +
       (fearGreed ? `\n공포탐욕지수: ${fearGreed.value}(${fearGreed.label})` : '') +
-      (kimchi ? `\n김치 프리미엄: ${kimchi.premiumPct >= 0 ? '+' : ''}${kimchi.premiumPct.toFixed(2)}%` : '');
+      (kimchi ? `\n김치 프리미엄: ${kimchi.premiumPct >= 0 ? '+' : ''}${kimchi.premiumPct.toFixed(2)}%` : '') +
+      (takerRatio !== null ? `\n테이커 매수/매도(30분): ${takerRatio.toFixed(2)}${takerDivergence ? ` (${takerDivergence === 'bearish' ? '약세' : '강세'} 다이버전스)` : ''}` : '') +
+      (oiChange1hPct !== null ? `\nOI 1시간 변화: ${oiChange1hPct > 0 ? '+' : ''}${oiChange1hPct.toFixed(2)}%` : '') +
+      (dominance ? `\nBTC 도미넌스: ${dominance.btc.toFixed(1)}%` : '') +
+      (dvol ? `\nBTC DVOL(옵션 내재변동성): ${dvol.value.toFixed(1)}${dvol.change24h !== null ? ` (24h ${dvol.change24h > 0 ? '+' : ''}${dvol.change24h.toFixed(1)})` : ''}` : '') +
+      (event ? `\n임박 이벤트: ${event.title} (약 ${Math.round(event.hoursUntil)}시간 후)` : '');
 
     const ai = await aiBriefing(symbol, coin.name, price, verdictSummary, tfSummary, news.map((n) => n.title), moveSummary);
 
@@ -461,6 +653,13 @@ export async function GET(req: NextRequest) {
       fearGreed,
       kimchi,
       fundingHistory: fundingHist,
+      taker: { ratio: takerRatio, divergence: takerDivergence, flow: takerFlow.slice(-12) },
+      oi: { change1hPct: oiChange1hPct, history: oiHist.slice(-24) },
+      positionLS: { latest: positionLS.latest },
+      dvol,
+      dominance,
+      event,
+      backtest,
       verdict,
       news: newsTagged,
       aiBriefing: ai.text ?? null,

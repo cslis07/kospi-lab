@@ -49,6 +49,19 @@ interface AnalysisData {
   fearGreed: { value: number; label: string; prev: number | null } | null;
   kimchi: { premiumPct: number; upbitKrw: number; usdKrw: number } | null;
   fundingHistory: { ts: number; rate: number }[];
+  taker: { ratio: number | null; divergence: 'bullish' | 'bearish' | null; flow: { ts: number; buy: number; sell: number }[] };
+  oi: { change1hPct: number | null; history: { ts: number; oi: number }[] };
+  positionLS: { latest: number | null };
+  dvol: { value: number; change24h: number | null } | null;
+  dominance: { btc: number; eth: number; mcapChange24h: number } | null;
+  event: { title: string; hoursUntil: number; date: string } | null;
+  backtest: {
+    fromTs: number; toTs: number; spanHours: number;
+    signals: number; wins: number; losses: number; open: number;
+    winRate: number | null; avgR: number | null;
+    longSignals: number; shortSignals: number;
+    trades: { ts: number; direction: 'long' | 'short'; score: number; entry: number; stop: number; target: number; result: 'win' | 'loss'; bars: number }[];
+  };
   verdict: {
     state: string; score: number; direction: 'long' | 'short' | 'wait';
     entryOk: boolean; entryNote: string;
@@ -198,6 +211,29 @@ export default function CoinAnalysisPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.symbol, data?.updatedAt]);
 
+  // 매매일지 자동 채점: 열려있는 기록의 손절/1차 익절 중 무엇이 먼저 닿았는지 캔들로 판정
+  useEffect(() => {
+    if (!data || data.error || !data.charts) return;
+    const open = journal.entries.filter((e) => e.symbol === data.symbol && e.result === 'open' && e.direction !== 'wait');
+    for (const e of open) {
+      // 기록 시점을 커버하는 가장 정밀한 시리즈 선택 (5m→15m→1H)
+      const series = [data.charts.m5, data.charts.m15, data.charts.h1].find((s) => s.length && s[0].ts <= e.ts);
+      if (!series) continue;
+      let result: 'win' | 'loss' | null = null;
+      for (const c of series) {
+        if (c.ts <= e.ts) continue;
+        const hitStop = e.direction === 'long' ? c.l <= e.stop : c.h >= e.stop;
+        const hitT1 = e.direction === 'long' ? c.h >= e.target1 : c.l <= e.target1;
+        if (hitStop) { result = 'loss'; break; }  // 동시 도달 → 보수적 손실
+        if (hitT1) { result = 'win'; break; }
+      }
+      if (result) {
+        journal.update(e.id, { result, resultR: result === 'win' ? 1 : -1, memo: '자동판정' });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.symbol, data?.updatedAt, journal.entries.length]);
+
   const nextFundingMin = useMemo(() => {
     if (!data?.funding?.nextTs) return null;
     return Math.max(0, Math.round((data.funding.nextTs - Date.now()) / 60000));
@@ -304,6 +340,21 @@ export default function CoinAnalysisPage() {
 
       {data && !data.error && v && (
         <div className="space-y-4">
+          {/* 임박 경제 이벤트 경고 */}
+          {data.event && (
+            <div className={`flex items-center gap-2.5 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+              data.event.hoursUntil <= 12
+                ? 'border-red-500/40 bg-red-500/10 text-red-400'
+                : 'border-amber-500/30 bg-amber-500/5 text-amber-400'
+            }`}>
+              <span className="text-lg">🚨</span>
+              <span>
+                {data.event.title} — {data.event.hoursUntil <= 0 ? '발표 직후 변동성 구간' : `약 ${Math.round(data.event.hoursUntil)}시간 후`}
+                {data.event.hoursUntil <= 12 && ' · 신규 진입 자동 차단 중 (이벤트 통과 후 재평가)'}
+              </span>
+            </div>
+          )}
+
           {/* 헤더: 가격·파생 지표 */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
             <div className="flex flex-wrap items-start gap-x-8 gap-y-3">
@@ -345,6 +396,28 @@ export default function CoinAnalysisPage() {
                   {data.kimchi ? (
                     <p className={`font-bold tabular-nums ${Math.abs(data.kimchi.premiumPct) >= 2 ? 'text-amber-400' : 'text-[var(--text)]'}`}>
                       {data.kimchi.premiumPct >= 0 ? '+' : ''}{data.kimchi.premiumPct.toFixed(2)}%
+                    </p>
+                  ) : <p className="font-bold text-[var(--text-muted)]">-</p>}
+                </div>
+                <div><p className="text-[var(--text-muted)]">BTC 변동성(DVOL)</p>
+                  {data.dvol ? (
+                    <p className={`font-bold tabular-nums ${data.dvol.change24h !== null && data.dvol.change24h >= 5 ? 'text-amber-400' : 'text-[var(--text)]'}`}>
+                      {data.dvol.value.toFixed(1)}
+                      {data.dvol.change24h !== null && (
+                        <span className={`ml-1 text-[10px] font-normal ${data.dvol.change24h >= 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                          {data.dvol.change24h >= 0 ? '+' : ''}{data.dvol.change24h.toFixed(1)}
+                        </span>
+                      )}
+                    </p>
+                  ) : <p className="font-bold text-[var(--text-muted)]">-</p>}
+                </div>
+                <div><p className="text-[var(--text-muted)]">BTC 도미넌스</p>
+                  {data.dominance ? (
+                    <p className="font-bold tabular-nums text-[var(--text)]">
+                      {data.dominance.btc.toFixed(1)}%
+                      <span className={`ml-1 text-[10px] font-normal ${data.dominance.mcapChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        시총 {data.dominance.mcapChange24h >= 0 ? '+' : ''}{data.dominance.mcapChange24h.toFixed(1)}%
+                      </span>
                     </p>
                   ) : <p className="font-bold text-[var(--text-muted)]">-</p>}
                 </div>
@@ -547,6 +620,98 @@ export default function CoinAnalysisPage() {
             <TFCard tf={{ ...data.timeframes.m5, tf: '5m' }} />
           </div>
 
+          {/* 수급 정밀 + 백테스트 성적표 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* 파생 수급 정밀 */}
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+              <h3 className="text-sm font-bold text-[var(--text)] mb-3">파생 수급 정밀 <span className="text-[10px] font-normal text-[var(--text-muted)]">주문흐름·OI·포지셔닝</span></h3>
+              <div className="space-y-3">
+                {/* 테이커 매수/매도 게이지 */}
+                <div>
+                  <div className="flex justify-between text-[10px] mb-1">
+                    <span className="text-[var(--text-muted)]">테이커 매수/매도 (최근 30분)</span>
+                    <span className={`font-bold tabular-nums ${
+                      data.taker.ratio === null ? 'text-[var(--text-muted)]' : data.taker.ratio >= 1.2 ? 'text-emerald-400' : data.taker.ratio <= 0.85 ? 'text-red-400' : 'text-[var(--text)]'
+                    }`}>{data.taker.ratio?.toFixed(2) ?? '-'}</span>
+                  </div>
+                  {data.taker.ratio !== null && (
+                    <div className="flex h-2 rounded-full overflow-hidden">
+                      <div className="bg-emerald-500/70" style={{ width: `${(data.taker.ratio / (1 + data.taker.ratio)) * 100}%` }} />
+                      <div className="bg-red-500/70" style={{ width: `${(1 / (1 + data.taker.ratio)) * 100}%` }} />
+                    </div>
+                  )}
+                  {data.taker.divergence && (
+                    <p className={`text-[10px] mt-1 font-semibold ${data.taker.divergence === 'bearish' ? 'text-red-400' : 'text-emerald-400'}`}>
+                      ⚡ 주문흐름 {data.taker.divergence === 'bearish' ? '약세' : '강세'} 다이버전스 감지
+                    </p>
+                  )}
+                </div>
+                {/* OI */}
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-[var(--text-muted)]">미결제약정 1시간 변화</span>
+                  <span className={`font-bold tabular-nums ${
+                    data.oi.change1hPct === null ? 'text-[var(--text-muted)]' : data.oi.change1hPct >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}>{data.oi.change1hPct !== null ? `${data.oi.change1hPct >= 0 ? '+' : ''}${data.oi.change1hPct.toFixed(2)}%` : '-'}</span>
+                </div>
+                {/* 포지션 vs 계정 */}
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-[var(--text-muted)]">계정 롱숏 vs 포지션 금액</span>
+                  <span className="font-bold tabular-nums text-[var(--text)]">
+                    {data.longShort.latest?.ratio.toFixed(2) ?? '-'} <span className="text-[var(--text-dim)]">vs</span> {data.positionLS.latest?.toFixed(2) ?? '-'}
+                  </span>
+                </div>
+                {data.longShort.latest && data.positionLS.latest !== null && Math.abs(data.longShort.latest.ratio - data.positionLS.latest) >= 0.5 && (
+                  <p className="text-[10px] text-amber-400">
+                    {data.longShort.latest.ratio > data.positionLS.latest
+                      ? '⚠ 개미는 롱 쏠림, 큰손(금액)은 중립 — 하락 시 개미 롱이 청산 연료가 될 수 있음'
+                      : '⚠ 개미는 숏 쏠림, 큰손(금액)은 롱 우위 — 상승 스퀴즈 여지'}
+                  </p>
+                )}
+                <p className="text-[10px] text-[var(--text-muted)] opacity-60">테이커·포지션: Bitget / OI: Bybit — 주문흐름 불균형은 단기 가격 변동의 주 요인(학술 근거)</p>
+              </div>
+            </div>
+
+            {/* 룰 엔진 성적표 (백테스트) */}
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+              <h3 className="text-sm font-bold text-[var(--text)] mb-1">룰 엔진 성적표 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 {Math.round(data.backtest.spanHours)}시간 자동 백테스트</span></h3>
+              <p className="text-[10px] text-[var(--text-muted)] mb-3">과거 캔들에서 진입 신호 발생 시 1R 익절 vs 손절 판정 (수수료 미반영·보수적 동시도달 처리)</p>
+              {data.backtest.signals === 0 ? (
+                <p className="text-xs text-[var(--text-muted)] py-3 text-center">이 기간 진입 조건을 충족한 신호가 없습니다 — 엔진이 관망을 유지한 구간</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {[
+                      { k: '신호', v: String(data.backtest.signals), cls: 'text-[var(--text)]' },
+                      { k: '승률', v: data.backtest.winRate !== null ? `${data.backtest.winRate.toFixed(0)}%` : '-', cls: data.backtest.winRate !== null && data.backtest.winRate >= 50 ? 'text-emerald-400' : 'text-red-400' },
+                      { k: '기대값', v: data.backtest.avgR !== null ? `${data.backtest.avgR >= 0 ? '+' : ''}${data.backtest.avgR.toFixed(2)}R` : '-', cls: data.backtest.avgR !== null && data.backtest.avgR >= 0 ? 'text-emerald-400' : 'text-red-400' },
+                      { k: '롱/숏', v: `${data.backtest.longSignals}/${data.backtest.shortSignals}`, cls: 'text-[var(--text)]' },
+                    ].map((c) => (
+                      <div key={c.k} className="rounded-xl border border-[var(--border)] p-2 text-center">
+                        <p className="text-[10px] text-[var(--text-muted)]">{c.k}</p>
+                        <p className={`text-sm font-bold tabular-nums ${c.cls}`}>{c.v}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-1 max-h-28 overflow-y-auto">
+                    {data.backtest.trades.map((tr, i) => (
+                      <div key={i} className="flex items-center justify-between text-[10px] tabular-nums">
+                        <span className="text-[var(--text-muted)]">{new Date(tr.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className={tr.direction === 'long' ? 'text-emerald-400' : 'text-red-400'}>{tr.direction === 'long' ? '롱' : '숏'} ({tr.score > 0 ? '+' : ''}{tr.score})</span>
+                        <span className="text-[var(--text-muted)]">{(tr.bars * 5 / 60).toFixed(1)}h</span>
+                        <span className={`font-bold ${tr.result === 'win' ? 'text-emerald-400' : 'text-red-400'}`}>{tr.result === 'win' ? '+1R' : '-1R'}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-60">
+                    {data.backtest.winRate !== null && data.backtest.winRate < 45
+                      ? '⚠ 최근 장세에서 엔진 적중률이 낮습니다 — 신호를 보수적으로 해석하세요'
+                      : '표본이 짧으므로 절대 성능이 아닌 "최근 장세 적합도"로만 참고'}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+
           {/* 레벨: 지지저항 + 피보나치 + 계산기 */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
@@ -661,6 +826,9 @@ export default function CoinAnalysisPage() {
                           e.direction === 'long' ? 'bg-emerald-500/15 text-emerald-400' : e.direction === 'short' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'
                         }`}>{e.direction === 'long' ? '롱' : e.direction === 'short' ? '숏' : '관망'}</span>
                         <span className="text-[10px] text-[var(--text-muted)]">{e.state} · {e.score > 0 ? '+' : ''}{e.score}</span>
+                        {e.memo === '자동판정' && e.result !== 'open' && (
+                          <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-400">자동판정</span>
+                        )}
                         <span className="text-[10px] text-[var(--text-muted)]">{new Date(e.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                       <button onClick={() => journal.remove(e.id)} className="text-[10px] text-[var(--text-muted)] hover:text-red-400">삭제</button>

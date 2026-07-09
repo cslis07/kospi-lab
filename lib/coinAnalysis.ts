@@ -345,11 +345,27 @@ export function analyzeTimeframe(tf: string, candles: Candle[]): TimeframeAnalys
 }
 
 /* ── 종합 판단 (룰 엔진) ─────────────────────────────── */
+/** 추가 수급·이벤트 신호 (모두 선택적 — 백테스트에서는 생략) */
+export interface VerdictExtras {
+  /** 최근 30분 테이커 매수/매도 비율 (1보다 크면 매수 우위) */
+  takerRatio?: number | null;
+  /** 가격-주문흐름 다이버전스 */
+  takerDivergence?: 'bullish' | 'bearish' | null;
+  /** OI 1시간 변화율(%) — 가격 방향과 조합해 4분면 해석 */
+  oiChange1hPct?: number | null;
+  priceChange1hPct?: number | null;
+  /** 포지션 금액 기준 롱숏 비율 (계정 수 기준과의 격차 = 큰손 vs 개미) */
+  positionRatio?: number | null;
+  /** 임박한 고중요도 경제 이벤트 */
+  event?: { title: string; hoursUntil: number } | null;
+}
+
 export function buildVerdict(
   h1: TimeframeAnalysis, m15: TimeframeAnalysis, m5: TimeframeAnalysis,
   fundingRate: number, nextFundingTs: number | null,
   fib: FibLevels | null, zones: SRZone[],
   longShortRatio: number | null = null,
+  extras: VerdictExtras = {},
 ): Verdict {
   const price = m5.close;
   const reasons: string[] = [];
@@ -442,6 +458,49 @@ export function buildVerdict(
     }
   }
 
+  /* 5-2) 테이커 매수/매도 불균형 (주문 흐름 — 단기 예측력 연구 근거) */
+  if (extras.takerRatio !== null && extras.takerRatio !== undefined) {
+    if (extras.takerRatio >= 1.4) {
+      score += 6; reasons.push(`테이커 매수/매도 ${extras.takerRatio.toFixed(2)} — 공격적 매수세 우위(최근 30분)`);
+    } else if (extras.takerRatio <= 0.7) {
+      score -= 6; reasons.push(`테이커 매수/매도 ${extras.takerRatio.toFixed(2)} — 공격적 매도세 우위(최근 30분)`);
+    }
+  }
+  if (extras.takerDivergence === 'bearish') {
+    score -= 7; warnings.push('가격은 오르는데 공격적 매수 감소 — 주문흐름 다이버전스, 상승 동력 약화');
+  } else if (extras.takerDivergence === 'bullish') {
+    score += 7; warnings.push('가격은 내리는데 공격적 매도 감소 — 매도세 소진, 반등 가능');
+  }
+
+  /* 5-3) OI 4분면 해석 (가격 × 미결제약정 변화) */
+  if (extras.oiChange1hPct !== null && extras.oiChange1hPct !== undefined &&
+      extras.priceChange1hPct !== null && extras.priceChange1hPct !== undefined &&
+      Math.abs(extras.oiChange1hPct) >= 0.3 && Math.abs(extras.priceChange1hPct) >= 0.15) {
+    const oiUp = extras.oiChange1hPct > 0, pUp = extras.priceChange1hPct > 0;
+    if (pUp && oiUp)        { score += 6; reasons.push(`가격↑ + OI ${extras.oiChange1hPct.toFixed(1)}%↑ — 신규 롱 유입, 상승 신뢰도 높음`); }
+    else if (pUp && !oiUp)  { score -= 4; warnings.push(`가격↑ + OI ${extras.oiChange1hPct.toFixed(1)}%↓ — 숏커버 랠리, 연료 부족 주의`); }
+    else if (!pUp && oiUp)  { score -= 6; reasons.push(`가격↓ + OI ${Math.abs(extras.oiChange1hPct).toFixed(1)}%↑ — 신규 숏 유입, 하락 신뢰도 높음`); }
+    else                    { score += 4; warnings.push(`가격↓ + OI ${Math.abs(extras.oiChange1hPct).toFixed(1)}%↓ — 롱 청산성 하락, 소진 후 반등 여지`); }
+  }
+
+  /* 5-4) 큰손 vs 개미 포지셔닝 격차 */
+  if (extras.positionRatio !== null && extras.positionRatio !== undefined && longShortRatio !== null) {
+    const gap = longShortRatio - extras.positionRatio;
+    if (gap >= 0.5) {
+      warnings.push(`개미 계정은 롱 쏠림(${longShortRatio.toFixed(2)})인데 포지션 금액은 ${extras.positionRatio.toFixed(2)} — 큰손 중립/숏, 하락 시 개미 롱 청산 연료`);
+      score -= 4;
+    } else if (gap <= -0.5) {
+      warnings.push(`개미 계정은 숏 쏠림(${longShortRatio.toFixed(2)})인데 포지션 금액은 ${extras.positionRatio.toFixed(2)} — 큰손 롱 우위, 상승 스퀴즈 여지`);
+      score += 4;
+    }
+  }
+
+  /* 5-5) 경제 이벤트 임박 */
+  const eventBlock = !!extras.event && extras.event.hoursUntil <= 12;
+  if (extras.event) {
+    warnings.push(`⚠ ${extras.event.title} ${extras.event.hoursUntil <= 0 ? '오늘' : `약 ${Math.round(extras.event.hoursUntil)}시간 후`} — 이벤트 변동성 구간, 신규 진입 금지(교육자료 원칙)`);
+  }
+
   /* 6) 시장 상태 분류 */
   let state: string;
   const trendish = Math.abs(score) >= 30;
@@ -490,9 +549,10 @@ export function buildVerdict(
   /* 9) 진입 가능 판정 */
   const extremeVol = m15.atrPct >= 2.5;
   if (extremeVol) warnings.push(`15m ATR ${m15.atrPct.toFixed(2)}% — 변동성 과대, 포지션 축소 또는 관망`);
-  const entryOk = direction !== 'wait' && Math.abs(score) >= 45 && trigger && !nearFunding && !extremeVol;
+  const entryOk = direction !== 'wait' && Math.abs(score) >= 45 && trigger && !nearFunding && !extremeVol && !eventBlock;
   let entryNote: string;
-  if (direction === 'wait') entryNote = '방향 근거 부족 — 관망. 조건 충족까지 기다리는 것도 포지션입니다.';
+  if (eventBlock && direction !== 'wait') entryNote = `${extras.event!.title} 임박 — 이벤트 통과 후 재평가. 차트보다 변동성 이벤트가 우선입니다.`;
+  else if (direction === 'wait') entryNote = '방향 근거 부족 — 관망. 조건 충족까지 기다리는 것도 포지션입니다.';
   else if (!trigger) entryNote = `${direction === 'long' ? '롱' : '숏'} 우위지만 5m 트리거(꼬리·구조 돌파) 미확인 — 확인 후 진입.`;
   else if (nearFunding) entryNote = '펀딩 정산 직전 — 정산 후 재평가 권장.';
   else if (extremeVol) entryNote = '변동성 과대 구간 — 손절이 노이즈에 걸리기 쉬움.';
@@ -508,7 +568,7 @@ export function buildVerdict(
     { label: '캔들 반응(트리거)', pass: trigger, note: trigger ? '확인됨' : '미확인' },
     { label: '손절 위치', pass: stopPct <= 1.5, note: `${stopPct.toFixed(2)}% (ATR·구조 기반)` },
     { label: '손익비 1:1.5 이상', pass: true, note: '목표2 기준 1:1.5 설계' },
-    { label: '펀딩·이벤트 회피', pass: !nearFunding, note: minToFunding !== null ? `다음 펀딩 ${Math.max(0, Math.round(minToFunding))}분 후` : '-' },
+    { label: '펀딩·이벤트 회피', pass: !nearFunding && !eventBlock, note: eventBlock ? extras.event!.title : minToFunding !== null ? `다음 펀딩 ${Math.max(0, Math.round(minToFunding))}분 후` : '-' },
     { label: '변동성 적정', pass: !extremeVol, note: `15m ATR ${m15.atrPct.toFixed(2)}%` },
   ];
 
