@@ -330,12 +330,15 @@ export function buildStockVerdict(
   const stopPct = price > 0 ? (risk / price) * 100 : 0;
 
   /* 진입 판정 */
-  const strongSupply = !extras.supply || extras.supply.score >= 0; // 수급이 최소 중립 이상
+  // 수급은 한국 시장 핵심 신호다. 결측(네이버 수급 조회 실패·신규상장)을 중립으로
+  // 취급하면 검증되지 않은 종목이 매수 판정을 통과한다 → 결측은 진입 불가로 본다.
+  const strongSupply = !!extras.supply && extras.supply.score >= 0;
   const entryOk = stance === 'buy' && score >= 40 && strongSupply && posInRange < 0.97;
   let entryNote: string;
   if (stance === 'reduce') entryNote = '하락 추세·수급 이탈 — 신규 매수 부적합, 보유 시 비중축소 검토.';
   else if (stance === 'neutral') entryNote = '방향 근거 부족 — 관망. 수급 개선·추세 전환 확인 후 판단.';
-  else if (extras.supply && extras.supply.score < 0) entryNote = '기술적 매수우위지만 수급(외국인·기관)이 이탈 중 — 수급 개선 확인 후 진입.';
+  else if (!extras.supply) entryNote = '투자자 수급 데이터 없음 — 한국 시장 핵심 신호가 빠져 진입 판단 불가.';
+  else if (extras.supply.score < 0) entryNote = '기술적 매수우위지만 수급(외국인·기관)이 이탈 중 — 수급 개선 확인 후 진입.';
   else if (posInRange >= 0.97) entryNote = '52주 최고가 부근 — 눌림목 대기가 유리.';
   else if (!entryOk) entryNote = '매수우위지만 근거 강도 부족 — 분할·소액 접근.';
   else entryNote = '매수 근거 겹침 확인 — 분할 매수 + 손절 라인 설정 권장.';

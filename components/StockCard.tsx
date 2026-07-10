@@ -64,7 +64,7 @@ export default function StockCard({ ticker, name, market, usdRate, portfolio, al
   const { data, error, isLoading } = useSWR<StockData>(
     `/api/stock/${ticker}`,
     fetcher,
-    { refreshInterval: 5000, revalidateOnFocus: true }
+    { refreshInterval: 15000, dedupingInterval: 5000, revalidateOnFocus: true }
   );
 
   const prevPriceRef = useRef<number | null>(null);

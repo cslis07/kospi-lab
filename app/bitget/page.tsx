@@ -11,10 +11,12 @@ interface Asset {
   usdtValue: number;
 }
 interface AccountResp {
-  configured: boolean;
+  configured?: boolean;
   totalUsdt?: number;
   assets?: Asset[];
   error?: string;
+  /** middleware가 인증 없는 요청을 401로 막았을 때 */
+  locked?: boolean;
 }
 
 interface Bill {
@@ -97,8 +99,20 @@ export default function BitgetPage() {
         </div>
       )}
 
+      {/* 인증 안 됨 → 잠금 안내 */}
+      {data?.locked && (
+        <div className="rounded-2xl border border-sky-500/30 bg-sky-500/5 p-5">
+          <p className="text-sm font-semibold text-sky-400 mb-2">🔒 잠긴 페이지입니다</p>
+          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+            계좌 잔고는 본인만 볼 수 있습니다.{' '}
+            <code className="text-sky-400">/api/unlock?token=…</code> 를 한 번 방문해
+            이 브라우저를 인증하세요.
+          </p>
+        </div>
+      )}
+
       {/* 키 미설정 → 설정 안내 */}
-      {data && data.configured === false && (
+      {data && !data.locked && data.configured === false && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
             <p className="text-sm font-semibold text-amber-400 mb-2">🔑 API 키가 설정되지 않았습니다</p>

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rateLimit, clientIp } from '@/lib/rateLimit';
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY ?? '';
 
@@ -7,6 +8,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: 'ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다.' },
       { status: 503 }
+    );
+  }
+
+  // 인증은 middleware가 담당. 여기서는 인증된 클라이언트의 반복 호출로 인한 과금을 막는다.
+  const gate = rateLimit(`analyze:${clientIp(req)}`, 10, 60_000);
+  if (!gate.ok) {
+    return NextResponse.json(
+      { error: `요청이 너무 잦습니다. ${gate.retryAfter}초 후 다시 시도하세요.` },
+      { status: 429, headers: { 'retry-after': String(gate.retryAfter) } }
     );
   }
 
@@ -55,6 +65,7 @@ export async function POST(req: NextRequest) {
     const text = data?.content?.[0]?.text ?? '분석 결과를 가져올 수 없습니다.';
     return NextResponse.json({ analysis: text });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 502 });
+    console.error('[analyze]', e);
+    return NextResponse.json({ error: 'AI 분석을 가져오지 못했습니다.' }, { status: 502 });
   }
 }

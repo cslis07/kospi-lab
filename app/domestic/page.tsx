@@ -76,7 +76,8 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 type MarketFilter = 'all' | 'KOSPI' | 'KOSDAQ';
 
 export default function DomesticPage() {
-  const OPT = { refreshInterval: 5000 };
+  // 6청크 × 20종목을 5초마다 갱신하면 5초당 최대 240건이 네이버로 나간다.
+  const OPT = { refreshInterval: 15000, dedupingInterval: 5000, revalidateOnFocus: false };
   const { data: d0 } = useSWR<Record<string, StockData>>(C0 ? `/api/stock/batch?tickers=${C0}` : null, fetcher, OPT);
   const { data: d1 } = useSWR<Record<string, StockData>>(C1 ? `/api/stock/batch?tickers=${C1}` : null, fetcher, OPT);
   const { data: d2 } = useSWR<Record<string, StockData>>(C2 ? `/api/stock/batch?tickers=${C2}` : null, fetcher, OPT);
