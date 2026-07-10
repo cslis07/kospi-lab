@@ -14,15 +14,14 @@ export interface BriefingResult {
   error?: string;
 }
 
-/**
- * OAuth 토큰(sk-ant-oat…)은 x-api-key로 인증되지 않는다.
- * Authorization: Bearer + anthropic-beta 헤더를 써야 한다.
- */
-function authHeaders(key: string): Record<string, string> {
-  if (key.startsWith('sk-ant-oat')) {
-    return { authorization: `Bearer ${key}`, 'anthropic-beta': 'oauth-2025-04-20' };
+/** 크레딧 소진은 400 invalid_request_error로 오므로 사용자에게 그대로 보여주면 원인을 알 수 없다. */
+function friendlyError(status: number, body: string): string {
+  if (/credit balance is too low/i.test(body)) {
+    return 'AI 브리핑 비활성 — Anthropic 크레딧이 부족합니다. 룰 기반 분석만 표시됩니다.';
   }
-  return { 'x-api-key': key };
+  if (status === 401 || status === 403) return 'AI 브리핑 실패 — API 키 인증 오류.';
+  if (status === 429) return 'AI 브리핑 실패 — 요청 한도 초과. 잠시 후 다시 시도하세요.';
+  return `AI 브리핑 실패 (${status})`;
 }
 
 export async function claudeBriefing(
@@ -37,7 +36,7 @@ export async function claudeBriefing(
     const res = await fetch(ENDPOINT, {
       method: 'POST',
       headers: {
-        ...authHeaders(key),
+        'x-api-key': key,
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
       },
@@ -52,13 +51,7 @@ export async function claudeBriefing(
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       console.error(`[${tag}] Anthropic ${res.status}: ${body.slice(0, 600)}`);
-      let type = '';
-      try {
-        type = JSON.parse(body)?.error?.type ?? '';
-      } catch {
-        /* 본문이 JSON이 아니면 종류 없이 상태코드만 */
-      }
-      return { error: `AI 브리핑 실패 (${res.status}${type ? ` ${type}` : ''})` };
+      return { error: friendlyError(res.status, body) };
     }
 
     const json = await res.json();
