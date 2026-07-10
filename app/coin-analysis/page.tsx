@@ -195,11 +195,15 @@ export default function CoinAnalysisPage() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [chartTf, setChartTf] = useState<'m5' | 'm15' | 'h1'>('m5');
   const { model: aiModel, setModel: setAiModel, ready: modelReady } = useBriefingModel();
+  // symbol·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
+  const [run, setRun] = useState<{ symbol: string; model: string } | null>(null);
   const { data, isLoading, isValidating, mutate } = useSWR<AnalysisData>(
-    modelReady ? `/api/coin-analysis?symbol=${symbol}&model=${aiModel}` : null,
+    run ? `/api/coin-analysis?symbol=${run.symbol}&model=${run.model}` : null,
     fetcher,
-    { revalidateOnFocus: false, refreshInterval: autoRefresh ? 60000 : 0 },
+    { revalidateOnFocus: false, refreshInterval: run && autoRefresh ? 60000 : 0 },
   );
+  const dirty = !!run && (run.symbol !== symbol || run.model !== aiModel);
+  const analyze = () => { if (modelReady) setRun({ symbol, model: aiModel }); };
 
   const journal = useCoinJournal();
   const coinAlerts = useCoinAlerts();
@@ -243,7 +247,9 @@ export default function CoinAnalysisPage() {
   }, [data]);
 
   const priceDigits = data && data.price < 10 ? 4 : data && data.price < 1000 ? 2 : 1;
-  const alertRule = coinAlerts.rules[symbol];
+  // 알림은 분석된 심볼(data.symbol)로 발동한다. 선택만 바꾼 상태에서 규칙이 어긋나지 않도록 맞춘다.
+  const alertSymbol = data?.symbol ?? symbol;
+  const alertRule = coinAlerts.rules[alertSymbol];
 
   const saveToJournal = () => {
     if (!data || !v) return;
@@ -261,9 +267,9 @@ export default function CoinAnalysisPage() {
       if (p !== 'granted') return;
     }
     if (kind === 'entry') {
-      coinAlerts.setRule(symbol, { onEntryOk: !alertRule?.onEntryOk });
+      coinAlerts.setRule(alertSymbol, { onEntryOk: !alertRule?.onEntryOk });
     } else {
-      coinAlerts.setRule(symbol, { onDirection: alertRule?.onDirection === kind ? null : kind });
+      coinAlerts.setRule(alertSymbol, { onDirection: alertRule?.onDirection === kind ? null : kind });
     }
   };
 
@@ -286,27 +292,53 @@ export default function CoinAnalysisPage() {
             </button>
           ))}
         </div>
+        <button onClick={analyze} disabled={!modelReady || isValidating}
+          className={`px-3 py-1.5 rounded-xl border text-xs font-semibold disabled:opacity-50 ${
+            !run || dirty ? 'bg-sky-500/20 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)]'
+          }`}>
+          {isValidating ? '분석 중…' : '분석'}
+        </button>
         <div className="ml-auto flex items-center gap-2">
           {data && !data.error && (
             <span className="text-[10px] text-[var(--text-muted)]">{timeAgo(data.updatedAt)} 분석</span>
           )}
-          <button onClick={() => setAutoRefresh((v) => !v)}
-            className={`px-3 py-1.5 rounded-xl border text-xs transition-colors ${
+          <button onClick={() => setAutoRefresh((v) => !v)} disabled={!run}
+            className={`px-3 py-1.5 rounded-xl border text-xs transition-colors disabled:opacity-50 ${
               autoRefresh ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
             }`}>
             {autoRefresh ? '● 자동 1분' : '○ 자동갱신'}
           </button>
-          <button onClick={() => mutate()} disabled={isValidating}
+          <button onClick={() => mutate()} disabled={!run || isValidating}
             className="px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs text-[var(--text)] hover:border-[var(--border-hover)] disabled:opacity-50 transition-colors">
             {isValidating ? '분석 중…' : '⟳ 재분석'}
           </button>
         </div>
       </div>
 
+      {/* 아직 실행 전 */}
+      {!run && !isValidating && (
+        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-card)] p-12 text-center">
+          <p className="text-3xl mb-3">🪙</p>
+          <p className="text-sm font-semibold text-[var(--text)] mb-1">
+            코인을 고르고 <span className="text-sky-400">분석</span> 버튼을 누르세요
+          </p>
+          <p className="text-xs text-[var(--text-muted)]">
+            페이지를 열 때 자동으로 실행되지 않습니다. 캔들·파생 수급 수집과 AI 브리핑 호출을 아끼기 위해서입니다.
+          </p>
+        </div>
+      )}
+
+      {/* 실행 후 선택이 바뀐 상태 */}
+      {dirty && !isValidating && (
+        <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-xs text-amber-400">
+          선택이 바뀌었습니다 — 아래 결과는 이전 분석입니다. <strong>분석</strong> 버튼을 다시 누르세요.
+        </div>
+      )}
+
       {/* 알림 설정 바 */}
       {data && !data.error && (
         <div className="flex flex-wrap items-center gap-2 mb-4 text-xs">
-          <span className="text-[var(--text-muted)]">🔔 {COINS.find((c) => c.symbol === symbol)?.short} 알림:</span>
+          <span className="text-[var(--text-muted)]">🔔 {COINS.find((c) => c.symbol === alertSymbol)?.short} 알림:</span>
           <button onClick={() => toggleAlert('entry')}
             className={`px-2.5 py-1 rounded-lg border transition-colors ${
               alertRule?.onEntryOk ? 'bg-sky-500/15 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'

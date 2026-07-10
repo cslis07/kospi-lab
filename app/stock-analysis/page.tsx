@@ -84,15 +84,19 @@ function StanceBadge({ stance }: { stance: 'buy' | 'neutral' | 'reduce' }) {
 }
 
 export default function StockAnalysisPage() {
+  // ticker·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
   const [ticker, setTicker] = useState('005930');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const { model: aiModel, setModel: setAiModel, ready: modelReady } = useBriefingModel();
+  const [run, setRun] = useState<{ ticker: string; model: string } | null>(null);
 
   const { data, isLoading, isValidating, mutate } = useSWR<Data>(
-    modelReady ? `/api/stock-analysis?ticker=${ticker}&model=${aiModel}` : null, fetcher,
-    { revalidateOnFocus: false, refreshInterval: autoRefresh ? 60000 : 0 },
+    run ? `/api/stock-analysis?ticker=${run.ticker}&model=${run.model}` : null, fetcher,
+    { revalidateOnFocus: false, refreshInterval: run && autoRefresh ? 60000 : 0 },
   );
   const v = data?.verdict;
+  // 실행 이후 선택을 바꾸면 화면의 결과가 낡은 것이 된다
+  const dirty = !!run && (run.ticker !== ticker || run.model !== aiModel);
 
   // 종목명 자동완성
   const [query, setQuery] = useState('');
@@ -110,11 +114,21 @@ export default function StockAnalysisPage() {
       .slice(0, 8);
   }, [hits]);
 
+  // 드롭다운·프리셋 클릭은 '선택'만 한다 (실행은 분석 버튼)
   const pick = (code: string) => { setTicker(code); setQuery(''); setShowDrop(false); };
-  const submit = () => {
+
+  /** 검색어가 있으면 그 종목으로, 없으면 현재 선택된 종목으로 분석을 실행한다 */
+  const analyze = () => {
+    if (!modelReady) return;
     const t = query.trim();
-    if (/^\d{6}$/.test(t)) { pick(t); return; }
-    if (suggestions.length) pick(suggestions[0].code);
+    let code = ticker;
+    if (t) {
+      if (/^\d{6}$/.test(t)) code = t;
+      else if (suggestions.length) code = suggestions[0].code;
+      else return;
+      pick(code);
+    }
+    setRun({ ticker: code, model: aiModel });
   };
 
   const posInRange = useMemo(() => {
@@ -133,7 +147,7 @@ export default function StockAnalysisPage() {
               onChange={(e) => { setQuery(e.target.value); setShowDrop(true); }}
               onFocus={() => setShowDrop(true)}
               onBlur={() => setTimeout(() => setShowDrop(false), 150)}
-              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              onKeyDown={(e) => e.key === 'Enter' && analyze()}
               placeholder="종목명 또는 코드 (예: 삼성전자, 005930)"
               className="w-56 px-3 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-[var(--text)] outline-none focus:border-sky-500/50" />
             {showDrop && suggestions.length > 0 && (
@@ -148,7 +162,12 @@ export default function StockAnalysisPage() {
               </div>
             )}
           </div>
-          <button onClick={submit} className="px-3 py-1.5 rounded-xl bg-sky-500/20 text-sky-400 border border-sky-500/40 text-xs font-semibold">분석</button>
+          <button onClick={analyze} disabled={!modelReady || isValidating}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold disabled:opacity-50 ${
+              !run || dirty ? 'bg-sky-500/20 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)]'
+            }`}>
+            {isValidating ? '분석 중…' : '분석'}
+          </button>
         </div>
         <div className="flex gap-1 flex-wrap">
           {PRESETS.map((p) => (
@@ -160,14 +179,34 @@ export default function StockAnalysisPage() {
         </div>
         <div className="ml-auto flex items-center gap-2">
           {data && !data.error && <span className="text-[10px] text-[var(--text-muted)]">{new Date(data.updatedAt + 9 * 3600_000).toISOString().slice(11, 19)} 분석</span>}
-          <button onClick={() => setAutoRefresh((x) => !x)}
-            className={`px-3 py-1.5 rounded-xl border text-xs transition-colors ${autoRefresh ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'text-[var(--text-muted)] border-[var(--border)]'}`}>
+          <button onClick={() => setAutoRefresh((x) => !x)} disabled={!run}
+            className={`px-3 py-1.5 rounded-xl border text-xs transition-colors disabled:opacity-50 ${autoRefresh ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'text-[var(--text-muted)] border-[var(--border)]'}`}>
             {autoRefresh ? '● 자동 1분' : '○ 자동갱신'}
           </button>
-          <button onClick={() => mutate()} disabled={isValidating}
+          <button onClick={() => mutate()} disabled={!run || isValidating}
             className="px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs text-[var(--text)] disabled:opacity-50">{isValidating ? '분석 중…' : '⟳ 재분석'}</button>
         </div>
       </div>
+
+      {/* 아직 실행 전 */}
+      {!run && !isValidating && (
+        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-card)] p-12 text-center">
+          <p className="text-3xl mb-3">📈</p>
+          <p className="text-sm font-semibold text-[var(--text)] mb-1">
+            종목을 고르고 <span className="text-sky-400">분석</span> 버튼을 누르세요
+          </p>
+          <p className="text-xs text-[var(--text-muted)]">
+            페이지를 열 때 자동으로 실행되지 않습니다. 시세·공시·매크로 수집과 AI 브리핑 호출을 아끼기 위해서입니다.
+          </p>
+        </div>
+      )}
+
+      {/* 실행 후 선택이 바뀐 상태 */}
+      {dirty && !isValidating && (
+        <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-xs text-amber-400">
+          선택이 바뀌었습니다 — 아래 결과는 이전 분석입니다. <strong>분석</strong> 버튼을 다시 누르세요.
+        </div>
+      )}
 
       {(isLoading || (isValidating && !data)) && (
         <div className="space-y-4"><div className="h-40 rounded-2xl bg-white/5 animate-pulse" /><div className="grid grid-cols-3 gap-4">{[...Array(3)].map((_, i) => <div key={i} className="h-52 rounded-2xl bg-white/5 animate-pulse" />)}</div></div>
