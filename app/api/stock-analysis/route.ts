@@ -10,7 +10,7 @@ import {
 } from '@/lib/stockAnalysis';
 import { backtestStock, StockBacktestResult } from '@/lib/stockBacktest';
 import { fetchKisFinancialRatio } from '@/lib/kisFinance';
-import { claudeBriefing } from '@/lib/anthropic';
+import { claudeBriefing, resolveBriefingModel } from '@/lib/anthropic';
 import { cioViewFor, MUST_WATCH, MERRILL_CIO } from '@/lib/marketReference';
 import { fetchMacroIndicators } from '@/lib/macroIndicators';
 const MERRILL_SRC = `${MERRILL_CIO.source} ${MERRILL_CIO.date}`;
@@ -270,9 +270,10 @@ function buildMovement(name: string, candles: Candle[], supply: SupplyDemand | n
 
 /* ── AI 브리핑 (3분 캐시) ────────────────────────────── */
 const _aiCache = new Map<string, { text: string; ts: number }>();
-async function aiBriefing(name: string, ticker: string, summary: string, newsTitles: string[]) {
-  const hit = _aiCache.get(ticker);
-  if (hit && Date.now() - hit.ts < 3 * 60 * 1000) return { text: hit.text };
+async function aiBriefing(name: string, ticker: string, summary: string, newsTitles: string[], modelId: string) {
+  const cacheKey = `${ticker}:${modelId}`;
+  const hit = _aiCache.get(cacheKey);
+  if (hit && Date.now() - hit.ts < 3 * 60 * 1000) return { text: hit.text, model: modelId };
   const prompt = `당신은 한국 주식 분석 도우미입니다. 방법론: ①일봉 추세(EMA 배열) ②투자자 수급(외국인·기관 순매수가 한국 시장의 핵심) ③외국인 보유율 추세 ④거래량 ⑤52주 위치 ⑥밸류에이션은 안전마진 필터 ⑦메릴린치 CIO 업종의견(하향식) ⑧필수 경제지표(미국물가·엔화·원달러·반도체수출·가계부채). 개인은 공매도가 어려워 매수우위/중립/비중축소로 판단.
 
 ## ${name}(${ticker}) 현황
@@ -288,8 +289,8 @@ ${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(
 【업종·매크로】 메릴린치 CIO 업종 의견과 필수 경제지표(원달러·엔화·미국물가·반도체수출)가 이 종목에 주는 시사점 1~2문장.
 【종합 판단】 매수우위/중립/비중축소 + 근거 2문장.
 한국어. 마지막 줄에 "투자 권유가 아닌 참고 정보입니다."`;
-  const out = await claudeBriefing(prompt, 1100, 'stock-analysis');
-  if (out.text) _aiCache.set(ticker, { text: out.text, ts: Date.now() });
+  const out = await claudeBriefing(prompt, 1100, 'stock-analysis', modelId);
+  if (out.text) _aiCache.set(cacheKey, { text: out.text, ts: Date.now() });
   return out;
 }
 
@@ -298,6 +299,8 @@ export async function GET(req: NextRequest) {
   const ticker = (req.nextUrl.searchParams.get('ticker') ?? '').trim();
   if (!/^\d{6}$/.test(ticker)) return NextResponse.json({ error: '6자리 종목코드가 필요합니다.' }, { status: 400 });
   const origin = req.nextUrl.origin;
+  // 화이트리스트 밖의 값은 기본 모델로 수렴한다
+  const briefingModel = resolveBriefingModel(req.nextUrl.searchParams.get('model')).id;
 
   try {
     const basic = await fetchBasic(ticker);
@@ -384,7 +387,7 @@ export async function GET(req: NextRequest) {
       `${macroInd.realEstate ? `, 주택가격지수 ${macroInd.realEstate.value}(${macroInd.realEstate.change !== null ? `MoM ${macroInd.realEstate.change >= 0 ? '+' : ''}${macroInd.realEstate.change}%` : ''})` : ''}\n` +
       `판정: ${verdict.state} / 점수 ${verdict.score} / ${verdict.stance} / 진입가능 ${verdict.entryOk}\n` +
       `근거: ${verdict.reasons.slice(0, 5).join(' / ')}`;
-    const ai = await aiBriefing(basic.name, ticker, summary, news.map((n) => n.title));
+    const ai = await aiBriefing(basic.name, ticker, summary, news.map((n) => n.title), briefingModel);
 
     return NextResponse.json({
       ticker, name: basic.name, market: basic.market, updatedAt: Date.now(),
@@ -396,7 +399,7 @@ export async function GET(req: NextRequest) {
       supply, investor, fin, kospi, movement, verdict, backtest, news,
       disclosures, policy, cio, indicators,
       cioSource: MERRILL_SRC,
-      aiBriefing: ai.text ?? null, aiError: ai.error ?? null,
+      aiBriefing: ai.text ?? null, aiError: ai.error ?? null, aiModel: ai.model ?? briefingModel,
     });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 502 });

@@ -3,6 +3,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
 import CoinCandleChart, { ChartCandle } from '@/components/CoinCandleChart';
+import BriefingModelPicker from '@/components/BriefingModelPicker';
+import { useBriefingModel } from '@/hooks/useBriefingModel';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -50,7 +52,7 @@ interface Data {
     macro: { value: number; unit: string; label: string; change: number | null; changeLabel: string; source: string } | null;
     realEstate: { value: number; unit: string; label: string; change: number | null; changeLabel: string; source: string } | null;
   }[];
-  aiBriefing: string | null; aiError: string | null;
+  aiBriefing: string | null; aiError: string | null; aiModel?: string;
   error?: string;
 }
 interface SearchHit { code: string; name: string; market: string }
@@ -84,9 +86,10 @@ function StanceBadge({ stance }: { stance: 'buy' | 'neutral' | 'reduce' }) {
 export default function StockAnalysisPage() {
   const [ticker, setTicker] = useState('005930');
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const { model: aiModel, setModel: setAiModel, ready: modelReady } = useBriefingModel();
 
   const { data, isLoading, isValidating, mutate } = useSWR<Data>(
-    `/api/stock-analysis?ticker=${ticker}`, fetcher,
+    modelReady ? `/api/stock-analysis?ticker=${ticker}&model=${aiModel}` : null, fetcher,
     { revalidateOnFocus: false, refreshInterval: autoRefresh ? 60000 : 0 },
   );
   const v = data?.verdict;
@@ -293,7 +296,10 @@ export default function StockAnalysisPage() {
 
           {/* AI 브리핑 */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-            <h3 className="text-sm font-bold text-[var(--text)] mb-2">🤖 AI 종합 브리핑 <span className="text-[10px] font-normal text-[var(--text-muted)]">수급 + 뉴스</span></h3>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <h3 className="text-sm font-bold text-[var(--text)]">🤖 AI 종합 브리핑 <span className="text-[10px] font-normal text-[var(--text-muted)]">수급 + 뉴스</span></h3>
+              <BriefingModelPicker value={aiModel} onChange={setAiModel} busy={isValidating} />
+            </div>
             {data.aiBriefing ? (
               <div className="space-y-2.5">
                 {data.aiBriefing.split(/(?=【)/).filter((s) => s.trim()).map((sec, i) => {

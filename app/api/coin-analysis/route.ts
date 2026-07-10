@@ -7,7 +7,7 @@ import {
 import { backtestEngine, BacktestResult } from '@/lib/coinBacktest';
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 import { BITGET_BASE, fetchBitgetFuturesTickers } from '@/lib/bitget';
-import { claudeBriefing } from '@/lib/anthropic';
+import { claudeBriefing, resolveBriefingModel, BriefingResult } from '@/lib/anthropic';
 
 export const maxDuration = 30;
 // Bybit(OI)·업비트가 미국 데이터센터 IP를 차단하므로 이 라우트만 서울 리전에서 실행
@@ -418,10 +418,11 @@ const AI_TTL = 3 * 60 * 1000;
 async function aiBriefing(
   symbol: string, name: string, price: number,
   verdictSummary: string, tfSummary: string, newsTitles: string[],
-  moveSummary: string,
-): Promise<{ text?: string; error?: string }> {
-  const cached = _aiCache.get(symbol);
-  if (cached && Date.now() - cached.ts < AI_TTL) return { text: cached.text };
+  moveSummary: string, modelId: string,
+): Promise<BriefingResult> {
+  const cacheKey = `${symbol}:${modelId}`;
+  const cached = _aiCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < AI_TTL) return { text: cached.text, model: modelId };
 
   const prompt = `당신은 코인 선물 단타 교육 자료를 기반으로 차트를 해설하는 분석 도우미입니다.
 방법론: ①1시간봉 방향→15분봉 구조→5분봉 타이밍 순서 ②EMA/VWAP은 방향 필터 ③거래량 미동반 돌파 불신 ④RSI는 추세 내 눌림 확인용(30/70 역매매 금지) ⑤손절은 ATR·구조 기반, 레버리지는 낮게(2~5배) ⑥펀딩 쏠림은 체제 신호.
@@ -446,8 +447,8 @@ ${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(
 【진입 관점】 롱/숏/관망 + 조건 1~2문장.
 한국어로 작성하고, 마지막 줄에 "투자 권유가 아닌 참고 정보입니다." 한 문장을 추가.`;
 
-  const out = await claudeBriefing(prompt, 1000, 'coin-analysis');
-  if (out.text) _aiCache.set(symbol, { text: out.text, ts: Date.now() });
+  const out = await claudeBriefing(prompt, 1000, 'coin-analysis', modelId);
+  if (out.text) _aiCache.set(cacheKey, { text: out.text, ts: Date.now() });
   return out;
 }
 
@@ -458,6 +459,8 @@ export async function GET(req: NextRequest) {
   if (!coin) {
     return NextResponse.json({ error: `지원하지 않는 심볼: ${symbol}` }, { status: 400 });
   }
+  // 화이트리스트 밖의 값은 기본 모델로 수렴한다
+  const briefingModel = resolveBriefingModel(req.nextUrl.searchParams.get('model')).id;
 
   try {
     const [c1hFull, c15mFull, c5mFull, funding, tickers, news, longShort, fundingHist, fearGreed, takerFlow, positionLS, oiHist, dvol, dominance] = await Promise.all([
@@ -622,7 +625,7 @@ export async function GET(req: NextRequest) {
       (dvol ? `\nBTC DVOL(옵션 내재변동성): ${dvol.value.toFixed(1)}${dvol.change24h !== null ? ` (24h ${dvol.change24h > 0 ? '+' : ''}${dvol.change24h.toFixed(1)})` : ''}` : '') +
       (event ? `\n임박 이벤트: ${event.title} (약 ${Math.round(event.hoursUntil)}시간 후)` : '');
 
-    const ai = await aiBriefing(symbol, coin.name, price, verdictSummary, tfSummary, news.map((n) => n.title), moveSummary);
+    const ai = await aiBriefing(symbol, coin.name, price, verdictSummary, tfSummary, news.map((n) => n.title), moveSummary, briefingModel);
 
     return NextResponse.json({
       symbol,
@@ -660,6 +663,7 @@ export async function GET(req: NextRequest) {
       news: newsTagged,
       aiBriefing: ai.text ?? null,
       aiError: ai.error ?? null,
+      aiModel: ai.model ?? briefingModel,
     });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 502 });

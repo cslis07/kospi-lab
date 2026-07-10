@@ -5,6 +5,8 @@ import useSWR from 'swr';
 import CoinCandleChart, { ChartCandle } from '@/components/CoinCandleChart';
 import { useCoinJournal } from '@/hooks/useCoinJournal';
 import { useCoinAlerts } from '@/hooks/useCoinAlerts';
+import BriefingModelPicker from '@/components/BriefingModelPicker';
+import { useBriefingModel } from '@/hooks/useBriefingModel';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -71,7 +73,7 @@ interface AnalysisData {
     checklist: { label: string; pass: boolean; note: string }[];
   };
   news: { title: string; link: string; source: string; pubDate: string; sentiment: 'pos' | 'neg' | 'neu' }[];
-  aiBriefing: string | null; aiError: string | null;
+  aiBriefing: string | null; aiError: string | null; aiModel?: string;
   error?: string;
 }
 
@@ -192,8 +194,9 @@ export default function CoinAnalysisPage() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [chartTf, setChartTf] = useState<'m5' | 'm15' | 'h1'>('m5');
+  const { model: aiModel, setModel: setAiModel, ready: modelReady } = useBriefingModel();
   const { data, isLoading, isValidating, mutate } = useSWR<AnalysisData>(
-    `/api/coin-analysis?symbol=${symbol}`,
+    modelReady ? `/api/coin-analysis?symbol=${symbol}&model=${aiModel}` : null,
     fetcher,
     { revalidateOnFocus: false, refreshInterval: autoRefresh ? 60000 : 0 },
   );
@@ -594,7 +597,10 @@ export default function CoinAnalysisPage() {
 
           {/* AI 브리핑 */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-            <h3 className="text-sm font-bold text-[var(--text)] mb-2">🤖 AI 종합 브리핑 <span className="text-[10px] font-normal text-[var(--text-muted)]">차트 + 뉴스 동향</span></h3>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <h3 className="text-sm font-bold text-[var(--text)]">🤖 AI 종합 브리핑 <span className="text-[10px] font-normal text-[var(--text-muted)]">차트 + 뉴스 동향</span></h3>
+              <BriefingModelPicker value={aiModel} onChange={setAiModel} busy={isValidating} />
+            </div>
             {data.aiBriefing ? (
               <div className="space-y-2.5">
                 {data.aiBriefing.split(/(?=【)/).filter((s) => s.trim()).map((sec, i) => {
