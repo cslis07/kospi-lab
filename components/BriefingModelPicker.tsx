@@ -25,6 +25,8 @@ export default function BriefingModelPicker({ value, onChange, busy = false }: P
             onClick={() => onChange(m.id)}
             disabled={busy || active}
             aria-pressed={active}
+            // 보이는 라벨이 접근성 이름 앞에 와야 음성 명령·스크린리더가 일치한다
+            aria-label={`${m.label} — ${m.hint}`}
             title={m.hint}
             className={[
               'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors',
