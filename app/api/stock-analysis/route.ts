@@ -10,6 +10,7 @@ import {
 } from '@/lib/stockAnalysis';
 import { backtestStock, StockBacktestResult } from '@/lib/stockBacktest';
 import { fetchKisFinancialRatio } from '@/lib/kisFinance';
+import { claudeBriefing } from '@/lib/anthropic';
 import { cioViewFor, MUST_WATCH, MERRILL_CIO } from '@/lib/marketReference';
 import { fetchMacroIndicators } from '@/lib/macroIndicators';
 const MERRILL_SRC = `${MERRILL_CIO.source} ${MERRILL_CIO.date}`;
@@ -270,8 +271,6 @@ function buildMovement(name: string, candles: Candle[], supply: SupplyDemand | n
 /* ── AI 브리핑 (3분 캐시) ────────────────────────────── */
 const _aiCache = new Map<string, { text: string; ts: number }>();
 async function aiBriefing(name: string, ticker: string, summary: string, newsTitles: string[]) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return { error: 'ANTHROPIC_API_KEY 미설정 — 룰 기반 분석만 표시됩니다.' };
   const hit = _aiCache.get(ticker);
   if (hit && Date.now() - hit.ts < 3 * 60 * 1000) return { text: hit.text };
   const prompt = `당신은 한국 주식 분석 도우미입니다. 방법론: ①일봉 추세(EMA 배열) ②투자자 수급(외국인·기관 순매수가 한국 시장의 핵심) ③외국인 보유율 추세 ④거래량 ⑤52주 위치 ⑥밸류에이션은 안전마진 필터 ⑦메릴린치 CIO 업종의견(하향식) ⑧필수 경제지표(미국물가·엔화·원달러·반도체수출·가계부채). 개인은 공매도가 어려워 매수우위/중립/비중축소로 판단.
@@ -289,19 +288,9 @@ ${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(
 【업종·매크로】 메릴린치 CIO 업종 의견과 필수 경제지표(원달러·엔화·미국물가·반도체수출)가 이 종목에 주는 시사점 1~2문장.
 【종합 판단】 매수우위/중립/비중축소 + 근거 2문장.
 한국어. 마지막 줄에 "투자 권유가 아닌 참고 정보입니다."`;
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 1100, messages: [{ role: 'user', content: prompt }] }),
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!res.ok) throw new Error(`Anthropic ${res.status}`);
-    const j = await res.json();
-    const text = j?.content?.[0]?.text ?? '';
-    if (text) _aiCache.set(ticker, { text, ts: Date.now() });
-    return { text };
-  } catch (e) { return { error: `AI 브리핑 실패: ${String(e).slice(0, 100)}` }; }
+  const out = await claudeBriefing(prompt, 1100, 'stock-analysis');
+  if (out.text) _aiCache.set(ticker, { text: out.text, ts: Date.now() });
+  return out;
 }
 
 /* ── 메인 ────────────────────────────────────────────── */

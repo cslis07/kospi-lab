@@ -7,6 +7,7 @@ import {
 import { backtestEngine, BacktestResult } from '@/lib/coinBacktest';
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 import { BITGET_BASE, fetchBitgetFuturesTickers } from '@/lib/bitget';
+import { claudeBriefing } from '@/lib/anthropic';
 
 export const maxDuration = 30;
 // Bybit(OI)·업비트가 미국 데이터센터 IP를 차단하므로 이 라우트만 서울 리전에서 실행
@@ -419,8 +420,6 @@ async function aiBriefing(
   verdictSummary: string, tfSummary: string, newsTitles: string[],
   moveSummary: string,
 ): Promise<{ text?: string; error?: string }> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return { error: 'ANTHROPIC_API_KEY 미설정 — 룰 기반 분석만 표시됩니다.' };
   const cached = _aiCache.get(symbol);
   if (cached && Date.now() - cached.ts < AI_TTL) return { text: cached.text };
 
@@ -447,29 +446,9 @@ ${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(
 【진입 관점】 롱/숏/관망 + 조건 1~2문장.
 한국어로 작성하고, 마지막 줄에 "투자 권유가 아닌 참고 정보입니다." 한 문장을 추가.`;
 
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!res.ok) throw new Error(`Anthropic ${res.status}`);
-    const data = await res.json();
-    const text = data?.content?.[0]?.text ?? '';
-    if (text) _aiCache.set(symbol, { text, ts: Date.now() });
-    return { text };
-  } catch (e) {
-    return { error: `AI 브리핑 실패: ${String(e).slice(0, 120)}` };
-  }
+  const out = await claudeBriefing(prompt, 1000, 'coin-analysis');
+  if (out.text) _aiCache.set(symbol, { text: out.text, ts: Date.now() });
+  return out;
 }
 
 /* ── 메인 핸들러 ─────────────────────────────────────── */
