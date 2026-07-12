@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import CoinCandleChart, { ChartCandle } from '@/components/CoinCandleChart';
 import { useCoinJournal } from '@/hooks/useCoinJournal';
@@ -10,6 +10,12 @@ import LivePriceTag from '@/components/LivePriceTag';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+interface ScanItem {
+  symbol: string; name: string; price: number;
+  score: number; direction: 'long' | 'short' | 'wait';
+  entryOk: boolean; state: string; stopPct: number; levAggressive: number;
+}
 
 /* ── 코인 목록 ────────────────────────────────────────── */
 const COINS = [
@@ -156,18 +162,48 @@ function TFCard({ tf }: { tf: TF }) {
   );
 }
 
-/* ── 포지션 계산기 ───────────────────────────────────── */
-function PositionCalc({ stopPct, levCons, levAggr }: { stopPct: number; levCons: number; levAggr: number }) {
+/* ── 리스크 패널 (포지션 사이징 + 청산가 + 펀딩) ──────── */
+const usd = (n: number, d = 1) => n.toLocaleString('en-US', { maximumFractionDigits: d });
+function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr, levMax, fundingRatePct, priceDigits }: {
+  entry: number; stop: number; stopPct: number; target1: number; target2: number;
+  direction: 'long' | 'short' | 'wait';
+  levAggr: number; levMax: number; fundingRatePct: number; priceDigits: number;
+}) {
   const [seed, setSeed] = useState('1000');
   const [riskPct, setRiskPct] = useState('1');
+  const [levInput, setLevInput] = useState<number | null>(null); // null = 권장(적극) 배율
   const s = parseFloat(seed) || 0;
   const r = parseFloat(riskPct) || 0;
+  const sliderMax = Math.max(1, Math.min(25, levMax));
+  const lev = Math.max(1, Math.min(levInput ?? levAggr, sliderMax));
+
   const notion = stopPct > 0 ? (s * r / 100) / (stopPct / 100) : 0;
+  const margin = notion / lev;
+  const lossAtStop = s * r / 100;
+
+  // 격리 청산가 근사 — 유지증거금률(MMR) 0.5% 가정. 거래소·티어별로 다르므로 근사치.
+  const MMR = 0.005;
+  const isShort = direction === 'short';
+  const liq = isShort ? entry * (1 + 1 / lev - MMR) : entry * (1 - 1 / lev + MMR);
+  const liqDistPct = entry > 0 ? (Math.abs(liq - entry) / entry) * 100 : 0;
+  const safety = stopPct > 0 ? liqDistPct / stopPct : 0;
+
+  const risk1 = Math.abs(entry - stop);
+  const rr1 = risk1 > 0 ? Math.abs(target1 - entry) / risk1 : 0;
+  const rr2 = risk1 > 0 ? Math.abs(target2 - entry) / risk1 : 0;
+
+  // 펀딩: 양수 레이트 = 롱이 숏에게 지불
+  const funding8h = notion * (fundingRatePct / 100);
+  const paysFunding = direction === 'wait' ? null : (direction === 'long' ? fundingRatePct > 0 : fundingRatePct < 0);
+
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-      <h3 className="text-sm font-bold text-[var(--text)] mb-1">포지션 사이징 계산기</h3>
-      <p className="text-[10px] text-[var(--text-muted)] mb-3">노션 = 시드 × 허용손실% ÷ 손절거리({stopPct.toFixed(2)}%)</p>
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      <h3 className="text-sm font-bold text-[var(--text)] mb-1">리스크 패널 <span className="text-[10px] font-normal text-[var(--text-muted)]">사이징 · 청산가 · 펀딩</span></h3>
+      <p className="text-[10px] text-[var(--text-muted)] mb-3">노션 = 시드 × 허용손실% ÷ 손절거리({stopPct.toFixed(2)}%) — 리스크는 손절거리가 결정, 레버리지는 증거금 효율만 바꿉니다.</p>
+      {direction === 'wait' && (
+        <p className="text-[10px] text-amber-400 mb-2">현재 판정은 관망 — 아래 수치는 롱 기준 참고용입니다.</p>
+      )}
+      <div className="grid grid-cols-2 gap-2 mb-2.5">
         <label className="text-xs text-[var(--text-muted)]">
           시드 (USDT)
           <input value={seed} onChange={(e) => setSeed(e.target.value)} inputMode="decimal"
@@ -179,13 +215,34 @@ function PositionCalc({ stopPct, levCons, levAggr }: { stopPct: number; levCons:
             className="mt-1 w-full px-2.5 py-1.5 text-sm bg-transparent border border-[var(--border)] rounded-lg text-[var(--text)] outline-none focus:border-sky-500/50 tabular-nums" />
         </label>
       </div>
+      <label className="block text-xs text-[var(--text-muted)] mb-2.5">
+        레버리지 <span className="font-bold text-[var(--text)]">{lev}배</span>
+        {levInput === null && <span className="text-[10px]"> (권장 적극 {levAggr}배)</span>}
+        <input type="range" min={1} max={sliderMax} step={1} value={lev}
+          onChange={(e) => setLevInput(Number(e.target.value))}
+          className="mt-1 w-full accent-sky-500" />
+      </label>
       <div className="space-y-1.5 text-xs">
-        <div className="flex justify-between"><span className="text-[var(--text-muted)]">적정 포지션 노션</span><span className="font-bold text-[var(--text)] tabular-nums">{notion.toLocaleString('en-US', { maximumFractionDigits: 0 })} USDT</span></div>
-        <div className="flex justify-between"><span className="text-[var(--text-muted)]">필요 증거금 ({levCons}배)</span><span className="font-semibold text-[var(--text)] tabular-nums">{levCons > 0 ? (notion / levCons).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '-'} USDT</span></div>
-        <div className="flex justify-between"><span className="text-[var(--text-muted)]">필요 증거금 ({levAggr}배)</span><span className="font-semibold text-[var(--text)] tabular-nums">{levAggr > 0 ? (notion / levAggr).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '-'} USDT</span></div>
-        <div className="flex justify-between"><span className="text-[var(--text-muted)]">손절 시 손실액</span><span className="font-semibold text-red-400 tabular-nums">-{(s * r / 100).toLocaleString('en-US', { maximumFractionDigits: 1 })} USDT</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">적정 포지션 노션</span><span className="font-bold text-[var(--text)] tabular-nums">{usd(notion, 0)} USDT</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">필요 증거금 ({lev}배)</span><span className="font-semibold text-[var(--text)] tabular-nums">{usd(margin, 0)} USDT</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">예상 청산가 (격리 근사)</span><span className={`font-semibold tabular-nums ${safety < 2 ? 'text-red-400' : 'text-[var(--text)]'}`}>${fmtP(liq, priceDigits)} ({isShort ? '+' : '-'}{liqDistPct.toFixed(2)}%)</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">청산여유 ÷ 손절거리</span><span className={`font-semibold tabular-nums ${safety < 2 ? 'text-red-400' : safety < 3 ? 'text-amber-400' : 'text-emerald-400'}`}>{safety.toFixed(1)}배</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">손절 시 손실</span><span className="font-semibold text-red-400 tabular-nums">-{usd(lossAtStop)} USDT</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">목표1 도달 시 (1:{rr1.toFixed(1)})</span><span className="font-semibold text-emerald-400 tabular-nums">+{usd(lossAtStop * rr1)} USDT</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">목표2 도달 시 (1:{rr2.toFixed(1)})</span><span className="font-semibold text-emerald-400 tabular-nums">+{usd(lossAtStop * rr2)} USDT</span></div>
+        {paysFunding !== null && Math.abs(funding8h) > 0.005 && (
+          <div className="flex justify-between">
+            <span className="text-[var(--text-muted)]">펀딩 (8시간마다)</span>
+            <span className={`font-semibold tabular-nums ${paysFunding ? 'text-red-400' : 'text-emerald-400'}`}>
+              {paysFunding ? '-' : '+'}{usd(Math.abs(funding8h), 2)} USDT {paysFunding ? '지불' : '수취'}
+            </span>
+          </div>
+        )}
       </div>
-      <p className="text-[10px] text-[var(--text-muted)] mt-2.5">리스크는 손절거리와 노션이 결정 — 레버리지는 증거금 효율만 바꿉니다.</p>
+      {safety < 2 && (
+        <p className="text-[10px] font-semibold text-red-400 mt-2.5">⚠ 청산선이 손절선의 {safety.toFixed(1)}배 거리 — 손절 전에 청산될 수 있습니다. 레버리지를 낮추세요.</p>
+      )}
+      <p className="text-[10px] text-[var(--text-muted)] mt-2">청산가는 유지증거금 0.5% 가정 근사치 — 실제는 거래소 티어·수수료에 따라 다릅니다. 주문 전 거래소 화면에서 확인하세요.</p>
     </div>
   );
 }
@@ -214,8 +271,39 @@ export default function CoinAnalysisPage() {
   );
   const liveTick = run ? liveMap?.[run.symbol] : undefined;
 
+  // 전체 스캔 — 4코인 룰엔진 신호 일괄 (버튼으로만 실행, 서버 3분 캐시)
+  const [scanOn, setScanOn] = useState(false);
+  const { data: scan, isValidating: scanning } = useSWR<{ items: ScanItem[]; updatedAt: number }>(
+    scanOn ? '/api/coin-scan' : null, fetcher, { revalidateOnFocus: false },
+  );
+
   const journal = useCoinJournal();
   const coinAlerts = useCoinAlerts();
+
+  // 포지션 감시 — 열린 매매일지 항목의 손절·목표 도달을 실시간가(5초)로 감시해 알림.
+  // 항목·레벨당 1회만 발사(세션 한정). 페이지가 열려 있을 때만 동작한다.
+  const watchFiredRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const p = liveTick?.price;
+    if (!p || !run) return;
+    const open = journal.entries.filter((e) => e.symbol === run.symbol && e.result === 'open' && e.direction !== 'wait');
+    for (const e of open) {
+      const long = e.direction === 'long';
+      const checks: Array<[string, boolean, string]> = [
+        ['stop', long ? p <= e.stop : p >= e.stop, `⚠ 손절선 도달 (${e.stop})`],
+        ['t1', long ? p >= e.target1 : p <= e.target1, `🎯 목표1 도달 (${e.target1})`],
+        ['t2', long ? p >= e.target2 : p <= e.target2, `🎯 목표2 도달 (${e.target2})`],
+      ];
+      for (const [k, hit, msg] of checks) {
+        const key = `${e.id}:${k}`;
+        if (hit && !watchFiredRef.current.has(key)) {
+          watchFiredRef.current.add(key);
+          coinAlerts.fire(`${e.name} ${msg}`, `기록가 ${e.price} → 현재 ${p} (${e.direction === 'long' ? '롱' : '숏'})`);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveTick?.price]);
 
   const v = data?.verdict;
 
@@ -307,6 +395,11 @@ export default function CoinAnalysisPage() {
           }`}>
           {isValidating ? '분석 중…' : '분석'}
         </button>
+        <button onClick={() => setScanOn(true)} disabled={scanning}
+          className="px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-50"
+          title="4개 코인의 룰 엔진 신호를 한 번에 비교 (뉴스·AI 제외 경량 스캔)">
+          {scanning ? '스캔 중…' : '⚡ 전체 스캔'}
+        </button>
         <div className="ml-auto flex items-center gap-2">
           {data && !data.error && (
             <span className="text-[10px] text-[var(--text-muted)]">{timeAgo(data.updatedAt)} 분석</span>
@@ -323,6 +416,36 @@ export default function CoinAnalysisPage() {
           </button>
         </div>
       </div>
+
+      {/* 전체 스캔 스트립 — 어떤 코인이 지금 신호가 강한가 */}
+      {scanOn && scan?.items && scan.items.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+          {scan.items.map((it) => {
+            const dirColor = it.direction === 'long' ? 'text-emerald-400' : it.direction === 'short' ? 'text-red-400' : 'text-[var(--text-muted)]';
+            const dirLabel = it.direction === 'long' ? '롱' : it.direction === 'short' ? '숏' : '관망';
+            return (
+              <button key={it.symbol} onClick={() => setSymbol(it.symbol)}
+                className={`rounded-xl border p-2.5 text-left transition-colors hover:border-sky-500/40 ${
+                  symbol === it.symbol ? 'border-sky-500/40 bg-sky-500/5' : 'border-[var(--border)] bg-[var(--bg-card)]'
+                }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[var(--text)]">{it.name}</span>
+                  <span className={`text-[10px] font-bold ${dirColor}`}>{dirLabel}{it.entryOk ? ' ●' : ''}</span>
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[10px] text-[var(--text-muted)]">{it.state}</span>
+                  <span className={`text-xs font-bold tabular-nums ${it.score > 0 ? 'text-emerald-400' : it.score < 0 ? 'text-red-400' : 'text-[var(--text-muted)]'}`}>
+                    {it.score > 0 ? '+' : ''}{it.score}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+          <p className="col-span-2 sm:col-span-4 text-[10px] text-[var(--text-muted)]">
+            기술적 신호만 비교한 경량 스캔 (수급·뉴스·이벤트 제외) · ● = 진입조건 충족 · 코인을 클릭해 선택 후 <strong>분석</strong>으로 정밀 판정
+          </p>
+        </div>
+      )}
 
       {/* 아직 실행 전 */}
       {!run && !isValidating && (
@@ -363,7 +486,12 @@ export default function CoinAnalysisPage() {
           {coinAlerts.permission === 'denied' && (
             <span className="text-[10px] text-amber-400">브라우저 알림이 차단되어 있습니다</span>
           )}
-          <span className="text-[10px] text-[var(--text-muted)]">· 페이지 열린 상태 + 자동갱신에서 동작</span>
+          <span className="text-[10px] text-[var(--text-muted)]">· 페이지 열린 상태에서 동작</span>
+          {journal.entries.some((e) => e.symbol === alertSymbol && e.result === 'open' && e.direction !== 'wait') && (
+            <span className="text-[10px] text-sky-400">
+              📡 포지션 감시 중 — 열린 기록의 손절·목표 도달 시 알림 (실시간가 5초)
+            </span>
+          )}
         </div>
       )}
 
@@ -727,8 +855,22 @@ export default function CoinAnalysisPage() {
 
             {/* 룰 엔진 성적표 (백테스트) */}
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-              <h3 className="text-sm font-bold text-[var(--text)] mb-1">룰 엔진 성적표 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 {Math.round(data.backtest.spanHours)}시간 자동 백테스트</span></h3>
-              <p className="text-[10px] text-[var(--text-muted)] mb-3">과거 캔들에서 진입 신호 발생 시 1R 익절 vs 손절 판정 (수수료 미반영·보수적 동시도달 처리)</p>
+              <h3 className="text-sm font-bold text-[var(--text)] mb-1 flex items-center gap-2 flex-wrap">
+                룰 엔진 성적표 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 {Math.round(data.backtest.spanHours)}시간 자동 백테스트</span>
+                {(() => {
+                  const h = data.backtest.spanHours; const n = data.backtest.signals;
+                  const low = h < 48 || n < 8;
+                  const mid = !low && (h < 96 || n < 15);
+                  return (
+                    <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${
+                      low ? 'bg-red-500/10 text-red-400 border-red-500/30' : mid ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                    }`}>신뢰도 {low ? '낮음' : mid ? '보통' : '양호'}</span>
+                  );
+                })()}
+              </h3>
+              <p className="text-[10px] text-[var(--text-muted)] mb-3">
+                과거 캔들에서 진입 신호 발생 시 1R 익절 vs 손절 판정. ⚠ 수수료·슬리피지 미반영, 실전 판정의 파생 수급(테이커·OI) 신호는 과거 데이터가 없어 <strong>기술적 신호만 검증</strong> — 실전보다 신호가 후하게 잡힙니다.
+              </p>
               {data.backtest.signals === 0 ? (
                 <p className="text-xs text-[var(--text-muted)] py-3 text-center">이 기간 진입 조건을 충족한 신호가 없습니다 — 엔진이 관망을 유지한 구간</p>
               ) : (
@@ -829,7 +971,12 @@ export default function CoinAnalysisPage() {
               ) : <p className="text-xs text-[var(--text-muted)]">스윙 식별 불가</p>}
             </div>
 
-            <PositionCalc stopPct={v.stopPct} levCons={v.leverage.conservative} levAggr={v.leverage.aggressive} />
+            <RiskPanel
+              entry={v.entry} stop={v.stop} stopPct={v.stopPct}
+              target1={v.target1} target2={v.target2} direction={v.direction}
+              levAggr={v.leverage.aggressive} levMax={v.leverage.max}
+              fundingRatePct={data.funding.ratePct} priceDigits={priceDigits}
+            />
           </div>
 
           {/* 체크리스트 + 뉴스 */}

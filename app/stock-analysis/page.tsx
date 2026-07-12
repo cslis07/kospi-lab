@@ -6,6 +6,7 @@ import CoinCandleChart, { ChartCandle } from '@/components/CoinCandleChart';
 import BriefingModelPicker from '@/components/BriefingModelPicker';
 import LivePriceTag from '@/components/LivePriceTag';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
+import { useStockJournal } from '@/hooks/useStockJournal';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -105,6 +106,29 @@ export default function StockAnalysisPage() {
     fetcher,
     { refreshInterval: 10000, dedupingInterval: 5000, revalidateOnFocus: false },
   );
+
+  // 판정 기록 (매매일지) — 매수우위 기록은 실시간가로 손절/목표 도달 시 자동 판정
+  const journal = useStockJournal();
+  const saveToJournal = () => {
+    if (!data || !v) return;
+    journal.add({
+      ts: Date.now(), ticker: data.ticker, name: data.name,
+      stance: v.stance, state: v.state, score: v.score, price: data.price,
+      stop: v.stop, target1: v.target1, target2: v.target2,
+      reasonsTop: v.reasons.slice(0, 3),
+    });
+  };
+  useEffect(() => {
+    const p = liveTick?.price;
+    if (!p || !run) return;
+    for (const e of journal.entries) {
+      if (e.ticker !== run.ticker || e.result !== 'open' || e.stance !== 'buy') continue;
+      // 주식 목표1은 1.5R 설계 → 도달 시 +1.5R, 손절 시 -1R
+      if (p >= e.target1) journal.update(e.id, { result: 'win', resultR: 1.5, memo: '자동판정(목표1 도달)' });
+      else if (p <= e.stop) journal.update(e.id, { result: 'loss', resultR: -1, memo: '자동판정(손절 도달)' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveTick?.price]);
 
   // 종목명 자동완성
   const [query, setQuery] = useState('');
@@ -303,6 +327,11 @@ export default function StockAnalysisPage() {
               <StanceBadge stance={v.stance} />
               <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-[var(--border)] text-xs font-semibold text-[var(--text)]">{v.state}</span>
               <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${v.entryOk ? 'bg-red-500/10 text-red-400 border-red-500/30' : 'bg-slate-500/10 text-[var(--text-muted)] border-[var(--border)]'}`}>{v.entryOk ? '✓ 매수 조건 충족' : '매수 대기'}</span>
+              <button onClick={saveToJournal}
+                className="ml-auto px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-sky-500/40 transition-colors"
+                title="이 판정을 기록해 두면 실시간가로 손절·목표 도달을 자동 판정합니다">
+                📓 판정 기록
+              </button>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-5">
               <div className="space-y-4">
@@ -402,7 +431,20 @@ export default function StockAnalysisPage() {
             </div>
 
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-              <h3 className="text-sm font-bold text-[var(--text)] mb-1">룰 엔진 성적표 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 {Math.round(data.backtest.spanDays)}일 자동 백테스트</span></h3>
+              <h3 className="text-sm font-bold text-[var(--text)] mb-1 flex items-center gap-2 flex-wrap">
+                룰 엔진 성적표 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 {Math.round(data.backtest.spanDays)}일 자동 백테스트</span>
+                {(() => {
+                  const n = data.backtest.signals;
+                  const low = n < 5;
+                  const mid = !low && n < 12;
+                  return (
+                    <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${
+                      low ? 'bg-red-500/10 text-red-400 border-red-500/30' : mid ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                    }`}>신뢰도 {low ? '낮음(표본 부족)' : mid ? '보통' : '양호'}</span>
+                  );
+                })()}
+              </h3>
+              <p className="text-[10px] text-[var(--text-muted)] mb-2">⚠ 수수료·세금 미반영. 과거 투자자 수급 데이터가 없어 <strong>기술적 신호만 검증</strong> — 실전 판정(수급 포함)보다 보수적으로 해석하세요.</p>
               <p className="text-[10px] text-[var(--text-muted)] mb-3">과거 일봉에서 매수 신호 발생 시 1R 익절 vs 손절 판정 (수급·재무 제외 기술적 전용·수수료 미반영)</p>
               {data.backtest.signals === 0 ? (
                 <p className="text-xs text-[var(--text-muted)] py-3 text-center">이 기간 매수 조건을 충족한 신호가 없습니다 — 엔진이 관망을 유지한 구간</p>
@@ -563,6 +605,58 @@ export default function StockAnalysisPage() {
               </div>
             </div>
           )}
+
+          {/* 판정 기록 (매매일지) */}
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h3 className="text-sm font-bold text-[var(--text)]">📓 판정 기록 <span className="text-[10px] font-normal text-[var(--text-muted)]">신호가 실제로 맞았는지 추적</span></h3>
+              {journal.stats.closed > 0 && (
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="text-[var(--text-muted)]">기록 {journal.stats.total}</span>
+                  <span className="text-[var(--text)]">승률 <span className="font-bold">{journal.stats.winRate?.toFixed(0)}%</span></span>
+                  <span className={`font-bold ${(journal.stats.avgR ?? 0) >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
+                    평균 {journal.stats.avgR! >= 0 ? '+' : ''}{journal.stats.avgR?.toFixed(2)}R
+                  </span>
+                </div>
+              )}
+            </div>
+            {!journal.mounted ? null : journal.entries.length === 0 ? (
+              <p className="text-xs text-[var(--text-muted)] py-2">아직 기록이 없습니다 — 종합 판단 카드의 <strong>판정 기록</strong> 버튼으로 저장하세요. 매수우위 기록은 손절·목표 도달 시 자동 판정됩니다.</p>
+            ) : (
+              <>
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {journal.entries.map((e) => (
+                    <div key={e.id} className="rounded-xl bg-white/3 px-3 py-2 text-xs">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="font-semibold text-[var(--text)]">{e.name}</span>
+                        <span className={`font-bold ${e.stance === 'buy' ? 'text-red-400' : e.stance === 'reduce' ? 'text-blue-400' : 'text-[var(--text-muted)]'}`}>
+                          {e.stance === 'buy' ? '매수우위' : e.stance === 'reduce' ? '비중축소' : '중립'} {e.score > 0 ? '+' : ''}{e.score}
+                        </span>
+                        <span className="text-[var(--text-muted)] tabular-nums">{won(e.price)}원 · 손절 {won(Math.round(e.stop))} · 목표 {won(Math.round(e.target1))}</span>
+                        <span className="text-[10px] text-[var(--text-muted)]">{new Date(e.ts).toLocaleDateString('ko-KR')}</span>
+                        <span className="ml-auto flex items-center gap-1.5">
+                          {e.result === 'open' ? (
+                            (['win', 'loss', 'even'] as const).map((r) => (
+                              <button key={r} onClick={() => journal.update(e.id, { result: r, resultR: r === 'win' ? 1.5 : r === 'loss' ? -1 : 0 })}
+                                className="px-1.5 py-0.5 rounded border border-[var(--border)] text-[10px] text-[var(--text-muted)] hover:text-[var(--text)]">
+                                {r === 'win' ? '승' : r === 'loss' ? '패' : '본전'}
+                              </button>
+                            ))
+                          ) : (
+                            <span className={`text-[10px] font-bold ${e.result === 'win' ? 'text-red-400' : e.result === 'loss' ? 'text-blue-400' : 'text-[var(--text-muted)]'}`}>
+                              {e.result === 'win' ? '✓ 승' : e.result === 'loss' ? '✗ 패' : '— 본전'}{e.memo ? ` · ${e.memo}` : ''}
+                            </span>
+                          )}
+                          <button onClick={() => journal.remove(e.id)} className="text-[10px] text-[var(--text-muted)] hover:text-red-400">삭제</button>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={journal.clear} className="text-[10px] text-[var(--text-muted)] hover:text-red-400 mt-2">전체 삭제</button>
+              </>
+            )}
+          </div>
 
           <p className="text-[10px] text-[var(--text-muted)] text-center opacity-60 leading-relaxed">
             본 분석은 공개 데이터 기반 자동 계산 참고 정보이며 투자 권유가 아닙니다. 투자 판단과 책임은 본인에게 있습니다.<br />

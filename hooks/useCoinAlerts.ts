@@ -83,5 +83,5 @@ export function useCoinAlerts() {
     }
   }, [fire, persist]);
 
-  return { rules, permission, requestPermission, setRule, removeRule, check };
+  return { rules, permission, requestPermission, setRule, removeRule, check, fire };
 }

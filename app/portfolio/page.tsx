@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { usePortfolio } from '@/hooks/usePortfolio';
@@ -39,6 +39,16 @@ export default function PortfolioPage() {
 
   // 비트겟 잔고
   const { data: bitget } = useSWR<BitgetResp>('/api/bitget/account', fetcher, { refreshInterval: 60000 });
+
+  // 보유 종목 룰엔진 판정 — '신호 보기' 버튼으로만 실행 (서버 10분 캐시)
+  const [verdictsOn, setVerdictsOn] = useState(false);
+  const { data: verdicts, isValidating: verdictsLoading } = useSWR<Record<string, {
+    stance: 'buy' | 'neutral' | 'reduce'; score: number; entryOk: boolean;
+    price: number; stop: number; supplyMissing: boolean;
+  }>>(
+    verdictsOn && krCodes ? `/api/portfolio-verdicts?tickers=${krCodes}` : null,
+    fetcher, { revalidateOnFocus: false },
+  );
 
   // 보유 국내주식 평가
   const krHoldings = useMemo(() => {
@@ -108,11 +118,20 @@ export default function PortfolioPage() {
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-[var(--text)]">국내주식 보유</h2>
-          {krHoldings.length > 0 && (
-            <span className={`text-xs font-semibold ${krPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {krPnl >= 0 ? '+' : ''}{fmtKRW(krPnl)} ({fmtPct(krPnlR)})
-            </span>
-          )}
+          <div className="flex items-center gap-2.5">
+            {krHoldings.length > 0 && (
+              <button onClick={() => setVerdictsOn(true)} disabled={verdictsLoading}
+                className="px-2.5 py-1 rounded-lg border border-[var(--border)] text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-50"
+                title="보유 종목의 룰엔진 판정(매수우위/중립/비중축소)을 확인 — 일봉+수급 기반, 10분 캐시">
+                {verdictsLoading ? '판정 중…' : '📊 신호 보기'}
+              </button>
+            )}
+            {krHoldings.length > 0 && (
+              <span className={`text-xs font-semibold ${krPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {krPnl >= 0 ? '+' : ''}{fmtKRW(krPnl)} ({fmtPct(krPnlR)})
+              </span>
+            )}
+          </div>
         </div>
 
         {krHoldings.length === 0 ? (
@@ -126,10 +145,30 @@ export default function PortfolioPage() {
                 className="block rounded-xl bg-white/3 hover:bg-white/5 px-3 py-2.5 transition-colors">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-[var(--text)]">{h.name}</p>
+                    <p className="text-sm font-semibold text-[var(--text)] flex items-center gap-1.5">
+                      {h.name}
+                      {verdicts?.[h.ticker] && (() => {
+                        const vd = verdicts[h.ticker];
+                        const style = vd.stance === 'buy'
+                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40'
+                          : vd.stance === 'reduce'
+                            ? 'bg-red-500/15 text-red-400 border-red-500/40'
+                            : 'bg-white/5 text-[var(--text-muted)] border-[var(--border)]';
+                        const label = vd.stance === 'buy' ? '매수우위' : vd.stance === 'reduce' ? '비중축소' : '중립';
+                        return (
+                          <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${style}`}
+                            title={`룰엔진 점수 ${vd.score > 0 ? '+' : ''}${vd.score}${vd.supplyMissing ? ' · 수급 데이터 없음' : ''}`}>
+                            {label} {vd.score > 0 ? '+' : ''}{vd.score}
+                          </span>
+                        );
+                      })()}
+                    </p>
                     <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
                       {h.quantity.toLocaleString()}주 · 평단 {h.avgPrice.toLocaleString()}원
                       {!h.hasLive && ' · 시세 미수신'}
+                      {verdicts?.[h.ticker] && verdicts[h.ticker].price <= verdicts[h.ticker].stop * 1.02 && (
+                        <span className="text-amber-400 font-semibold"> · ⚠ 손절 참고선({verdicts[h.ticker].stop.toLocaleString()}원) 부근</span>
+                      )}
                     </p>
                   </div>
                   <div className="text-right">
