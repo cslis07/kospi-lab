@@ -54,7 +54,7 @@ export interface Verdict {
   direction: 'long' | 'short' | 'wait';
   entryOk: boolean;
   entryNote: string;
-  leverage: { conservative: number; aggressive: number; note: string };
+  leverage: { conservative: number; aggressive: number; max: number; note: string };
   entry: number; stop: number; stopPct: number;
   target1: number; target2: number; rr: number;
   reasons: string[];
@@ -539,17 +539,25 @@ export function buildVerdict(
   const stopPct = Math.abs((stop - price) / price) * 100;
   const rr = 1.5;
 
-  /* 8) 레버리지 — 청산거리가 손절폭의 3배 이상 확보되도록 */
-  const maxLevByStop = stopPct > 0 ? Math.floor(100 / (stopPct * 3)) : 3;
-  const conservative = Math.max(1, Math.min(3, maxLevByStop));
-  const aggressive   = Math.max(conservative, Math.min(5, maxLevByStop));
-  const levNote = `손절폭 ${stopPct.toFixed(2)}% 기준, 청산거리 3배 확보 시 최대 ${Math.min(maxLevByStop, 20)}배. ` +
-    `교육자료 권장: 초보 2~3배 이하. 레버리지는 수익 증폭이 아니라 증거금 효율 변수입니다.`;
-
-  /* 9) 진입 가능 판정 */
+  /* 8) 진입 가능 판정 (레버리지가 신호 강도를 참조하므로 먼저 계산) */
   const extremeVol = m15.atrPct >= 2.5;
   if (extremeVol) warnings.push(`15m ATR ${m15.atrPct.toFixed(2)}% — 변동성 과대, 포지션 축소 또는 관망`);
   const entryOk = direction !== 'wait' && Math.abs(score) >= 45 && trigger && !nearFunding && !extremeVol && !eventBlock;
+
+  /* 9) 레버리지 — 손절폭(청산 안전) × 변동성 × 신호 강도 3요소 동적 계산 */
+  // (a) 청산 안전 상한: 청산거리가 손절폭의 3배 이상 확보되는 배율
+  const maxLevByStop = stopPct > 0 ? Math.min(25, Math.floor(100 / (stopPct * 3))) : 2;
+  // (b) 변동성 상한: 15m ATR%가 클수록 노이즈 청산 위험이 커진다
+  const volCap = m15.atrPct <= 0.4 ? 20 : m15.atrPct <= 0.8 ? 15 : m15.atrPct <= 1.5 ? 10 : m15.atrPct <= 2.5 ? 6 : 3;
+  // (c) 신호 강도: 근거가 겹칠수록 상한을 더 쓸 수 있다
+  const signalGrade = entryOk && Math.abs(score) >= 60 ? '강' : entryOk ? '중' : '약';
+  const signalFactor = signalGrade === '강' ? 1 : signalGrade === '중' ? 0.7 : 0.4;
+  const levBase = Math.min(maxLevByStop, volCap);
+  const aggressive = Math.max(1, Math.min(20, Math.round(levBase * signalFactor)));
+  const conservative = Math.max(1, Math.min(10, Math.ceil(aggressive / 2)));
+  const levNote =
+    `손절폭 ${stopPct.toFixed(2)}%(청산여유 3배 → 최대 ${maxLevByStop}배) × 15m 변동성 ${m15.atrPct.toFixed(2)}%(상한 ${volCap}배) × 신호 ${signalGrade}. ` +
+    `레버리지는 수익 증폭이 아니라 증거금 효율 변수 — 손절 시 잃는 금액은 배율과 무관하게 시드의 1~2% 이내로 설계하세요.`;
   let entryNote: string;
   if (eventBlock && direction !== 'wait') entryNote = `${extras.event!.title} 임박 — 이벤트 통과 후 재평가. 차트보다 변동성 이벤트가 우선입니다.`;
   else if (direction === 'wait') entryNote = '방향 근거 부족 — 관망. 조건 충족까지 기다리는 것도 포지션입니다.';
@@ -574,7 +582,7 @@ export function buildVerdict(
 
   return {
     state, score, direction, entryOk, entryNote,
-    leverage: { conservative, aggressive, note: levNote },
+    leverage: { conservative, aggressive, max: maxLevByStop, note: levNote },
     entry: price, stop, stopPct, target1, target2, rr,
     reasons, warnings, checklist,
   };

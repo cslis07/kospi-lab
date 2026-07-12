@@ -6,6 +6,7 @@ import CoinCandleChart, { ChartCandle } from '@/components/CoinCandleChart';
 import { useCoinJournal } from '@/hooks/useCoinJournal';
 import { useCoinAlerts } from '@/hooks/useCoinAlerts';
 import BriefingModelPicker from '@/components/BriefingModelPicker';
+import LivePriceTag from '@/components/LivePriceTag';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -67,7 +68,7 @@ interface AnalysisData {
   verdict: {
     state: string; score: number; direction: 'long' | 'short' | 'wait';
     entryOk: boolean; entryNote: string;
-    leverage: { conservative: number; aggressive: number; note: string };
+    leverage: { conservative: number; aggressive: number; max: number; note: string };
     entry: number; stop: number; stopPct: number; target1: number; target2: number; rr: number;
     reasons: string[]; warnings: string[];
     checklist: { label: string; pass: boolean; note: string }[];
@@ -204,6 +205,14 @@ export default function CoinAnalysisPage() {
   );
   const dirty = !!run && (run.symbol !== symbol || run.model !== aiModel);
   const analyze = () => { if (modelReady) setRun({ symbol, model: aiModel }); };
+
+  // 분석(무거운 스냅샷)과 별개로 시세만 5초 폴링 — Bitget 공개 티커라 저렴하다
+  const { data: liveMap } = useSWR<Record<string, { price: number; changeRate: number }>>(
+    run ? `/api/crypto/batch?symbols=${run.symbol}` : null,
+    fetcher,
+    { refreshInterval: 5000, dedupingInterval: 2500, revalidateOnFocus: false },
+  );
+  const liveTick = run ? liveMap?.[run.symbol] : undefined;
 
   const journal = useCoinJournal();
   const coinAlerts = useCoinAlerts();
@@ -395,10 +404,15 @@ export default function CoinAnalysisPage() {
             <div className="flex flex-wrap items-start gap-x-8 gap-y-3">
               <div>
                 <p className="text-xs text-[var(--text-muted)]">{data.name} · USDT 무기한</p>
-                <p className="text-3xl font-bold tabular-nums text-[var(--text)] mt-0.5">${fmtP(data.price, priceDigits)}</p>
-                {data.change24h !== null && (
-                  <p className={`text-sm font-semibold mt-0.5 ${data.change24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {data.change24h >= 0 ? '▲ +' : '▼ '}{data.change24h.toFixed(2)}% (24h)
+                <LivePriceTag
+                  live={liveTick?.price ?? null}
+                  analyzed={data.price}
+                  format={(n) => `$${fmtP(n, priceDigits)}`}
+                  staleThresholdPct={0.5}
+                />
+                {(liveTick?.changeRate ?? data.change24h) !== null && (
+                  <p className={`text-sm font-semibold mt-0.5 ${(liveTick?.changeRate ?? data.change24h!) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {(liveTick?.changeRate ?? data.change24h!) >= 0 ? '▲ +' : '▼ '}{(liveTick?.changeRate ?? data.change24h!).toFixed(2)}% (24h)
                   </p>
                 )}
               </div>
@@ -536,6 +550,8 @@ export default function CoinAnalysisPage() {
                     보수 <span className="text-sky-400">{v.leverage.conservative}배</span>
                     <span className="mx-2 text-[var(--text-dim)]">·</span>
                     적극 <span className="text-amber-400">{v.leverage.aggressive}배</span>
+                    <span className="mx-2 text-[var(--text-dim)]">·</span>
+                    <span className="text-sm font-semibold text-[var(--text-muted)]">청산한계 {v.leverage.max}배</span>
                   </p>
                   <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">{v.leverage.note}</p>
                 </div>

@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
 import CoinCandleChart, { ChartCandle } from '@/components/CoinCandleChart';
 import BriefingModelPicker from '@/components/BriefingModelPicker';
+import LivePriceTag from '@/components/LivePriceTag';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -97,6 +98,13 @@ export default function StockAnalysisPage() {
   const v = data?.verdict;
   // 실행 이후 선택을 바꾸면 화면의 결과가 낡은 것이 된다
   const dirty = !!run && (run.ticker !== ticker || run.model !== aiModel);
+
+  // 분석(무거운 스냅샷)과 별개로 시세만 10초 폴링 — 네이버 basic 단건이라 저렴하다
+  const { data: liveTick } = useSWR<{ price: number; change: number; changeRate: number }>(
+    run ? `/api/stock/${run.ticker}` : null,
+    fetcher,
+    { refreshInterval: 10000, dedupingInterval: 5000, revalidateOnFocus: false },
+  );
 
   // 종목명 자동완성
   const [query, setQuery] = useState('');
@@ -220,9 +228,16 @@ export default function StockAnalysisPage() {
             <div className="flex flex-wrap items-start gap-x-8 gap-y-3">
               <div>
                 <p className="text-xs text-[var(--text-muted)]">{data.name} · {data.ticker} · {data.market}</p>
-                <p className="text-3xl font-bold tabular-nums text-[var(--text)] mt-0.5">{won(data.price)}원</p>
-                <p className={`text-sm font-semibold mt-0.5 ${data.changeRate >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
-                  {data.changeRate >= 0 ? '▲ +' : '▼ '}{won(data.change)} ({data.changeRate >= 0 ? '+' : ''}{data.changeRate}%)
+                <LivePriceTag
+                  live={liveTick?.price ?? null}
+                  analyzed={data.price}
+                  format={(n) => `${won(n)}원`}
+                  upClass="text-red-400"
+                  downClass="text-blue-400"
+                  staleThresholdPct={1}
+                />
+                <p className={`text-sm font-semibold mt-0.5 ${(liveTick?.changeRate ?? data.changeRate) >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
+                  {(liveTick?.changeRate ?? data.changeRate) >= 0 ? '▲ +' : '▼ '}{won(liveTick?.change ?? data.change)} ({(liveTick?.changeRate ?? data.changeRate) >= 0 ? '+' : ''}{liveTick?.changeRate ?? data.changeRate}%)
                 </p>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-2 text-xs pt-1">
