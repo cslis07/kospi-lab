@@ -1,6 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
+import UnlockGate from '@/components/UnlockGate';
 
 interface Asset {
   coin: string;
@@ -99,17 +100,8 @@ export default function BitgetPage() {
         </div>
       )}
 
-      {/* 인증 안 됨 → 잠금 안내 */}
-      {data?.locked && (
-        <div className="rounded-2xl border border-sky-500/30 bg-sky-500/5 p-5">
-          <p className="text-sm font-semibold text-sky-400 mb-2">🔒 잠긴 페이지입니다</p>
-          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            계좌 잔고는 본인만 볼 수 있습니다.{' '}
-            <code className="text-sky-400">/api/unlock?token=…</code> 를 한 번 방문해
-            이 브라우저를 인증하세요.
-          </p>
-        </div>
-      )}
+      {/* 인증 안 됨 → 잠금 폼 */}
+      {data?.locked && <UnlockGate />}
 
       {/* 키 미설정 → 설정 안내 */}
       {data && !data.locked && data.configured === false && (

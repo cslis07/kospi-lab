@@ -10,7 +10,7 @@ import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 
 interface BatchQuote { price: number; changeRate: number; name?: string }
 interface BitgetAsset { coin: string; amount: number; price: number; usdtValue: number }
-interface BitgetResp  { configured: boolean; totalUsdt?: number; assets?: BitgetAsset[]; error?: string }
+interface BitgetResp  { configured?: boolean; totalUsdt?: number; assets?: BitgetAsset[]; error?: string; locked?: boolean }
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
@@ -194,12 +194,17 @@ export default function PortfolioPage() {
         </div>
 
         {!bitget && <div className="h-12 rounded-lg bg-white/5 animate-pulse" />}
-        {bitget?.configured === false && (
+        {bitget?.locked && (
+          <p className="text-xs text-sky-400 py-3 text-center">
+            🔒 계좌 잔고가 잠겨 있습니다 · <Link href="/bitget" className="hover:underline font-semibold">인증하기 →</Link>
+          </p>
+        )}
+        {!bitget?.locked && bitget?.configured === false && (
           <p className="text-xs text-[var(--text-muted)] py-3 text-center">
             Bitget API 키가 설정되지 않음 · <Link href="/bitget" className="text-sky-400 hover:underline">설정 안내 보기</Link>
           </p>
         )}
-        {bitget?.error && (
+        {!bitget?.locked && bitget?.error && (
           <p className="text-xs text-red-400 py-2">조회 실패: {bitget.error}</p>
         )}
         {bitget?.configured && !bitget.error && bgAssets.length === 0 && (
