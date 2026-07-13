@@ -69,11 +69,11 @@ function useMarketStatus(): MarketStatus {
 }
 
 /* ── 환율 pill ────────────────────────────────────────── */
-function FxPill({ label, rate }: { label: string; rate: FxRate }) {
+function FxPill({ label, rate, className = 'hidden sm:flex' }: { label: string; rate: FxRate; className?: string }) {
   const isPos = rate.change >= 0;
   const changeColor = isPos ? 'text-emerald-400' : 'text-red-400';
   return (
-    <div className="pill-shadow hidden sm:flex items-center gap-1.5 text-xs border border-[var(--border)] rounded-full px-2.5 py-1 bg-[var(--pill-bg)]">
+    <div className={`pill-shadow ${className} items-center gap-1.5 text-xs border border-[var(--border)] rounded-full px-2.5 py-1 bg-[var(--pill-bg)]`}>
       <span className="text-[var(--text-muted)] font-medium">{label}</span>
       <span className="text-[var(--text)] font-bold font-mono">
         ₩{Math.round(rate.value).toLocaleString('ko-KR')}
@@ -101,6 +101,7 @@ export default function Header() {
 
   const usdkrw: FxRate | null = data?.usdkrw ?? null;
   const jpykrw: FxRate | null = data?.jpykrw ?? null;
+  const usdtkrw: FxRate | null = data?.usdtkrw ?? null;
 
   return (
     <header className="site-header border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-md sticky top-0 z-40">
@@ -136,6 +137,9 @@ export default function Header() {
         <div className="flex items-center gap-2 shrink-0">
           {/* USD/KRW — sm+ */}
           {usdkrw && <FxPill label="USD" rate={usdkrw} />}
+
+          {/* USDT/KRW (업비트) — md+ */}
+          {usdtkrw && <FxPill label="USDT" rate={usdtkrw} className="hidden md:flex" />}
 
           {/* JPY/KRW — lg+ */}
           {jpykrw && (

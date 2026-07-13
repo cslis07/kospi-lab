@@ -54,13 +54,36 @@ async function fetchFxRates(): Promise<{ usdkrw: FxRate | null; jpykrw: FxRate |
   }
 }
 
+/** USDT/KRW — 업비트 KRW-USDT 티커(공개, 인증 불필요). 김치 프리미엄 반영 실거래가 */
+async function fetchUsdtKrw(): Promise<FxRate | null> {
+  try {
+    const res = await fetch('https://api.upbit.com/v1/ticker?markets=KRW-USDT', {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) throw new Error(`upbit ${res.status}`);
+    const arr = await res.json();
+    const t = Array.isArray(arr) ? arr[0] : null;
+    if (!t) return null;
+    return {
+      value: Number(t.trade_price),
+      change: Number(t.signed_change_price),
+      changeRate: Number(t.signed_change_rate) * 100,
+    };
+  } catch (e) {
+    console.error('[FX] upbit USDT failed:', e);
+    return null;
+  }
+}
+
 export async function GET() {
   try {
-    const [kospi, kosdaq, kpi200, fx] = await Promise.allSettled([
+    const [kospi, kosdaq, kpi200, fx, usdt] = await Promise.allSettled([
       fetchMarketIndex('KOSPI'),
       fetchMarketIndex('KOSDAQ'),
       fetchMarketIndex('KPI200'),
       fetchFxRates(),
+      fetchUsdtKrw(),
     ]);
 
     const fxData = fx.status === 'fulfilled' ? fx.value : { usdkrw: null, jpykrw: null };
@@ -71,6 +94,7 @@ export async function GET() {
       kpi200: kpi200.status === 'fulfilled' ? parseIndex(kpi200.value, 'KPI200') : null,
       usdkrw: fxData.usdkrw,
       jpykrw: fxData.jpykrw,
+      usdtkrw: usdt.status === 'fulfilled' ? usdt.value : null,
     });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 502 });
