@@ -98,6 +98,8 @@ function DashboardInner() {
       </Section>
 
       <Section title="📊 분석">
+        <QuickCard href="/stock-analysis" emoji="🔬" title="국내주식 분석" desc="룰엔진·수급·AI 브리핑" />
+        <QuickCard href="/coin-analysis"  emoji="📡" title="코인선물 분석" desc="다중TF·레버리지·리스크" />
         <QuickCard href="/screener" emoji="🔍" title="버핏 스크리너" desc="ROE·PER 7기준" />
         <QuickCard href="/krx"      emoji="🏅" title="KRX 시장"     desc="지수·랭킹·ETF·상품" />
         <QuickCard href="/news"     emoji="📰" title="뉴스"          desc="시장 소식" />
