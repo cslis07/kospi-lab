@@ -81,6 +81,7 @@ interface AnalysisData {
     regime: { h4: 'up' | 'down' | 'flat'; d1: 'up' | 'down' | 'flat'; label: string; aligned: boolean | null } | null;
     entryQuality: { roomPct: number; rrToObstacle: number; roomOk: boolean; obstacle: number | null };
     entryPlan: { type: 'now' | 'pullback' | 'wait'; zoneLow: number; zoneHigh: number; ref: number | null; note: string };
+    confidence: { grade: '견고' | '보통' | '약함'; pct: number; note: string };
   };
   orderbook: {
     bidVol: number; askVol: number; imbalance: number; spreadPct: number;
@@ -231,14 +232,16 @@ function OrderbookPanel({ ob, price, digits }: {
   );
 }
 
-function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr, levMax, fundingRatePct, priceDigits }: {
+function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr, levMax, fundingRatePct, priceDigits, entryPlan }: {
   entry: number; stop: number; stopPct: number; target1: number; target2: number;
   direction: 'long' | 'short' | 'wait';
   levAggr: number; levMax: number; fundingRatePct: number; priceDigits: number;
+  entryPlan: { type: 'now' | 'pullback' | 'wait'; zoneLow: number; zoneHigh: number };
 }) {
   const [seed, setSeed] = useState('1000');
   const [riskPct, setRiskPct] = useState('1');
   const [levInput, setLevInput] = useState<number | null>(null); // null = 권장(적극) 배율
+  const [split, setSplit] = useState(true); // 분할 매수 표시
   const s = parseFloat(seed) || 0;
   const r = parseFloat(riskPct) || 0;
   const sliderMax = Math.max(1, Math.min(25, levMax));
@@ -247,6 +250,29 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
   const notion = stopPct > 0 ? (s * r / 100) / (stopPct / 100) : 0;
   const margin = notion / lev;
   const lossAtStop = s * r / 100;
+
+  // 분할 매수 3분할 — 진입 존이 있으면 그 범위, 없으면 진입가→손절 방향으로 계단
+  const isLong = direction !== 'short';
+  const tranche = (() => {
+    const weights = [0.4, 0.35, 0.25]; // 진입가 근처에 더 무겁게
+    let prices: number[];
+    const zoneSpan = Math.abs(entryPlan.zoneHigh - entryPlan.zoneLow) / (entry || 1);
+    if (entryPlan.type === 'pullback' && zoneSpan > 0.0005) {
+      // 눌림 존 안에서 계단 (롱: 위→아래로 담기, 숏: 아래→위로)
+      const hi = entryPlan.zoneHigh, lo = entryPlan.zoneLow;
+      prices = isLong ? [hi, (hi + lo) / 2, lo] : [lo, (hi + lo) / 2, hi];
+    } else {
+      // 시장가 진입: 진입가에서 손절 방향으로 1/4·1/2 지점까지 계단(마지막도 손절 위)
+      const dist = Math.abs(entry - stop);
+      prices = isLong
+        ? [entry, entry - dist * 0.25, entry - dist * 0.5]
+        : [entry, entry + dist * 0.25, entry + dist * 0.5];
+    }
+    const rows = prices.map((p, i) => ({ price: p, notion: notion * weights[i], margin: (notion * weights[i]) / lev, weight: weights[i] }));
+    const filledNotion = rows.reduce((a, x) => a + x.notion, 0);
+    const avg = filledNotion > 0 ? rows.reduce((a, x) => a + x.price * x.notion, 0) / filledNotion : entry;
+    return { rows, avg };
+  })();
 
   // 격리 청산가 근사 — 유지증거금률(MMR) 0.5% 가정. 거래소·티어별로 다르므로 근사치.
   const MMR = 0.005;
@@ -309,6 +335,37 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
       {safety < 2 && (
         <p className="text-[10px] font-semibold text-red-400 mt-2.5">⚠ 청산선이 손절선의 {safety.toFixed(1)}배 거리 — 손절 전에 청산될 수 있습니다. 레버리지를 낮추세요.</p>
       )}
+
+      {/* 분할 매수 플랜 — 얼마씩 나눠 담을지 */}
+      {direction !== 'wait' && notion > 0 && (
+        <div className="mt-3 pt-3 border-t border-[var(--border)]">
+          <button onClick={() => setSplit((v) => !v)} className="flex items-center justify-between w-full mb-2">
+            <span className="text-xs font-bold text-[var(--text)]">분할 매수 3분할 <span className="text-[10px] font-normal text-[var(--text-muted)]">한 번에 다 담지 않기</span></span>
+            <span className="text-[10px] text-sky-400">{split ? '접기 ▲' : '펼치기 ▼'}</span>
+          </button>
+          {split && (
+            <>
+              <div className="space-y-1">
+                {tranche.rows.map((t, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs rounded-lg bg-white/3 px-2.5 py-1.5">
+                    <span className="text-[var(--text-muted)]">{i + 1}차 <span className="text-[10px]">({(t.weight * 100).toFixed(0)}%)</span></span>
+                    <span className="tabular-nums text-[var(--text)]">${fmtP(t.price, priceDigits)}</span>
+                    <span className="tabular-nums text-[var(--text-muted)]">노션 {usd(t.notion, 0)}</span>
+                    <span className="tabular-nums font-semibold text-[var(--text)]">증거금 {usd(t.margin, 0)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
+                3개 모두 체결 시 평단 <span className="font-semibold text-[var(--text)]">${fmtP(tranche.avg, priceDigits)}</span> · 손절·목표는 위와 동일.
+                {entryPlan.type === 'now'
+                  ? ' 1차만 지금 시장가, 2·3차는 되돌림 지정가 — 1차만 체결돼도 리스크는 그만큼 작습니다.'
+                  : ' 눌림 존 안에 지정가로 나눠 걸어두면 평단이 좋아집니다. 존을 벗어나 손절 깨지면 전량 손절.'}
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
       <p className="text-[10px] text-[var(--text-muted)] mt-2">청산가는 유지증거금 0.5% 가정 근사치 — 실제는 거래소 티어·수수료에 따라 다릅니다. 주문 전 거래소 화면에서 확인하세요.</p>
     </div>
   );
@@ -779,6 +836,24 @@ export default function CoinAnalysisPage() {
                 <p className="text-[11px] text-[var(--text)] mt-2.5 leading-relaxed">
                   {v.entryPlan.type === 'now' ? '✅ ' : '⏳ '}{v.entryPlan.note}
                 </p>
+
+                {/* 신호 안정성 — 이 방향을 얼마나 믿어도 되나 */}
+                <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] text-[var(--text-muted)]">신호 안정성</span>
+                    <span className={`text-xs font-bold ${
+                      v.confidence.grade === '견고' ? 'text-emerald-400' : v.confidence.grade === '약함' ? 'text-red-400' : 'text-amber-400'
+                    }`}>
+                      {v.confidence.grade === '견고' ? '🟢 견고' : v.confidence.grade === '약함' ? '🔴 약함' : '🟡 보통'} · {v.confidence.pct}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                    <div className={`h-full rounded-full ${
+                      v.confidence.grade === '견고' ? 'bg-emerald-500' : v.confidence.grade === '약함' ? 'bg-red-500' : 'bg-amber-500'
+                    }`} style={{ width: `${v.confidence.pct}%` }} />
+                  </div>
+                  <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">{v.confidence.note}</p>
+                </div>
               </div>
             )}
 
@@ -1093,6 +1168,7 @@ export default function CoinAnalysisPage() {
               target1={v.target1} target2={v.target2} direction={v.direction}
               levAggr={v.leverage.aggressive} levMax={v.leverage.max}
               fundingRatePct={data.funding.ratePct} priceDigits={priceDigits}
+              entryPlan={v.entryPlan}
             />
           </div>
 

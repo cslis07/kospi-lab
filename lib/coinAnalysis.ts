@@ -68,6 +68,8 @@ export interface Verdict {
   entryQuality: { roomPct: number; rrToObstacle: number; roomOk: boolean; obstacle: number | null };
   /** 진입 플랜 — 지금 시장가 vs 눌림 대기 + 구체 가격대 */
   entryPlan: { type: 'now' | 'pullback' | 'wait'; zoneLow: number; zoneHigh: number; ref: number | null; note: string };
+  /** 신호 안정성 — 이 방향을 얼마나 믿어도 되나 (상위 시간대 정렬 = 견고) */
+  confidence: { grade: '견고' | '보통' | '약함'; pct: number; note: string };
 }
 
 function trendKo(t: TfTrend): string {
@@ -663,6 +665,36 @@ export function buildVerdict(
       note: `추격 금지 — EMA20(15m) ${direction === 'long' ? '눌림' : '반등'}에서 캔들 반응 확인 후 ${direction === 'long' ? '롱' : '숏'}. 지금 시장가 진입은 불리.` };
   }
 
+  /* 8-2) 신호 안정성 — 방향이 상위 시간대에 기반하면 견고, 5m 단기 신호 의존이면 약함 */
+  const h1Agrees = direction === 'long'
+    ? (h1.emaAlign === '정배열' && h1.priceVsEma20 === 'above')
+    : direction === 'short'
+      ? (h1.emaAlign === '역배열' && h1.priceVsEma20 === 'below')
+      : false;
+  const regimeAligned = regime?.aligned === true;
+  const regimeCounter = regime?.aligned === false;
+  let confPct = 0;
+  if (direction !== 'wait') {
+    confPct = 25;
+    confPct += Math.min(30, (Math.abs(score) - 30) * 0.8); // 점수 문턱 초과분
+    if (h1Agrees) confPct += 20;                            // 1H 방향 일치
+    if (regimeAligned) confPct += 20;                       // 4H·1D 정렬
+    if (regimeCounter) confPct -= 25;                       // 상위 추세 역행
+    if (!trigger) confPct -= 8;                             // 5m 트리거 미확인
+    if (extremeVol) confPct -= 10;
+    confPct = Math.max(5, Math.min(100, Math.round(confPct)));
+  }
+  const grade: '견고' | '보통' | '약함' =
+    direction === 'wait' ? '약함'
+    : confPct >= 65 && h1Agrees && !regimeCounter ? '견고'
+    : confPct >= 45 ? '보통' : '약함';
+  const confNote =
+    direction === 'wait' ? '방향 미확정 — 관망 구간'
+    : grade === '견고' ? '상위 시간대(1H·4H·1D) 정렬 — 노이즈에 잘 안 흔들림. 계획대로 실행'
+    : grade === '약함' ? (regimeCounter ? '상위 추세 역행 — 되돌림 한정, 쉽게 뒤집힘. 소액·짧게' : '5m·단기 신호 위주, 상위 시간대 미정렬 — 흔들리기 쉬움. 확인 후 소액')
+    : '일부 시간대만 정렬 — 트리거 재확인 후 진입';
+  const confidence = { grade, pct: confPct, note: confNote };
+
   /* 10) 매매 전 체크리스트 (문서 14장) */
   const checklist = [
     ...(regime ? [{ label: '상위 추세 정렬(4H·1D)', pass: regime.aligned !== false, note: regime.aligned === null ? `${regime.label} · 중립` : regime.aligned ? `${regime.label} · 결 방향` : `${regime.label} · 역행` }] : []),
@@ -683,6 +715,6 @@ export function buildVerdict(
     leverage: { conservative, aggressive, max: maxLevByStop, note: levNote },
     entry: price, stop, stopPct, target1, target2, rr,
     reasons, warnings, checklist,
-    regime, entryQuality, entryPlan,
+    regime, entryQuality, entryPlan, confidence,
   };
 }
