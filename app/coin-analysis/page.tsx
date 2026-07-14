@@ -80,6 +80,7 @@ interface AnalysisData {
     checklist: { label: string; pass: boolean; note: string }[];
     regime: { h4: 'up' | 'down' | 'flat'; d1: 'up' | 'down' | 'flat'; label: string; aligned: boolean | null } | null;
     entryQuality: { roomPct: number; rrToObstacle: number; roomOk: boolean; obstacle: number | null };
+    entryPlan: { type: 'now' | 'pullback' | 'wait'; zoneLow: number; zoneHigh: number; ref: number | null; note: string };
   };
   orderbook: {
     bidVol: number; askVol: number; imbalance: number; spreadPct: number;
@@ -745,6 +746,41 @@ export default function CoinAnalysisPage() {
                 📓 매매일지 기록
               </button>
             </div>
+
+            {/* 진입 플랜 요약 — 얼마에 들어가고 어디서 손절 */}
+            {v.direction !== 'wait' && (
+              <div className={`rounded-xl border p-3.5 mb-4 ${
+                v.entryPlan.type === 'now' ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'
+              }`}>
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                  <div>
+                    <p className="text-[10px] text-[var(--text-muted)]">
+                      {v.entryPlan.type === 'now' ? '① 진입 (지금 시장가)' : '① 진입 (눌림 대기)'}
+                    </p>
+                    <p className="text-lg font-bold tabular-nums text-[var(--text)]">
+                      {v.entryPlan.zoneLow === v.entryPlan.zoneHigh || Math.abs(v.entryPlan.zoneHigh - v.entryPlan.zoneLow) / v.entryPlan.zoneHigh < 0.0005
+                        ? `$${fmtP(v.entryPlan.zoneHigh, priceDigits)}`
+                        : `$${fmtP(v.entryPlan.zoneLow, priceDigits)} ~ $${fmtP(v.entryPlan.zoneHigh, priceDigits)}`}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-[var(--text-muted)]">② 손절 (여기 깨지면 판단 오류)</p>
+                    <p className="text-lg font-bold tabular-nums text-red-400">
+                      ${fmtP(v.stop, priceDigits)} <span className="text-xs">(-{v.stopPct.toFixed(2)}%)</span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-[var(--text-muted)]">③ 익절 (1차 · 2차)</p>
+                    <p className="text-lg font-bold tabular-nums text-emerald-400">
+                      ${fmtP(v.target1, priceDigits)} <span className="text-xs text-[var(--text-muted)]">/</span> ${fmtP(v.target2, priceDigits)}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[11px] text-[var(--text)] mt-2.5 leading-relaxed">
+                  {v.entryPlan.type === 'now' ? '✅ ' : '⏳ '}{v.entryPlan.note}
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-5">
               <div className="space-y-4">

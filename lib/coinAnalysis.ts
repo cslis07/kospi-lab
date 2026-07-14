@@ -66,6 +66,8 @@ export interface Verdict {
   regime: { h4: TfTrend; d1: TfTrend; label: string; aligned: boolean | null } | null;
   /** 진입 자리 품질 — 목표까지 방해물(반대 S/R) 없이 확보된 여유 */
   entryQuality: { roomPct: number; rrToObstacle: number; roomOk: boolean; obstacle: number | null };
+  /** 진입 플랜 — 지금 시장가 vs 눌림 대기 + 구체 가격대 */
+  entryPlan: { type: 'now' | 'pullback' | 'wait'; zoneLow: number; zoneHigh: number; ref: number | null; note: string };
 }
 
 function trendKo(t: TfTrend): string {
@@ -642,6 +644,25 @@ export function buildVerdict(
   else if (!entryOk) entryNote = '근거 강도 부족(신호 겹침 3개 미만) — 소액 또는 관망.';
   else entryNote = `${direction === 'long' ? '롱' : '숏'} 진입 근거 겹침 확인 — 손절 동시 등록 필수.`;
 
+  /* 8-1) 진입 플랜 — "얼마에 들어가나": 지금 시장가 vs 눌림 대기 */
+  let entryPlan: Verdict['entryPlan'];
+  if (direction === 'wait') {
+    entryPlan = { type: 'wait', zoneLow: 0, zoneHigh: 0, ref: null, note: '관망 — 방향이 확정되면 진입 레벨이 의미를 가집니다.' };
+  } else if (entryOk) {
+    // 트리거 확인 + 게이트 통과 → 지금 시장가(체결 슬리피지 감안 ±0.1% 밴드)
+    const lo = direction === 'long' ? price * 0.999 : price;
+    const hi = direction === 'long' ? price : price * 1.001;
+    entryPlan = { type: 'now', zoneLow: Math.min(lo, hi), zoneHigh: Math.max(lo, hi), ref: null,
+      note: `트리거 확인 — 지금 시장가로 ${direction === 'long' ? '롱' : '숏'} 진입 가능. 진입과 동시에 손절 등록.` };
+  } else {
+    // 방향은 맞지만 조건 미충족 → EMA20(15m) 눌림/반등 대기 구간
+    const ref = m15.ema20;
+    const lo = direction === 'long' ? Math.min(ref, price) : price;
+    const hi = direction === 'long' ? price : Math.max(ref, price);
+    entryPlan = { type: 'pullback', zoneLow: lo, zoneHigh: hi, ref,
+      note: `추격 금지 — EMA20(15m) ${direction === 'long' ? '눌림' : '반등'}에서 캔들 반응 확인 후 ${direction === 'long' ? '롱' : '숏'}. 지금 시장가 진입은 불리.` };
+  }
+
   /* 10) 매매 전 체크리스트 (문서 14장) */
   const checklist = [
     ...(regime ? [{ label: '상위 추세 정렬(4H·1D)', pass: regime.aligned !== false, note: regime.aligned === null ? `${regime.label} · 중립` : regime.aligned ? `${regime.label} · 결 방향` : `${regime.label} · 역행` }] : []),
@@ -662,6 +683,6 @@ export function buildVerdict(
     leverage: { conservative, aggressive, max: maxLevByStop, note: levNote },
     entry: price, stop, stopPct, target1, target2, rr,
     reasons, warnings, checklist,
-    regime, entryQuality,
+    regime, entryQuality, entryPlan,
   };
 }
