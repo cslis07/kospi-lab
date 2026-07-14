@@ -34,6 +34,44 @@ async function fetchCandles(symbol: string, granularity: string, limit: number):
   }));
 }
 
+/**
+ * 오더북 스냅샷 — 매수/매도 유동성 불균형 + 근접 벽.
+ * REST 1회 조회(웹소켓 아님)라 서버리스에서 동작.
+ */
+export interface OrderbookSnap {
+  bidVol: number;       // 상위 N호가 매수 물량(코인)
+  askVol: number;       // 상위 N호가 매도 물량(코인)
+  imbalance: number;    // (bid-ask)/(bid+ask), +면 매수 우위
+  spreadPct: number;
+  bidWall: { price: number; size: number; distPct: number } | null;  // 최대 매수벽
+  askWall: { price: number; size: number; distPct: number } | null;  // 최대 매도벽
+}
+async function fetchOrderbook(symbol: string): Promise<OrderbookSnap | null> {
+  const url = `${BITGET_BASE}/api/v2/mix/market/merge-depth?symbol=${symbol}&productType=USDT-FUTURES&limit=50`;
+  const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
+  if (!res.ok) throw new Error(`Bitget depth ${res.status}`);
+  const json = await res.json();
+  if (json.code !== '00000') throw new Error(`Bitget ${json.code}: ${json.msg}`);
+  const bids = (json.data?.bids ?? []) as string[][];   // [price, size]
+  const asks = (json.data?.asks ?? []) as string[][];
+  if (!bids.length || !asks.length) return null;
+  const mid = (Number(bids[0][0]) + Number(asks[0][0])) / 2;
+  if (!(mid > 0)) return null;
+  const bidVol = bids.reduce((a, r) => a + Number(r[1]), 0);
+  const askVol = asks.reduce((a, r) => a + Number(r[1]), 0);
+  const wall = (rows: string[][]) => {
+    let best = rows[0]; for (const r of rows) if (Number(r[1]) > Number(best[1])) best = r;
+    return { price: Number(best[0]), size: Number(best[1]), distPct: (Math.abs(Number(best[0]) - mid) / mid) * 100 };
+  };
+  return {
+    bidVol, askVol,
+    imbalance: bidVol + askVol > 0 ? (bidVol - askVol) / (bidVol + askVol) : 0,
+    spreadPct: ((Number(asks[0][0]) - Number(bids[0][0])) / mid) * 100,
+    bidWall: wall(bids),
+    askWall: wall(asks),
+  };
+}
+
 async function fetchFundingInfo(symbol: string): Promise<{ rate: number; nextTs: number | null; intervalH: number }> {
   try {
     const res = await fetch(
@@ -463,10 +501,12 @@ export async function GET(req: NextRequest) {
   const briefingModel = resolveBriefingModel(req.nextUrl.searchParams.get('model')).id;
 
   try {
-    const [c1hFull, c15mFull, c5mFull, funding, tickers, news, longShort, fundingHist, fearGreed, takerFlow, positionLS, oiHist, dvol, dominance] = await Promise.all([
+    const [c1hFull, c15mFull, c5mFull, c4hFull, c1dFull, funding, tickers, news, longShort, fundingHist, fearGreed, takerFlow, positionLS, oiHist, dvol, dominance, orderbook] = await Promise.all([
       fetchCandles(symbol, '1H', 250),
       fetchCandles(symbol, '15m', 500),
       fetchCandles(symbol, '5m', 1000),
+      fetchCandles(symbol, '4H', 250).catch(() => [] as Candle[]),
+      fetchCandles(symbol, '1D', 250).catch(() => [] as Candle[]),
       fetchFundingInfo(symbol),
       fetchBitgetFuturesTickers().catch(() => null),
       fetchNews(coin.newsQuery),
@@ -478,6 +518,7 @@ export async function GET(req: NextRequest) {
       fetchOiHistory(symbol),
       fetchDvol(),
       fetchDominance(),
+      fetchOrderbook(symbol).catch(() => null),
     ]);
     // 실시간 분석은 최근 200봉, 백테스트는 전체 사용
     const c1h = c1hFull.slice(-200);
@@ -491,6 +532,9 @@ export async function GET(req: NextRequest) {
     const h1  = analyzeTimeframe('1H', c1h);
     const m15 = analyzeTimeframe('15m', c15m);
     const m5  = analyzeTimeframe('5m', c5m);
+    // 상위 타임프레임 레짐 (봉 부족 시 null)
+    const h4  = c4hFull.length >= 60 ? analyzeTimeframe('4H', c4hFull) : null;
+    const d1  = c1dFull.length >= 60 ? analyzeTimeframe('1D', c1dFull) : null;
     const zones = srZones(c15m, price, atr(c15m));
     const fib = fibonacci(c15m, price);
 
@@ -527,6 +571,7 @@ export async function GET(req: NextRequest) {
       oiChange1hPct, priceChange1hPct: pChg12,
       positionRatio: positionLS.latest,
       event: event && event.hoursUntil <= 12 ? { title: event.title, hoursUntil: event.hoursUntil } : null,
+      htf: { h4, d1 },
     };
     const verdict = buildVerdict(h1, m15, m5, funding.rate, funding.nextTs, fib, zones, longShort.latest?.ratio ?? null, extras);
 
@@ -657,6 +702,7 @@ export async function GET(req: NextRequest) {
       positionLS: { latest: positionLS.latest },
       dvol,
       dominance,
+      orderbook,
       event,
       backtest,
       verdict,

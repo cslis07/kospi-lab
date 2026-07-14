@@ -78,7 +78,14 @@ interface AnalysisData {
     entry: number; stop: number; stopPct: number; target1: number; target2: number; rr: number;
     reasons: string[]; warnings: string[];
     checklist: { label: string; pass: boolean; note: string }[];
+    regime: { h4: 'up' | 'down' | 'flat'; d1: 'up' | 'down' | 'flat'; label: string; aligned: boolean | null } | null;
+    entryQuality: { roomPct: number; rrToObstacle: number; roomOk: boolean; obstacle: number | null };
   };
+  orderbook: {
+    bidVol: number; askVol: number; imbalance: number; spreadPct: number;
+    bidWall: { price: number; size: number; distPct: number } | null;
+    askWall: { price: number; size: number; distPct: number } | null;
+  } | null;
   news: { title: string; link: string; source: string; pubDate: string; sentiment: 'pos' | 'neg' | 'neu' }[];
   aiBriefing: string | null; aiError: string | null; aiModel?: string;
   error?: string;
@@ -164,6 +171,65 @@ function TFCard({ tf }: { tf: TF }) {
 
 /* ── 리스크 패널 (포지션 사이징 + 청산가 + 펀딩) ──────── */
 const usd = (n: number, d = 1) => n.toLocaleString('en-US', { maximumFractionDigits: d });
+
+/* ── 오더북 유동성 패널 ──────────────────────────────── */
+function OrderbookPanel({ ob, price, digits }: {
+  ob: NonNullable<AnalysisData['orderbook']>; price: number; digits: number;
+}) {
+  const imbPct = ob.imbalance * 100;
+  const bidW = ob.bidVol + ob.askVol > 0 ? (ob.bidVol / (ob.bidVol + ob.askVol)) * 100 : 50;
+  const strong = Math.abs(ob.imbalance) >= 0.2;
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <h3 className="text-sm font-bold text-[var(--text)] mb-1">오더북 유동성 <span className="text-[10px] font-normal text-[var(--text-muted)]">상위 50호가 스냅샷</span></h3>
+      <p className="text-[10px] text-[var(--text-muted)] mb-3">진입 직전 유동성 확인 — 위 매도벽은 돌파 저항, 아래 매수벽은 지지. 스냅샷 1회(실시간 스트림 아님).</p>
+
+      {/* 매수/매도 물량 균형 바 */}
+      <div className="mb-3">
+        <div className="flex justify-between text-[11px] mb-1">
+          <span className="text-emerald-400 font-semibold">매수 {bidW.toFixed(0)}%</span>
+          <span className={`font-bold ${strong ? (imbPct > 0 ? 'text-emerald-400' : 'text-red-400') : 'text-[var(--text-muted)]'}`}>
+            {imbPct >= 0 ? '+' : ''}{imbPct.toFixed(0)}% {strong ? (imbPct > 0 ? '매수 우위' : '매도 우위') : '균형'}
+          </span>
+          <span className="text-red-400 font-semibold">매도 {(100 - bidW).toFixed(0)}%</span>
+        </div>
+        <div className="flex h-2 rounded-full overflow-hidden bg-white/5">
+          <div className="bg-emerald-500/60" style={{ width: `${bidW}%` }} />
+          <div className="bg-red-500/60" style={{ width: `${100 - bidW}%` }} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5">
+          <p className="text-[10px] text-[var(--text-muted)]">최대 매수벽(지지)</p>
+          {ob.bidWall ? (
+            <>
+              <p className="font-bold text-emerald-400 tabular-nums">${fmtP(ob.bidWall.price, digits)}</p>
+              <p className="text-[10px] text-[var(--text-muted)]">{ob.bidWall.distPct.toFixed(2)}% 아래 · {usd(ob.bidWall.size, 0)}개</p>
+            </>
+          ) : <p className="text-[var(--text-muted)]">-</p>}
+        </div>
+        <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-2.5">
+          <p className="text-[10px] text-[var(--text-muted)]">최대 매도벽(저항)</p>
+          {ob.askWall ? (
+            <>
+              <p className="font-bold text-red-400 tabular-nums">${fmtP(ob.askWall.price, digits)}</p>
+              <p className="text-[10px] text-[var(--text-muted)]">{ob.askWall.distPct.toFixed(2)}% 위 · {usd(ob.askWall.size, 0)}개</p>
+            </>
+          ) : <p className="text-[var(--text-muted)]">-</p>}
+        </div>
+      </div>
+      <p className="text-[10px] text-[var(--text-muted)] mt-2 tabular-nums">현재가 ${fmtP(price, digits)} · 스프레드 {ob.spreadPct.toFixed(3)}%</p>
+      {ob.askWall && ob.askWall.distPct <= 0.3 && (
+        <p className="text-[10px] font-semibold text-amber-400 mt-1.5">⚠ 바로 위({ob.askWall.distPct.toFixed(2)}%)에 큰 매도벽 — 롱 진입 시 돌파 확인 필요</p>
+      )}
+      {ob.bidWall && ob.bidWall.distPct <= 0.3 && (
+        <p className="text-[10px] font-semibold text-amber-400 mt-1.5">⚠ 바로 아래({ob.bidWall.distPct.toFixed(2)}%)에 큰 매수벽 — 숏 진입 시 이탈 확인 필요</p>
+      )}
+    </div>
+  );
+}
+
 function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr, levMax, fundingRatePct, priceDigits }: {
   entry: number; stop: number; stopPct: number; target1: number; target2: number;
   direction: 'long' | 'short' | 'wait';
@@ -657,6 +723,18 @@ export default function CoinAnalysisPage() {
             <div className="flex flex-wrap items-center gap-3 mb-4">
               <DirectionBadge direction={v.direction} />
               <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-[var(--border)] text-xs font-semibold text-[var(--text)]">{v.state}</span>
+              {v.regime && (() => {
+                const arrow = (t: string) => t === 'up' ? '▲' : t === 'down' ? '▼' : '—';
+                const style = v.regime.aligned === true ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  : v.regime.aligned === false ? 'bg-red-500/10 text-red-400 border-red-500/30'
+                  : 'bg-white/5 text-[var(--text-muted)] border-[var(--border)]';
+                return (
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${style}`}
+                    title="상위 타임프레임 추세. 결 방향이면 초록, 역행이면 빨강.">
+                    상위추세 {arrow(v.regime.d1)}1D {arrow(v.regime.h4)}4H{v.regime.aligned === false ? ' · 역행' : v.regime.aligned === true ? ' · 정렬' : ''}
+                  </span>
+                );
+              })()}
               <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
                 v.entryOk ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-slate-500/10 text-[var(--text-muted)] border-[var(--border)]'
               }`}>
@@ -794,6 +872,9 @@ export default function CoinAnalysisPage() {
               <p className="text-xs text-[var(--text-muted)]">{data.aiError ?? 'AI 브리핑을 사용할 수 없습니다.'}</p>
             )}
           </div>
+
+          {/* 오더북 유동성 */}
+          {data.orderbook && <OrderbookPanel ob={data.orderbook} price={data.price} digits={priceDigits} />}
 
           {/* 타임프레임 3분할 */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

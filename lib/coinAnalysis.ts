@@ -48,6 +48,8 @@ export interface FibLevels {
   nearest: string | null;          // 현재가가 관찰 구간(±0.4%) 안이면 그 라벨
 }
 
+export type TfTrend = 'up' | 'down' | 'flat';
+
 export interface Verdict {
   state: string;
   score: number;                    // -100(숏 강) ~ +100(롱 강)
@@ -60,6 +62,22 @@ export interface Verdict {
   reasons: string[];
   warnings: string[];
   checklist: { label: string; pass: boolean; note: string }[];
+  /** 상위 타임프레임(4H·1D) 레짐. htf 미제공 시 null */
+  regime: { h4: TfTrend; d1: TfTrend; label: string; aligned: boolean | null } | null;
+  /** 진입 자리 품질 — 목표까지 방해물(반대 S/R) 없이 확보된 여유 */
+  entryQuality: { roomPct: number; rrToObstacle: number; roomOk: boolean; obstacle: number | null };
+}
+
+function trendKo(t: TfTrend): string {
+  return t === 'up' ? '상승' : t === 'down' ? '하락' : '횡보';
+}
+
+/** 한 타임프레임을 상승/하락/횡보로 요약 (레짐 필터용) */
+export function tfTrend(tf: TimeframeAnalysis): TfTrend {
+  const above200 = tf.ema200 === null ? null : tf.close >= tf.ema200;
+  if (tf.emaAlign === '정배열' && tf.priceVsEma20 === 'above' && above200 !== false) return 'up';
+  if (tf.emaAlign === '역배열' && tf.priceVsEma20 === 'below' && above200 !== true) return 'down';
+  return 'flat';
 }
 
 /* ── 기본 지표 ────────────────────────────────────────── */
@@ -358,6 +376,8 @@ export interface VerdictExtras {
   positionRatio?: number | null;
   /** 임박한 고중요도 경제 이벤트 */
   event?: { title: string; hoursUntil: number } | null;
+  /** 상위 타임프레임 분석 (레짐 필터용). 백테스트에서는 생략 */
+  htf?: { h4: TimeframeAnalysis | null; d1: TimeframeAnalysis | null } | null;
 }
 
 export function buildVerdict(
@@ -501,6 +521,38 @@ export function buildVerdict(
     warnings.push(`⚠ ${extras.event.title} ${extras.event.hoursUntil <= 0 ? '오늘' : `약 ${Math.round(extras.event.hoursUntil)}시간 후`} — 이벤트 변동성 구간, 신규 진입 금지(교육자료 원칙)`);
   }
 
+  /* 5-6) 상위 타임프레임 레짐 필터 (4H·1D) — 큰 흐름 역행 진입 방지 */
+  let regime: Verdict['regime'] = null;
+  let counterTrend = false; // 상위 추세를 정면으로 거스르는 진입
+  if (extras.htf?.h4 || extras.htf?.d1) {
+    const h4t: TfTrend = extras.htf.h4 ? tfTrend(extras.htf.h4) : 'flat';
+    const d1t: TfTrend = extras.htf.d1 ? tfTrend(extras.htf.d1) : 'flat';
+    // 상위 바이어스: 1D를 더 무겁게. 둘 다 같은 방향이면 강함, 하나만이면 약함
+    const bias: TfTrend =
+      d1t === h4t && d1t !== 'flat' ? d1t
+      : d1t !== 'flat' ? d1t
+      : h4t;
+    const label = `4H ${trendKo(h4t)} · 1D ${trendKo(d1t)}`;
+    const dirSign = Math.sign(score);
+    let aligned: boolean | null = null;
+    if (bias !== 'flat' && dirSign !== 0) {
+      const biasSign = bias === 'up' ? 1 : -1;
+      aligned = biasSign === dirSign;
+      const strong = d1t === h4t && d1t !== 'flat'; // 4H·1D 동시 정렬
+      if (aligned) {
+        score += dirSign * (strong ? 8 : 4);
+        reasons.push(`상위 추세 정렬(${label}) — ${strong ? '4H·1D 동반' : '상위 지지'}, 결 방향 진입`);
+      } else {
+        counterTrend = true;
+        score -= dirSign * (strong ? 14 : 8);
+        warnings.push(`역추세 진입(${label}) — 상위 추세를 거스름. ${strong ? '4H·1D 모두 반대, 되돌림 스캘핑만' : '되돌림 한정, 목표 짧게'}`);
+      }
+    } else {
+      reasons.push(`상위 추세 중립(${label}) — 큰 방향 미확정`);
+    }
+    regime = { h4: h4t, d1: d1t, label, aligned };
+  }
+
   /* 6) 시장 상태 분류 */
   let state: string;
   const trendish = Math.abs(score) >= 30;
@@ -539,10 +591,31 @@ export function buildVerdict(
   const stopPct = Math.abs((stop - price) / price) * 100;
   const rr = 1.5;
 
+  /* 7-1) 진입 자리 품질 — 진입가와 목표 사이에 반대 S/R(방해물)이 있으면 여유 부족 */
+  const risk = Math.abs(price - stop);
+  let obstacle: number | null = null;
+  if (direction === 'long') {
+    const above = resistances.filter((r) => r > price);
+    obstacle = above.length ? Math.min(...above) : null;
+  } else if (direction === 'short') {
+    const below = supports.filter((s) => s < price);
+    obstacle = below.length ? Math.max(...below) : null;
+  }
+  // 방해물까지 확보된 여유를 R로 환산 (없으면 넉넉하다고 봄)
+  const roomAbs = obstacle !== null ? Math.abs(obstacle - price) : Infinity;
+  const roomPct = obstacle !== null && price > 0 ? (roomAbs / price) * 100 : Infinity;
+  const rrToObstacle = risk > 0 ? roomAbs / risk : 0;
+  // 최소 1R 여유(=목표1까지 방해물 없이 도달 가능)가 확보돼야 진입 자리로 적합
+  const roomOk = rrToObstacle >= 1.0;
+  if (direction !== 'wait' && obstacle !== null && !roomOk) {
+    warnings.push(`진입가 ${roomPct.toFixed(2)}% ${direction === 'long' ? '위 저항' : '아래 지지'}(${obstacle.toFixed(obstacle < 10 ? 4 : 2)}) — 목표1까지 여유 ${rrToObstacle.toFixed(1)}R뿐, 손익비 불리. 돌파·이탈 확인 후 진입`);
+  }
+  const entryQuality = { roomPct: isFinite(roomPct) ? roomPct : 999, rrToObstacle: isFinite(rrToObstacle) ? rrToObstacle : 999, roomOk, obstacle };
+
   /* 8) 진입 가능 판정 (레버리지가 신호 강도를 참조하므로 먼저 계산) */
   const extremeVol = m15.atrPct >= 2.5;
   if (extremeVol) warnings.push(`15m ATR ${m15.atrPct.toFixed(2)}% — 변동성 과대, 포지션 축소 또는 관망`);
-  const entryOk = direction !== 'wait' && Math.abs(score) >= 45 && trigger && !nearFunding && !extremeVol && !eventBlock;
+  const entryOk = direction !== 'wait' && Math.abs(score) >= 45 && trigger && !nearFunding && !extremeVol && !eventBlock && roomOk && !counterTrend;
 
   /* 9) 레버리지 — 손절폭(청산 안전) × 변동성 × 신호 강도 3요소 동적 계산 */
   // (a) 청산 안전 상한: 청산거리가 손절폭의 3배 이상 확보되는 배율
@@ -564,11 +637,15 @@ export function buildVerdict(
   else if (!trigger) entryNote = `${direction === 'long' ? '롱' : '숏'} 우위지만 5m 트리거(꼬리·구조 돌파) 미확인 — 확인 후 진입.`;
   else if (nearFunding) entryNote = '펀딩 정산 직전 — 정산 후 재평가 권장.';
   else if (extremeVol) entryNote = '변동성 과대 구간 — 손절이 노이즈에 걸리기 쉬움.';
+  else if (counterTrend) entryNote = `상위 추세(${regime?.label}) 역행 — 큰 흐름을 거스르는 진입. 되돌림 스캘핑만, 목표 짧게.`;
+  else if (!roomOk) entryNote = `목표1까지 방해물(반대 S/R)이 ${entryQuality.rrToObstacle.toFixed(1)}R 거리 — 손익비 불리. 돌파·이탈 확인 후 진입.`;
   else if (!entryOk) entryNote = '근거 강도 부족(신호 겹침 3개 미만) — 소액 또는 관망.';
   else entryNote = `${direction === 'long' ? '롱' : '숏'} 진입 근거 겹침 확인 — 손절 동시 등록 필수.`;
 
   /* 10) 매매 전 체크리스트 (문서 14장) */
   const checklist = [
+    ...(regime ? [{ label: '상위 추세 정렬(4H·1D)', pass: regime.aligned !== false, note: regime.aligned === null ? `${regime.label} · 중립` : regime.aligned ? `${regime.label} · 결 방향` : `${regime.label} · 역행` }] : []),
+    { label: '진입 자리 여유(방해물)', pass: roomOk, note: obstacle === null ? '방해물 없음 · 넉넉' : `목표1까지 ${entryQuality.rrToObstacle.toFixed(1)}R` },
     { label: '1시간봉 방향', pass: h1.emaAlign !== '혼조', note: `${h1.structure} 구조 · EMA ${h1.emaAlign}` },
     { label: '15분봉 지지·저항', pass: zones.length >= 2, note: `주요 구간 ${zones.length}개 식별` },
     { label: 'EMA 기준', pass: direction === 'wait' ? false : (direction === 'long' ? m15.priceVsEma20 === 'above' : m15.priceVsEma20 === 'below'), note: `15m EMA20 ${m15.priceVsEma20 === 'above' ? '위' : '아래'}` },
@@ -585,5 +662,6 @@ export function buildVerdict(
     leverage: { conservative, aggressive, max: maxLevByStop, note: levNote },
     entry: price, stop, stopPct, target1, target2, rr,
     reasons, warnings, checklist,
+    regime, entryQuality,
   };
 }
