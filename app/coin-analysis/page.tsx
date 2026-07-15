@@ -892,11 +892,25 @@ export default function CoinAnalysisPage() {
                   </p>
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-[var(--border)] p-5 flex items-center justify-center text-center">
-                  <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                    현재 관망 구간입니다.<br />
-                    진입 조건이 겹칠 때(방향 필터 + 구조 + 트리거 + 거래량)만 가격 레벨이 의미를 갖습니다.
-                  </p>
+                <div className="rounded-xl border border-dashed border-[var(--border)] p-4">
+                  {/* 관망이어도 기울기 표시 — 어느 쪽으로 얼마나 */}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-[var(--text)]">현재 관망 — 방향 미확정</span>
+                    <span className={`text-sm font-bold tabular-nums ${v.score > 0 ? 'text-emerald-400' : v.score < 0 ? 'text-red-400' : 'text-[var(--text-muted)]'}`}>
+                      {v.score > 0 ? '롱 쪽 +' : v.score < 0 ? '숏 쪽 ' : '중립 '}{v.score}
+                    </span>
+                  </div>
+                  {/* 기울기 바 (문턱 ±20 표시) */}
+                  <div className="relative h-2 rounded-full bg-white/5 overflow-hidden mb-1">
+                    <div className="absolute top-0 bottom-0 left-1/2 w-px bg-white/20" />
+                    <div className={`absolute top-0 bottom-0 ${v.score >= 0 ? 'left-1/2 bg-emerald-500/60' : 'right-1/2 bg-red-500/60'}`}
+                      style={{ width: `${Math.min(50, Math.abs(v.score) / 100 * 50)}%` }} />
+                    {/* 진입 문턱 ±20 눈금 */}
+                    <div className="absolute top-0 bottom-0 bg-amber-400/40 w-px" style={{ left: `${50 + 20 / 100 * 50}%` }} />
+                    <div className="absolute top-0 bottom-0 bg-amber-400/40 w-px" style={{ left: `${50 - 20 / 100 * 50}%` }} />
+                  </div>
+                  <p className="text-[10px] text-[var(--text-muted)] leading-relaxed mt-2">{v.entryPlan.note}</p>
+                  <p className="text-[10px] text-[var(--text-muted)] leading-relaxed mt-1 opacity-70">노란 눈금 = 진입 문턱 ±20. 여기를 넘으면 롱/숏 신호로 전환됩니다.</p>
                 </div>
               )}
             </div>

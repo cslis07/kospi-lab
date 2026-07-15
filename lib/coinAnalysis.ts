@@ -557,20 +557,21 @@ export function buildVerdict(
     regime = { h4: h4t, d1: d1t, label, aligned };
   }
 
-  /* 6) 시장 상태 분류 */
+  /* 6) 시장 상태 분류 (방향 문턱 ±20 — 약한 기울기도 방향으로 표시) */
   let state: string;
-  const trendish = Math.abs(score) >= 30;
+  const trendish = Math.abs(score) >= 20;
   if (m15.bb.squeeze && !trendish) {
     state = '압축(돌파 대기)';
     warnings.push('15m 볼린저 밴드 수축 — 에너지 축적 구간, 첫 돌파 추격 금지·리테스트 확인');
-  } else if (h1.structure === '횡보' && m15.structure === '횡보') {
-    state = '박스권';
-  } else if (score >= 30) state = '상승 추세';
-  else if (score <= -30) state = '하락 추세';
+  } else if (score >= 45) state = '상승 추세';
+  else if (score <= -45) state = '하락 추세';
+  else if (score >= 20) state = '상승 우위(약)';
+  else if (score <= -20) state = '하락 우위(약)';
+  else if (h1.structure === '횡보' && m15.structure === '횡보') state = '박스권';
   else state = '방향 탐색(혼조)';
 
   score = Math.max(-100, Math.min(100, Math.round(score)));
-  const direction: Verdict['direction'] = score >= 30 ? 'long' : score <= -30 ? 'short' : 'wait';
+  const direction: Verdict['direction'] = score >= 20 ? 'long' : score <= -20 ? 'short' : 'wait';
 
   /* 7) 손절·익절 (구조 + ATR 기반) */
   const atr15 = m15.atr;
@@ -649,7 +650,11 @@ export function buildVerdict(
   /* 8-1) 진입 플랜 — "얼마에 들어가나": 지금 시장가 vs 눌림 대기 */
   let entryPlan: Verdict['entryPlan'];
   if (direction === 'wait') {
-    entryPlan = { type: 'wait', zoneLow: 0, zoneHigh: 0, ref: null, note: '관망 — 방향이 확정되면 진입 레벨이 의미를 가집니다.' };
+    // 관망이어도 어느 쪽으로 얼마나 기울었는지 보여준다 (막다른 벽 방지)
+    const tilt = score >= 6 ? `롱 쪽으로 +${score} 기울어짐` : score <= -6 ? `숏 쪽으로 ${score} 기울어짐` : '양방 균형(방향 없음)';
+    const need = score > 0 ? 20 - score : score < 0 ? 20 + score : 20;
+    entryPlan = { type: 'wait', zoneLow: 0, zoneHigh: 0, ref: null,
+      note: `관망 — ${tilt} (진입 문턱 ±20 미달, ${Math.abs(need)}점 부족). 트리거·거래량이 채워지면 방향 신호로 전환됩니다.` };
   } else if (entryOk) {
     // 트리거 확인 + 게이트 통과 → 지금 시장가(체결 슬리피지 감안 ±0.1% 밴드)
     const lo = direction === 'long' ? price * 0.999 : price;
