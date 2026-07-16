@@ -19,6 +19,7 @@ export interface JournalEntry {
   reasonsTop: string[];       // 핵심 근거 요약
   result: 'open' | 'win' | 'loss' | 'even';
   resultR: number | null;     // 실현 R (win: +, loss: -)
+  realizedUsdt?: number | null; // 실제 실현손익 (USDT) — 엔진 판정 vs 실제 성적 비교용
   memo: string;
 }
 
@@ -77,6 +78,7 @@ export function useCoinJournal() {
   // 통계: 마감된 기록만 집계
   const closed = entries.filter((e) => e.result !== 'open');
   const wins = closed.filter((e) => e.result === 'win');
+  const withUsdt = closed.filter((e) => e.realizedUsdt !== null && e.realizedUsdt !== undefined);
   const stats = {
     total: entries.length,
     closed: closed.length,
@@ -84,6 +86,9 @@ export function useCoinJournal() {
     avgR: closed.length
       ? closed.reduce((a, e) => a + (e.resultR ?? 0), 0) / closed.length
       : null,
+    // 실제 실현손익 합계 (입력된 건만) — "엔진 승률 vs 내 실제 성적" 비교의 기준
+    totalUsdt: withUsdt.length ? withUsdt.reduce((a, e) => a + (e.realizedUsdt ?? 0), 0) : null,
+    usdtCount: withUsdt.length,
   };
 
   return { entries, mounted, add, update, remove, clear, stats };

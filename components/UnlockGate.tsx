@@ -50,6 +50,7 @@ export default function UnlockGate() {
           value={token}
           onChange={(e) => setToken(e.target.value)}
           placeholder="접근 토큰 (APP_ACCESS_TOKEN)"
+          aria-label="접근 토큰"
           autoComplete="off"
           className="flex-1 min-w-[200px] px-3 py-1.5 text-sm bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-[var(--text)] outline-none focus:border-sky-500/50"
         />

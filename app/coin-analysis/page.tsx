@@ -2,12 +2,19 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import useSWR from 'swr';
-import CoinCandleChart, { ChartCandle } from '@/components/CoinCandleChart';
+import dynamic from 'next/dynamic';
+import type { ChartCandle } from '@/components/CoinCandleChart';
+// Recharts가 무거워 차트만 지연 로딩 — 초기 번들에서 제외
+const CoinCandleChart = dynamic(() => import('@/components/CoinCandleChart'), {
+  ssr: false,
+  loading: () => <div className="h-72 rounded-xl bg-white/5 animate-pulse" aria-label="차트 로딩 중" />,
+});
 import { useCoinJournal } from '@/hooks/useCoinJournal';
 import { useCoinAlerts } from '@/hooks/useCoinAlerts';
 import BriefingModelPicker from '@/components/BriefingModelPicker';
 import LivePriceTag from '@/components/LivePriceTag';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
+import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '@/lib/positionSizing';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -195,7 +202,7 @@ function OrderbookPanel({ ob, price, digits }: {
           </span>
           <span className="text-red-400 font-semibold">매도 {(100 - bidW).toFixed(0)}%</span>
         </div>
-        <div className="flex h-2 rounded-full overflow-hidden bg-white/5">
+        <div aria-hidden="true" className="flex h-2 rounded-full overflow-hidden bg-white/5">
           <div className="bg-emerald-500/60" style={{ width: `${bidW}%` }} />
           <div className="bg-red-500/60" style={{ width: `${100 - bidW}%` }} />
         </div>
@@ -247,39 +254,19 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
   const sliderMax = Math.max(1, Math.min(25, levMax));
   const lev = Math.max(1, Math.min(levInput ?? levAggr, sliderMax));
 
-  const notion = stopPct > 0 ? (s * r / 100) / (stopPct / 100) : 0;
-  const margin = notion / lev;
+  const notion = notionForRisk(s, r, stopPct);
+  const margin = lev > 0 ? notion / lev : 0;
   const lossAtStop = s * r / 100;
 
-  // 분할 매수 3분할 — 진입 존이 있으면 그 범위, 없으면 진입가→손절 방향으로 계단
+  // 분할 매수 3분할 — 계산은 lib/positionSizing (테스트로 고정됨)
   const isLong = direction !== 'short';
-  const tranche = (() => {
-    const weights = [0.4, 0.35, 0.25]; // 진입가 근처에 더 무겁게
-    let prices: number[];
-    const zoneSpan = Math.abs(entryPlan.zoneHigh - entryPlan.zoneLow) / (entry || 1);
-    if (entryPlan.type === 'pullback' && zoneSpan > 0.0005) {
-      // 눌림 존 안에서 계단 (롱: 위→아래로 담기, 숏: 아래→위로)
-      const hi = entryPlan.zoneHigh, lo = entryPlan.zoneLow;
-      prices = isLong ? [hi, (hi + lo) / 2, lo] : [lo, (hi + lo) / 2, hi];
-    } else {
-      // 시장가 진입: 진입가에서 손절 방향으로 1/4·1/2 지점까지 계단(마지막도 손절 위)
-      const dist = Math.abs(entry - stop);
-      prices = isLong
-        ? [entry, entry - dist * 0.25, entry - dist * 0.5]
-        : [entry, entry + dist * 0.25, entry + dist * 0.5];
-    }
-    const rows = prices.map((p, i) => ({ price: p, notion: notion * weights[i], margin: (notion * weights[i]) / lev, weight: weights[i] }));
-    const filledNotion = rows.reduce((a, x) => a + x.notion, 0);
-    const avg = filledNotion > 0 ? rows.reduce((a, x) => a + x.price * x.notion, 0) / filledNotion : entry;
-    return { rows, avg };
-  })();
+  const tranche = tranches3(notion, lev, entry, stop, isLong, entryPlan);
 
-  // 격리 청산가 근사 — 유지증거금률(MMR) 0.5% 가정. 거래소·티어별로 다르므로 근사치.
-  const MMR = 0.005;
+  // 격리 청산가 근사 — 계산은 lib/positionSizing (테스트로 고정됨)
   const isShort = direction === 'short';
-  const liq = isShort ? entry * (1 + 1 / lev - MMR) : entry * (1 - 1 / lev + MMR);
+  const liq = isolatedLiqPrice(entry, lev, isShort);
   const liqDistPct = entry > 0 ? (Math.abs(liq - entry) / entry) * 100 : 0;
-  const safety = stopPct > 0 ? liqDistPct / stopPct : 0;
+  const safety = liqSafety(entry, stopPct, lev, isShort);
 
   const risk1 = Math.abs(entry - stop);
   const rr1 = risk1 > 0 ? Math.abs(target1 - entry) / risk1 : 0;
@@ -847,7 +834,7 @@ export default function CoinAnalysisPage() {
                       {v.confidence.grade === '견고' ? '🟢 견고' : v.confidence.grade === '약함' ? '🔴 약함' : '🟡 보통'} · {v.confidence.pct}%
                     </span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                  <div aria-hidden="true" className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                     <div className={`h-full rounded-full ${
                       v.confidence.grade === '견고' ? 'bg-emerald-500' : v.confidence.grade === '약함' ? 'bg-red-500' : 'bg-amber-500'
                     }`} style={{ width: `${v.confidence.pct}%` }} />
@@ -901,7 +888,7 @@ export default function CoinAnalysisPage() {
                     </span>
                   </div>
                   {/* 기울기 바 (문턱 ±20 표시) */}
-                  <div className="relative h-2 rounded-full bg-white/5 overflow-hidden mb-1">
+                  <div aria-hidden="true" className="relative h-2 rounded-full bg-white/5 overflow-hidden mb-1">
                     <div className="absolute top-0 bottom-0 left-1/2 w-px bg-white/20" />
                     <div className={`absolute top-0 bottom-0 ${v.score >= 0 ? 'left-1/2 bg-emerald-500/60' : 'right-1/2 bg-red-500/60'}`}
                       style={{ width: `${Math.min(50, Math.abs(v.score) / 100 * 50)}%` }} />
@@ -1234,6 +1221,12 @@ export default function CoinAnalysisPage() {
                   <span className={`font-bold ${(journal.stats.avgR ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     평균 {journal.stats.avgR! >= 0 ? '+' : ''}{journal.stats.avgR?.toFixed(2)}R
                   </span>
+                  {journal.stats.totalUsdt !== null && (
+                    <span className={`font-bold ${journal.stats.totalUsdt >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+                      title={`실현손익 입력된 ${journal.stats.usdtCount}건 합계 — 엔진 승률과 내 실제 성적 비교용`}>
+                      실현 {journal.stats.totalUsdt >= 0 ? '+' : ''}{journal.stats.totalUsdt.toFixed(1)} USDT
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -1276,11 +1269,21 @@ export default function CoinAnalysisPage() {
                         </button>
                       ))}
                       {e.result !== 'open' && (
-                        <input
-                          value={e.resultR ?? ''} inputMode="decimal"
-                          onChange={(ev) => journal.update(e.id, { resultR: parseFloat(ev.target.value) || 0 })}
-                          className="ml-1 w-16 px-1.5 py-0.5 text-[10px] bg-transparent border border-[var(--border)] rounded text-[var(--text)] outline-none tabular-nums"
-                          placeholder="실현 R" />
+                        <>
+                          <input
+                            value={e.resultR ?? ''} inputMode="decimal" aria-label="실현 R"
+                            onChange={(ev) => journal.update(e.id, { resultR: parseFloat(ev.target.value) || 0 })}
+                            className="ml-1 w-16 px-1.5 py-0.5 text-[10px] bg-transparent border border-[var(--border)] rounded text-[var(--text)] outline-none tabular-nums"
+                            placeholder="실현 R" />
+                          <input
+                            value={e.realizedUsdt ?? ''} inputMode="decimal" aria-label="실현손익 USDT"
+                            onChange={(ev) => {
+                              const v = ev.target.value.trim();
+                              journal.update(e.id, { realizedUsdt: v === '' ? null : (parseFloat(v) || 0) });
+                            }}
+                            className="w-20 px-1.5 py-0.5 text-[10px] bg-transparent border border-[var(--border)] rounded text-[var(--text)] outline-none tabular-nums"
+                            placeholder="±USDT" />
+                        </>
                       )}
                     </div>
                   </div>

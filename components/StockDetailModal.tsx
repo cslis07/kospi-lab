@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import type { StockData, ChartPoint, InvestorTrend } from '@/lib/types';
@@ -99,6 +99,13 @@ export default function StockDetailModal({ code, name, market, onClose }: Props)
   const [tfIdx, setTfIdx] = useState(0);
   const tf = TIMEFRAMES[tfIdx];
 
+  // ESC로 닫기 (접근성)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   const { data: stock } = useSWR<StockData>(
     `/api/stock/${code}`, fetcher, { refreshInterval: 5000 }
   );
@@ -126,6 +133,9 @@ export default function StockDetailModal({ code, name, market, onClose }: Props)
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${stock?.name ?? name} 종목 상세`}
         className="relative w-full max-w-[500px] max-h-[90vh] overflow-y-auto rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -144,6 +154,7 @@ export default function StockDetailModal({ code, name, market, onClose }: Props)
           </div>
           <button
             onClick={onClose}
+            aria-label="닫기"
             className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors p-1"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

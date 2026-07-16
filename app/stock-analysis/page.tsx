@@ -2,7 +2,13 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
-import CoinCandleChart, { ChartCandle } from '@/components/CoinCandleChart';
+import dynamic from 'next/dynamic';
+import type { ChartCandle } from '@/components/CoinCandleChart';
+// Recharts가 무거워 차트만 지연 로딩 — 초기 번들에서 제외
+const CoinCandleChart = dynamic(() => import('@/components/CoinCandleChart'), {
+  ssr: false,
+  loading: () => <div className="h-72 rounded-xl bg-white/5 animate-pulse" aria-label="차트 로딩 중" />,
+});
 import BriefingModelPicker from '@/components/BriefingModelPicker';
 import LivePriceTag from '@/components/LivePriceTag';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
@@ -523,10 +529,13 @@ export default function StockAnalysisPage() {
 
           {/* 필수 경제 지표 (반드시 참고) */}
           <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.03] p-4">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-1">
               <h3 className="text-sm font-bold text-[var(--text)]">⭐ 반드시 봐야 하는 경제 지표</h3>
               {data.cio && <span className="text-[10px] text-[var(--text-muted)] ml-auto">업종의견 출처: {data.cioSource}</span>}
             </div>
+            <p className="text-[10px] text-[var(--text-muted)] mb-3 opacity-70">
+              카드의 연.월 = 데이터 기준 시점(발표 통계는 확정치 기준 지연: 반도체수출 ~2개월·가계부채 분기). 환율은 실시간.
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
               {data.indicators.map((ind) => (
                 <div key={ind.key} className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
