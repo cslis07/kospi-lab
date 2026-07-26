@@ -14,6 +14,9 @@ import LivePriceTag from '@/components/LivePriceTag';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 import { useStockJournal } from '@/hooks/useStockJournal';
 
+import { jsonFetcher, ApiError } from '@/lib/fetcher';
+
+// 시세 등 부수 요청은 조용히 실패해도 무방하지만, 분석 본문은 jsonFetcher(throw)를 쓴다
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 /* ── 타입 ────────────────────────────────────────────── */
@@ -98,9 +101,9 @@ export default function StockAnalysisPage() {
   const { model: aiModel, setModel: setAiModel, ready: modelReady } = useBriefingModel();
   const [run, setRun] = useState<{ ticker: string; model: string } | null>(null);
 
-  const { data, isLoading, isValidating, mutate } = useSWR<Data>(
-    run ? `/api/stock-analysis?ticker=${run.ticker}&model=${run.model}` : null, fetcher,
-    { revalidateOnFocus: false, refreshInterval: run && autoRefresh ? 60000 : 0 },
+  const { data, error, isLoading, isValidating, mutate } = useSWR<Data, ApiError>(
+    run ? `/api/stock-analysis?ticker=${run.ticker}&model=${run.model}` : null, jsonFetcher,
+    { revalidateOnFocus: false, refreshInterval: run && autoRefresh ? 60000 : 0, shouldRetryOnError: false },
   );
   const v = data?.verdict;
   // 실행 이후 선택을 바꾸면 화면의 결과가 낡은 것이 된다
@@ -249,6 +252,32 @@ export default function StockAnalysisPage() {
       {(isLoading || (isValidating && !data)) && (
         <div className="space-y-4"><div className="h-40 rounded-2xl bg-white/5 animate-pulse" /><div className="grid grid-cols-3 gap-4">{[...Array(3)].map((_, i) => <div key={i} className="h-52 rounded-2xl bg-white/5 animate-pulse" />)}</div></div>
       )}
+      {/* 요청 자체가 실패한 경우 — 이전 결과가 '현재 판정'으로 오인되는 것을 막는다 */}
+      {error && (
+        <div className="mb-4 rounded-2xl border border-red-500/40 bg-red-500/5 p-5">
+          <p className="text-sm font-semibold text-red-400">
+            {error.locked ? '🔒 인증이 필요합니다' : '⚠️ 분석 요청 실패'}
+          </p>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">{error.message}</p>
+          {error.locked && (
+            <p className="mt-2 text-xs text-[var(--text-muted)]">
+              분석 라우트는 AI 호출 비용 때문에 잠겨 있습니다.{' '}
+              <a href="/bitget" className="text-sky-400 underline">비트겟 페이지</a>에서 토큰으로 한 번 잠금 해제하면
+              이후 이 브라우저에서는 계속 사용할 수 있습니다.
+            </p>
+          )}
+          {data && (
+            <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+              아래 결과는 이전 분석입니다 — 손절·목표가가 낡았을 수 있으니 <strong>주문 근거로 쓰지 마세요.</strong>
+            </p>
+          )}
+          <button onClick={() => mutate()} disabled={isValidating}
+            className="mt-3 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text)] hover:bg-white/5 disabled:opacity-50">
+            {isValidating ? '재시도 중…' : '⟳ 재시도'}
+          </button>
+        </div>
+      )}
+
       {data?.error && <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-6 text-center text-sm text-red-400">분석 실패: {data.error}</div>}
 
       {data && !data.error && v && (
@@ -656,13 +685,17 @@ export default function StockAnalysisPage() {
                               {e.result === 'win' ? '✓ 승' : e.result === 'loss' ? '✗ 패' : '— 본전'}{e.memo ? ` · ${e.memo}` : ''}
                             </span>
                           )}
-                          <button onClick={() => journal.remove(e.id)} className="text-[10px] text-[var(--text-muted)] hover:text-red-400">삭제</button>
+                          <button
+                            onClick={() => { if (confirm('이 판정 기록을 삭제할까요?\n되돌릴 수 없습니다.')) journal.remove(e.id); }}
+                            className="text-[10px] text-[var(--text-muted)] hover:text-red-400">삭제</button>
                         </span>
                       </div>
                     </div>
                   ))}
                 </div>
-                <button onClick={journal.clear} className="text-[10px] text-[var(--text-muted)] hover:text-red-400 mt-2">전체 삭제</button>
+                <button
+                  onClick={() => { if (confirm(`판정 기록 ${journal.entries.length}건을 전부 삭제할까요?\n되돌릴 수 없습니다. 먼저 '가상투자·백업'에서 내보내기를 권장합니다.`)) journal.clear(); }}
+                  className="text-[10px] text-[var(--text-muted)] hover:text-red-400 mt-2">전체 삭제</button>
               </>
             )}
           </div>

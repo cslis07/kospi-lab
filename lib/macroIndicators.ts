@@ -27,7 +27,17 @@ async function cached(key: string, fn: () => Promise<MacroValue | null>): Promis
   return v;
 }
 
-/* ── 미국 CPI — FRED(키 있으면) → BLS(무키) 폴백 ─────── */
+/* ── 미국 CPI — FRED(키 있으면) → BLS(무키) 폴백 ───────
+ * ⚠ YoY 는 반드시 '12개월 전 같은 달'을 날짜로 찾아야 한다. 인덱스 -12 를 쓰면
+ *   미공표월('.')이 중간에 필터될 때 한 칸씩 밀려 13개월 변화율이 된다.
+ *   (실측: 2025-10 미공표 → obs[12] 가 2025-06 대신 2025-05 → 3.46% 대신 3.73%)
+ */
+/** `YYYY-MM` 기준 n개월 전 키 */
+function monthKeyBefore(date: string, months: number): string {
+  const [y, m] = date.split('-').map(Number);
+  const t = (y * 12 + (m - 1)) - months;
+  return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}`;
+}
 async function _usCpiFred(): Promise<MacroValue | null> {
   const key = process.env.FRED_API_KEY;
   if (!key) return null;
@@ -36,9 +46,12 @@ async function _usCpiFred(): Promise<MacroValue | null> {
     { cache: 'no-store', signal: AbortSignal.timeout(8000) },
   );
   const j = await res.json();
-  const obs = (j?.observations ?? []).filter((o: { value: string }) => o.value !== '.');
+  const obs = (j?.observations ?? []).filter((o: { value: string }) => o.value !== '.') as { date: string; value: string }[];
   if (obs.length < 13) return null;
-  const latest = obs[0], yearAgo = obs[12];
+  const latest = obs[0];
+  const wantKey = monthKeyBefore(String(latest.date).slice(0, 7), 12);
+  const yearAgo = obs.find((o) => o.date.slice(0, 7) === wantKey);
+  if (!yearAgo) return null;   // 12개월 전 달이 미공표면 YoY 계산 불가
   const yoy = (Number(latest.value) / Number(yearAgo.value) - 1) * 100;
   const [y, m] = String(latest.date).split('-');
   return {
@@ -51,9 +64,13 @@ async function _usCpiBls(): Promise<MacroValue | null> {
     cache: 'no-store', signal: AbortSignal.timeout(8000),
   });
   const j = await res.json();
-  const data = j?.Results?.series?.[0]?.data ?? [];
+  const data = (j?.Results?.series?.[0]?.data ?? []) as { year: string; period: string; value: string }[];
   if (data.length < 13) return null;
-  const latest = data[0], yearAgo = data[12];
+  const latest = data[0];
+  // FRED와 같은 이유로 인덱스 -12 금지 — year/period 로 12개월 전 달을 직접 찾는다
+  const wantKey = monthKeyBefore(`${latest.year}-${String(latest.period).replace('M', '')}`, 12);
+  const yearAgo = data.find((d) => `${d.year}-${String(d.period).replace('M', '')}` === wantKey);
+  if (!yearAgo) return null;
   const yoy = (Number(latest.value) / Number(yearAgo.value) - 1) * 100;
   return {
     value: Math.round(yoy * 100) / 100, unit: '% YoY',
@@ -74,11 +91,14 @@ async function ecosRows(statCode: string, cycle: 'Q' | 'M', start: string, end: 
   return (j?.StatisticSearch?.row ?? []) as any[];
 }
 
-/* 가계부채 = 가계신용 총액(십억원 → 조원). sample키 10건 제한 → 최댓값 행이 총액 */
+/* 가계부채 = 가계신용 총액(십억원 → 조원). 최신 분기의 항목 중 최댓값 행이 총액.
+ * ⚠ count 를 작게 주면 안 된다 — ECOS 는 오래된 기간부터 반환하므로 count=10 이면
+ *   가장 이른 분기의 항목들만 채워지고 최신 분기가 잘려나간다(실측: 8분기 총 136행 중
+ *   10행이 전부 2025Q1 → 라벨이 2025 Q1 에 고정되고 QoQ 가 영구 null 이었다). */
 async function _householdDebt(): Promise<MacroValue | null> {
   const now = new Date();
   const yy = now.getFullYear();
-  const rows = await ecosRows('151Y001', 'Q', `${yy - 1}Q1`, `${yy}Q4`, 10);
+  const rows = await ecosRows('151Y001', 'Q', `${yy - 1}Q1`, `${yy}Q4`, 200);
   if (!rows.length) return null;
   // 최신 분기의 행들 중 최댓값 = 가계신용 총액
   const times = [...new Set(rows.map((r) => r.TIME))].sort();

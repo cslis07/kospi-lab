@@ -7,7 +7,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 
-const KRX_KEY  = process.env.KRX_API_KEY ?? 'A4812703746143C1BB6D826E1057EFD984251A32';
+const KRX_KEY  = () => process.env.KRX_API_KEY ?? '';   // 하드코딩 폴백 금지 — 키는 env에서만
 const KRX_BASE = 'https://data-dbg.krx.co.kr/svc/apis';
 const LIST_TTL = 12 * 60 * 60 * 1000; // 12시간 캐시
 
@@ -43,12 +43,13 @@ async function fetchKrx(
   suffix: 'KS' | 'KQ',
   basDd: string,
 ): Promise<KrxStockEntry[]> {
+  if (!KRX_KEY()) return [];   // 키 없으면 빈 결과 — 호출부가 graceful 처리
   try {
     const res = await fetch(`${KRX_BASE}/${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=UTF-8',
-        'AUTH_KEY': KRX_KEY,
+        'AUTH_KEY': KRX_KEY(),
       },
       body: JSON.stringify({ basDd }),
       cache: 'no-store',

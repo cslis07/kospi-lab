@@ -12,13 +12,31 @@ const LS_KEYS = {
   cryptoWatchlist: 'kospi-lab-crypto-watchlist',
 };
 
+/** 모든 앱 데이터의 공통 접두사 — 새 훅이 생겨도 백업에서 자동으로 누락되지 않도록 접두사로 훑는다.
+ *  (v1 은 관심종목·가상투자·코인관심 3개만 담아, 정작 유일한 실거래 기록인 매매일지와
+ *   실보유 포트폴리오가 백업되지 않았다.) */
+const LS_PREFIX = 'kospi-lab-';
+
+/** 접두사에 해당하는 모든 키를 원문 문자열 그대로 수집 */
+function collectAll(): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(LS_PREFIX)) {
+      const val = localStorage.getItem(k);
+      if (val !== null) out[k] = val;
+    }
+  }
+  return out;
+}
+
 function exportData() {
+  const keys = collectAll();
   const payload = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
-    watchlist:      JSON.parse(localStorage.getItem(LS_KEYS.watchlist)     ?? '[]'),
-    virtual:        JSON.parse(localStorage.getItem(LS_KEYS.virtual)       ?? 'null'),
-    cryptoWatchlist: JSON.parse(localStorage.getItem(LS_KEYS.cryptoWatchlist) ?? '[]'),
+    keys,                       // v2: 접두사 전체 (매매일지·포트폴리오·알림 포함)
+    keyCount: Object.keys(keys).length,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
@@ -36,9 +54,17 @@ function importData(file: File): Promise<string> {
       try {
         const data = JSON.parse(e.target?.result as string);
         if (!data.version) throw new Error('올바른 백업 파일이 아닙니다');
-        if (data.watchlist)       localStorage.setItem(LS_KEYS.watchlist,       JSON.stringify(data.watchlist));
-        if (data.virtual)         localStorage.setItem(LS_KEYS.virtual,         JSON.stringify(data.virtual));
-        if (data.cryptoWatchlist) localStorage.setItem(LS_KEYS.cryptoWatchlist, JSON.stringify(data.cryptoWatchlist));
+        if (data.version >= 2 && data.keys && typeof data.keys === 'object') {
+          // v2 — 접두사 전체 복원
+          for (const [k, v] of Object.entries(data.keys as Record<string, string>)) {
+            if (k.startsWith(LS_PREFIX) && typeof v === 'string') localStorage.setItem(k, v);
+          }
+        } else {
+          // v1 백업 파일 하위호환
+          if (data.watchlist)       localStorage.setItem(LS_KEYS.watchlist,       JSON.stringify(data.watchlist));
+          if (data.virtual)         localStorage.setItem(LS_KEYS.virtual,         JSON.stringify(data.virtual));
+          if (data.cryptoWatchlist) localStorage.setItem(LS_KEYS.cryptoWatchlist, JSON.stringify(data.cryptoWatchlist));
+        }
         resolve(data.exportedAt ?? '');
       } catch (err) {
         reject(err);
@@ -495,8 +521,9 @@ export default function VirtualPage() {
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-6">
         <h2 className="text-sm font-semibold text-[var(--text)] mb-1">데이터 관리</h2>
         <p className="text-xs text-[var(--text-muted)] mb-4">
-          관심종목·가상투자 데이터를 JSON 파일로 저장하거나 복원합니다.<br />
-          브라우저 종료 시 데이터가 사라진다면 <span className="text-amber-400">정기적으로 백업</span>하세요.
+          이 브라우저에 저장된 <strong>KOSPI LAB 데이터 전체</strong>를 JSON 파일로 저장하거나 복원합니다.<br />
+          <span className="text-amber-400">매매일지·실보유 포트폴리오는 이 브라우저에만 있습니다</span> —
+          사이트 데이터를 지우면 복구 경로가 없으니 정기적으로 백업하세요.
         </p>
 
         <div className="flex flex-wrap gap-3">
@@ -545,7 +572,8 @@ export default function VirtualPage() {
         )}
 
         <p className="text-[10px] text-[var(--text-muted)] mt-3 opacity-60">
-          💡 백업 파일에는 관심종목·가상투자 잔고·거래내역·코인 관심목록이 포함됩니다
+          💡 백업 파일에는 <code>kospi-lab-</code> 로 시작하는 모든 저장 항목이 포함됩니다 —
+          코인·주식 매매일지, 실보유 포트폴리오, 관심종목, 알림 규칙, 가상투자 잔고·거래내역
         </p>
       </div>
     </div>

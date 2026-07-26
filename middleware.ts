@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * 민감 라우트 게이트 — 내 거래소 계좌(/api/bitget/*)와 과금 라우트(/api/analyze).
- * 시세·분석 페이지는 공개 유지.
+ * 민감 라우트 게이트 — 내 거래소 계좌(/api/bitget/*), AI 과금 라우트(/api/analyze,
+ * /api/stock-analysis, /api/coin-analysis), 디버그 라우트(/api/debug/*).
+ * 시세·차트·뉴스 등 값싼 공개 라우트와 페이지 자체는 공개 유지.
+ *
+ * ⚠ 분석 라우트를 잠근 이유: 두 라우트는 요청당 Anthropic 을 무조건 호출한다(실과금).
+ *   저장소가 public 이라 엔드포인트가 알려져 있어 무인증이면 크레딧 소진 유도가 가능하다.
+ *   → 잠금 시 분석 페이지는 401 을 받고 "잠금 해제" 안내를 띄운다(UnlockGate).
  *
  * 통과 조건: 쿠키 kl_auth 또는 헤더 x-app-token 이 APP_ACCESS_TOKEN 과 일치.
  * 쿠키는 /api/unlock?token=... 방문 시 발급된다.
@@ -39,5 +44,12 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/bitget/:path*', '/api/analyze'],
+  matcher: [
+    '/api/bitget/:path*',    // 내 거래소 계좌
+    '/api/analyze',          // 레거시 AI 라우트
+    '/api/stock-analysis',   // Anthropic 실과금 — 공개 시 크레딧 소진 유도 가능
+    '/api/coin-analysis',    // 동일
+    '/api/debug/:path*',     // 디버그 — 요청당 상류 8콜(증폭)
+  ],
+  // ⚠ /api/kis/price 는 StockDetailModal 이 쓰므로 /api/kis/:path* 로 묶지 말 것
 };

@@ -15,7 +15,9 @@ import BriefingModelPicker from '@/components/BriefingModelPicker';
 import LivePriceTag from '@/components/LivePriceTag';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '@/lib/positionSizing';
+import { jsonFetcher, ApiError } from '@/lib/fetcher';
 
+// 시세·스캔 등 부수 요청은 조용히 실패해도 무방하지만, 분석 본문은 jsonFetcher(throw)를 쓴다
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 interface ScanItem {
@@ -366,10 +368,10 @@ export default function CoinAnalysisPage() {
   const { model: aiModel, setModel: setAiModel, ready: modelReady } = useBriefingModel();
   // symbol·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
   const [run, setRun] = useState<{ symbol: string; model: string } | null>(null);
-  const { data, isLoading, isValidating, mutate } = useSWR<AnalysisData>(
+  const { data, error, isLoading, isValidating, mutate } = useSWR<AnalysisData, ApiError>(
     run ? `/api/coin-analysis?symbol=${run.symbol}&model=${run.model}` : null,
-    fetcher,
-    { revalidateOnFocus: false, refreshInterval: run && autoRefresh ? 60000 : 0 },
+    jsonFetcher,
+    { revalidateOnFocus: false, refreshInterval: run && autoRefresh ? 60000 : 0, shouldRetryOnError: false },
   );
   const dirty = !!run && (run.symbol !== symbol || run.model !== aiModel);
   const analyze = () => { if (modelReady) setRun({ symbol, model: aiModel }); };
@@ -612,6 +614,33 @@ export default function CoinAnalysisPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[...Array(3)].map((_, i) => <div key={i} className="h-64 rounded-2xl bg-white/5 animate-pulse" />)}
           </div>
+        </div>
+      )}
+
+      {/* 요청 자체가 실패한 경우 — 이전 결과가 화면에 남아 '현재 판정'으로 오인되는 것을 막는다 */}
+      {error && (
+        <div className="mb-4 rounded-2xl border border-red-500/40 bg-red-500/5 p-5">
+          <p className="text-sm font-semibold text-red-400">
+            {error.locked ? '🔒 인증이 필요합니다' : '⚠️ 분석 요청 실패'}
+          </p>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">{error.message}</p>
+          {error.locked && (
+            <p className="mt-2 text-xs text-[var(--text-muted)]">
+              분석 라우트는 AI 호출 비용 때문에 잠겨 있습니다.{' '}
+              <a href="/bitget" className="text-sky-400 underline">비트겟 페이지</a>에서 토큰으로 한 번 잠금 해제하면
+              이후 이 브라우저에서는 계속 사용할 수 있습니다.
+            </p>
+          )}
+          {data && (
+            <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+              아래 결과는 <strong>{timeAgo(data.updatedAt)}</strong> 시점의 이전 분석입니다 —
+              진입가·손절·목표·청산가가 모두 낡았을 수 있으니 <strong>주문 근거로 쓰지 마세요.</strong>
+            </p>
+          )}
+          <button onClick={() => mutate()} disabled={isValidating}
+            className="mt-3 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text)] hover:bg-white/5 disabled:opacity-50">
+            {isValidating ? '재시도 중…' : '⟳ 재시도'}
+          </button>
         </div>
       )}
 
@@ -1248,7 +1277,12 @@ export default function CoinAnalysisPage() {
                         )}
                         <span className="text-[10px] text-[var(--text-muted)]">{new Date(e.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
-                      <button onClick={() => journal.remove(e.id)} className="text-[10px] text-[var(--text-muted)] hover:text-red-400">삭제</button>
+                      <button
+                        onClick={() => {
+                          // 실거래 기록이고 되돌리기가 없으므로 확인을 받는다 (모바일 오탭 방지)
+                          if (confirm(`${e.name} ${new Date(e.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 기록을 삭제할까요?\n되돌릴 수 없습니다.`)) journal.remove(e.id);
+                        }}
+                        className="text-[10px] text-[var(--text-muted)] hover:text-red-400">삭제</button>
                     </div>
                     <div className="flex items-center gap-3 mt-1.5 text-[10px] text-[var(--text-muted)] tabular-nums">
                       <span>진입 ${fmtP(e.price, e.price < 10 ? 4 : e.price < 1000 ? 2 : 1)}</span>
@@ -1289,7 +1323,9 @@ export default function CoinAnalysisPage() {
                   </div>
                 ))}
                 {journal.entries.length > 0 && (
-                  <button onClick={journal.clear} className="text-[10px] text-[var(--text-muted)] hover:text-red-400 mt-1">전체 삭제</button>
+                  <button
+                    onClick={() => { if (confirm(`매매일지 ${journal.entries.length}건을 전부 삭제할까요?\n되돌릴 수 없습니다. 먼저 '가상투자·백업'에서 내보내기를 권장합니다.`)) journal.clear(); }}
+                    className="text-[10px] text-[var(--text-muted)] hover:text-red-400 mt-1">전체 삭제</button>
                 )}
               </div>
             )}

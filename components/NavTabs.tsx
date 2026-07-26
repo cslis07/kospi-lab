@@ -33,9 +33,10 @@ const GROUPS: NavGroup[] = [
       { label: '통합 자산',          href: '/portfolio', desc: '국내·해외·코인 합산' },
       { label: '내 주식',            href: '/my-stocks', desc: '관심·포트폴리오·알림' },
       { label: '비트겟 포트폴리오',   href: '/bitget',    desc: '코인 잔고·체결·이체' },
+      { label: '가상투자·백업',       href: '/virtual',   desc: '모의매매 · 데이터 백업/복원' },
     ],
     matchFn: (p, q) =>
-      p.startsWith('/portfolio') || p.startsWith('/bitget') ||
+      p.startsWith('/portfolio') || p.startsWith('/bitget') || p.startsWith('/virtual') ||
       (p.startsWith('/my-stocks') && !q.get('market')),
   },
   {
