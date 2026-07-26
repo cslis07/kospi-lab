@@ -1,20 +1,21 @@
 # KOSPI LAB — Project Status
 
-> 마지막 업데이트: 2026-07-15
+> 마지막 업데이트: 2026-07-23 (커밋 2026-07-26)
 > 위치: `C:\Users\GB\Documents\kospi-lab`
 > GitHub: `cslis07/kospi-lab` · 기본 브랜치 `main`
 > 배포: [kospi-lab.vercel.app](https://kospi-lab.vercel.app) · Vercel (git push → 자동 배포)
-> 규모: API 라우트 39 · 페이지 23 · lib 21 · hooks 10 · components 18
+> 규모: API 라우트 39 · 페이지 23 · lib 22 · hooks 10 · components 18 · tests 1(15케이스)
 
 ---
 
 ## 0. 지금 하던 일 (WIP)
 
-**깨끗한 상태** — `git status` 비어 있음. 모든 작업 커밋·배포·검증 완료.
+**깨끗한 상태** — 코드 작업 전부 커밋·배포·검증 완료. 마지막 **코드** 커밋 `7379325`(완성도 7축). 이 문서 갱신분(07-23 작성)은 뒤따르는 DOCS 커밋으로 반영됨 — 이후 `git status`는 비어 있음.
 
-- 최근 작업은 **코인 진입 분석 강화**(진입 플랜·신호 안정성·분할 매수·방향 문턱 ±20). 마지막 커밋 `adcc509`.
-- **다음 채팅이 가장 먼저 볼 것:** 사용자가 코인 선물로 **실투자 중**. "계속 관망만 나온다"는 피드백으로 방향 문턱을 ±30→±20으로 낮춤(`adcc509`). 며칠 써보고 **신호가 너무 자주/드물게 뜨는지 재조정** 필요할 수 있음 — 문턱(±20)이나 1H 가중치가 후보. 이건 데이터 보며 튜닝할 항목이라 미완이 아니라 관찰 대기.
+- 최근 작업 2건: ① **코인 진입 분석 강화**(레짐·진입자리·오더북·진입 플랜·안정성·분할매수·문턱 ±20) ② **완성도 7축 개선**(테스트 15개·에러 바운더리·SEO·접근성·성능·법적·실현손익).
+- **다음 채팅이 가장 먼저 볼 것:** 사용자가 코인 선물로 **실투자 중**. "계속 관망만 나온다"는 피드백으로 방향 문턱을 ±30→±20으로 낮춤(`adcc509`). 며칠 써보고 **신호가 너무 자주/드물게 뜨는지 재조정** 필요할 수 있음 — 문턱(±20)이나 1H 가중치가 후보. 데이터 보며 튜닝할 항목이라 미완이 아니라 **관찰 대기**.
 - ⚠️ 교훈(지난 세션): USDT pill이 커밋 전 localhost 빌드에서만 보여 "이미 프로덕션 반영"으로 오판할 뻔함. **UI 확인은 반드시 프로덕션 URL로**(§9).
+- 세션 정리: 주식 그룹에서 `260707_주식`·`Stock session status check` 2건 아카이브, 현재 세션(`260710_주식`)만 유지.
 
 ---
 
@@ -66,16 +67,22 @@
 - 투자설계 `/invest` · 세제혜택 `/tax` · 증권사비교 `/brokerage` · 시뮬레이션 `/simulate`
 
 ### 공통
-- **홈 분석 섹션에 국내주식·코인선물 분석 카드**(🆕) · 글로벌 검색(⌘K) · 환율 pill(USD/USDT/JPY) · 다크/라이트 · 모바일 · `/guide.html`
+- **홈 분석 섹션에 국내주식·코인선물 분석 카드** · 글로벌 검색(⌘K) · 환율 pill(USD/USDT/JPY) · 다크/라이트 · 모바일 · `/guide.html`
 - **AI 브리핑 모델 선택**(Haiku 4.5 / Sonnet 5 기본 / Opus 4.8) — localStorage 저장
+- 🆕 **에러 복구 UI**(라우트 크래시·404·루트 크래시) · **SEO**(robots·sitemap·페이지별 title) · **글로벌 면책 footer**(원금 초과 손실 고지)
 
 ---
 
 ## 3. 수정한 주요 파일
 
-### 최근 세션 신규 (~2026-07-15)
+### 최근 세션 신규 (~2026-07-23)
 | 파일 | 역할 |
 |---|---|
+| `tests/engine.test.ts` | 🆕 **머니매스 회귀 테스트 15개** — 노션·청산가·안전배수·분할매수 보존, 손절/목표 1R, 레버리지 공식, 진입자리·역추세·이벤트 게이트, 수급 결측 회귀. `npm test`(tsx) |
+| `lib/positionSizing.ts` | 🆕 돈 계산 순수 함수(`notionForRisk`·`isolatedLiqPrice`·`liqSafety`·`tranches3`) — RiskPanel UI와 테스트가 **같은 코드** 사용 |
+| `app/error.tsx` · `not-found.tsx` · `global-error.tsx` | 🆕 크래시 시 흰 화면 대신 복구 UI (외부 API 이상 형태 대비) |
+| `app/robots.ts` · `app/sitemap.ts` | 🆕 `/api`·`/bitget` 색인 제외, 사이트맵 |
+| `app/stock-analysis/layout.tsx` · `app/coin-analysis/layout.tsx` | 🆕 페이지별 metadata(title 템플릿 `%s \| KOSPI LAB`) |
 | `middleware.ts` | 민감 라우트 게이트 — `/api/bitget/*`·`/api/analyze`를 `APP_ACCESS_TOKEN`으로 보호(fail-closed). `AUTH_COOKIE` 상수 export |
 | `lib/rateLimit.ts` | IP 슬라이딩 윈도우 rate limit (인메모리) |
 | `app/api/unlock/route.ts` | 토큰→HttpOnly 쿠키 발급. GET(URL,`next`) + POST(폼용 JSON), IP당 5분 5회 |
@@ -99,6 +106,10 @@
 | `app/page.tsx` | 홈 분석 섹션에 주식·코인 분석 카드 |
 | `app/api/market/route.ts`·`components/Header.tsx` | USDT/KRW 환율 pill(업비트) |
 | `app/domestic/page.tsx`·`components/StockCard.tsx` | 5초→15초 폴링 |
+| `app/layout.tsx` | metadataBase·title 템플릿, footer에 **투자 면책+원금 초과 손실** 고지 |
+| `components/StockDetailModal.tsx` | 접근성 — `role=dialog`·`aria-modal`·ESC 닫기·닫기 버튼 라벨 |
+| `hooks/useCoinJournal.ts` | `realizedUsdt` 필드 + 실현손익 합계 통계(엔진 판정 vs 실제 성적) |
+| 분석 2페이지 | 차트를 `next/dynamic(ssr:false)`로 지연 로딩(Recharts 초기 번들 제외) |
 
 ### 분석 엔진·기존 라이브러리 (`lib/`)
 `stockAnalysis`·`stockBacktest`·`coinAnalysis`·`coinBacktest`·`marketReference`·`macroIndicators`·`krx`·`kis`·`kisFinance`·`bitget`·`dartClient`·`calendarEvents`·`naverFinance`·`naver`·`stockList`·`krStocks`·`indicators`·`types`·`anthropic`·`rateLimit`
@@ -109,13 +120,18 @@
 
 ### 우선순위 높음
 - [ ] **방향 문턱 ±20 실사용 재조정** — 실투자 피드백 반영. 너무 자주/드물면 문턱·1H 가중치 튜닝. 데이터 관찰 대기라 미착수(§0)
-- [ ] **매매일지에 레버리지·실현손익(USDT) 기록** — "엔진 판정 vs 내 실제 성적" 비교. 제안했으나 미착수
 
 ### 개선 여지
 - [ ] **DART 공시 목록 정렬** — 정기 신고 다수 노출, 원본 순서 그대로(`slice(0,12)`), 우선순위 로직 미구현
-- [ ] **가계부채 데이터 지연** — ECOS 가계신용은 분기 데이터
+- [ ] **`app/api/debug/naver` 제거 검토** — 디버그용이 프로덕션에 열려 있음(§9). 네이버 응답 확인용이라 아직 유지 중
+- [ ] **가계부채 데이터 지연** — ECOS 가계신용은 분기 데이터(외부 한계, 표시로만 대응)
 - [ ] 해외/코인 portfolio 수기 입력 — 통합자산은 국내주식+Bitget만
 - [ ] DART 배당 `payoutRatio` 서브필드 매칭 · 스크리너 FCF(KIS 미제공)
+
+### 완성도 잔여(구조적, 우선순위 낮음)
+- [ ] **API 라우트·UI 통합 테스트** — 엔진·사이징은 15개로 고정됨. 외부 API 모킹 비용 대비 가치가 낮아 미착수
+- [ ] **서버 컴포넌트 전환** — 23개 페이지 전부 `'use client'`. 전면 리팩터링이라 범위 밖
+- [ ] **모달 포커스 트랩** — `role=dialog`+ESC까지는 적용. 단일 사용자 도구라 우선순위 낮음
 
 ### 확장 여지 (KRX 추가 API — 활용신청·승인 필요)
 - [ ] **채권(bon)** / **파생(drv)** / **ESG** — 현재 미승인 401. data.krx.co.kr에서 활용신청 후 `lib/krx.ts`에 추가
@@ -201,10 +217,12 @@ until curl -s "https://kospi-lab.vercel.app/api/coin-analysis?symbol=BTCUSDT" \
 
 ## 7. 최근 발생한 에러와 해결
 
-### 최근 세션 (~2026-07-15)
+### 최근 세션 (~2026-07-23)
 | 증상 | 원인 | 해결 |
 |---|---|---|
 | "계속 관망만 나온다"(실투자 피드백) | 방향 문턱 ±30 + 1H 확인형이라 굼뜸 | 문턱 ±30→±20, 약한 우위도 방향 표시, 관망도 기울기 바 표시. entryOk(45)는 유지. 약한 건 안정성 '약함' 라벨 |
+| 돈 계산(레버리지·청산가·사이징)에 안전망 없음 | 검증을 매번 임시 스크립트로 하고 버림 — 회귀 테스트 0개 | `lib/positionSizing.ts`로 순수 함수 추출 + `tests/engine.test.ts` 15케이스. 커밋 전 `npm test` 필수(§5) |
+| 테스트 tsc 실패 `InvestorDay.close 누락` | 테스트 픽스처가 필수 필드 누락 | 픽스처에 `close` 추가 — **tsc가 tests/도 검사**하므로 테스트 파일도 타입 통과 필요 |
 | AI 브리핑 항상 null(`Anthropic 400`) | **Anthropic 크레딧 부족**(키·모델·헤더 정상, 결제 거부) | 크레딧 충전 시 자동 복구. 에러 본문 로깅. OAuth 토큰 가설은 오답 |
 | 수급 데이터 없는 종목이 매수판정 통과 | `!supply \|\| score>=0` — 결측을 '중립' 취급 | `!!supply && score>=0`(결측→진입 불가). 두 로직 나란히 재현 검증 |
 | 레버리지 항상 3/5배 | `Math.min(3/5,…)` 하드캡 | 3요소 곱(적극 최대 20배) |
@@ -306,7 +324,10 @@ BTC/ETH/XRP/SOL. Bitget 캔들(**1H·15m·5m·4H·1D**) · 펀딩·OI · 롱숏 
 ```
 kospi-lab/
 ├── middleware.ts             # 민감 라우트 인증 게이트
+├── tests/engine.test.ts      # 🆕 머니매스 회귀 15케이스 (npm test)
 ├── app/
+│   ├── error.tsx · not-found.tsx · global-error.tsx   # 🆕 크래시 복구 UI
+│   ├── robots.ts · sitemap.ts                          # 🆕 SEO
 │   ├── api/                  # 39 routes
 │   │   ├── stock-analysis/   # ★ 주식 분석 (icn1)
 │   │   ├── coin-analysis/    # ★ 코인 분석 (icn1) — 레짐·오더북·진입플랜·안정성
@@ -314,12 +335,12 @@ kospi-lab/
 │   │   ├── portfolio-verdicts/ # 보유 종목 판정
 │   │   ├── unlock/           # 인증 쿠키 발급(GET/POST)
 │   │   └── krx · stock · crypto · futures · bitget · kis · dart · market · ...
-│   ├── stock-analysis/ · coin-analysis/   # ★ 분석 페이지
+│   ├── stock-analysis/ · coin-analysis/   # ★ 분석 페이지 (+layout.tsx = metadata)
 │   └── *.tsx                 # 23 pages (page.tsx = 홈, 분석 카드)
-├── components/               # 18 — UnlockGate🆕 · LivePriceTag · BriefingModelPicker · CoinCandleChart · Header · NavTabs · ...
+├── components/               # 18 — UnlockGate · LivePriceTag · BriefingModelPicker · CoinCandleChart · Header · NavTabs · ...
 ├── hooks/                    # 10 — useStockJournal · useBriefingModel · useCoinJournal · useCoinAlerts · usePortfolio · ...
-├── lib/                      # 21 — coinAnalysis(★엔진) · stockAnalysis · (stock/coin)Backtest · anthropic · rateLimit · marketReference · macroIndicators · krx · kis · kisFinance · bitget · ...
-├── public/guide.html
+├── lib/                      # 22 — coinAnalysis(★엔진) · positionSizing🆕(돈 계산, 테스트로 고정) · stockAnalysis · (stock/coin)Backtest · anthropic · rateLimit · marketReference · macroIndicators · krx · kis · kisFinance · bitget · ...
+├── public/guide.html · manifest.json
 ├── .env.local                # gitignore (APP_ACCESS_TOKEN·KRX·KIS·DART·BITGET·ANTHROPIC·ECOS·FRED·CUSTOMS)
 └── PROJECT_STATUS.md
 ```
