@@ -41,7 +41,7 @@ export function backtestStock(candles: Candle[], maxHoldDays = 20): StockBacktes
     const price = daily.close;
     const zones = srZones(win, price, atr(win));
     const fib = fibonacci(win, price);
-    const v = buildStockVerdict(daily, win, fib, zones, {}); // 기술적 전용
+    const v = buildStockVerdict(daily, win, fib, zones, { technicalOnly: true }); // 기술적 전용(수급 게이트 면제)
 
     if (!v.entryOk || v.stance !== 'buy') continue;
 

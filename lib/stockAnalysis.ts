@@ -202,6 +202,9 @@ export interface StockExtras {
   market?: MarketContext | null;
   catalyst?: { discPos: number; discNeg: number; policyPos: number; policyNeg: number } | null;
   cio?: { sector: string; stance: 'overweight' | 'neutral' | 'underweight'; label: string } | null;
+  /** 백테스트 전용 — 과거 시점 수급 데이터가 없으므로 수급 게이트를 건너뛴다.
+   *  실시간 분석에서는 절대 켜지 말 것(수급 결측이 매수 판정을 통과하게 된다). */
+  technicalOnly?: boolean;
 }
 
 export function buildStockVerdict(
@@ -325,14 +328,20 @@ export function buildStockVerdict(
   const stopDist = Math.max(price * 0.03, Math.min(price * 0.15, price - stop));
   stop = price - stopDist;
   const risk = price - stop;
-  const target1 = resistances.length ? Math.min(...resistances.filter((r) => r > price)) || price + risk * 1.5 : price + risk * 1.5;
+  // ⚠ Math.min(...[]) === Infinity 이고 Infinity 는 truthy 라 `|| 폴백`이 작동하지 않는다.
+  //   저항이 있어도 '현재가 위'가 하나도 없으면 target1 이 Infinity 가 되어 UI 에 "∞원"이
+  //   찍히고 익절 자동판정(p >= target1)이 영원히 false 가 된다. 빈 배열을 먼저 거른다.
+  const resAbove = resistances.filter((r) => r > price);
+  const target1 = resAbove.length ? Math.min(...resAbove) : price + risk * 1.5;
   const target2 = price >= yearHigh * 0.98 ? price + risk * 2.5 : Math.max(yearHigh, price + risk * 2.5);
   const stopPct = price > 0 ? (risk / price) * 100 : 0;
 
   /* 진입 판정 */
   // 수급은 한국 시장 핵심 신호다. 결측(네이버 수급 조회 실패·신규상장)을 중립으로
   // 취급하면 검증되지 않은 종목이 매수 판정을 통과한다 → 결측은 진입 불가로 본다.
-  const strongSupply = !!extras.supply && extras.supply.score >= 0;
+  // 백테스트는 과거 수급을 구할 수 없어 이 게이트를 통과할 방법이 없다 →
+  // technicalOnly 일 때만 면제. (면제 없이 두면 백테스트 신호가 영구히 0건이 된다)
+  const strongSupply = extras.technicalOnly || (!!extras.supply && extras.supply.score >= 0);
   const entryOk = stance === 'buy' && score >= 40 && strongSupply && posInRange < 0.97;
   let entryNote: string;
   if (stance === 'reduce') entryNote = '하락 추세·수급 이탈 — 신규 매수 부적합, 보유 시 비중축소 검토.';

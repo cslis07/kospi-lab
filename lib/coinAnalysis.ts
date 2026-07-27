@@ -584,17 +584,20 @@ export function buildVerdict(
     const risk = stop - price;
     target1 = price - risk;         // 1R
     target2 = price - risk * 1.5;   // 1.5R
-    if (fib && fib.direction === 'down' && fib.e1272 < price) target2 = Math.max(target2, fib.e1272);
+    // 확장 목표는 '더 먼 목표'로만 채택한다 — 더 가까운 값으로 덮어쓰면 target2 < target1 이 된다
+    if (fib && fib.direction === 'down' && fib.e1272 < target2) target2 = fib.e1272;
   } else {
     const structStop = supports.length ? Math.max(...supports) : price - atr15 * 1.2;
     stop = Math.min(structStop, price - atr15 * 1.0);
     const risk = price - stop;
     target1 = price + risk;
     target2 = price + risk * 1.5;
-    if (fib && fib.direction === 'up' && fib.e1272 > price) target2 = Math.min(Math.max(target2, target1), fib.e1272) === target1 ? target2 : fib.e1272;
+    if (fib && fib.direction === 'up' && fib.e1272 > target2) target2 = fib.e1272;
   }
   const stopPct = Math.abs((stop - price) / price) * 100;
-  const rr = 1.5;
+  // 손익비는 실제 target2 기준으로 계산 — 상수 1.5 는 확장 목표 반영 시 거짓이 된다
+  const riskAbs = Math.abs(price - stop);
+  const rr = riskAbs > 0 ? Math.abs(target2 - price) / riskAbs : 0;
 
   /* 7-1) 진입 자리 품질 — 진입가와 목표 사이에 반대 S/R(방해물)이 있으면 여유 부족 */
   const risk = Math.abs(price - stop);
@@ -627,14 +630,20 @@ export function buildVerdict(
   const maxLevByStop = stopPct > 0 ? Math.min(25, Math.floor(100 / (stopPct * 3))) : 2;
   // (b) 변동성 상한: 15m ATR%가 클수록 노이즈 청산 위험이 커진다
   const volCap = m15.atrPct <= 0.4 ? 20 : m15.atrPct <= 0.8 ? 15 : m15.atrPct <= 1.5 ? 10 : m15.atrPct <= 2.5 ? 6 : 3;
-  // (c) 신호 강도: 근거가 겹칠수록 상한을 더 쓸 수 있다
-  const signalGrade = entryOk && Math.abs(score) >= 60 ? '강' : entryOk ? '중' : '약';
+  // (c) 신호 강도: 점수 그 자체의 함수여야 한다.
+  //     이전에는 `entryOk && |score|>=60 ? '강' : entryOk ? '중' : '약'` 이라
+  //     signalGrade 가 사실상 entryOk 의 별칭이었다 — score 100 이어도 게이트가 막히면 '약'.
+  //     그 결과 score 22 와 55 가 같은 배율(4/8)을 냈고 "신호 약"이 점수가 약하다는
+  //     뜻으로 오독됐다. 게이트 미통과는 별도 승수(gateFactor)로 분리한다.
+  const signalGrade = Math.abs(score) >= 60 ? '강' : Math.abs(score) >= 45 ? '중' : '약';
   const signalFactor = signalGrade === '강' ? 1 : signalGrade === '중' ? 0.7 : 0.4;
+  const gateFactor = entryOk ? 1 : 0.5;   // 진입조건 미충족이면 추가로 절반
   const levBase = Math.min(maxLevByStop, volCap);
-  const aggressive = Math.max(1, Math.min(20, Math.round(levBase * signalFactor)));
+  const aggressive = Math.max(1, Math.min(20, Math.round(levBase * signalFactor * gateFactor)));
   const conservative = Math.max(1, Math.min(10, Math.ceil(aggressive / 2)));
   const levNote =
-    `손절폭 ${stopPct.toFixed(2)}%(청산여유 3배 → 최대 ${maxLevByStop}배) × 15m 변동성 ${m15.atrPct.toFixed(2)}%(상한 ${volCap}배) × 신호 ${signalGrade}. ` +
+    `손절폭 ${stopPct.toFixed(2)}%(청산여유 3배 → 최대 ${maxLevByStop}배) × 15m 변동성 ${m15.atrPct.toFixed(2)}%(상한 ${volCap}배) × 신호 ${signalGrade}(점수 ${score})` +
+    `${entryOk ? '' : ' × 진입조건 미충족 0.5'}. ` +
     `레버리지는 수익 증폭이 아니라 증거금 효율 변수 — 손절 시 잃는 금액은 배율과 무관하게 시드의 1~2% 이내로 설계하세요.`;
   let entryNote: string;
   if (eventBlock && direction !== 'wait') entryNote = `${extras.event!.title} 임박 — 이벤트 통과 후 재평가. 차트보다 변동성 이벤트가 우선입니다.`;
@@ -663,11 +672,19 @@ export function buildVerdict(
       note: `트리거 확인 — 지금 시장가로 ${direction === 'long' ? '롱' : '숏'} 진입 가능. 진입과 동시에 손절 등록.` };
   } else {
     // 방향은 맞지만 조건 미충족 → EMA20(15m) 눌림/반등 대기 구간
+    //
+    // ⚠ EMA20 은 손절선을 넘어갈 수 있다. 클램프하지 않으면 이 존이 그대로
+    //   분할매수 계단(tranches3)이 되어 **마지막 차수 지정가가 손절선 밖**에 걸린다.
+    //   그 지정가는 스톱이 발동한 뒤에만 체결되므로 (a) 계획 사이징이 안 채워지거나
+    //   (b) 손절 청산 직후 의도치 않은 재진입이 열린다. 손절폭의 15%를 완충으로 남긴다.
     const ref = m15.ema20;
-    const lo = direction === 'long' ? Math.min(ref, price) : price;
-    const hi = direction === 'long' ? price : Math.max(ref, price);
+    const buf = Math.abs(price - stop) * 0.15;
+    const lo = direction === 'long' ? Math.max(Math.min(ref, price), stop + buf) : price;
+    const hi = direction === 'long' ? price : Math.min(Math.max(ref, price), stop - buf);
+    const clamped = direction === 'long' ? ref < stop + buf : ref > stop - buf;
     entryPlan = { type: 'pullback', zoneLow: lo, zoneHigh: hi, ref,
-      note: `추격 금지 — EMA20(15m) ${direction === 'long' ? '눌림' : '반등'}에서 캔들 반응 확인 후 ${direction === 'long' ? '롱' : '숏'}. 지금 시장가 진입은 불리.` };
+      note: `추격 금지 — EMA20(15m) ${direction === 'long' ? '눌림' : '반등'}에서 캔들 반응 확인 후 ${direction === 'long' ? '롱' : '숏'}. 지금 시장가 진입은 불리.`
+        + (clamped ? ` (EMA20이 손절선 ${direction === 'long' ? '아래' : '위'}라 대기 구간을 손절 안쪽으로 좁혔습니다)` : '') };
   }
 
   /* 8-2) 신호 안정성 — 방향이 상위 시간대에 기반하면 견고, 5m 단기 신호 의존이면 약함 */
@@ -710,7 +727,7 @@ export function buildVerdict(
     { label: '거래량 동반', pass: m5.volumeRatio >= 1.2, note: `5m 평균 대비 ${m5.volumeRatio.toFixed(1)}배` },
     { label: '캔들 반응(트리거)', pass: trigger, note: trigger ? '확인됨' : '미확인' },
     { label: '손절 위치', pass: stopPct <= 1.5, note: `${stopPct.toFixed(2)}% (ATR·구조 기반)` },
-    { label: '손익비 1:1.5 이상', pass: true, note: '목표2 기준 1:1.5 설계' },
+    { label: '손익비 1:1.5 이상', pass: rr >= 1.5, note: `목표2 기준 1:${rr.toFixed(2)}` },
     { label: '펀딩·이벤트 회피', pass: !nearFunding && !eventBlock, note: eventBlock ? extras.event!.title : minToFunding !== null ? `다음 펀딩 ${Math.max(0, Math.round(minToFunding))}분 후` : '-' },
     { label: '변동성 적정', pass: !extremeVol, note: `15m ATR ${m15.atrPct.toFixed(2)}%` },
   ];

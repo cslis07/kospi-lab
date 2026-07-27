@@ -177,4 +177,110 @@ ok('수급 결측이면 기술적으로 강해도 entryOk=false', () => {
   assert.ok(noSupply.entryNote.includes('수급 데이터 없음'));
 });
 
+/* ── 2026-07-27 전체 점검에서 확정된 버그들의 회귀 테스트 ──────────────
+ * 기존 15개는 강신호(score 96·entryOk=true) 구간만 밟아 실사용 구간
+ * (score 20~60·entryOk=false)의 버그를 전부 놓쳤다. 아래는 그 구간을 겨냥한다. */
+console.log('\n[ 회귀 — 분할매수 손절 불변식 (C-1) ]');
+ok('tranches3: 손절 밖 존을 줘도 모든 차수가 손절 안쪽으로 클램프된다 (롱)', () => {
+  // 손절 99 인데 존이 97~100 (마지막 차수가 손절 밖으로 나가던 구성)
+  const t = tranches3(3000, 10, 100, 99, true, { type: 'pullback', zoneLow: 97, zoneHigh: 100 });
+  for (const r of t.rows) assert.ok(r.price > 99, `차수 지정가 ${r.price} 가 손절 99 밖`);
+  assert.ok(t.avg > 99, `평단 ${t.avg} 이 손절 밖`);
+  assert.ok(Math.abs(t.rows.reduce((a, r) => a + r.notion, 0) - 3000) < 1e-6, '노션 보존');
+});
+ok('tranches3: 숏도 동일 — 모든 차수가 손절(위) 안쪽', () => {
+  const t = tranches3(3000, 10, 100, 101, false, { type: 'pullback', zoneLow: 100, zoneHigh: 103 });
+  for (const r of t.rows) assert.ok(r.price < 101, `차수 지정가 ${r.price} 가 손절 101 밖`);
+  assert.ok(t.avg < 101);
+});
+ok('buildVerdict: EMA20이 손절 밖이어도 눌림 존이 손절 안쪽으로 좁혀진다', () => {
+  // 트리거 없는 롱(=pullback 분기) + EMA20(97)이 손절(99)보다 아래
+  const m15Low = { ...bullTF(P), ema20: 97 };
+  const v = buildVerdict(bullTF(P), m15Low, bullTF(P), 0, null, null, [supportZone, farRes], null, {});
+  assert.equal(v.direction, 'long', `score=${v.score}`);
+  assert.equal(v.entryPlan.type, 'pullback');
+  assert.ok(v.entryPlan.zoneLow > v.stop, `zoneLow=${v.entryPlan.zoneLow} stop=${v.stop}`);
+  // 그 존을 그대로 분할매수에 넣어도 손절 밖 지정가가 나오지 않아야 한다
+  const t = tranches3(1000, 5, v.entry, v.stop, true, v.entryPlan);
+  for (const r of t.rows) assert.ok(r.price > v.stop, `차수 ${r.price} < 손절 ${v.stop}`);
+});
+
+console.log('\n[ 회귀 — 목표·손익비 (H-3) ]');
+ok('피보나치 확장이 target2를 target1보다 나쁘게 덮어쓰지 않는다 (롱)', () => {
+  // e1272=100.2 는 기본 target2(101.5)보다 가까움 → 채택되면 안 됨
+  const fib = { direction: 'up' as const, swingLow: 95, swingHigh: 100,
+    r382: 98, r50: 97.5, r618: 97, e1272: 100.2, e1618: 101, nearest: null };
+  const v = buildVerdict(bullTF(P), bullTF(P), longM5(), 0, null, fib, [supportZone, farRes], null, {});
+  assert.ok(v.target2 > v.target1, `target2=${v.target2} <= target1=${v.target1}`);
+  assert.ok(v.rr >= 1.5, `rr=${v.rr}`);
+});
+ok('rr 은 상수 1.5 가 아니라 실제 target2 기준으로 계산된다', () => {
+  const v = buildVerdict(bullTF(P), bullTF(P), longM5(), 0, null, null, [supportZone, farRes], null, {});
+  const expected = Math.abs(v.target2 - v.entry) / Math.abs(v.entry - v.stop);
+  assert.ok(Math.abs(v.rr - expected) < 1e-9, `rr=${v.rr} expected=${expected}`);
+  const rrCheck = v.checklist.find((c) => c.label.includes('손익비'));
+  assert.equal(rrCheck?.pass, v.rr >= 1.5, '체크리스트가 하드코딩 true 면 안 됨');
+});
+
+console.log('\n[ 회귀 — 레버리지 신호강도 (signalGrade) ]');
+ok('signalGrade 가 entryOk 별칭이 아니라 score 의 함수다', () => {
+  // 둘 다 트리거 없음(entryOk=false) — 예전에는 점수와 무관하게 똑같이 '약'(0.4)이었다
+  const strong = buildVerdict(bullTF(P), bullTF(P), bullTF(P), 0, null, null, [supportZone, farRes], null,
+    { htf: { h4: bullTF(P), d1: bullTF(P) } });
+  const weakM15 = mkTF({ priceVsEma20: 'above', priceVsVwap: 'below', rsi: 60 });
+  const weak = buildVerdict(mkTF({ tf: '1H', emaAlign: '정배열', priceVsEma20: 'above' }), weakM15,
+    mkTF({ tf: '5m', priceVsVwap: 'below', rsi: 60 }), 0, null, null, [supportZone, farRes], null, {});
+  assert.equal(strong.entryOk, false, '둘 다 트리거 미확인 상태여야');
+  assert.equal(weak.entryOk, false);
+  assert.ok(Math.abs(strong.score) > Math.abs(weak.score), `strong=${strong.score} weak=${weak.score}`);
+  assert.ok(strong.leverage.aggressive > weak.leverage.aggressive,
+    `점수가 높은 쪽 배율이 더 커야: strong=${strong.leverage.aggressive} weak=${weak.leverage.aggressive}`);
+  assert.ok(strong.leverage.note.includes(`점수 ${strong.score}`), 'note 에 실제 점수가 드러나야');
+});
+
+console.log('\n[ 회귀 — stockAnalysis 목표가·백테스트 (H-6, H-5) ]');
+ok('현재가 위 저항이 하나도 없어도 target1 이 Infinity 가 아니다', () => {
+  const candles: Candle[] = [];
+  // 오래 상승 후 마지막에 급락 — 모든 저항 클러스터가 현재가 위가 아니게 만든다
+  for (let i = 0; i < 200; i++) {
+    const base = 50000 + i * 300; const c = base + 100;
+    candles.push({ ts: i, o: base, h: c + 150, l: base - 150, c, v: 1e6, qv: c * 1e6 });
+  }
+  const top = candles[candles.length - 1].c;
+  for (let i = 0; i < 40; i++) {
+    const c = top * (1 + 0.004 * (i + 1));   // 계속 신고가 → 위쪽 저항 없음
+    candles.push({ ts: 200 + i, o: c * 0.999, h: c * 1.002, l: c * 0.997, c, v: 1e6, qv: c * 1e6 });
+  }
+  const daily = analyzeTimeframe('1d', candles);
+  const price = daily.close;
+  const v = buildStockVerdict(daily, candles, fibonacci(candles, price), srZones(candles, price, atr(candles)), {});
+  assert.ok(Number.isFinite(v.target1), `target1=${v.target1} (Infinity 면 UI 에 "∞원"이 찍힌다)`);
+  assert.ok(v.target1 > price, `target1=${v.target1} price=${price}`);
+});
+ok('technicalOnly 면 수급 게이트를 면제한다 (백테스트가 신호 0건이던 원인)', () => {
+  const candles: Candle[] = [];
+  for (let i = 0; i < 240; i++) {
+    const base = 50000 + i * 800; const c = base + 300;
+    candles.push({ ts: i, o: base, h: c + 200, l: base - 200, c, v: 1e6, qv: c * 1e6 });
+  }
+  const peak = candles[candles.length - 1].c;
+  for (let i = 0; i < 3; i++) {
+    const c = peak * (1 - 0.008 * (i + 1));
+    candles.push({ ts: 240 + i, o: c * 1.002, h: c * 1.004, l: c * 0.996, c, v: 2.2e6, qv: c * 2.2e6 });
+  }
+  const daily = analyzeTimeframe('1d', candles);
+  const price = daily.close;
+  const zones = srZones(candles, price, atr(candles));
+  const fib = fibonacci(candles, price);
+  const boost = {
+    catalyst: { discPos: 2, discNeg: 0, policyPos: 2, policyNeg: 0 },
+    cio: { sector: 'IT', stance: 'overweight' as const, label: '비중확대' },
+    fin: { grade: 'A' } as never,
+  };
+  const bt = buildStockVerdict(daily, candles, fib, zones, { ...boost, technicalOnly: true });
+  const live = buildStockVerdict(daily, candles, fib, zones, { ...boost });
+  assert.equal(bt.entryOk, true, '백테스트 모드는 수급 없이도 신호가 나와야');
+  assert.equal(live.entryOk, false, '실시간 모드는 여전히 수급 결측을 차단해야');
+});
+
 console.log(`\n전체 ${passed}개 테스트 통과 ✅\n`);

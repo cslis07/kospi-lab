@@ -259,10 +259,18 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
   const notion = notionForRisk(s, r, stopPct);
   const margin = lev > 0 ? notion / lev : 0;
   const lossAtStop = s * r / 100;
+  // 손절폭이 아주 좁으면 노션이 급팽창해 필요 증거금이 시드를 넘는다(=실행 불가).
+  // 예: 손절폭 0.12%·시드 1000·리스크 1% → 노션 8,197, 4배 증거금 2,049(시드의 205%)
+  const marginOverSeed = s > 0 && margin > s;
+  const levNeededForSeed = s > 0 && notion > 0 ? Math.ceil(notion / s) : 0;
 
   // 분할 매수 3분할 — 계산은 lib/positionSizing (테스트로 고정됨)
   const isLong = direction !== 'short';
   const tranche = tranches3(notion, lev, entry, stop, isLong, entryPlan);
+  // 분할 매수는 평단이 진입가와 달라져 실제 손절 손실도 달라진다 — 표시값을 실제로 맞춘다
+  const lossAtStopSplit = notion > 0 && entry > 0
+    ? notion * (Math.abs(tranche.avg - stop) / tranche.avg)
+    : lossAtStop;
 
   // 격리 청산가 근사 — 계산은 lib/positionSizing (테스트로 고정됨)
   const isShort = direction === 'short';
@@ -306,10 +314,28 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
       </label>
       <div className="space-y-1.5 text-xs">
         <div className="flex justify-between"><span className="text-[var(--text-muted)]">적정 포지션 노션</span><span className="font-bold text-[var(--text)] tabular-nums">{usd(notion, 0)} USDT</span></div>
-        <div className="flex justify-between"><span className="text-[var(--text-muted)]">필요 증거금 ({lev}배)</span><span className="font-semibold text-[var(--text)] tabular-nums">{usd(margin, 0)} USDT</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">필요 증거금 ({lev}배)</span>
+          <span className={`font-semibold tabular-nums ${marginOverSeed ? 'text-red-400' : 'text-[var(--text)]'}`}>
+            {usd(margin, 0)} USDT{marginOverSeed && s > 0 ? ` (시드의 ${Math.round(margin / s * 100)}%)` : ''}
+          </span></div>
+        {marginOverSeed && (
+          <p className="rounded-lg bg-red-500/10 px-2.5 py-2 text-[10px] leading-relaxed text-red-400">
+            ⚠ 필요 증거금이 시드({usd(s, 0)} USDT)를 넘습니다 — <strong>이 배율로는 실행 불가</strong>.
+            손절폭 {stopPct.toFixed(2)}%가 좁아 노션이 커진 탓입니다.
+            허용손실을 {r > 0 ? (r * s / margin).toFixed(2) : '0'}% 이하로 낮추거나,
+            최소 {levNeededForSeed}배 이상으로 올리거나, 손절폭이 넓어질 때까지 기다리세요.
+            <strong> 배율을 올려 억지로 맞추는 것은 청산 위험을 키웁니다.</strong>
+          </p>
+        )}
         <div className="flex justify-between"><span className="text-[var(--text-muted)]">예상 청산가 (격리 근사)</span><span className={`font-semibold tabular-nums ${safety < 2 ? 'text-red-400' : 'text-[var(--text)]'}`}>${fmtP(liq, priceDigits)} ({isShort ? '+' : '-'}{liqDistPct.toFixed(2)}%)</span></div>
         <div className="flex justify-between"><span className="text-[var(--text-muted)]">청산여유 ÷ 손절거리</span><span className={`font-semibold tabular-nums ${safety < 2 ? 'text-red-400' : safety < 3 ? 'text-amber-400' : 'text-emerald-400'}`}>{safety.toFixed(1)}배</span></div>
-        <div className="flex justify-between"><span className="text-[var(--text-muted)]">손절 시 손실</span><span className="font-semibold text-red-400 tabular-nums">-{usd(lossAtStop)} USDT</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">손절 시 손실{split ? ' (일괄 진입 기준)' : ''}</span><span className="font-semibold text-red-400 tabular-nums">-{usd(lossAtStop)} USDT</span></div>
+        {split && Math.abs(lossAtStopSplit - lossAtStop) > 0.01 && (
+          <div className="flex justify-between">
+            <span className="text-[var(--text-muted)]">└ 3분할 평단 기준 실제</span>
+            <span className="font-semibold text-red-400 tabular-nums">-{usd(lossAtStopSplit)} USDT</span>
+          </div>
+        )}
         <div className="flex justify-between"><span className="text-[var(--text-muted)]">목표1 도달 시 (1:{rr1.toFixed(1)})</span><span className="font-semibold text-emerald-400 tabular-nums">+{usd(lossAtStop * rr1)} USDT</span></div>
         <div className="flex justify-between"><span className="text-[var(--text-muted)]">목표2 도달 시 (1:{rr2.toFixed(1)})</span><span className="font-semibold text-emerald-400 tabular-nums">+{usd(lossAtStop * rr2)} USDT</span></div>
         {paysFunding !== null && Math.abs(funding8h) > 0.005 && (
