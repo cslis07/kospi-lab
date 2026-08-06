@@ -12,7 +12,7 @@ import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 
 interface UniverseItem {
-  code: string; name: string; market: string;
+  code: string; name: string; market: string; sector?: string;
   close: number; changeRate: number; marketCap: number; tradingValue: number;
 }
 interface ScoreMetrics {
@@ -21,24 +21,43 @@ interface ScoreMetrics {
   trailingPer: number | null; forwardPer: number | null; peg: number | null;
   roe: number | null; opMarginTrend: number | null; debtRatio: number | null;
 }
-interface ScoredRow {
-  code: string;
-  score: {
-    total: number;
-    parts: { growth: number; outlook: number; quality: number; valuation: number };
-    metrics: ScoreMetrics;
-    badges: string[]; hasConsensus: boolean; warnings: string[];
-  };
+interface Score {
+  total: number;
+  parts: { growth: number; outlook: number; quality: number; valuation: number };
+  metrics: ScoreMetrics;
+  badges: string[]; hasConsensus: boolean; warnings: string[];
+  buffett: { pass: number; total: number; checks: { label: string; pass: boolean | null; note: string }[] };
+  comment: string;
 }
-type ResultRow = UniverseItem & ScoredRow['score'];
+/** KR 배치 항목: { code, score } / US 배치 항목: { ticker, name, sector, price, marketCap, score } */
+interface KrScanItem { code: string; score: Score }
+interface UsScanItem { ticker: string; name: string; sector: string; price: number | null; marketCap: number | null; score: Score }
+type ResultRow = UniverseItem & Score;
+
+interface EnvIndicator {
+  key: string; label: string; value: number; unit: string; asOf: string;
+  monthAgo: number | null; changePct: number | null;
+  tone: 'good' | 'neutral' | 'warn'; comment: string;
+}
+interface MarketEnv {
+  indicators: EnvIndicator[];
+  overall: { tone: 'good' | 'neutral' | 'warn'; label: string; comment: string };
+}
 
 const BATCH = 15;
 
 const MARKETS = [
-  { key: 'ALL', label: '전체 (시총 상위)' },
+  { key: 'ALL', label: '한국 전체' },
   { key: 'KOSPI', label: 'KOSPI' },
   { key: 'KOSDAQ', label: 'KOSDAQ' },
+  { key: 'US', label: '🇺🇸 미국' },
 ] as const;
+
+const TONE_STYLE = {
+  good: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  neutral: 'bg-white/5 text-[var(--text-muted)] border-[var(--border)]',
+  warn: 'bg-red-500/10 text-red-400 border-red-500/30',
+} as const;
 
 const BADGE_STYLE: Record<string, string> = {
   '고성장': 'bg-red-500/15 text-red-400 border-red-500/40',
@@ -49,10 +68,15 @@ const BADGE_STYLE: Record<string, string> = {
 
 type SortKey = 'total' | 'revYoY' | 'opYoY' | 'cOpGrowth' | 'peg' | 'forwardPer' | 'roe' | 'marketCap';
 
-function fmtCap(won: number): string {
+function fmtCap(won: number, isUs = false): string {
+  if (isUs) {
+    if (won >= 1e12) return `$${(won / 1e12).toFixed(1)}T`;
+    if (won >= 1e9) return `$${Math.round(won / 1e9).toLocaleString()}B`;
+    return won > 0 ? `$${won.toLocaleString()}` : '-';
+  }
   if (won >= 1e12) return `${(won / 1e12).toFixed(1)}조`;
   if (won >= 1e8) return `${Math.round(won / 1e8).toLocaleString()}억`;
-  return won.toLocaleString();
+  return won > 0 ? won.toLocaleString() : '-';
 }
 function pctCell(v: number | null, digits = 1): string {
   return v == null ? '-' : `${v > 0 ? '+' : ''}${v.toFixed(digits)}%`;
@@ -71,7 +95,9 @@ export default function GrowthPage() {
   const [failed, setFailed] = useState<string[]>([]);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanInfo, setScanInfo] = useState<{ date: string; market: string; top: number } | null>(null);
+  const [env, setEnv] = useState<MarketEnv | null>(null);
   const abortRef = useRef(false);
+  const isUs = market === 'US';
 
   // 필터·정렬
   const [sortKey, setSortKey] = useState<SortKey>('total');
@@ -85,13 +111,18 @@ export default function GrowthPage() {
   const scan = async () => {
     setScanning(true); setScanError(null); setRows(null); setFailed([]);
     abortRef.current = false;
+    // 시장 환경(유가·금리·VIX·달러)은 스캔과 함께 로드 — 서버 6h 캐시라 저렴
+    fetch('/api/growth-scan?mode=environment')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j?.indicators) setEnv(j); })
+      .catch(() => {});
     try {
       const uRes = await fetch(`/api/growth-scan?mode=universe&market=${market}&top=${top}`);
       const u = await uRes.json();
       if (!uRes.ok || u.error) throw new Error(u.error ?? `유니버스 조회 실패 (HTTP ${uRes.status})`);
       if (u.configured === false) throw new Error('KRX API 키가 설정되지 않았습니다 — 유니버스(시총 순위)를 만들 수 없습니다.');
-      const universe: UniverseItem[] = u.items ?? [];
-      if (!universe.length) throw new Error('유니버스가 비었습니다 — KRX 데이터 미수신.');
+      const universe: UniverseItem[] = market === 'US' ? (u.items ?? []) : (u.items ?? []);
+      if (!universe.length) throw new Error('유니버스가 비었습니다 — 데이터 미수신.');
 
       setScanInfo({ date: u.date, market, top });
       setProgress({ done: 0, total: universe.length });
@@ -102,13 +133,28 @@ export default function GrowthPage() {
       for (let i = 0; i < universe.length; i += BATCH) {
         if (abortRef.current) break;
         const chunk = universe.slice(i, i + BATCH);
+        const param = market === 'US'
+          ? `tickers=${chunk.map((c) => c.code).join(',')}`
+          : `codes=${chunk.map((c) => c.code).join(',')}`;
         try {
-          const r = await fetch(`/api/growth-scan?codes=${chunk.map((c) => c.code).join(',')}`);
+          const r = await fetch(`/api/growth-scan?${param}`);
           const j = await r.json();
           if (r.ok && j.items) {
-            for (const it of j.items as ScoredRow[]) {
-              const base = byCode.get(it.code);
-              if (base) acc.push({ ...base, ...it.score });
+            if (market === 'US') {
+              for (const it of j.items as UsScanItem[]) {
+                const base = byCode.get(it.ticker);
+                if (base) acc.push({
+                  ...base,
+                  name: it.name || base.name, sector: it.sector,
+                  close: it.price ?? 0, marketCap: it.marketCap ?? 0,
+                  ...it.score,
+                });
+              }
+            } else {
+              for (const it of j.items as KrScanItem[]) {
+                const base = byCode.get(it.code);
+                if (base) acc.push({ ...base, ...it.score });
+              }
             }
             failedAcc.push(...(j.failed ?? []));
           } else {
@@ -139,7 +185,10 @@ export default function GrowthPage() {
     const val = (r: ResultRow): number => {
       if (sortKey === 'total') return r.total;
       if (sortKey === 'marketCap') return r.marketCap;
-      const m = r.metrics[sortKey];
+      // 미국은 컨센서스 영업이익 대신 포워드 EPS 성장이 대응 지표
+      const m = sortKey === 'cOpGrowth'
+        ? (r.metrics.cOpGrowth ?? r.metrics.cEpsGrowth)
+        : r.metrics[sortKey];
       // 결측은 항상 맨 뒤로
       return m == null ? (sortAsc ? Infinity : -Infinity) : m;
     };
@@ -161,9 +210,10 @@ export default function GrowthPage() {
       <div className="mb-4">
         <h1 className="text-lg font-bold text-[var(--text)]">성장주 발굴 <span className="text-xs font-normal text-[var(--text-muted)]">PER·PEG·성장률·컨센서스</span></h1>
         <p className="text-xs text-[var(--text-muted)] mt-1">
-          KRX 시총 상위 종목의 재무(확정 3개년)와 애널리스트 컨센서스(추정 1개년)를 훑어
+          한국(KRX 시총 상위)·미국(대형주 큐레이션)의 재무와 애널리스트 컨센서스를 훑어
           <strong className="text-[var(--text)]"> 확정 성장 35 · 미래 기대 30 · 수익성 15 · 밸류에이션 20</strong> 으로 점수화합니다.
-          기대주 = 컨센서스가 큰 폭의 성장을 보는 종목, 저평가성장 = PEG&lt;1.
+          여기에 <strong className="text-[var(--text)]">시장 환경(유가·금리·VIX·달러)</strong>과
+          <strong className="text-[var(--text)]"> 버핏 체크 7항목</strong>(ROE·이익률·흑자·부채·성장·배당·지급능력)을 함께 봅니다.
         </p>
       </div>
 
@@ -181,17 +231,19 @@ export default function GrowthPage() {
               ))}
             </div>
           </div>
-          <div>
-            <p className="text-[10px] text-[var(--text-muted)] mb-1">시총 상위</p>
-            <div className="flex gap-1">
-              {[50, 100, 150].map((t) => (
-                <button key={t} onClick={() => setTop(t)} disabled={scanning}
-                  className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${
-                    top === t ? 'bg-sky-500/15 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
-                  }`}>{t}종목</button>
-              ))}
+          {!isUs && (
+            <div>
+              <p className="text-[10px] text-[var(--text-muted)] mb-1">시총 상위</p>
+              <div className="flex gap-1">
+                {[50, 100, 150].map((t) => (
+                  <button key={t} onClick={() => setTop(t)} disabled={scanning}
+                    className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${
+                      top === t ? 'bg-sky-500/15 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
+                    }`}>{t}종목</button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           {!scanning ? (
             <button onClick={scan}
               className="px-5 py-1.5 rounded-lg bg-sky-500 text-white text-xs font-bold hover:bg-sky-400 transition-colors">
@@ -204,7 +256,7 @@ export default function GrowthPage() {
             </button>
           )}
           <p className="text-[10px] text-[var(--text-muted)]">
-            버튼을 눌러야만 실행됩니다 · 종목당 네이버 재무 1콜(12시간 캐시) · {top}종목 ≈ {Math.ceil(top / BATCH)}배치
+            버튼을 눌러야만 실행됩니다 · {isUs ? '종목당 Yahoo 재무 1콜(1시간 캐시) · 대형주 큐레이션 유니버스' : `종목당 네이버 재무 1콜(12시간 캐시) · ${top}종목 ≈ ${Math.ceil(top / BATCH)}배치`}
           </p>
         </div>
 
@@ -217,6 +269,35 @@ export default function GrowthPage() {
           </div>
         )}
       </div>
+
+      {/* 시장 환경 — 종목과 무관하게 "지금 성장주 하기 좋은 날씨인가" */}
+      {env && (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-4">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <h2 className="text-sm font-bold text-[var(--text)]">🌡 시장 환경</h2>
+            <span className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold ${TONE_STYLE[env.overall.tone]}`}>{env.overall.label}</span>
+            <span className="text-[11px] text-[var(--text-muted)]">{env.overall.comment}</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {env.indicators.map((ind) => (
+              <div key={ind.key} className={`rounded-xl border p-2.5 ${TONE_STYLE[ind.tone]}`}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-[11px] font-semibold">{ind.label}</span>
+                  <span className="text-xs font-bold tabular-nums">
+                    {ind.unit === '$' ? '$' : ''}{ind.value.toFixed(ind.value >= 100 ? 1 : 2)}{ind.unit !== '$' ? ind.unit : ''}
+                    {ind.changePct != null && (
+                      <span className="ml-1 text-[10px] font-normal">
+                        (1M {ind.changePct > 0 ? '+' : ''}{ind.changePct}{ind.key === 'us10y' ? '%p' : '%'})
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] leading-relaxed opacity-80">{ind.comment}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {scanError && (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5 text-sm text-red-400 mb-4">스캔 실패: {scanError}</div>
@@ -232,6 +313,23 @@ export default function GrowthPage() {
 
       {rows && (
         <>
+          {/* 상위 추천 — 점수 상위 5종목 + 이유 코멘트 */}
+          {!scanning && rows.length >= 5 && (
+            <div className="rounded-2xl border border-sky-500/20 bg-sky-500/[0.04] p-4 mb-4">
+              <h2 className="text-sm font-bold text-[var(--text)] mb-2">🏆 상위 추천 5 <span className="text-[10px] font-normal text-[var(--text-muted)]">점수순 · 룰 기반 자동 코멘트</span></h2>
+              <div className="space-y-1.5">
+                {[...rows].sort((a, b) => b.total - a.total).slice(0, 5).map((r, i) => (
+                  <div key={r.code} className="flex items-start gap-2 text-xs">
+                    <span className="text-[var(--text-muted)] tabular-nums w-4 shrink-0">{i + 1}.</span>
+                    <span className="font-bold text-[var(--text)] shrink-0">{r.name}</span>
+                    <span className="font-bold text-sky-400 tabular-nums shrink-0">{Math.round(r.total)}점</span>
+                    <span className="text-[var(--text-muted)] leading-relaxed">{r.comment}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* 필터 */}
           <div className="flex flex-wrap items-center gap-2 mb-3 text-xs">
             <button onClick={() => setOnlyConsensus(!onlyConsensus)}
@@ -266,7 +364,7 @@ export default function GrowthPage() {
                   <th className="px-2 py-2 text-left text-[10px] font-semibold text-[var(--text-muted)]">배지</th>
                   {th('revYoY', '매출YoY', '최근 확정 연도 매출 성장률')}
                   {th('opYoY', '영업YoY', '최근 확정 연도 영업이익 성장률')}
-                  {th('cOpGrowth', '컨센영업', '컨센서스(추정) 영업이익 성장률')}
+                  {th('cOpGrowth', isUs ? '포워드EPS' : '컨센영업', isUs ? '포워드 EPS 성장률 (트레일링→포워드 PER 격차)' : '컨센서스(추정) 영업이익 성장률')}
                   {th('forwardPer', 'fwdPER', '컨센서스 EPS 기준 포워드 PER')}
                   {th('peg', 'PEG', '포워드 PER ÷ 컨센서스 EPS 성장률 — 1 미만이면 성장 대비 저평가')}
                   {th('roe', 'ROE')}
@@ -283,7 +381,9 @@ export default function GrowthPage() {
                       <td className="px-3 py-2 text-[var(--text-muted)] tabular-nums">{i + 1}</td>
                       <td className="px-2 py-2">
                         <span className="font-semibold text-[var(--text)]">{r.name}</span>
-                        <span className="text-[9px] text-[var(--text-muted)] ml-1">{/KOSDAQ/i.test(r.market) ? 'KQ' : 'KS'}</span>
+                        <span className="text-[9px] text-[var(--text-muted)] ml-1">
+                          {r.market === 'US' ? (r.sector ?? r.code) : /KOSDAQ/i.test(r.market) ? 'KQ' : 'KS'}
+                        </span>
                       </td>
                       <td className="px-2 py-2 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -303,19 +403,24 @@ export default function GrowthPage() {
                       </td>
                       <td className={`px-2 py-2 text-right tabular-nums ${pctColor(r.metrics.revYoY)}`}>{pctCell(r.metrics.revYoY)}</td>
                       <td className={`px-2 py-2 text-right tabular-nums ${pctColor(r.metrics.opYoY)}`}>{pctCell(r.metrics.opYoY)}</td>
-                      <td className={`px-2 py-2 text-right tabular-nums ${pctColor(r.metrics.cOpGrowth)}`}>{pctCell(r.metrics.cOpGrowth)}</td>
+                      <td className={`px-2 py-2 text-right tabular-nums ${pctColor(r.metrics.cOpGrowth ?? r.metrics.cEpsGrowth)}`}>{pctCell(r.metrics.cOpGrowth ?? r.metrics.cEpsGrowth)}</td>
                       <td className="px-2 py-2 text-right tabular-nums text-[var(--text)]">{r.metrics.forwardPer?.toFixed(1) ?? '-'}</td>
                       <td className={`px-2 py-2 text-right tabular-nums font-semibold ${r.metrics.peg != null && r.metrics.peg < 1 ? 'text-emerald-400' : 'text-[var(--text)]'}`}>{r.metrics.peg?.toFixed(2) ?? '-'}</td>
                       <td className="px-2 py-2 text-right tabular-nums text-[var(--text)]">{r.metrics.roe != null ? `${r.metrics.roe.toFixed(1)}%` : '-'}</td>
-                      <td className="px-2 py-2 text-right tabular-nums text-[var(--text-muted)]">{fmtCap(r.marketCap)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums text-[var(--text-muted)]">{fmtCap(r.marketCap, r.market === 'US')}</td>
                       <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
-                        <Link href={`/stock-analysis?ticker=${r.code}`}
-                          className="text-[10px] text-sky-400 hover:underline whitespace-nowrap">정밀 분석 →</Link>
+                        {r.market !== 'US' && (
+                          <Link href={`/stock-analysis?ticker=${r.code}`}
+                            className="text-[10px] text-sky-400 hover:underline whitespace-nowrap">정밀 분석 →</Link>
+                        )}
                       </td>
                     </tr>
                     {expanded === r.code && (
                       <tr key={`${r.code}-detail`} className="border-b border-[var(--border)]/50 bg-white/[0.02]">
                         <td colSpan={12} className="px-4 py-3">
+                          <p className="text-[11px] text-[var(--text)] mb-2.5">
+                            💬 <span className="text-[var(--text-muted)]">{r.comment}</span>
+                          </p>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px] mb-2">
                             {([
                               ['확정 성장', r.parts.growth, 35],
@@ -338,7 +443,20 @@ export default function GrowthPage() {
                             <span>PER(확정) {r.metrics.trailingPer?.toFixed(1) ?? '-'}</span>
                             <span>이익률 개선 {r.metrics.opMarginTrend != null ? `${r.metrics.opMarginTrend > 0 ? '+' : ''}${r.metrics.opMarginTrend}%p` : '-'}</span>
                             <span>부채비율 {r.metrics.debtRatio != null ? `${r.metrics.debtRatio.toFixed(0)}%` : '-'}</span>
-                            <span>현재가 {r.close.toLocaleString()}원 ({r.changeRate > 0 ? '+' : ''}{r.changeRate}%)</span>
+                            <span>현재가 {r.market === 'US' ? `$${r.close.toLocaleString()}` : `${r.close.toLocaleString()}원 (${r.changeRate > 0 ? '+' : ''}${r.changeRate}%)`}</span>
+                          </div>
+                          {/* 버핏식 품질 체크 7항목 */}
+                          <div className="mt-2.5">
+                            <p className="text-[10px] font-semibold text-[var(--text-muted)] mb-1">
+                              🎩 버핏 체크 <span className="tabular-nums text-[var(--text)]">{r.buffett.pass}/{r.buffett.total}</span>
+                            </p>
+                            <div className="flex flex-wrap gap-x-3 gap-y-1">
+                              {r.buffett.checks.map((c) => (
+                                <span key={c.label} className={`text-[10px] ${c.pass === true ? 'text-emerald-400' : c.pass === false ? 'text-red-400/70' : 'text-[var(--text-muted)] opacity-50'}`}>
+                                  {c.pass === true ? '✓' : c.pass === false ? '✗' : '–'} {c.label} <span className="opacity-70">({c.note})</span>
+                                </span>
+                              ))}
+                            </div>
                           </div>
                           {r.warnings.length > 0 && (
                             <div className="mt-2 space-y-0.5">

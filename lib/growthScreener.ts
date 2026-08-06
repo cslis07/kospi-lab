@@ -30,6 +30,12 @@ export interface GrowthFinance {
   cNetIncome: number | null;
   cEps: number | null;
   cPer: number | null;               // = 포워드 PER (네이버가 현재가 기준으로 계산)
+  /* 버핏 품질 체크용 추가 행 (최근 확정 연도 기준) */
+  netMargin: number | null;          // 순이익률 %
+  quickRatio: number | null;         // 당좌비율 % (단기 지급능력)
+  retention: number | null;          // 유보율 % (내부 현금 축적)
+  pbr: number | null;
+  dividendPerShare: number | null;   // 주당배당금 원
 }
 
 export interface GrowthScore {
@@ -58,6 +64,10 @@ export interface GrowthScore {
   badges: string[];                  // 고성장 · 기대주 · 턴어라운드 · 저평가성장
   hasConsensus: boolean;
   warnings: string[];
+  /** 버핏식 품질 체크 7항목 (첨부 학습 문서 기준 — 통과 개수/전체) */
+  buffett: { pass: number; total: number; checks: { label: string; pass: boolean | null; note: string }[] };
+  /** 룰 기반 추천 코멘트 — 최대 강점 + 최대 주의점 1~2문장 */
+  comment: string;
 }
 
 /* ── 수집 ──────────────────────────────────────────────── */
@@ -129,6 +139,11 @@ export async function fetchGrowthFinance(code: string): Promise<GrowthFinance | 
     cNetIncome: cVal('당기순이익'),
     cEps: cVal('EPS'),
     cPer: cVal('PER'),
+    netMargin: series('순이익률').at(-1) ?? null,
+    quickRatio: series('당좌비율').at(-1) ?? null,
+    retention: series('유보율').at(-1) ?? null,
+    pbr: series('PBR').at(-1) ?? null,
+    dividendPerShare: series('주당배당금').at(-1) ?? null,
     // 컨센서스 연도 키가 있어도 값이 전부 '-' 인 미커버 종목이 있다 → 값 기준으로 판정
     consensusYear: null,
   };
@@ -237,7 +252,49 @@ export function scoreGrowth(f: GrowthFinance): GrowthScore {
     warnings.push('최근 확정 영업이익 적자 — 성장률 수치 해석 주의');
   }
 
+  /* 버핏식 품질 체크 — 첨부 학습 문서("버핏식 성장주 재무제표 보는 법")의 한국주식 기준.
+   * FCF·이자보상배율은 네이버 연간 API 미제공이라 제외(한계 명시) — 당좌비율·유보율로 현금 여력을 대신 본다 */
+  const roeAll = f.roe.filter((x): x is number => x != null);
+  const roeSustained = roeAll.length >= 2 && roeAll.every((x) => x >= 10);
+  const profitAll = f.netIncome.filter((x): x is number => x != null);
+  const chk = (label: string, pass: boolean | null, note: string) => ({ label, pass, note });
+  const checks = [
+    chk('ROE 10% 이상 유지', roeAll.length ? roeSustained : null,
+      roeAll.length ? `${f.years.length}개년 ${roeAll.map((x) => x.toFixed(0)).join('→')}%` : '데이터 없음'),
+    chk('영업이익률 15% 이상', f.opMargin[last] != null ? f.opMargin[last]! >= 15 : null,
+      f.opMargin[last] != null ? `${f.opMargin[last]!.toFixed(1)}%` : '-'),
+    chk('흑자 지속(순이익)', profitAll.length ? profitAll.every((x) => x > 0) : null,
+      profitAll.length ? (profitAll.every((x) => x > 0) ? `${profitAll.length}개년 연속 흑자` : '적자 연도 있음') : '-'),
+    chk('부채비율 100% 미만', debtRatio != null ? debtRatio < 100 : null,
+      debtRatio != null ? `${debtRatio.toFixed(0)}%` : '-'),
+    chk('매출 꾸준한 증가', revYoY != null && revYoYPrev != null ? revYoY > 0 && revYoYPrev > 0 : null,
+      revYoY != null ? `YoY ${revYoY > 0 ? '+' : ''}${revYoY}%` : '-'),
+    chk('주주환원(배당)', f.dividendPerShare != null ? f.dividendPerShare > 0 : null,
+      f.dividendPerShare != null && f.dividendPerShare > 0 ? `주당 ${f.dividendPerShare.toLocaleString()}원` : '배당 없음'),
+    chk('단기 지급능력(당좌비율 100%↑)', f.quickRatio != null ? f.quickRatio >= 100 : null,
+      f.quickRatio != null ? `${f.quickRatio.toFixed(0)}%` : '-'),
+  ];
+  const buffett = { pass: checks.filter((c) => c.pass === true).length, total: checks.length, checks };
+
   const total = Math.min(100, Math.round((growth + outlook + quality + valuation) * 10) / 10);
+
+  /* 추천 코멘트 — 최대 강점 하나 + 최대 주의점 하나 */
+  const strengths: string[] = [];
+  if (cOpGrowth != null && cOpGrowth >= 30) strengths.push(`컨센서스 영업이익 +${cOpGrowth}% — 애널리스트들이 큰 성장을 본다`);
+  else if (revYoY != null && revYoY >= 20 && opYoY != null && opYoY >= 20) strengths.push(`매출 +${revYoY}%·영업이익 +${opYoY}% 동반 고성장 확정 실적`);
+  else if (badges.includes('턴어라운드')) strengths.push('적자 → 흑자 전환 컨센서스 — 턴어라운드 후보');
+  else if (peg != null && peg < 1) strengths.push(`PEG ${peg} — 이익 성장 대비 가격이 싸다`);
+  else if (roe != null && roe >= 15) strengths.push(`ROE ${roe.toFixed(1)}% — 자본 효율이 버핏 기준(15%) 이상`);
+  else if (revYoY != null && revYoY > 0) strengths.push(`매출 +${revYoY}% 성장 지속`);
+  const cautions: string[] = [];
+  if (!hasConsensus) cautions.push('애널리스트 미커버 — 추정치 검증 불가, 정밀 분석 필수');
+  else if (f.opProfit[last] != null && f.opProfit[last]! < 0 && !badges.includes('턴어라운드')) cautions.push('영업 적자 지속 — "미래만 있는" 유형인지 확인');
+  else if (peg != null && peg >= 2) cautions.push(`PEG ${peg} — 성장을 감안해도 비싸다`);
+  else if (debtRatio != null && debtRatio >= 150) cautions.push(`부채비율 ${debtRatio.toFixed(0)}% — 금리 상승 취약`);
+  else if (buffett.pass <= 2) cautions.push(`버핏 체크 ${buffett.pass}/7 — 품질 지표 다수 미달`);
+  else if (peg != null && peg < 0.15) cautions.push('PEG가 비정상적으로 낮음 — 컨센서스 과대추정 여부 확인');
+  const comment = [strengths[0], cautions[0]].filter(Boolean).join('. 다만 ') || '뚜렷한 강점·약점 없음 — 관망';
+
   return {
     total,
     parts: { growth, outlook, quality, valuation },
@@ -245,6 +302,6 @@ export function scoreGrowth(f: GrowthFinance): GrowthScore {
       revYoY, opYoY, revYoYPrev, cRevGrowth, cOpGrowth, cEpsGrowth,
       trailingPer, forwardPer, peg, roe, opMarginTrend, debtRatio,
     },
-    badges, hasConsensus, warnings,
+    badges, hasConsensus, warnings, buffett, comment,
   };
 }

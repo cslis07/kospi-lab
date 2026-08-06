@@ -12,9 +12,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchKrxDailyMap, hasKrxKey } from '@/lib/krx';
 import { fetchGrowthFinance, scoreGrowth } from '@/lib/growthScreener';
+import { fetchMarketEnvironment } from '@/lib/marketEnvironment';
+import { US_UNIVERSE, scanUsTicker } from '@/lib/usGrowth';
 
 export const maxDuration = 30;
-export const preferredRegion = 'icn1';   // 네이버·KRX 모두 한국 API
+export const preferredRegion = 'icn1';   // 네이버·KRX 모두 한국 API (FRED·Yahoo 는 리전 무관)
 
 const BATCH_MAX = 15;
 const CONCURRENCY = 6;
@@ -22,10 +24,43 @@ const CONCURRENCY = 6;
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
 
+  /* ── 시장 환경 (유가·금리·VIX·달러 + 종합 판단) ── */
+  if (sp.get('mode') === 'environment') {
+    const env = await fetchMarketEnvironment();
+    return NextResponse.json(env);
+  }
+
+  /* ── 미국 배치 스캔 ── */
+  const usTickers = (sp.get('tickers') ?? '')
+    .split(',')
+    .map((t) => t.trim().toUpperCase())
+    .filter((t) => /^[A-Z.\-]{1,8}$/.test(t))
+    .slice(0, BATCH_MAX);
+  if (usTickers.length) {
+    const results: Array<Awaited<ReturnType<typeof scanUsTicker>>> = [];
+    for (let i = 0; i < usTickers.length; i += CONCURRENCY) {
+      const chunk = usTickers.slice(i, i + CONCURRENCY);
+      const settled = await Promise.allSettled(chunk.map((t) => scanUsTicker(t)));
+      for (const s of settled) results.push(s.status === 'fulfilled' ? s.value : null);
+    }
+    const ok = results.filter(Boolean);
+    return NextResponse.json({ items: ok, failed: usTickers.filter((t) => !ok.some((r) => r!.ticker === t)) });
+  }
+
   /* ── 유니버스 ── */
   if (sp.get('mode') === 'universe') {
-    if (!hasKrxKey()) return NextResponse.json({ configured: false, items: [] });
     const market = (sp.get('market') ?? 'ALL').toUpperCase();
+    // 미국: 정적 큐레이션 리스트 (시세·재무는 배치 스캔에서 실시간)
+    if (market === 'US') {
+      return NextResponse.json({
+        configured: true, date: 'realtime', count: US_UNIVERSE.length,
+        items: US_UNIVERSE.map((u) => ({
+          code: u.ticker, name: u.name, market: 'US', sector: u.sector,
+          close: 0, changeRate: 0, marketCap: 0, tradingValue: 0,
+        })),
+      });
+    }
+    if (!hasKrxKey()) return NextResponse.json({ configured: false, items: [] });
     const top = Math.min(150, Math.max(20, parseInt(sp.get('top') ?? '100', 10) || 100));
     try {
       const { map, date } = await fetchKrxDailyMap();

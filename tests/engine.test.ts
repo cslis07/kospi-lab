@@ -16,6 +16,7 @@ import { buildStockVerdict, analyzeSupply, type InvestorDay } from '../lib/stock
 import { analyzeTimeframe, srZones, fibonacci, atr } from '../lib/coinAnalysis';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '../lib/positionSizing';
 import { scoreGrowth, growthPct } from '../lib/growthScreener';
+import { scoreUsGrowth } from '../lib/usGrowth';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -292,6 +293,7 @@ console.log('\n[ growthScreener — 성장주 점수 (순수 함수) ]');
     eps: [800, 1000, 1400], roe: [12, 14, 16], opMargin: [10, 10.8, 12],
     per: [15, 14, 12], debtRatio: [60, 55, 50],
     cRevenue: 190, cOpProfit: 25, cNetIncome: 19, cEps: 1900, cPer: 9,
+    netMargin: 9.3, quickRatio: 150, retention: 2000, pbr: 1.8, dividendPerShare: 500,
   };
   ok('고성장+컨센서스 좋은 종목은 고득점 + 배지', () => {
     const s = scoreGrowth({ ...base });
@@ -320,6 +322,20 @@ console.log('\n[ growthScreener — 성장주 점수 (순수 함수) ]');
     assert.equal(s.metrics.trailingPer, null, '음수 PER 는 trailing 으로 쓰지 않는다');
     assert.equal(s.metrics.peg, null, '음수 EPS 기반 성장률로 PEG 계산 금지');
   });
+  ok('버핏 체크: 우량 픽스처 통과 개수 + 데이터 결측은 null(–)', () => {
+    const s = scoreGrowth({ ...base });
+    // ROE 12→14→16 전부 10↑ ✓ · 흑자 3년 ✓ · 부채 50<100 ✓ · 매출 2년 연속 ✓ · 배당 500원 ✓ · 당좌 150 ✓ / 영업이익률 12<15 ✗
+    assert.equal(s.buffett.pass, 6, `pass=${s.buffett.pass}: ${JSON.stringify(s.buffett.checks)}`);
+    const s2 = scoreGrowth({ ...base, quickRatio: null, dividendPerShare: null });
+    const q = s2.buffett.checks.find((c) => c.label.includes('당좌'));
+    assert.equal(q?.pass, null, '결측은 실패가 아니라 미평가(null)');
+  });
+  ok('추천 코멘트: 강점·주의점이 룰대로 뽑힌다', () => {
+    const good = scoreGrowth({ ...base });
+    assert.ok(good.comment.includes('컨센서스 영업이익'), good.comment);   // cOpGrowth 38.9% ≥ 30
+    const noCons = scoreGrowth({ ...base, consensusYear: null, cRevenue: null, cOpProfit: null, cNetIncome: null, cEps: null, cPer: null });
+    assert.ok(noCons.comment.includes('미커버'), noCons.comment);
+  });
   ok('growthPct: 전기 0·null 은 null, ±300% 클램프', () => {
     assert.equal(growthPct(100, 0), null);
     assert.equal(growthPct(null, 100), null);
@@ -328,6 +344,47 @@ console.log('\n[ growthScreener — 성장주 점수 (순수 함수) ]');
     assert.equal(growthPct(-1000, 10), -300);
     assert.equal(growthPct(120, 100), 20);
     assert.equal(growthPct(80, -100), 180, '적자 축소도 양의 개선율');
+  });
+}
+
+console.log('\n[ usGrowth — 미국 성장주 점수 (Yahoo 필드) ]');
+{
+  // Yahoo quoteSummary 실제 응답 형태의 최소 픽스처
+  const yf = (over: Record<string, unknown> = {}) => ({
+    financialData: {
+      revenueGrowth: { raw: 0.25 }, earningsGrowth: { raw: 0.3 },
+      returnOnEquity: { raw: 0.28 }, operatingMargins: { raw: 0.3 }, profitMargins: { raw: 0.22 },
+      freeCashflow: { raw: 5e9 }, debtToEquity: { raw: 45 }, currentPrice: { raw: 200 },
+      ...((over.financialData as object) ?? {}),
+    },
+    defaultKeyStatistics: { trailingPE: { raw: 40 }, forwardPE: { raw: 28 }, pegRatio: { raw: 0.9 },
+      ...((over.defaultKeyStatistics as object) ?? {}) },
+    summaryDetail: { dividendYield: { raw: 0.006 }, marketCap: { raw: 1e12 },
+      ...((over.summaryDetail as object) ?? {}) },
+  });
+  ok('우량 성장주(고성장·PEG<1·FCF+)는 고득점 + 배지 + 버핏 다수 통과', () => {
+    const s = scoreUsGrowth(yf());
+    assert.ok(s.total >= 70, `total=${s.total}`);
+    assert.ok(s.badges.includes('고성장') && s.badges.includes('저평가성장'), `badges=${s.badges}`);
+    assert.ok(s.buffett.pass >= 6, `buffett=${s.buffett.pass}: ${JSON.stringify(s.buffett.checks)}`);
+    // 포워드 EPS 성장 = 40/28 - 1 = 42.9%
+    assert.ok(s.metrics.cEpsGrowth != null && Math.abs(s.metrics.cEpsGrowth - 42.9) < 0.2, `cEpsGrowth=${s.metrics.cEpsGrowth}`);
+  });
+  ok('적자 기업(trailingPE 없음)은 PEG 미계산 + 턴어라운드 분류', () => {
+    const s = scoreUsGrowth(yf({
+      financialData: { profitMargins: { raw: -0.1 }, freeCashflow: { raw: -1e9 } },
+      defaultKeyStatistics: { trailingPE: undefined, pegRatio: undefined },
+    }));
+    assert.equal(s.metrics.trailingPer, null);
+    assert.equal(s.metrics.peg, null, 'Yahoo peg 없고 trailing 없으면 PEG 미계산');
+    assert.ok(s.badges.includes('턴어라운드'), `badges=${s.badges}`);
+    assert.ok(s.comment.includes('적자'), s.comment);
+  });
+  ok('KR 과 동일한 출력 형태(parts 합=total, 부문 상한)', () => {
+    const s = scoreUsGrowth(yf());
+    const sum = s.parts.growth + s.parts.outlook + s.parts.quality + s.parts.valuation;
+    assert.ok(Math.abs(sum - s.total) < 0.001, `sum=${sum} total=${s.total}`);
+    assert.ok(s.parts.growth <= 35 && s.parts.outlook <= 30 && s.parts.quality <= 15 && s.parts.valuation <= 20);
   });
 }
 
