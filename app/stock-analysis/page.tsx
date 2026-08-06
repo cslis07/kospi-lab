@@ -98,6 +98,12 @@ export default function StockAnalysisPage() {
   // ticker·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
   const [ticker, setTicker] = useState('005930');
   const [autoRefresh, setAutoRefresh] = useState(false);
+  // 성장주 스크리너 등에서 ?ticker= 로 딥링크 — useSearchParams 는 Suspense 요구가 있어 location 으로 읽는다.
+  // 자동 '실행'은 하지 않는다(분석은 버튼으로만 — 비용 원칙 §0).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('ticker');
+    if (q && /^\d{6}$/.test(q)) setTicker(q);
+  }, []);
   const { model: aiModel, setModel: setAiModel, ready: modelReady } = useBriefingModel();
   const [run, setRun] = useState<{ ticker: string; model: string } | null>(null);
 

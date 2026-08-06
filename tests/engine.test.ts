@@ -15,6 +15,7 @@ import {
 import { buildStockVerdict, analyzeSupply, type InvestorDay } from '../lib/stockAnalysis';
 import { analyzeTimeframe, srZones, fibonacci, atr } from '../lib/coinAnalysis';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '../lib/positionSizing';
+import { scoreGrowth, growthPct } from '../lib/growthScreener';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -282,5 +283,52 @@ ok('technicalOnly 면 수급 게이트를 면제한다 (백테스트가 신호 0
   assert.equal(bt.entryOk, true, '백테스트 모드는 수급 없이도 신호가 나와야');
   assert.equal(live.entryOk, false, '실시간 모드는 여전히 수급 결측을 차단해야');
 });
+
+console.log('\n[ growthScreener — 성장주 점수 (순수 함수) ]');
+{
+  const base = {
+    code: '000000', years: ['202312', '202412', '202512'], consensusYear: '202612' as string | null,
+    revenue: [100, 120, 150], opProfit: [10, 13, 18], netIncome: [8, 10, 14],
+    eps: [800, 1000, 1400], roe: [12, 14, 16], opMargin: [10, 10.8, 12],
+    per: [15, 14, 12], debtRatio: [60, 55, 50],
+    cRevenue: 190, cOpProfit: 25, cNetIncome: 19, cEps: 1900, cPer: 9,
+  };
+  ok('고성장+컨센서스 좋은 종목은 고득점 + 배지', () => {
+    const s = scoreGrowth({ ...base });
+    assert.ok(s.total >= 70, `total=${s.total}`);
+    assert.ok(s.badges.includes('고성장'), `badges=${s.badges}`);
+    assert.ok(s.badges.includes('기대주'));
+    assert.equal(s.hasConsensus, true);
+    // PEG = 9 / ((1900-1400)/1400*100 = 35.7%) ≈ 0.25 → 저평가성장
+    assert.ok(s.metrics.peg != null && s.metrics.peg < 1, `peg=${s.metrics.peg}`);
+    assert.ok(s.badges.includes('저평가성장'));
+  });
+  ok('컨센서스 없으면 미래 기대 0점 + hasConsensus=false (미커버 소형주)', () => {
+    const s = scoreGrowth({ ...base, consensusYear: null, cRevenue: null, cOpProfit: null, cNetIncome: null, cEps: null, cPer: null });
+    assert.equal(s.hasConsensus, false);
+    assert.equal(s.parts.outlook, 0);
+    assert.ok(s.warnings.some((w) => w.includes('컨센서스 없음')));
+  });
+  ok('적자→흑자 컨센서스는 턴어라운드 배지, PEG 는 계산하지 않음', () => {
+    const s = scoreGrowth({
+      ...base,
+      opProfit: [-30, -20, -10], netIncome: [-25, -18, -8], eps: [-500, -360, -160],
+      per: [-10, -12, -20],                       // 적자 기업 PER 음수 (실측 328130 패턴)
+      cOpProfit: 5, cNetIncome: 3, cEps: 60, cPer: 50,
+    });
+    assert.ok(s.badges.includes('턴어라운드'), `badges=${s.badges}`);
+    assert.equal(s.metrics.trailingPer, null, '음수 PER 는 trailing 으로 쓰지 않는다');
+    assert.equal(s.metrics.peg, null, '음수 EPS 기반 성장률로 PEG 계산 금지');
+  });
+  ok('growthPct: 전기 0·null 은 null, ±300% 클램프', () => {
+    assert.equal(growthPct(100, 0), null);
+    assert.equal(growthPct(null, 100), null);
+    assert.equal(growthPct(100, null), null);
+    assert.equal(growthPct(1000, 10), 300, '이상치 클램프');
+    assert.equal(growthPct(-1000, 10), -300);
+    assert.equal(growthPct(120, 100), 20);
+    assert.equal(growthPct(80, -100), 180, '적자 축소도 양의 개선율');
+  });
+}
 
 console.log(`\n전체 ${passed}개 테스트 통과 ✅\n`);
