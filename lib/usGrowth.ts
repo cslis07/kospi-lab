@@ -170,13 +170,30 @@ export const US_UNIVERSE: UsUniverseItem[] = [
   { ticker: 'GM', name: 'General Motors', sector: '경기소비재', themes: ['전기차·자율주행'] },
   { ticker: 'F', name: 'Ford Motor', sector: '경기소비재', themes: ['전기차·자율주행'] },
   { ticker: 'MBLY', name: 'Mobileye', sector: '기술', themes: ['전기차·자율주행', 'AI·반도체'] },
-  // ── 우주항공·방산 ──
+  // ── 우주항공·방산: 방산 대형주 ──
   { ticker: 'GE', name: 'GE Aerospace', sector: '산업재', themes: ['우주항공·방산'] },
   { ticker: 'RTX', name: 'RTX', sector: '산업재', themes: ['우주항공·방산'] },
   { ticker: 'LMT', name: 'Lockheed Martin', sector: '산업재', themes: ['우주항공·방산'] },
   { ticker: 'NOC', name: 'Northrop Grumman', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'GD', name: 'General Dynamics', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'LHX', name: 'L3Harris Technologies', sector: '산업재', themes: ['우주항공·방산'] },
   { ticker: 'BA', name: 'Boeing', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'TDG', name: 'TransDigm Group', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'HEI', name: 'HEICO', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'LDOS', name: 'Leidos Holdings', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'KRMN', name: 'Karman Holdings', sector: '산업재', themes: ['우주항공·방산'] },
+  // ── 우주항공·방산: 우주 발사·위성 ──
+  // SpaceX 는 2026-06 나스닥 상장(SPCX). 그 전까지는 비상장이라 담을 수 없었다.
+  { ticker: 'SPCX', name: 'SpaceX', sector: '산업재', themes: ['우주항공·방산'] },
   { ticker: 'RKLB', name: 'Rocket Lab', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'ASTS', name: 'AST SpaceMobile', sector: '기술', themes: ['우주항공·방산'] },
+  { ticker: 'LUNR', name: 'Intuitive Machines', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'RDW', name: 'Redwire', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'PL', name: 'Planet Labs', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'VOYG', name: 'Voyager Technologies', sector: '산업재', themes: ['우주항공·방산'] },
+  // ── 우주항공·방산: 무인기·드론 ──
+  { ticker: 'KTOS', name: 'Kratos Defense', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'AVAV', name: 'AeroVironment', sector: '산업재', themes: ['우주항공·방산'] },
   { ticker: 'AXON', name: 'Axon Enterprise', sector: '산업재', themes: ['우주항공·방산'] },
   // ── 원자력·전력 (AI 데이터센터 수혜) ──
   { ticker: 'VST', name: 'Vistra', sector: '유틸리티', themes: ['원자력·전력', '데이터·인프라'] },
