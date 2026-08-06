@@ -165,7 +165,9 @@ export default function GrowthPage() {
         ? (() => {
             const it = items[0] as UsScanItem;
             return {
-              code: it.ticker, name: it.name, market: 'US', sector: it.sector, themes: it.themes,
+              // Yahoo 가 이름을 안 주면(티커만 반환) 검색 결과의 이름을 쓴다
+              code: it.ticker, name: it.name && it.name !== it.ticker ? it.name : name,
+              market: 'US', sector: it.sector, themes: it.themes,
               close: it.price ?? 0, changeRate: 0, marketCap: it.marketCap ?? 0, tradingValue: 0,
               adhoc: it.adhoc, ...it.score,
             };

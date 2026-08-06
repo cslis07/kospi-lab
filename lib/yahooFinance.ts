@@ -58,9 +58,12 @@ async function ensureCrumb() {
   } catch { /* crumb 없이 진행 */ }
 }
 
+// ⚠ price 모듈이 있어야 종목명(longName/shortName)·통화·시가총액을 받는다.
+//   빠져 있으면 이름 자리에 티커가 그대로 찍힌다(실측으로 확인).
 const MODULE_LISTS = [
-  'financialData,defaultKeyStatistics,summaryDetail,assetProfile,balanceSheetHistoryQuarterly,balanceSheetHistory,incomeStatementHistory',
-  'financialData,defaultKeyStatistics,summaryDetail,assetProfile',
+  'price,financialData,defaultKeyStatistics,summaryDetail,assetProfile,balanceSheetHistoryQuarterly,balanceSheetHistory,incomeStatementHistory',
+  'price,financialData,defaultKeyStatistics,summaryDetail,assetProfile',
+  'price,financialData,defaultKeyStatistics,summaryDetail',
   'financialData,defaultKeyStatistics,summaryDetail',
 ];
 const YF_HOSTS = [
