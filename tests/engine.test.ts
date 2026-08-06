@@ -16,7 +16,7 @@ import { buildStockVerdict, analyzeSupply, type InvestorDay } from '../lib/stock
 import { analyzeTimeframe, srZones, fibonacci, atr } from '../lib/coinAnalysis';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '../lib/positionSizing';
 import { scoreGrowth, growthPct } from '../lib/growthScreener';
-import { scoreUsGrowth } from '../lib/usGrowth';
+import { scoreUsGrowth, US_UNIVERSE, US_SECTORS, US_THEMES } from '../lib/usGrowth';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -379,6 +379,25 @@ console.log('\n[ usGrowth — 미국 성장주 점수 (Yahoo 필드) ]');
     assert.equal(s.metrics.peg, null, 'Yahoo peg 없고 trailing 없으면 PEG 미계산');
     assert.ok(s.badges.includes('턴어라운드'), `badges=${s.badges}`);
     assert.ok(s.comment.includes('적자'), s.comment);
+  });
+  ok('유니버스 무결성: 티커 중복 없음 · 섹터/테마가 허용 목록 안 · 테마 1개 이상', () => {
+    const seen = new Set<string>();
+    for (const u of US_UNIVERSE) {
+      assert.ok(!seen.has(u.ticker), `티커 중복: ${u.ticker}`);
+      seen.add(u.ticker);
+      assert.ok((US_SECTORS as readonly string[]).includes(u.sector), `${u.ticker}: 알 수 없는 섹터 ${u.sector}`);
+      assert.ok(u.themes.length >= 1, `${u.ticker}: 테마 없음`);
+      for (const t of u.themes) assert.ok((US_THEMES as readonly string[]).includes(t), `${u.ticker}: 알 수 없는 테마 ${t}`);
+    }
+    assert.ok(US_UNIVERSE.length >= 100, `유니버스 ${US_UNIVERSE.length}종목`);
+  });
+  ok('모든 섹터·테마에 종목이 최소 1개씩 (빈 카테고리 칩 방지)', () => {
+    for (const s of US_SECTORS) {
+      assert.ok(US_UNIVERSE.some((u) => u.sector === s), `섹터 '${s}' 에 종목 없음`);
+    }
+    for (const t of US_THEMES) {
+      assert.ok(US_UNIVERSE.some((u) => u.themes.includes(t)), `테마 '${t}' 에 종목 없음`);
+    }
   });
   ok('KR 과 동일한 출력 형태(parts 합=total, 부문 상한)', () => {
     const s = scoreUsGrowth(yf());

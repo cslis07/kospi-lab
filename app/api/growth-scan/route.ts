@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchKrxDailyMap, hasKrxKey } from '@/lib/krx';
 import { fetchGrowthFinance, scoreGrowth } from '@/lib/growthScreener';
 import { fetchMarketEnvironment } from '@/lib/marketEnvironment';
-import { US_UNIVERSE, scanUsTicker } from '@/lib/usGrowth';
+import { US_UNIVERSE, US_SECTORS, US_THEMES, scanUsTicker } from '@/lib/usGrowth';
 
 export const maxDuration = 30;
 export const preferredRegion = 'icn1';   // 네이버·KRX 모두 한국 API (FRED·Yahoo 는 리전 무관)
@@ -52,10 +52,19 @@ export async function GET(req: NextRequest) {
     const market = (sp.get('market') ?? 'ALL').toUpperCase();
     // 미국: 정적 큐레이션 리스트 (시세·재무는 배치 스캔에서 실시간)
     if (market === 'US') {
+      const sector = sp.get('sector');   // GICS 11섹터 한글명
+      const theme = sp.get('theme');     // 증권사 스타일 테마
+      const filtered = US_UNIVERSE.filter(
+        (u) => (!sector || u.sector === sector) && (!theme || u.themes.includes(theme as never)),
+      );
       return NextResponse.json({
-        configured: true, date: 'realtime', count: US_UNIVERSE.length,
-        items: US_UNIVERSE.map((u) => ({
-          code: u.ticker, name: u.name, market: 'US', sector: u.sector,
+        configured: true, date: 'realtime', count: filtered.length,
+        sectors: US_SECTORS, themes: US_THEMES,
+        // 섹터·테마별 종목 수 (칩에 개수 표시용)
+        sectorCounts: Object.fromEntries(US_SECTORS.map((s) => [s, US_UNIVERSE.filter((u) => u.sector === s).length])),
+        themeCounts: Object.fromEntries(US_THEMES.map((t) => [t, US_UNIVERSE.filter((u) => u.themes.includes(t)).length])),
+        items: filtered.map((u) => ({
+          code: u.ticker, name: u.name, market: 'US', sector: u.sector, themes: u.themes,
           close: 0, changeRate: 0, marketCap: 0, tradingValue: 0,
         })),
       });

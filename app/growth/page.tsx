@@ -8,13 +8,15 @@
  * 원칙: 페이지 진입만으로는 아무것도 호출하지 않는다(버튼 실행 — §0 비용 원칙).
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 
 interface UniverseItem {
-  code: string; name: string; market: string; sector?: string;
+  code: string; name: string; market: string; sector?: string; themes?: string[];
   close: number; changeRate: number; marketCap: number; tradingValue: number;
+  adhoc?: boolean;
 }
+interface SearchHit { symbol: string; name: string; exchange: string }
 interface ScoreMetrics {
   revYoY: number | null; opYoY: number | null; revYoYPrev: number | null;
   cRevGrowth: number | null; cOpGrowth: number | null; cEpsGrowth: number | null;
@@ -31,7 +33,7 @@ interface Score {
 }
 /** KR 배치 항목: { code, score } / US 배치 항목: { ticker, name, sector, price, marketCap, score } */
 interface KrScanItem { code: string; score: Score }
-interface UsScanItem { ticker: string; name: string; sector: string; price: number | null; marketCap: number | null; score: Score }
+interface UsScanItem { ticker: string; name: string; sector: string; themes: string[]; price: number | null; marketCap: number | null; adhoc: boolean; score: Score }
 type ResultRow = UniverseItem & Score;
 
 interface EnvIndicator {
@@ -52,6 +54,10 @@ const MARKETS = [
   { key: 'KOSDAQ', label: 'KOSDAQ' },
   { key: 'US', label: '🇺🇸 미국' },
 ] as const;
+
+/** 섹터 합계 = 전체 종목 수 (테마는 중복 태깅이라 합이 다르다) */
+const US_TOTAL = (c: { sectorCounts: Record<string, number> }) =>
+  Object.values(c.sectorCounts).reduce((a, b) => a + b, 0);
 
 const TONE_STYLE = {
   good: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
@@ -99,6 +105,86 @@ export default function GrowthPage() {
   const abortRef = useRef(false);
   const isUs = market === 'US';
 
+  // 미국 카테고리 (섹터 × 테마) — 유니버스 API 가 목록·개수를 함께 준다
+  const [catMode, setCatMode] = useState<'sector' | 'theme'>('theme');
+  const [sector, setSector] = useState<string | null>(null);
+  const [theme, setTheme] = useState<string | null>(null);
+  const [cats, setCats] = useState<{
+    sectors: string[]; themes: string[];
+    sectorCounts: Record<string, number>; themeCounts: Record<string, number>;
+  } | null>(null);
+
+  // 종목 검색
+  const [query, setQuery] = useState('');
+  const [hits, setHits] = useState<SearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  // 미국 탭을 켜면 카테고리 목록을 한 번 받아둔다 (정적 리스트라 저렴)
+  useEffect(() => {
+    if (!isUs || cats) return;
+    fetch('/api/growth-scan?mode=universe&market=US')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j?.sectors) setCats({ sectors: j.sectors, themes: j.themes, sectorCounts: j.sectorCounts, themeCounts: j.themeCounts }); })
+      .catch(() => {});
+  }, [isUs, cats]);
+
+  // 검색 디바운스
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 1) { setHits([]); return; }
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const url = isUs ? `/api/overseas/search?q=${encodeURIComponent(q)}` : `/api/stock-search?q=${encodeURIComponent(q)}`;
+        const r = await fetch(url);
+        const j = await r.json();
+        setHits(
+          isUs
+            ? (Array.isArray(j) ? j : []).slice(0, 8)
+            : (Array.isArray(j) ? j : []).slice(0, 8).map((x: { code?: string; ticker?: string; name: string }) => ({
+                symbol: x.code ?? String(x.ticker ?? '').replace(/\.(KS|KQ)$/, ''), name: x.name, exchange: 'KRX',
+              })),
+        );
+      } catch { setHits([]); }
+      finally { setSearching(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query, isUs]);
+
+  /** 검색 결과 한 종목만 스캔해 결과 맨 위에 추가 */
+  const scanOne = async (symbol: string, name: string) => {
+    setQuery(''); setHits([]);
+    setScanning(true); setScanError(null);
+    try {
+      const param = isUs ? `tickers=${encodeURIComponent(symbol)}` : `codes=${encodeURIComponent(symbol)}`;
+      const r = await fetch(`/api/growth-scan?${param}`);
+      const j = await r.json();
+      const items = j.items ?? [];
+      if (!items.length) throw new Error(`${name}(${symbol}) 재무 데이터를 가져오지 못했습니다 — 신규상장·ETF·소형주일 수 있습니다.`);
+      const row: ResultRow = isUs
+        ? (() => {
+            const it = items[0] as UsScanItem;
+            return {
+              code: it.ticker, name: it.name, market: 'US', sector: it.sector, themes: it.themes,
+              close: it.price ?? 0, changeRate: 0, marketCap: it.marketCap ?? 0, tradingValue: 0,
+              adhoc: it.adhoc, ...it.score,
+            };
+          })()
+        : (() => {
+            const it = items[0] as KrScanItem;
+            return {
+              code: it.code, name, market: 'KOSPI', close: 0, changeRate: 0, marketCap: 0, tradingValue: 0,
+              ...it.score,
+            };
+          })();
+      setRows((prev) => [row, ...(prev ?? []).filter((x) => x.code !== row.code)]);
+    } catch (e) {
+      setScanError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setScanning(false);
+    }
+  };
+
   // 필터·정렬
   const [sortKey, setSortKey] = useState<SortKey>('total');
   const [sortAsc, setSortAsc] = useState(false);
@@ -117,7 +203,10 @@ export default function GrowthPage() {
       .then((j) => { if (j?.indicators) setEnv(j); })
       .catch(() => {});
     try {
-      const uRes = await fetch(`/api/growth-scan?mode=universe&market=${market}&top=${top}`);
+      const catQ = market === 'US'
+        ? `${sector ? `&sector=${encodeURIComponent(sector)}` : ''}${theme ? `&theme=${encodeURIComponent(theme)}` : ''}`
+        : '';
+      const uRes = await fetch(`/api/growth-scan?mode=universe&market=${market}&top=${top}${catQ}`);
       const u = await uRes.json();
       if (!uRes.ok || u.error) throw new Error(u.error ?? `유니버스 조회 실패 (HTTP ${uRes.status})`);
       if (u.configured === false) throw new Error('KRX API 키가 설정되지 않았습니다 — 유니버스(시총 순위)를 만들 수 없습니다.');
@@ -224,7 +313,7 @@ export default function GrowthPage() {
             <p className="text-[10px] text-[var(--text-muted)] mb-1">유니버스</p>
             <div className="flex gap-1">
               {MARKETS.map((m) => (
-                <button key={m.key} onClick={() => setMarket(m.key)} disabled={scanning}
+                <button key={m.key} onClick={() => { setMarket(m.key); setSector(null); setTheme(null); }} disabled={scanning}
                   className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${
                     market === m.key ? 'bg-sky-500/15 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
                   }`}>{m.label}</button>
@@ -247,7 +336,7 @@ export default function GrowthPage() {
           {!scanning ? (
             <button onClick={scan}
               className="px-5 py-1.5 rounded-lg bg-sky-500 text-white text-xs font-bold hover:bg-sky-400 transition-colors">
-              🔍 스캔 실행
+              🔍 {isUs && (theme || sector) ? `${theme ?? sector} 스캔` : '스캔 실행'}
             </button>
           ) : (
             <button onClick={() => { abortRef.current = true; }}
@@ -256,9 +345,75 @@ export default function GrowthPage() {
             </button>
           )}
           <p className="text-[10px] text-[var(--text-muted)]">
-            버튼을 눌러야만 실행됩니다 · {isUs ? '종목당 Yahoo 재무 1콜(1시간 캐시) · 대형주 큐레이션 유니버스' : `종목당 네이버 재무 1콜(12시간 캐시) · ${top}종목 ≈ ${Math.ceil(top / BATCH)}배치`}
+            버튼을 눌러야만 실행됩니다 · {isUs ? '종목당 Yahoo 재무 1콜(1시간 캐시)' : `종목당 네이버 재무 1콜(12시간 캐시) · ${top}종목 ≈ ${Math.ceil(top / BATCH)}배치`}
           </p>
         </div>
+
+        {/* 종목 검색 — 유니버스에 없어도 티커로 직접 스캔 */}
+        <div className="mt-3 relative">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={isUs ? '종목 검색 — 예: NVDA, Palantir, 로블록스' : '종목 검색 — 예: 삼성전자, 005930'}
+            className="w-full sm:max-w-md px-3 py-2 text-sm bg-transparent border border-[var(--border)] rounded-lg text-[var(--text)] outline-none focus:border-sky-500/50"
+          />
+          {(hits.length > 0 || (searching && query.trim())) && (
+            <div className="absolute z-20 mt-1 w-full sm:max-w-md rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl overflow-hidden">
+              {searching && !hits.length && <p className="px-3 py-2 text-xs text-[var(--text-muted)]">검색 중…</p>}
+              {hits.map((h) => (
+                <button key={h.symbol} onClick={() => scanOne(h.symbol, h.name)}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-white/5 transition-colors">
+                  <span className="text-xs text-[var(--text)] truncate">
+                    <span className="font-semibold">{h.symbol}</span> <span className="text-[var(--text-muted)]">{h.name}</span>
+                  </span>
+                  <span className="text-[9px] text-[var(--text-muted)] shrink-0">{h.exchange}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="text-[10px] text-[var(--text-muted)] mt-1">
+            찾는 종목이 카테고리에 없으면 여기서 직접 검색하세요 — 선택 즉시 그 종목만 스캔해 맨 위에 추가합니다.
+          </p>
+        </div>
+
+        {/* 미국 카테고리 — 섹터(GICS 11) × 테마(증권사 스타일) */}
+        {isUs && cats && (
+          <div className="mt-3 pt-3 border-t border-[var(--border)]">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex gap-1">
+                {(['theme', 'sector'] as const).map((m) => (
+                  <button key={m} onClick={() => { setCatMode(m); setSector(null); setTheme(null); }}
+                    className={`px-2.5 py-1 rounded-lg border text-[11px] transition-colors ${
+                      catMode === m ? 'bg-white/10 text-[var(--text)] border-[var(--border)]' : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text)]'
+                    }`}>{m === 'theme' ? '테마별' : '섹터별'}</button>
+                ))}
+              </div>
+              <span className="text-[10px] text-[var(--text-muted)]">
+                {catMode === 'theme' ? 'AI·반도체, 원자력, 우주항공 등 증권사 테마 분류' : 'GICS 11개 섹터 (글로벌 표준 산업 분류)'}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button onClick={() => { setSector(null); setTheme(null); }}
+                className={`px-2.5 py-1 rounded-lg border text-[11px] transition-colors ${
+                  !sector && !theme ? 'bg-sky-500/15 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
+                }`}>전체 {US_TOTAL(cats)}</button>
+              {(catMode === 'theme' ? cats.themes : cats.sectors).map((c) => {
+                const active = catMode === 'theme' ? theme === c : sector === c;
+                const n = catMode === 'theme' ? cats.themeCounts[c] : cats.sectorCounts[c];
+                return (
+                  <button key={c}
+                    onClick={() => {
+                      if (catMode === 'theme') { setTheme(active ? null : c); setSector(null); }
+                      else { setSector(active ? null : c); setTheme(null); }
+                    }}
+                    className={`px-2.5 py-1 rounded-lg border text-[11px] transition-colors ${
+                      active ? 'bg-sky-500/15 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
+                    }`}>{c} <span className="opacity-60">{n}</span></button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {scanning && (
           <div className="mt-3">
@@ -381,9 +536,11 @@ export default function GrowthPage() {
                       <td className="px-3 py-2 text-[var(--text-muted)] tabular-nums">{i + 1}</td>
                       <td className="px-2 py-2">
                         <span className="font-semibold text-[var(--text)]">{r.name}</span>
+                        {r.market === 'US' && <span className="text-[9px] text-[var(--text-muted)] ml-1">{r.code}</span>}
                         <span className="text-[9px] text-[var(--text-muted)] ml-1">
-                          {r.market === 'US' ? (r.sector ?? r.code) : /KOSDAQ/i.test(r.market) ? 'KQ' : 'KS'}
+                          {r.market === 'US' ? (r.sector ?? '') : /KOSDAQ/i.test(r.market) ? 'KQ' : 'KS'}
                         </span>
+                        {r.adhoc && <span className="text-[9px] text-amber-400 ml-1" title="큐레이션 목록 밖 — 검색으로 추가한 종목">검색</span>}
                       </td>
                       <td className="px-2 py-2 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -421,6 +578,16 @@ export default function GrowthPage() {
                           <p className="text-[11px] text-[var(--text)] mb-2.5">
                             💬 <span className="text-[var(--text-muted)]">{r.comment}</span>
                           </p>
+                          {r.themes && r.themes.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2.5">
+                              {r.themes.map((t) => (
+                                <button key={t}
+                                  onClick={(e) => { e.stopPropagation(); setCatMode('theme'); setTheme(t); setSector(null); }}
+                                  className="px-1.5 py-0.5 rounded border border-[var(--border)] text-[9px] text-[var(--text-muted)] hover:text-sky-400 hover:border-sky-500/40 transition-colors"
+                                  title={`${t} 테마로 필터`}>#{t}</button>
+                              ))}
+                            </div>
+                          )}
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px] mb-2">
                             {([
                               ['확정 성장', r.parts.growth, 35],

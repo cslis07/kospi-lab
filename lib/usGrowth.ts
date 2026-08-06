@@ -11,114 +11,204 @@
 import { fetchYahoo, yfRaw, yfStr } from './yahooFinance';
 import type { GrowthScore } from './growthScreener';
 
+/** GICS 11섹터 기반 — 증권사·토스가 쓰는 대분류 뼈대 */
+export const US_SECTORS = [
+  '기술', '커뮤니케이션', '경기소비재', '필수소비재', '헬스케어',
+  '금융', '산업재', '에너지', '유틸리티', '소재', '부동산',
+] as const;
+export type UsSector = (typeof US_SECTORS)[number];
+
+/** 테마 — 섹터를 가로지르는 증권사 스타일 소분류(한 종목이 여러 테마에 속할 수 있다) */
+export const US_THEMES = [
+  'AI·반도체', '반도체장비', '빅테크', '클라우드·SaaS', '사이버보안', '데이터·인프라',
+  '핀테크·결제', '전기차·자율주행', '우주항공·방산', '원자력·전력', '양자컴퓨터',
+  '비만치료제', '바이오·제약', '소비브랜드', '플랫폼·미디어', '금융·보험', '에너지·원자재',
+] as const;
+export type UsTheme = (typeof US_THEMES)[number];
+
 export interface UsUniverseItem {
   ticker: string;
   name: string;
-  sector: string;
+  sector: UsSector;
+  themes: UsTheme[];
 }
 
-/* 시총 상위 + 성장 대표주 큐레이션 (~80종목).
+/** Yahoo assetProfile 의 영문 섹터 → 한글 섹터 (검색으로 들어온 임의 종목용) */
+const YF_SECTOR_KO: Record<string, UsSector> = {
+  'Technology': '기술',
+  'Communication Services': '커뮤니케이션',
+  'Consumer Cyclical': '경기소비재',
+  'Consumer Defensive': '필수소비재',
+  'Healthcare': '헬스케어',
+  'Financial Services': '금융',
+  'Financial': '금융',
+  'Industrials': '산업재',
+  'Energy': '에너지',
+  'Utilities': '유틸리티',
+  'Basic Materials': '소재',
+  'Real Estate': '부동산',
+};
+
+/* 큐레이션 유니버스 (~110종목) — 섹터(GICS 11) × 테마(증권사 스타일) 2축 태깅.
  * 동적 S&P500 구성종목 API 는 무료·무키 소스가 불안정해 정적 리스트로 운영한다.
- * 시세·재무는 전부 실시간(Yahoo)이므로 리스트만 가끔 손보면 된다. */
+ * 시세·재무는 전부 실시간(Yahoo)이므로 리스트만 가끔 손보면 된다.
+ * 여기에 없는 종목은 화면의 '종목 검색'으로 티커를 직접 찾아 스캔할 수 있다. */
 export const US_UNIVERSE: UsUniverseItem[] = [
-  // 메가캡 테크
-  { ticker: 'AAPL', name: 'Apple', sector: '테크' },
-  { ticker: 'MSFT', name: 'Microsoft', sector: '테크' },
-  { ticker: 'GOOGL', name: 'Alphabet', sector: '테크' },
-  { ticker: 'AMZN', name: 'Amazon', sector: '소비/클라우드' },
-  { ticker: 'NVDA', name: 'NVIDIA', sector: '반도체' },
-  { ticker: 'META', name: 'Meta Platforms', sector: '테크' },
-  { ticker: 'TSLA', name: 'Tesla', sector: '자동차/에너지' },
-  { ticker: 'AVGO', name: 'Broadcom', sector: '반도체' },
-  // 반도체·AI 인프라
-  { ticker: 'AMD', name: 'AMD', sector: '반도체' },
-  { ticker: 'QCOM', name: 'Qualcomm', sector: '반도체' },
-  { ticker: 'TXN', name: 'Texas Instruments', sector: '반도체' },
-  { ticker: 'MU', name: 'Micron', sector: '반도체' },
-  { ticker: 'AMAT', name: 'Applied Materials', sector: '반도체장비' },
-  { ticker: 'LRCX', name: 'Lam Research', sector: '반도체장비' },
-  { ticker: 'KLAC', name: 'KLA', sector: '반도체장비' },
-  { ticker: 'ASML', name: 'ASML', sector: '반도체장비' },
-  { ticker: 'TSM', name: 'TSMC', sector: '반도체' },
-  { ticker: 'ARM', name: 'Arm Holdings', sector: '반도체' },
-  { ticker: 'SNPS', name: 'Synopsys', sector: '반도체설계' },
-  { ticker: 'CDNS', name: 'Cadence', sector: '반도체설계' },
-  // 소프트웨어·클라우드
-  { ticker: 'CRM', name: 'Salesforce', sector: '소프트웨어' },
-  { ticker: 'ORCL', name: 'Oracle', sector: '소프트웨어' },
-  { ticker: 'ADBE', name: 'Adobe', sector: '소프트웨어' },
-  { ticker: 'NOW', name: 'ServiceNow', sector: '소프트웨어' },
-  { ticker: 'INTU', name: 'Intuit', sector: '소프트웨어' },
-  { ticker: 'SAP', name: 'SAP', sector: '소프트웨어' },
-  { ticker: 'IBM', name: 'IBM', sector: '소프트웨어' },
-  { ticker: 'PLTR', name: 'Palantir', sector: '소프트웨어/AI' },
-  { ticker: 'SNOW', name: 'Snowflake', sector: '데이터클라우드' },
-  { ticker: 'DDOG', name: 'Datadog', sector: '소프트웨어' },
-  { ticker: 'CRWD', name: 'CrowdStrike', sector: '보안' },
-  { ticker: 'PANW', name: 'Palo Alto Networks', sector: '보안' },
-  { ticker: 'FTNT', name: 'Fortinet', sector: '보안' },
-  { ticker: 'ZS', name: 'Zscaler', sector: '보안' },
-  { ticker: 'NET', name: 'Cloudflare', sector: '클라우드' },
-  { ticker: 'MDB', name: 'MongoDB', sector: '데이터베이스' },
-  { ticker: 'SHOP', name: 'Shopify', sector: '이커머스' },
-  { ticker: 'UBER', name: 'Uber', sector: '플랫폼' },
-  { ticker: 'ABNB', name: 'Airbnb', sector: '플랫폼' },
-  { ticker: 'BKNG', name: 'Booking Holdings', sector: '여행' },
-  { ticker: 'SPOT', name: 'Spotify', sector: '미디어' },
-  { ticker: 'NFLX', name: 'Netflix', sector: '미디어' },
-  { ticker: 'DIS', name: 'Disney', sector: '미디어' },
-  // 결제·핀테크 (버핏 선호 업종)
-  { ticker: 'V', name: 'Visa', sector: '결제' },
-  { ticker: 'MA', name: 'Mastercard', sector: '결제' },
-  { ticker: 'AXP', name: 'American Express', sector: '결제/금융' },
-  { ticker: 'PYPL', name: 'PayPal', sector: '결제' },
-  { ticker: 'COIN', name: 'Coinbase', sector: '크립토' },
-  { ticker: 'HOOD', name: 'Robinhood', sector: '증권' },
-  // 금융·보험
-  { ticker: 'BRK-B', name: 'Berkshire Hathaway', sector: '보험/지주' },
-  { ticker: 'JPM', name: 'JPMorgan', sector: '금융' },
-  { ticker: 'GS', name: 'Goldman Sachs', sector: '금융' },
-  { ticker: 'BLK', name: 'BlackRock', sector: '자산운용' },
-  { ticker: 'SPGI', name: 'S&P Global', sector: '금융정보' },
-  // 헬스케어·제약
-  { ticker: 'LLY', name: 'Eli Lilly', sector: '제약' },
-  { ticker: 'NVO', name: 'Novo Nordisk', sector: '제약' },
-  { ticker: 'UNH', name: 'UnitedHealth', sector: '헬스케어' },
-  { ticker: 'JNJ', name: 'Johnson & Johnson', sector: '헬스케어' },
-  { ticker: 'ABBV', name: 'AbbVie', sector: '제약' },
-  { ticker: 'MRK', name: 'Merck', sector: '제약' },
-  { ticker: 'ISRG', name: 'Intuitive Surgical', sector: '의료기기' },
-  { ticker: 'VRTX', name: 'Vertex Pharma', sector: '바이오' },
-  { ticker: 'REGN', name: 'Regeneron', sector: '바이오' },
-  // 소비재 (버핏 선호 업종)
-  { ticker: 'COST', name: 'Costco', sector: '소비재' },
-  { ticker: 'WMT', name: 'Walmart', sector: '소비재' },
-  { ticker: 'PG', name: 'Procter & Gamble', sector: '소비재' },
-  { ticker: 'KO', name: 'Coca-Cola', sector: '소비재' },
-  { ticker: 'PEP', name: 'PepsiCo', sector: '소비재' },
-  { ticker: 'MCD', name: "McDonald's", sector: '외식' },
-  { ticker: 'SBUX', name: 'Starbucks', sector: '외식' },
-  { ticker: 'NKE', name: 'Nike', sector: '소비재' },
-  { ticker: 'LULU', name: 'Lululemon', sector: '소비재' },
-  { ticker: 'CMG', name: 'Chipotle', sector: '외식' },
-  // 산업·에너지·방산
-  { ticker: 'CAT', name: 'Caterpillar', sector: '산업재' },
-  { ticker: 'DE', name: 'Deere', sector: '산업재' },
-  { ticker: 'GE', name: 'GE Aerospace', sector: '항공우주' },
-  { ticker: 'RTX', name: 'RTX', sector: '방산' },
-  { ticker: 'LMT', name: 'Lockheed Martin', sector: '방산' },
-  { ticker: 'XOM', name: 'ExxonMobil', sector: '에너지' },
-  { ticker: 'CVX', name: 'Chevron', sector: '에너지' },
-  { ticker: 'VST', name: 'Vistra', sector: '전력/AI수혜' },
-  { ticker: 'CEG', name: 'Constellation Energy', sector: '전력/AI수혜' },
+  // ── 빅테크 ──
+  { ticker: 'AAPL', name: 'Apple', sector: '기술', themes: ['빅테크', '소비브랜드'] },
+  { ticker: 'MSFT', name: 'Microsoft', sector: '기술', themes: ['빅테크', '클라우드·SaaS', 'AI·반도체'] },
+  { ticker: 'GOOGL', name: 'Alphabet', sector: '커뮤니케이션', themes: ['빅테크', '클라우드·SaaS', '플랫폼·미디어'] },
+  { ticker: 'AMZN', name: 'Amazon', sector: '경기소비재', themes: ['빅테크', '클라우드·SaaS', '플랫폼·미디어'] },
+  { ticker: 'META', name: 'Meta Platforms', sector: '커뮤니케이션', themes: ['빅테크', '플랫폼·미디어'] },
+  { ticker: 'NVDA', name: 'NVIDIA', sector: '기술', themes: ['빅테크', 'AI·반도체'] },
+  { ticker: 'AVGO', name: 'Broadcom', sector: '기술', themes: ['빅테크', 'AI·반도체'] },
+  { ticker: 'TSLA', name: 'Tesla', sector: '경기소비재', themes: ['빅테크', '전기차·자율주행'] },
+  // ── AI·반도체 ──
+  { ticker: 'AMD', name: 'AMD', sector: '기술', themes: ['AI·반도체'] },
+  { ticker: 'TSM', name: 'TSMC', sector: '기술', themes: ['AI·반도체'] },
+  { ticker: 'MU', name: 'Micron', sector: '기술', themes: ['AI·반도체'] },
+  { ticker: 'QCOM', name: 'Qualcomm', sector: '기술', themes: ['AI·반도체'] },
+  { ticker: 'TXN', name: 'Texas Instruments', sector: '기술', themes: ['AI·반도체'] },
+  { ticker: 'ARM', name: 'Arm Holdings', sector: '기술', themes: ['AI·반도체'] },
+  { ticker: 'MRVL', name: 'Marvell Technology', sector: '기술', themes: ['AI·반도체'] },
+  { ticker: 'INTC', name: 'Intel', sector: '기술', themes: ['AI·반도체'] },
+  { ticker: 'ADI', name: 'Analog Devices', sector: '기술', themes: ['AI·반도체'] },
+  { ticker: 'NXPI', name: 'NXP Semiconductors', sector: '기술', themes: ['AI·반도체', '전기차·자율주행'] },
+  { ticker: 'SMCI', name: 'Super Micro Computer', sector: '기술', themes: ['AI·반도체', '데이터·인프라'] },
+  { ticker: 'DELL', name: 'Dell Technologies', sector: '기술', themes: ['AI·반도체', '데이터·인프라'] },
+  { ticker: 'ANET', name: 'Arista Networks', sector: '기술', themes: ['AI·반도체', '데이터·인프라'] },
+  { ticker: 'VRT', name: 'Vertiv Holdings', sector: '산업재', themes: ['데이터·인프라', 'AI·반도체'] },
+  // ── 반도체 장비·설계 ──
+  { ticker: 'ASML', name: 'ASML', sector: '기술', themes: ['반도체장비'] },
+  { ticker: 'AMAT', name: 'Applied Materials', sector: '기술', themes: ['반도체장비'] },
+  { ticker: 'LRCX', name: 'Lam Research', sector: '기술', themes: ['반도체장비'] },
+  { ticker: 'KLAC', name: 'KLA', sector: '기술', themes: ['반도체장비'] },
+  { ticker: 'SNPS', name: 'Synopsys', sector: '기술', themes: ['반도체장비', '클라우드·SaaS'] },
+  { ticker: 'CDNS', name: 'Cadence Design', sector: '기술', themes: ['반도체장비', '클라우드·SaaS'] },
+  { ticker: 'TER', name: 'Teradyne', sector: '기술', themes: ['반도체장비'] },
+  // ── 클라우드·SaaS ──
+  { ticker: 'ORCL', name: 'Oracle', sector: '기술', themes: ['클라우드·SaaS', '데이터·인프라'] },
+  { ticker: 'CRM', name: 'Salesforce', sector: '기술', themes: ['클라우드·SaaS'] },
+  { ticker: 'ADBE', name: 'Adobe', sector: '기술', themes: ['클라우드·SaaS'] },
+  { ticker: 'NOW', name: 'ServiceNow', sector: '기술', themes: ['클라우드·SaaS'] },
+  { ticker: 'INTU', name: 'Intuit', sector: '기술', themes: ['클라우드·SaaS'] },
+  { ticker: 'SAP', name: 'SAP', sector: '기술', themes: ['클라우드·SaaS'] },
+  { ticker: 'IBM', name: 'IBM', sector: '기술', themes: ['클라우드·SaaS', '양자컴퓨터'] },
+  { ticker: 'WDAY', name: 'Workday', sector: '기술', themes: ['클라우드·SaaS'] },
+  { ticker: 'TEAM', name: 'Atlassian', sector: '기술', themes: ['클라우드·SaaS'] },
+  { ticker: 'SHOP', name: 'Shopify', sector: '경기소비재', themes: ['클라우드·SaaS', '플랫폼·미디어'] },
+  // ── 데이터·AI 소프트웨어 ──
+  { ticker: 'PLTR', name: 'Palantir', sector: '기술', themes: ['데이터·인프라', 'AI·반도체'] },
+  { ticker: 'SNOW', name: 'Snowflake', sector: '기술', themes: ['데이터·인프라', '클라우드·SaaS'] },
+  { ticker: 'MDB', name: 'MongoDB', sector: '기술', themes: ['데이터·인프라', '클라우드·SaaS'] },
+  { ticker: 'DDOG', name: 'Datadog', sector: '기술', themes: ['데이터·인프라', '클라우드·SaaS'] },
+  { ticker: 'NET', name: 'Cloudflare', sector: '기술', themes: ['데이터·인프라', '사이버보안'] },
+  // ── 사이버보안 ──
+  { ticker: 'CRWD', name: 'CrowdStrike', sector: '기술', themes: ['사이버보안'] },
+  { ticker: 'PANW', name: 'Palo Alto Networks', sector: '기술', themes: ['사이버보안'] },
+  { ticker: 'FTNT', name: 'Fortinet', sector: '기술', themes: ['사이버보안'] },
+  { ticker: 'ZS', name: 'Zscaler', sector: '기술', themes: ['사이버보안'] },
+  { ticker: 'OKTA', name: 'Okta', sector: '기술', themes: ['사이버보안'] },
+  // ── 양자컴퓨터 ──
+  { ticker: 'IONQ', name: 'IonQ', sector: '기술', themes: ['양자컴퓨터'] },
+  { ticker: 'RGTI', name: 'Rigetti Computing', sector: '기술', themes: ['양자컴퓨터'] },
+  { ticker: 'QBTS', name: 'D-Wave Quantum', sector: '기술', themes: ['양자컴퓨터'] },
+  // ── 핀테크·결제 ──
+  { ticker: 'V', name: 'Visa', sector: '금융', themes: ['핀테크·결제'] },
+  { ticker: 'MA', name: 'Mastercard', sector: '금융', themes: ['핀테크·결제'] },
+  { ticker: 'AXP', name: 'American Express', sector: '금융', themes: ['핀테크·결제', '금융·보험'] },
+  { ticker: 'PYPL', name: 'PayPal', sector: '금융', themes: ['핀테크·결제'] },
+  { ticker: 'COIN', name: 'Coinbase', sector: '금융', themes: ['핀테크·결제'] },
+  { ticker: 'HOOD', name: 'Robinhood', sector: '금융', themes: ['핀테크·결제'] },
+  { ticker: 'FI', name: 'Fiserv', sector: '금융', themes: ['핀테크·결제'] },
+  // ── 금융·보험 (버핏 선호) ──
+  { ticker: 'BRK-B', name: 'Berkshire Hathaway', sector: '금융', themes: ['금융·보험'] },
+  { ticker: 'JPM', name: 'JPMorgan Chase', sector: '금융', themes: ['금융·보험'] },
+  { ticker: 'BAC', name: 'Bank of America', sector: '금융', themes: ['금융·보험'] },
+  { ticker: 'GS', name: 'Goldman Sachs', sector: '금융', themes: ['금융·보험'] },
+  { ticker: 'MS', name: 'Morgan Stanley', sector: '금융', themes: ['금융·보험'] },
+  { ticker: 'BLK', name: 'BlackRock', sector: '금융', themes: ['금융·보험'] },
+  { ticker: 'SPGI', name: 'S&P Global', sector: '금융', themes: ['금융·보험'] },
+  { ticker: 'PGR', name: 'Progressive', sector: '금융', themes: ['금융·보험'] },
+  // ── 비만치료제·제약 ──
+  { ticker: 'LLY', name: 'Eli Lilly', sector: '헬스케어', themes: ['비만치료제', '바이오·제약'] },
+  { ticker: 'NVO', name: 'Novo Nordisk', sector: '헬스케어', themes: ['비만치료제', '바이오·제약'] },
+  { ticker: 'VKTX', name: 'Viking Therapeutics', sector: '헬스케어', themes: ['비만치료제', '바이오·제약'] },
+  { ticker: 'ABBV', name: 'AbbVie', sector: '헬스케어', themes: ['바이오·제약'] },
+  { ticker: 'MRK', name: 'Merck', sector: '헬스케어', themes: ['바이오·제약'] },
+  { ticker: 'PFE', name: 'Pfizer', sector: '헬스케어', themes: ['바이오·제약'] },
+  { ticker: 'JNJ', name: 'Johnson & Johnson', sector: '헬스케어', themes: ['바이오·제약'] },
+  { ticker: 'AMGN', name: 'Amgen', sector: '헬스케어', themes: ['바이오·제약'] },
+  { ticker: 'VRTX', name: 'Vertex Pharmaceuticals', sector: '헬스케어', themes: ['바이오·제약'] },
+  { ticker: 'REGN', name: 'Regeneron', sector: '헬스케어', themes: ['바이오·제약'] },
+  { ticker: 'GILD', name: 'Gilead Sciences', sector: '헬스케어', themes: ['바이오·제약'] },
+  { ticker: 'UNH', name: 'UnitedHealth', sector: '헬스케어', themes: ['금융·보험'] },
+  { ticker: 'ISRG', name: 'Intuitive Surgical', sector: '헬스케어', themes: ['바이오·제약'] },
+  // ── 소비 브랜드 ──
+  { ticker: 'COST', name: 'Costco', sector: '필수소비재', themes: ['소비브랜드'] },
+  { ticker: 'WMT', name: 'Walmart', sector: '필수소비재', themes: ['소비브랜드'] },
+  { ticker: 'PG', name: 'Procter & Gamble', sector: '필수소비재', themes: ['소비브랜드'] },
+  { ticker: 'KO', name: 'Coca-Cola', sector: '필수소비재', themes: ['소비브랜드'] },
+  { ticker: 'PEP', name: 'PepsiCo', sector: '필수소비재', themes: ['소비브랜드'] },
+  { ticker: 'PM', name: 'Philip Morris', sector: '필수소비재', themes: ['소비브랜드'] },
+  { ticker: 'MCD', name: "McDonald's", sector: '경기소비재', themes: ['소비브랜드'] },
+  { ticker: 'SBUX', name: 'Starbucks', sector: '경기소비재', themes: ['소비브랜드'] },
+  { ticker: 'NKE', name: 'Nike', sector: '경기소비재', themes: ['소비브랜드'] },
+  { ticker: 'LULU', name: 'Lululemon', sector: '경기소비재', themes: ['소비브랜드'] },
+  { ticker: 'CMG', name: 'Chipotle', sector: '경기소비재', themes: ['소비브랜드'] },
+  { ticker: 'HD', name: 'Home Depot', sector: '경기소비재', themes: ['소비브랜드'] },
+  // ── 플랫폼·미디어 ──
+  { ticker: 'NFLX', name: 'Netflix', sector: '커뮤니케이션', themes: ['플랫폼·미디어'] },
+  { ticker: 'DIS', name: 'Disney', sector: '커뮤니케이션', themes: ['플랫폼·미디어'] },
+  { ticker: 'SPOT', name: 'Spotify', sector: '커뮤니케이션', themes: ['플랫폼·미디어'] },
+  { ticker: 'UBER', name: 'Uber', sector: '산업재', themes: ['플랫폼·미디어', '전기차·자율주행'] },
+  { ticker: 'ABNB', name: 'Airbnb', sector: '경기소비재', themes: ['플랫폼·미디어'] },
+  { ticker: 'BKNG', name: 'Booking Holdings', sector: '경기소비재', themes: ['플랫폼·미디어'] },
+  // ── 전기차·자율주행 ──
+  { ticker: 'RIVN', name: 'Rivian', sector: '경기소비재', themes: ['전기차·자율주행'] },
+  { ticker: 'LCID', name: 'Lucid Group', sector: '경기소비재', themes: ['전기차·자율주행'] },
+  { ticker: 'GM', name: 'General Motors', sector: '경기소비재', themes: ['전기차·자율주행'] },
+  { ticker: 'F', name: 'Ford Motor', sector: '경기소비재', themes: ['전기차·자율주행'] },
+  { ticker: 'MBLY', name: 'Mobileye', sector: '기술', themes: ['전기차·자율주행', 'AI·반도체'] },
+  // ── 우주항공·방산 ──
+  { ticker: 'GE', name: 'GE Aerospace', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'RTX', name: 'RTX', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'LMT', name: 'Lockheed Martin', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'NOC', name: 'Northrop Grumman', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'BA', name: 'Boeing', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'RKLB', name: 'Rocket Lab', sector: '산업재', themes: ['우주항공·방산'] },
+  { ticker: 'AXON', name: 'Axon Enterprise', sector: '산업재', themes: ['우주항공·방산'] },
+  // ── 원자력·전력 (AI 데이터센터 수혜) ──
+  { ticker: 'VST', name: 'Vistra', sector: '유틸리티', themes: ['원자력·전력', '데이터·인프라'] },
+  { ticker: 'CEG', name: 'Constellation Energy', sector: '유틸리티', themes: ['원자력·전력', '데이터·인프라'] },
+  { ticker: 'NEE', name: 'NextEra Energy', sector: '유틸리티', themes: ['원자력·전력'] },
+  { ticker: 'SMR', name: 'NuScale Power', sector: '유틸리티', themes: ['원자력·전력'] },
+  { ticker: 'OKLO', name: 'Oklo', sector: '유틸리티', themes: ['원자력·전력'] },
+  { ticker: 'CCJ', name: 'Cameco', sector: '에너지', themes: ['원자력·전력', '에너지·원자재'] },
+  { ticker: 'ETN', name: 'Eaton', sector: '산업재', themes: ['원자력·전력', '데이터·인프라'] },
+  // ── 산업재·에너지 ──
+  { ticker: 'CAT', name: 'Caterpillar', sector: '산업재', themes: ['에너지·원자재'] },
+  { ticker: 'DE', name: 'Deere', sector: '산업재', themes: ['에너지·원자재'] },
+  { ticker: 'XOM', name: 'ExxonMobil', sector: '에너지', themes: ['에너지·원자재'] },
+  { ticker: 'CVX', name: 'Chevron', sector: '에너지', themes: ['에너지·원자재'] },
+  { ticker: 'COP', name: 'ConocoPhillips', sector: '에너지', themes: ['에너지·원자재'] },
+  { ticker: 'LIN', name: 'Linde', sector: '소재', themes: ['에너지·원자재'] },
+  { ticker: 'NEM', name: 'Newmont', sector: '소재', themes: ['에너지·원자재'] },
+  // ── 부동산 (데이터센터·통신 리츠 = AI 인프라 수혜) ──
+  { ticker: 'EQIX', name: 'Equinix', sector: '부동산', themes: ['데이터·인프라'] },
+  { ticker: 'DLR', name: 'Digital Realty', sector: '부동산', themes: ['데이터·인프라'] },
+  { ticker: 'AMT', name: 'American Tower', sector: '부동산', themes: ['데이터·인프라'] },
 ];
 
 export interface UsScanRow {
   ticker: string;
   name: string;
   sector: string;
+  themes: string[];
   price: number | null;
   marketCap: number | null;   // USD
+  /** 큐레이션 유니버스에 없는 종목(검색으로 들어온 것) */
+  adhoc: boolean;
   score: GrowthScore;
 }
 
@@ -245,17 +335,26 @@ export function scoreUsGrowth(d: any): GrowthScore {
   };
 }
 
+/**
+ * 티커 하나를 스캔한다. 큐레이션 유니버스 밖(=검색으로 찾은 종목)도 허용하며,
+ * 이 경우 섹터는 Yahoo assetProfile 의 영문 섹터를 한글로 매핑한다.
+ */
 export async function scanUsTicker(ticker: string): Promise<UsScanRow | null> {
   const meta = US_UNIVERSE.find((u) => u.ticker === ticker);
-  if (!meta) return null;
   const d = await fetchYahoo(ticker);
   if (!d) return null;
+
+  const yfSector = yfStr(d.assetProfile ?? {}, 'sector');
+  const sector = meta?.sector ?? (yfSector ? YF_SECTOR_KO[yfSector] ?? yfSector : '기타');
+
   return {
     ticker,
-    name: yfStr(d.price ?? {}, 'shortName') ?? meta.name,
-    sector: meta.sector,
+    name: meta?.name ?? yfStr(d.price ?? {}, 'shortName') ?? yfStr(d.price ?? {}, 'longName') ?? ticker,
+    sector,
+    themes: meta?.themes ?? [],
     price: yfRaw(d.financialData ?? {}, 'currentPrice', 'raw') ?? yfRaw(d.price ?? {}, 'regularMarketPrice', 'raw'),
     marketCap: yfRaw(d.price ?? {}, 'marketCap', 'raw') ?? yfRaw(d.summaryDetail ?? {}, 'marketCap', 'raw'),
+    adhoc: !meta,
     score: scoreUsGrowth(d),
   };
 }
