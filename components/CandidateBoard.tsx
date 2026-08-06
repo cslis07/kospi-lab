@@ -27,6 +27,16 @@ interface Verdict {
 /** 성장 점수 상·하 구분선 — 사분면 배치 기준 */
 const GROWTH_HI = 60;
 
+/**
+ * 타이밍 축 구분선. stance==='buy'(score≥30)를 쓰지 않는 이유:
+ * 경량 판정은 정밀 분석과 같은 문턱을 쓰면서도 재무등급·공시·정책·CIO·코스피 가점
+ * (합쳐서 최대 ~18점)을 입력에 넣지 않는다. 그래서 같은 종목이라도 여기선 점수가
+ * 체계적으로 낮게 나오고 'buy'가 거의 안 뜬다.
+ * 실측(국내 시총 상위 30종목): score ≥30 은 4종목(13%)뿐, ≥10 은 12종목(40%).
+ * 분포는 -27~+51, 중앙값 5. → 양의 방향 기준선을 10으로 둔다.
+ */
+const FLOW_HI = 10;
+
 const QUADRANTS = [
   { key: 'act', icon: '🎯', title: '정밀 분석 대상', desc: '재무도 좋고 수급도 들어온다 — 지금 볼 것', cls: 'border-emerald-500/40 bg-emerald-500/[0.06]' },
   { key: 'watch', icon: '👀', title: '관찰 — 타이밍 대기', desc: '재무는 검증됨. 수급이 돌아올 때까지 대기', cls: 'border-sky-500/30 bg-sky-500/[0.04]' },
@@ -35,20 +45,25 @@ const QUADRANTS = [
 ] as const;
 type QuadKey = (typeof QUADRANTS)[number]['key'];
 
+interface FlowBand { t: string; cls: string; good: boolean }
+
+/** 수급·추세 점수를 4단계로. good=true 면 사분면의 '타이밍 우호' 쪽 */
+function flowBand(v: Verdict | undefined): FlowBand | null {
+  if (!v) return null;
+  if (v.stance === 'reduce') return { t: '비중축소 ▼', cls: 'text-blue-400', good: false };
+  if (v.score >= 30) return { t: '매수우위 ▲', cls: 'text-red-400', good: true };
+  if (v.score >= FLOW_HI) return { t: '우호 ↗', cls: 'text-orange-400', good: true };
+  return { t: '중립 ⏸', cls: 'text-amber-400', good: false };
+}
+
 function quadrantOf(growth: number, v: Verdict | undefined): QuadKey {
   const hiGrowth = growth >= GROWTH_HI;
-  const goodFlow = v?.stance === 'buy';
+  const goodFlow = flowBand(v)?.good === true;
   if (hiGrowth && goodFlow) return 'act';
   if (hiGrowth) return 'watch';
   if (goodFlow) return 'suspect';
   return 'drop';
 }
-
-const STANCE_LABEL: Record<Verdict['stance'], { t: string; cls: string }> = {
-  buy: { t: '매수우위 ▲', cls: 'text-red-400' },
-  neutral: { t: '중립 ⏸', cls: 'text-amber-400' },
-  reduce: { t: '비중축소 ▼', cls: 'text-blue-400' },
-};
 
 export default function CandidateBoard({
   candidates, onRemove, onClear,
@@ -98,12 +113,16 @@ export default function CandidateBoard({
 
   const row = (c: Candidate, showFlow: boolean) => {
     const v = verdicts[c.code];
+    const band = flowBand(v);
     return (
       <div key={c.code} className="flex items-center gap-2 py-1 group">
         <span className="font-semibold text-[var(--text)] text-xs truncate">{c.name}</span>
-        <span className="text-[10px] text-[var(--text-muted)] tabular-nums shrink-0">{Math.round(c.growthScore)}점</span>
+        <span className="text-[10px] text-[var(--text-muted)] tabular-nums shrink-0" title="등록 시점 성장 점수">{Math.round(c.growthScore)}점</span>
         {showFlow && (
-          v ? <span className={`text-[10px] shrink-0 ${STANCE_LABEL[v.stance].cls}`}>{STANCE_LABEL[v.stance].t}</span>
+          band && v
+            ? <span className={`text-[10px] shrink-0 tabular-nums ${band.cls}`} title="수급·추세 경량 판정 점수">
+                {band.t} <span className="opacity-70">{v.score > 0 ? '+' : ''}{v.score}</span>
+              </span>
             : <span className="text-[10px] text-[var(--text-muted)] shrink-0 opacity-60">{loading ? '수급 확인 중…' : '수급 없음'}</span>
         )}
         {v?.supplyMissing && <span className="text-[9px] text-amber-400 shrink-0" title="투자자 수급 데이터가 없어 판정 신뢰도가 낮다">수급결측</span>}
@@ -124,7 +143,7 @@ export default function CandidateBoard({
       <div className="flex flex-wrap items-center gap-2 mb-1">
         <h2 className="text-sm font-bold text-[var(--text)]">⭐ 후보 보드</h2>
         <span className="text-[10px] text-[var(--text-muted)]">
-          재무(성장 점수 {GROWTH_HI}점 기준) × 타이밍(수급 판정) — 두 축을 합치지 않고 그대로 봅니다
+          재무(성장 {GROWTH_HI}점↑) × 타이밍(수급·추세 {FLOW_HI}점↑) — 두 축을 합치지 않고 그대로 봅니다
         </span>
         <span className="flex-1" />
         <span className="text-[10px] text-[var(--text-muted)]">{candidates.length}종목</span>
