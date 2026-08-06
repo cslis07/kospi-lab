@@ -36,6 +36,8 @@ export interface GrowthFinance {
   retention: number | null;          // 유보율 % (내부 현금 축적)
   pbr: number | null;
   dividendPerShare: number | null;   // 주당배당금 원
+  /** 네이버 연간 재무를 못 받아 KIS 최소 데이터로 채운 경우 — 점수 신뢰도가 낮다 */
+  limited?: boolean;
 }
 
 export interface GrowthScore {
@@ -94,27 +96,73 @@ const FIN_TTL = 12 * 60 * 60 * 1000;
 const MAX_KEYS = 3000;
 const _cache = new Map<string, { d: GrowthFinance; ts: number }>();
 
+/**
+ * 네이버 연간 재무가 실패했을 때의 폴백 — KIS 재무비율로 최소한만 채운다.
+ * (버핏 스크리너가 쓰던 다중소스 폴백을 발굴 쪽으로 옮겨온 것)
+ *
+ * ⚠ 한계를 분명히 한다: 다개년 시계열도 애널리스트 컨센서스도 KIS 에는 없다.
+ *   따라서 '미래 기대 30점'은 구조적으로 0이 되고 성장 판단도 1개년뿐이다.
+ *   종목을 목록에서 통째로 떨어뜨리는 것보다는 낫지만, limited 로 표시해
+ *   화면에서 신뢰도가 낮음을 알리는 용도다.
+ */
+async function fetchFromKis(code: string): Promise<GrowthFinance | null> {
+  const { fetchKisFinancialRatio, fetchKisOpMargin } = await import('./kisFinance');
+  const kf = await fetchKisFinancialRatio(code).catch(() => null);
+  if (!kf || (kf.roe == null && kf.debtRatio == null && kf.revenueGrowth == null)) return null;
+  const opMargin = await fetchKisOpMargin(code).catch(() => null);
+
+  const year = kf.stacYymm ?? '';
+  // revenueGrowth(%)로부터 전년 매출을 역산해 2개년 시계열 흉내를 낸다(성장률 계산용 상대값)
+  const g = kf.revenueGrowth;
+  const revNow = 100;
+  const revPrev = g != null && g > -100 ? revNow / (1 + g / 100) : null;
+
+  return {
+    code,
+    years: revPrev != null ? [`${year}-prev`, year] : [year],
+    consensusYear: null,
+    revenue: revPrev != null ? [revPrev, revNow] : [revNow],
+    opProfit: revPrev != null ? [null, null] : [null],
+    netIncome: revPrev != null ? [null, kf.netIncomePositive === true ? 1 : kf.netIncomePositive === false ? -1 : null] : [null],
+    eps: revPrev != null ? [null, kf.eps] : [kf.eps],
+    roe: revPrev != null ? [null, kf.roe] : [kf.roe],
+    opMargin: revPrev != null ? [null, opMargin] : [opMargin],
+    per: revPrev != null ? [null, null] : [null],
+    debtRatio: revPrev != null ? [null, kf.debtRatio] : [kf.debtRatio],
+    cRevenue: null, cOpProfit: null, cNetIncome: null, cEps: null, cPer: null,
+    netMargin: null, quickRatio: null, retention: null, pbr: null, dividendPerShare: null,
+    limited: true,
+  };
+}
+
 export async function fetchGrowthFinance(code: string): Promise<GrowthFinance | null> {
   const hit = _cache.get(code);
   if (hit && Date.now() - hit.ts < FIN_TTL) return hit.d;
+
+  /** 네이버 실패 → KIS 폴백. 폴백 결과도 캐시해 재시도 폭주를 막는다 */
+  const fallback = async () => {
+    const d = await fetchFromKis(code);
+    if (d) _cache.set(code, { d, ts: Date.now() });
+    return d;
+  };
 
   let json: unknown;
   try {
     const res = await fetch(`${BASE}/${code}/finance/annual`, {
       headers: HDR, cache: 'no-store', signal: AbortSignal.timeout(7000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) return fallback();
     json = await res.json();
-  } catch { return null; }
+  } catch { return fallback(); }
 
   const fi = (json as { financeInfo?: unknown })?.financeInfo as Record<string, unknown> | null;
   const trList = (fi?.trTitleList as Array<{ isConsensus: string; key: string }>) ?? [];
   const rowList: RowList = (fi?.rowList as RowList) ?? [];
-  if (!trList.length || !rowList.length) return null;
+  if (!trList.length || !rowList.length) return fallback();
 
   const actualKeys = trList.filter((t) => t.isConsensus === 'N').map((t) => t.key).slice(-3);
   const cKeyRaw = trList.find((t) => t.isConsensus === 'Y')?.key ?? null;
-  if (!actualKeys.length) return null;
+  if (!actualKeys.length) return fallback();
 
   const row = (title: string) => rowList.find((r) => r.title === title);
   const series = (title: string) => {
@@ -185,6 +233,9 @@ export function scoreGrowth(f: GrowthFinance): GrowthScore {
   const opYoY = n >= 2 ? growthPct(f.opProfit[last], f.opProfit[last - 1]) : null;
   const revYoYPrev = n >= 3 ? growthPct(f.revenue[last - 1], f.revenue[last - 2]) : null;
 
+  if (f.limited) {
+    warnings.push('네이버 연간 재무 조회 실패 — KIS 최소 데이터로 대체. 컨센서스·다개년 시계열이 없어 점수가 낮게 나온다(종목 자체의 문제가 아닐 수 있음)');
+  }
   const hasConsensus = f.consensusYear != null;
   const cRevGrowth = hasConsensus ? growthPct(f.cRevenue, f.revenue[last]) : null;
   const cOpGrowth = hasConsensus ? growthPct(f.cOpProfit, f.opProfit[last]) : null;

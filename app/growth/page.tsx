@@ -10,6 +10,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useCandidates } from '@/hooks/useCandidates';
+import CandidateBoard from '@/components/CandidateBoard';
 
 interface UniverseItem {
   code: string; name: string; market: string; sector?: string; themes?: string[];
@@ -104,6 +106,19 @@ export default function GrowthPage() {
   const [env, setEnv] = useState<MarketEnv | null>(null);
   const abortRef = useRef(false);
   const isUs = market === 'US';
+
+  // 후보 — 스캔 결과가 휘발되지 않도록 ☆ 로 담아 보드에서 이어서 본다
+  const cand = useCandidates();
+  const toggleCandidate = (r: ResultRow) => {
+    if (cand.has(r.code)) { cand.remove(r.code); return; }
+    cand.add({
+      code: r.code, name: r.name, market: r.market === 'US' ? 'US' : 'KR',
+      sector: r.sector, themes: r.themes,
+      growthScore: r.total, badges: r.badges,
+      buffettPass: r.buffett.pass, buffettTotal: r.buffett.total,
+      peg: r.metrics.peg, comment: r.comment,
+    });
+  };
 
   // 미국 카테고리 (섹터 × 테마) — 유니버스 API 가 목록·개수를 함께 준다
   const [catMode, setCatMode] = useState<'sector' | 'theme'>('theme');
@@ -427,6 +442,12 @@ export default function GrowthPage() {
         )}
       </div>
 
+      {/* 후보 보드 — 담아둔 종목을 재무 × 타이밍으로. 스캔보다 위에 둔다(매일 먼저 볼 화면) */}
+      {cand.ready && <CandidateBoard candidates={cand.candidates} onRemove={cand.remove} onClear={cand.clear} />}
+      {cand.saveError && (
+        <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-400">⚠ {cand.saveError}</p>
+      )}
+
       {/* 시장 환경 — 종목과 무관하게 "지금 성장주 하기 좋은 날씨인가" */}
       {env && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-4">
@@ -516,6 +537,7 @@ export default function GrowthPage() {
               <thead className="border-b border-[var(--border)]">
                 <tr>
                   <th className="px-3 py-2 text-left text-[10px] font-semibold text-[var(--text-muted)]">#</th>
+                  <th className="px-1 py-2" title="후보로 담기" />
                   <th className="px-2 py-2 text-left text-[10px] font-semibold text-[var(--text-muted)]">종목</th>
                   {th('total', '점수')}
                   <th className="px-2 py-2 text-left text-[10px] font-semibold text-[var(--text-muted)]">배지</th>
@@ -536,6 +558,14 @@ export default function GrowthPage() {
                       className="border-b border-[var(--border)]/50 hover:bg-white/[0.03] cursor-pointer"
                       onClick={() => setExpanded(expanded === r.code ? null : r.code)}>
                       <td className="px-3 py-2 text-[var(--text-muted)] tabular-nums">{i + 1}</td>
+                      <td className="px-1 py-2" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => toggleCandidate(r)}
+                          className={`text-sm leading-none transition-colors ${cand.has(r.code) ? 'text-amber-400' : 'text-[var(--text-muted)] opacity-40 hover:opacity-100'}`}
+                          title={cand.has(r.code) ? '후보에서 제거' : '후보로 담기'}
+                          aria-label={cand.has(r.code) ? `${r.name} 후보에서 제거` : `${r.name} 후보로 담기`}>
+                          {cand.has(r.code) ? '★' : '☆'}
+                        </button>
+                      </td>
                       <td className="px-2 py-2">
                         <span className="font-semibold text-[var(--text)]">{r.name}</span>
                         {r.market === 'US' && <span className="text-[9px] text-[var(--text-muted)] ml-1">{r.code}</span>}
@@ -576,7 +606,7 @@ export default function GrowthPage() {
                     </tr>
                     {expanded === r.code && (
                       <tr key={`${r.code}-detail`} className="border-b border-[var(--border)]/50 bg-white/[0.02]">
-                        <td colSpan={12} className="px-4 py-3">
+                        <td colSpan={13} className="px-4 py-3">
                           <p className="text-[11px] text-[var(--text)] mb-2.5">
                             💬 <span className="text-[var(--text-muted)]">{r.comment}</span>
                           </p>

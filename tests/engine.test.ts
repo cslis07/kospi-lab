@@ -336,6 +336,15 @@ console.log('\n[ growthScreener — 성장주 점수 (순수 함수) ]');
     const noCons = scoreGrowth({ ...base, consensusYear: null, cRevenue: null, cOpProfit: null, cNetIncome: null, cEps: null, cPer: null });
     assert.ok(noCons.comment.includes('미커버'), noCons.comment);
   });
+  ok('limited(KIS 폴백) 이면 경고를 달고, 점수 하락이 데이터 부족 탓임을 알린다', () => {
+    const s = scoreGrowth({
+      ...base, limited: true,
+      consensusYear: null, cRevenue: null, cOpProfit: null, cNetIncome: null, cEps: null, cPer: null,
+    });
+    assert.ok(s.warnings.some((w) => w.includes('KIS 최소 데이터')), `warnings=${s.warnings}`);
+    assert.equal(s.parts.outlook, 0, '컨센서스 없으므로 미래 기대 0');
+    assert.ok(s.total < scoreGrowth({ ...base }).total, '정상 데이터보다 점수가 낮아야');
+  });
   ok('growthPct: 전기 0·null 은 null, ±300% 클램프', () => {
     assert.equal(growthPct(100, 0), null);
     assert.equal(growthPct(null, 100), null);
