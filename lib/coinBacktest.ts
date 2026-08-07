@@ -39,10 +39,19 @@ export interface BacktestResult {
   trades: BacktestTrade[]; // 최근 순
 }
 
-/** ts 이하 캔들만 슬라이스 (최근 limit개) */
-function sliceUpTo(candles: Candle[], ts: number, limit: number): Candle[] {
+const GRAN_MS = { '5m': 300_000, '15m': 900_000, '1H': 3_600_000 } as const;
+
+/**
+ * 결정 시점까지 **완결된** 봉만 슬라이스한다.
+ *
+ * ⚠ 과거 구현은 봉의 '시작'시각으로 잘라(`ts > cutoff`) 마지막 봉이 미래 데이터를
+ *   담고 있었다. 5분봉 종가로 판단하는 시점에 1H 봉은 평균 22.6분(최대 45분)의
+ *   미래를 이미 포함한 상태였고, 1H 는 방향 필터 ±25 + 시장구조 ±10 으로 가중이
+ *   가장 큰 타임프레임이라 성적표가 통째로 부풀려졌다(실측: 승률 +4.0%p).
+ */
+function sliceUpTo(candles: Candle[], decisionTs: number, limit: number, granMs: number): Candle[] {
   let end = candles.length;
-  while (end > 0 && candles[end - 1].ts > ts) end--;
+  while (end > 0 && candles[end - 1].ts + granMs > decisionTs) end--;
   return candles.slice(Math.max(0, end - limit), end);
 }
 
@@ -51,6 +60,9 @@ export function backtestEngine(
   fundingRate: number,
   stepBars = 3,           // 신호 평가 주기(5분봉 3개 = 15분)
   maxHoldBars = 96,        // 최대 보유 8시간
+  /** 상위TF 캔들 — 라이브 엔진이 쓰는 레짐 필터를 백테스트에도 동일 적용하기 위함.
+   *  넘기지 않으면 필터 없이 돌아 라이브보다 느슨한 기준으로 측정된다. */
+  htfCandles?: { c4h: Candle[]; c1d: Candle[] },
 ): BacktestResult {
   const trades: BacktestTrade[] = [];
   const warmup = 80;       // 지표 안정화 구간
@@ -59,11 +71,12 @@ export function backtestEngine(
 
   for (let i = warmup; i < c5m.length - 1; i += stepBars) {
     if (i <= openUntil) continue;
-    const nowTs = c5m[i].ts;
+    // 판단 시점 = 그 5분봉의 종가가 확정되는 순간
+    const decisionTs = c5m[i].ts + GRAN_MS['5m'];
 
-    const s5 = sliceUpTo(c5m, nowTs, 160);
-    const s15 = sliceUpTo(c15m, nowTs, 160);
-    const s1h = sliceUpTo(c1h, nowTs, 120);
+    const s5 = sliceUpTo(c5m, decisionTs, 160, GRAN_MS['5m']);
+    const s15 = sliceUpTo(c15m, decisionTs, 160, GRAN_MS['15m']);
+    const s1h = sliceUpTo(c1h, decisionTs, 120, GRAN_MS['1H']);
     if (s5.length < 60 || s15.length < 60 || s1h.length < 60) continue;
 
     const h1 = analyzeTimeframe('1H', s1h);
@@ -72,8 +85,17 @@ export function backtestEngine(
     const price = m5.close;
     const zones = srZones(s15, price, atr(s15));
     const fib = fibonacci(s15, price);
-    // nearFunding·이벤트는 백테스트에서 미적용(nextFundingTs=null, extras 생략)
-    const v = buildVerdict(h1, m15, m5, fundingRate, null, fib, zones, null, {});
+    // nearFunding·이벤트는 백테스트에서 미적용(nextFundingTs=null)
+    // 상위TF 레짐은 캔들이 넘어온 경우에만 적용 — 라이브와 같은 게이트를 쓰기 위함
+    let extras: Parameters<typeof buildVerdict>[8] = {};
+    if (htfCandles) {
+      const s4h = sliceUpTo(htfCandles.c4h, decisionTs, 250, 4 * GRAN_MS['1H']);
+      const s1d = sliceUpTo(htfCandles.c1d, decisionTs, 250, 24 * GRAN_MS['1H']);
+      if (s4h.length >= 60 && s1d.length >= 60) {
+        extras = { htf: { h4: analyzeTimeframe('4H', s4h), d1: analyzeTimeframe('1D', s1d) } };
+      }
+    }
+    const v = buildVerdict(h1, m15, m5, fundingRate, null, fib, zones, null, extras);
 
     if (!v.entryOk || v.direction === 'wait') continue;
 
@@ -96,7 +118,7 @@ export function backtestEngine(
     }
     if (result === null) { openCount++; openUntil = i + maxHoldBars; continue; }
 
-    trades.push({ ts: nowTs, direction: v.direction, score: v.score, entry, stop, target, result, bars });
+    trades.push({ ts: c5m[i].ts, direction: v.direction, score: v.score, entry, stop, target, result, bars });
   }
 
   const wins = trades.filter((t) => t.result === 'win').length;

@@ -320,10 +320,13 @@ function upcomingEvent(): { title: string; hoursUntil: number; date: string } | 
 const _btCache = new Map<string, { result: BacktestResult; ts: number }>();
 const BT_TTL = 10 * 60 * 1000;
 
-function cachedBacktest(symbol: string, c5m: Candle[], c15m: Candle[], c1h: Candle[], fundingRate: number): BacktestResult {
+function cachedBacktest(
+  symbol: string, c5m: Candle[], c15m: Candle[], c1h: Candle[], fundingRate: number,
+  htfCandles?: { c4h: Candle[]; c1d: Candle[] },
+): BacktestResult {
   const hit = _btCache.get(symbol);
   if (hit && Date.now() - hit.ts < BT_TTL) return hit.result;
-  const result = backtestEngine(c5m, c15m, c1h, fundingRate);
+  const result = backtestEngine(c5m, c15m, c1h, fundingRate, 3, 96, htfCandles);
   _btCache.set(symbol, { result, ts: Date.now() });
   return result;
 }
@@ -576,7 +579,8 @@ export async function GET(req: NextRequest) {
     const verdict = buildVerdict(h1, m15, m5, funding.rate, funding.nextTs, fib, zones, longShort.latest?.ratio ?? null, extras);
 
     // 백테스트 (전체 캔들, 10분 캐시)
-    const backtest = cachedBacktest(symbol, c5mFull, c15mFull, c1hFull, funding.rate);
+    const backtest = cachedBacktest(symbol, c5mFull, c15mFull, c1hFull, funding.rate,
+      c4hFull.length && c1dFull.length ? { c4h: c4hFull, c1d: c1dFull } : undefined);
 
     // 캔들 차트(EMA20/60 오버레이) — 5m/15m/1H 각 최근 60봉
     const buildChart = (candles: Candle[]) => {

@@ -85,12 +85,24 @@ export function tfTrend(tf: TimeframeAnalysis): TfTrend {
 }
 
 /* ── 기본 지표 ────────────────────────────────────────── */
+/**
+ * EMA 시계열.
+ *
+ * ⚠ 과거 구현은 시드를 계산해 놓고 `i === 0` 에서 즉시 덮어써 시드가 죽어 있었다.
+ *   그 결과 ema200 은 200봉 기준 첫 종가에 13.67% 가중이 남아 사실상 EMA 가 아니었고,
+ *   상승장에선 저평가·하락장에선 고평가되어 `above200` 과 4H·1D 레짐 필터를
+ *   추세 지속 방향으로 편향시켰다.
+ *   워밍업(period 미만) 구간은 누적 평균(SMA)으로 채우고 그 이후 EMA 재귀를 돌린다.
+ */
 export function emaSeries(values: number[], period: number): number[] {
   const k = 2 / (period + 1);
   const out: number[] = [];
-  let prev = values.slice(0, period).reduce((a, b) => a + b, 0) / Math.min(period, values.length);
+  if (!values.length) return out;
+  let sum = 0;
+  let prev = values[0];
   for (let i = 0; i < values.length; i++) {
-    prev = i === 0 ? values[0] : values[i] * k + prev * (1 - k);
+    sum += values[i];
+    prev = i < period ? sum / (i + 1) : values[i] * k + prev * (1 - k);
     out.push(prev);
   }
   return out;
@@ -156,8 +168,15 @@ export function atr(candles: Candle[], period = 14): number {
 }
 
 /** 당일(UTC 00:00 앵커) VWAP */
+/**
+ * 당일 VWAP.
+ * ⚠ 기준일을 서버 현재시각으로 잡으면 백테스트(과거 구간)에서는 조건에 맞는 봉이 없어
+ *   항상 null 이 됐다 — 실측 결과 백테스트 표본의 81%에서 VWAP ±6점이 아예 미적용이라
+ *   백테스트와 실전이 다른 룰을 돌리고 있었다. 마지막 캔들 시각을 기준일로 삼는다.
+ */
 function vwapCalc(candles: Candle[]): number | null {
-  const dayStart = new Date();
+  if (!candles.length) return null;
+  const dayStart = new Date(candles[candles.length - 1].ts);
   dayStart.setUTCHours(0, 0, 0, 0);
   const todays = candles.filter((c) => c.ts >= dayStart.getTime());
   if (todays.length < 3) return null;
