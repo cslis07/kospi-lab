@@ -42,8 +42,8 @@ const GROUPS: NavGroup[] = [
   {
     label: '분석',
     items: [
-      { label: '국내주식 분석', href: '/stock-analysis', desc: '수급·추세·재무 매수판단' },
-      { label: '코인선물 분석', href: '/coin-analysis', desc: 'BTC·ETH·XRP·SOL 롱숏 판단' },
+      { label: '국내주식 분석', href: '/stock-analysis', desc: '수급·추세·재무 체크리스트' },
+      { label: '코인선물 분석', href: '/coin-analysis', desc: '손절·사이징·리스크 점검' },
       { label: '성장주 발굴',   href: '/growth', desc: 'PER·PEG·컨센서스 성장 스캔' },
       { label: '버핏 스크리너', href: '/screener', desc: 'ROE·PER·재무 분석' },
       { label: 'KRX 시장',      href: '/krx',      desc: '지수·전종목 랭킹·ETF·상품' },

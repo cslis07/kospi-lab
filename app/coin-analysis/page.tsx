@@ -511,6 +511,15 @@ export default function CoinAnalysisPage() {
 
   return (
     <div className="pb-12">
+      {/* 도구의 성격 — 점수를 진입 신호로 읽지 않게 화면 최상단에 고정 */}
+      <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3.5 py-2.5">
+        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+          🛡 <strong className="text-[var(--text)]">방향은 직접 판단하시고, 이 화면은 손절·사이징·청산가·기록에 쓰세요.</strong>{' '}
+          룰 엔진 점수는 체크리스트이며 진입 신호가 아닙니다 — 자체 백테스트(45일·4코인·727건)에서
+          승률 <strong className="text-[var(--text)]">49.7%</strong>로 예측 우위가 확인되지 않았습니다.
+        </p>
+      </div>
+
       {/* 코인 탭 + 새로고침 */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="flex gap-1.5">

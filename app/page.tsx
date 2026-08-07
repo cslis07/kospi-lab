@@ -97,9 +97,22 @@ function DashboardInner() {
         <QuickCard href="/bitget"    emoji="🪙" title="비트겟 포트폴리오" desc="내 코인 잔고" />
       </Section>
 
+      {/* 이 앱은 진입 신호를 주는 도구가 아니다 — 대규모 백테스트에서 엣지가 확인되지 않았고(승률 49.7%),
+          실제 가치는 손절 강제·사이징·기록에 있다. 첫 화면에서 그 성격을 분명히 한다. */}
+      <div className="mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3">
+        <p className="text-xs font-semibold text-[var(--text)] mb-1">이 도구의 역할</p>
+        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+          <strong className="text-[var(--text)]">방향 판단은 사용자 몫</strong>이고, 앱은
+          <strong className="text-[var(--text)]"> 손절·사이징·청산가·기록</strong>을 맡습니다.
+          룰 엔진 점수는 체크리스트일 뿐 매수·매도 신호가 아닙니다 —
+          자체 대규모 백테스트에서 <strong className="text-[var(--text)]">승률 49.7%</strong>로
+          예측 우위가 확인되지 않았습니다(2026-08-07 · 727건).
+        </p>
+      </div>
+
       <Section title="📊 분석">
-        <QuickCard href="/stock-analysis" emoji="🔬" title="국내주식 분석" desc="룰엔진·수급·AI 브리핑" />
-        <QuickCard href="/coin-analysis"  emoji="📡" title="코인선물 분석" desc="다중TF·레버리지·리스크" />
+        <QuickCard href="/stock-analysis" emoji="🔬" title="국내주식 분석" desc="수급·재무 체크리스트" />
+        <QuickCard href="/coin-analysis"  emoji="📡" title="코인선물 분석" desc="손절·사이징·청산가" />
         <QuickCard href="/screener" emoji="🔍" title="버핏 스크리너" desc="ROE·PER 7기준" />
         <QuickCard href="/krx"      emoji="🏅" title="KRX 시장"     desc="지수·랭킹·ETF·상품" />
         <QuickCard href="/news"     emoji="📰" title="뉴스"          desc="시장 소식" />

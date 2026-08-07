@@ -91,7 +91,13 @@ function StanceBadge({ stance }: { stance: 'buy' | 'neutral' | 'reduce' }) {
     neutral: { l: '중립 ⏸', cls: 'bg-amber-500/15 text-amber-400 border-amber-500/40' },
     reduce: { l: '비중축소 ▼', cls: 'bg-blue-500/15 text-blue-400 border-blue-500/40' },
   }[stance];
-  return <span className={`inline-flex items-center border rounded-xl font-bold px-4 py-1.5 text-lg ${c.cls}`}>{c.l}</span>;
+  // 라벨은 룰 엔진 점수를 서술한 것이지 매매 추천이 아니다 — 툴팁으로 명시한다
+  return (
+    <span className={`inline-flex items-center border rounded-xl font-bold px-4 py-1.5 text-lg ${c.cls}`}
+      title="룰 엔진 점수를 서술한 라벨입니다. 예측 우위가 검증되지 않았으므로 매매 추천이 아닙니다.">
+      {c.l}
+    </span>
+  );
 }
 
 export default function StockAnalysisPage() {
