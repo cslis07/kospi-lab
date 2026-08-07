@@ -14,6 +14,8 @@
  *
  * 실행: npx tsx scripts/backtest-funding.ts [보유시간] [심볼,...]
  */
+export {};   // import 가 없으면 전역 스크립트로 취급돼 다른 스크립트와 이름이 충돌한다
+
 const BITGET = 'https://api.bitget.com';
 
 interface Funding { ts: number; rate: number }
