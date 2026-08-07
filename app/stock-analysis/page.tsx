@@ -367,7 +367,10 @@ export default function StockAnalysisPage() {
             <div className="flex flex-wrap items-center gap-3 mb-4">
               <StanceBadge stance={v.stance} />
               <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-[var(--border)] text-xs font-semibold text-[var(--text)]">{v.state}</span>
-              <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${v.entryOk ? 'bg-red-500/10 text-red-400 border-red-500/30' : 'bg-slate-500/10 text-[var(--text-muted)] border-[var(--border)]'}`}>{v.entryOk ? '✓ 매수 조건 충족' : '매수 대기'}</span>
+              <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${v.entryOk ? 'bg-red-500/10 text-red-400 border-red-500/30' : 'bg-slate-500/10 text-[var(--text-muted)] border-[var(--border)]'}`}
+                title="체크리스트를 모두 통과했다는 뜻입니다. 이 엔진의 예측력(엣지)은 아직 대규모 표본으로 검증되지 않았습니다.">
+                {v.entryOk ? '체크리스트 통과' : '매수 대기'}
+              </span>
               <button onClick={saveToJournal}
                 className="ml-auto px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-sky-500/40 transition-colors"
                 title="이 판정을 기록해 두면 실시간가로 손절·목표 도달을 자동 판정합니다">
@@ -485,8 +488,21 @@ export default function StockAnalysisPage() {
                   );
                 })()}
               </h3>
-              <p className="text-[10px] text-[var(--text-muted)] mb-2">⚠ 수수료·세금 미반영. 과거 투자자 수급 데이터가 없어 <strong>기술적 신호만 검증</strong> — 실전 판정(수급 포함)보다 보수적으로 해석하세요.</p>
-              <p className="text-[10px] text-[var(--text-muted)] mb-3">과거 일봉에서 매수 신호 발생 시 1R 익절 vs 손절 판정 (수급·재무 제외 기술적 전용·수수료 미반영)</p>
+              <p className="text-[10px] text-[var(--text-muted)] mb-2">
+                과거 일봉에서 매수 신호 발생 시 1R 익절 vs 손절 판정. ⚠ 수수료·세금 미반영,
+                과거 투자자 수급 데이터가 없어 <strong>기술적 신호만 검증</strong>.
+              </p>
+              <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-2.5">
+                <p className="text-[11px] font-bold text-amber-400 mb-1">⚠ 이 엔진의 예측력은 검증되지 않았습니다</p>
+                <p className="text-[10px] leading-relaxed text-[var(--text-muted)]">
+                  아래는 <strong className="text-[var(--text)]">이 종목·이 기간</strong>의 성적일 뿐 표본이 수 건~수십 건이라
+                  우연과 구분되지 않습니다. 다종목 대규모 표본으로 엣지를 측정한 적이 없습니다.
+                  <br />
+                  참고로 <strong className="text-[var(--text)]">같은 구조의 코인 엔진</strong>은 대규모 측정(45일·4코인·727건)에서
+                  승률 49.7%로 <strong className="text-[var(--text)]">엣지가 확인되지 않았습니다</strong>.
+                  성적표가 좋게 나와도 <strong className="text-[var(--text)]">매수 근거로 삼지 마세요.</strong>
+                </p>
+              </div>
               {data.backtest.signals === 0 ? (
                 <p className="text-xs text-[var(--text-muted)] py-3 text-center">이 기간 매수 조건을 충족한 신호가 없습니다 — 엔진이 관망을 유지한 구간</p>
               ) : (

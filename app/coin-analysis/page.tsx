@@ -581,7 +581,7 @@ export default function CoinAnalysisPage() {
             );
           })}
           <p className="col-span-2 sm:col-span-4 text-[10px] text-[var(--text-muted)]">
-            기술적 신호만 비교한 경량 스캔 (수급·뉴스·이벤트 제외) · ● = 진입조건 충족 · 코인을 클릭해 선택 후 <strong>분석</strong>으로 정밀 판정
+            기술적 신호만 비교한 경량 스캔 (수급·뉴스·이벤트 제외) · ● = 체크리스트 통과(우위 아님) · 코인을 클릭해 선택 후 <strong>분석</strong>으로 정밀 판정
           </p>
         </div>
       )}
@@ -835,10 +835,12 @@ export default function CoinAnalysisPage() {
                   </span>
                 );
               })()}
+              {/* 엣지 미검증(대규모 백테스트 승률 49.7%)이므로 초록불이 '사도 된다'로 읽히지 않게 한다.
+                  체크리스트 통과라는 사실만 말하고, 우위를 뜻하지 않음을 배지 자체에 붙인다. */}
               <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
-                v.entryOk ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-slate-500/10 text-[var(--text-muted)] border-[var(--border)]'
-              }`}>
-                {v.entryOk ? '✓ 진입 조건 충족' : '진입 대기'}
+                v.entryOk ? 'bg-sky-500/10 text-sky-400 border-sky-500/30' : 'bg-slate-500/10 text-[var(--text-muted)] border-[var(--border)]'
+              }`} title="체크리스트를 모두 통과했다는 뜻입니다. 이 엔진은 대규모 백테스트에서 승률 49.7%로 엣지가 확인되지 않았으므로, 통과가 곧 우위를 뜻하지 않습니다.">
+                {v.entryOk ? '체크리스트 통과 (우위 아님)' : '진입 대기'}
               </span>
               <button onClick={saveToJournal}
                 className="ml-auto px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-hover)] transition-colors">
@@ -1116,9 +1118,26 @@ export default function CoinAnalysisPage() {
                   );
                 })()}
               </h3>
-              <p className="text-[10px] text-[var(--text-muted)] mb-3">
-                과거 캔들에서 진입 신호 발생 시 1R 익절 vs 손절 판정. ⚠ 수수료·슬리피지 미반영, 실전 판정의 파생 수급(테이커·OI) 신호는 과거 데이터가 없어 <strong>기술적 신호만 검증</strong> — 실전보다 신호가 후하게 잡힙니다.
+              <p className="text-[10px] text-[var(--text-muted)] mb-2">
+                과거 캔들에서 진입 신호 발생 시 1R 익절 vs 손절 판정. ⚠ 수수료·슬리피지 미반영.
               </p>
+
+              {/* 대규모 표본 측정 결과 — 이 화면의 짧은 표본이 잘 나와도 그게 엣지의 근거가 아니다 */}
+              <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-2.5">
+                <p className="text-[11px] font-bold text-amber-400 mb-1">⚠ 이 엔진은 엣지가 검증되지 않았습니다</p>
+                <p className="text-[10px] leading-relaxed text-[var(--text-muted)]">
+                  별도 대규모 백테스트(2026-08-07 · 45일 · 4코인 · 727건)에서 <strong className="text-[var(--text)]">승률 49.7%</strong>,
+                  파생 수급 신호를 포함해도 <strong className="text-[var(--text)]">48.4%</strong>(28일·407건)로
+                  <strong className="text-[var(--text)]"> 동전 던지기와 구분되지 않았습니다</strong>.
+                  1R 손절·1R 익절의 손익분기가 50%이고, 왕복 수수료 0.12%가 손절폭 0.2% 기준
+                  <strong className="text-[var(--text)]"> 1R의 60%</strong>를 먹으므로 실제로는 마이너스입니다.
+                  <br />
+                  아래 성적표는 <strong className="text-[var(--text)]">최근 장세 적합도</strong>일 뿐,
+                  좋게 나와도 표본이 짧아(수십 건) 우연과 구분되지 않습니다 —
+                  <strong className="text-[var(--text)]"> 진입 근거로 쓰지 마세요.</strong>
+                  이 도구는 손절·사이징·기록 등 <strong className="text-[var(--text)]">리스크 관리</strong>에 쓰는 것이 안전합니다.
+                </p>
+              </div>
               {data.backtest.signals === 0 ? (
                 <p className="text-xs text-[var(--text-muted)] py-3 text-center">이 기간 진입 조건을 충족한 신호가 없습니다 — 엔진이 관망을 유지한 구간</p>
               ) : (
