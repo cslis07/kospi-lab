@@ -180,9 +180,14 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
           {/* 선물 포지션 — 리스크 도구의 핵심: 실제 청산가·레버리지·미실현손익 */}
           {pos?.configured && (
             pos.error ? (
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-                <p className="text-xs font-semibold text-[var(--text)] mb-1">USDT 선물</p>
-                <p className="text-[11px] text-[var(--text-muted)]">선물 조회 실패 — 키에 선물 읽기 권한이 없을 수 있습니다. (현물은 정상)</p>
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.05] p-4">
+                <p className="text-xs font-semibold text-amber-400 mb-1">USDT 선물 — 키 권한 필요</p>
+                <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                  {/permission/i.test(pos.error) || /40014/.test(pos.error)
+                    ? <>현재 API 키에 <strong className="text-[var(--text)]">선물 포지션 읽기(Futures / Position - Read)</strong> 권한이 없습니다.
+                        Bitget → API 관리에서 해당 권한을 추가(읽기 전용 유지)하면 실제 청산가·미실현손익이 여기 표시됩니다. (현물은 정상)</>
+                    : <>선물 조회 실패: {pos.error}</>}
+                </p>
               </div>
             ) : pos.positions && pos.positions.length > 0 ? (
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
