@@ -15,11 +15,15 @@ export interface JournalEntry {
   stop: number;
   target1: number;
   target2: number;
-  leverage: number;
+  leverage: number;           // 리스크 패널에서 사용자가 실제 설정한 배율 (엔진 권장값 아님)
   reasonsTop: string[];       // 핵심 근거 요약
   result: 'open' | 'win' | 'loss' | 'even';
   resultR: number | null;     // 실현 R (win: +, loss: -)
   realizedUsdt?: number | null; // 실제 실현손익 (USDT) — 엔진 판정 vs 실제 성적 비교용
+  // 기록 시점 리스크 패널 값 — "엔진 판정 vs 내 실제 사이징" 복기용
+  seedUsdt?: number | null;   // 시드
+  riskPct?: number | null;    // 1회 허용손실 %
+  notionUsdt?: number | null; // 계획 노션
   memo: string;
 }
 
@@ -51,7 +55,7 @@ export function useCoinJournal() {
       memo: '',
     };
     setEntries((prev) => {
-      const next = [entry, ...prev].slice(0, 100);
+      const next = [entry, ...prev].slice(0, 1000);   // 성적 실측이 핵심 가치라 상한을 넉넉히
       try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {}
       return next;
     });

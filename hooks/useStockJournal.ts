@@ -41,7 +41,7 @@ export function useStockJournal() {
   const add = useCallback((e: Omit<StockJournalEntry, 'id' | 'result' | 'resultR' | 'memo'>) => {
     const entry: StockJournalEntry = { ...e, id: `${e.ticker}-${e.ts}`, result: 'open', resultR: null, memo: '' };
     setEntries((prev) => {
-      const next = [entry, ...prev].slice(0, 100);
+      const next = [entry, ...prev].slice(0, 1000);   // 성적 실측이 핵심 가치라 상한을 넉넉히
       try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {}
       return next;
     });

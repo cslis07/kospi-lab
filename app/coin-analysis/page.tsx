@@ -241,11 +241,14 @@ function OrderbookPanel({ ob, price, digits }: {
   );
 }
 
-function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr, levMax, fundingRatePct, priceDigits, entryPlan }: {
+export interface RiskSizing { lev: number; seed: number; riskPct: number; notion: number; margin: number }
+
+function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr, levMax, fundingRatePct, priceDigits, entryPlan, onSizing }: {
   entry: number; stop: number; stopPct: number; target1: number; target2: number;
   direction: 'long' | 'short' | 'wait';
   levAggr: number; levMax: number; fundingRatePct: number; priceDigits: number;
   entryPlan: { type: 'now' | 'pullback' | 'wait'; zoneLow: number; zoneHigh: number };
+  onSizing?: (s: RiskSizing) => void;   // 부모(매매일지)가 실제 설정값을 읽도록 보고
 }) {
   const [seed, setSeed] = useState('1000');
   const [riskPct, setRiskPct] = useState('1');
@@ -259,6 +262,8 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
   const notion = notionForRisk(s, r, stopPct);
   const margin = lev > 0 ? notion / lev : 0;
   const lossAtStop = s * r / 100;
+  // 현재 설정을 부모로 보고 — 부모는 ref 에 담아두었다가 매매일지에 실제값으로 기록한다
+  useEffect(() => { onSizing?.({ lev, seed: s, riskPct: r, notion, margin }); }, [lev, s, r, notion, margin, onSizing]);
   // 손절폭이 아주 좁으면 노션이 급팽창해 필요 증거금이 시드를 넘는다(=실행 불가).
   // 예: 손절폭 0.12%·시드 1000·리스크 1% → 노션 8,197, 4배 증거금 2,049(시드의 205%)
   const marginOverSeed = s > 0 && margin > s;
@@ -487,13 +492,20 @@ export default function CoinAnalysisPage() {
   const alertSymbol = data?.symbol ?? symbol;
   const alertRule = coinAlerts.rules[alertSymbol];
 
+  // 리스크 패널이 보고한 실제 설정값(배율·시드·노션). saveToJournal 이 이걸 기록한다.
+  const sizingRef = useRef<RiskSizing | null>(null);
+
   const saveToJournal = () => {
     if (!data || !v) return;
+    const sz = sizingRef.current;
     journal.add({
       ts: Date.now(), symbol: data.symbol, name: data.name,
       direction: v.direction, state: v.state, score: v.score, price: data.price,
       entry: v.entry, stop: v.stop, target1: v.target1, target2: v.target2,
-      leverage: v.leverage.conservative, reasonsTop: v.reasons.slice(0, 3),
+      // 사용자가 리스크 패널에서 실제 설정한 배율 — 없으면(패널 미표시) 엔진 권장값으로 폴백
+      leverage: sz ? sz.lev : v.leverage.conservative,
+      seedUsdt: sz?.seed ?? null, riskPct: sz?.riskPct ?? null, notionUsdt: sz?.notion ?? null,
+      reasonsTop: v.reasons.slice(0, 3),
     });
   };
 
@@ -876,7 +888,8 @@ export default function CoinAnalysisPage() {
                   <div>
                     <p className="text-[10px] text-[var(--text-muted)]">② 손절 (여기 깨지면 판단 오류)</p>
                     <p className="text-lg font-bold tabular-nums text-red-400">
-                      ${fmtP(v.stop, priceDigits)} <span className="text-xs">(-{v.stopPct.toFixed(2)}%)</span>
+                      {/* 숏은 손절이 진입가 위에 있으므로 +부호. 하드코딩 - 는 방향 오독을 유발했다(감사 M-2) */}
+                      ${fmtP(v.stop, priceDigits)} <span className="text-xs">({v.direction === 'short' ? '+' : '-'}{v.stopPct.toFixed(2)}%)</span>
                     </p>
                   </div>
                   <div>
@@ -1253,6 +1266,7 @@ export default function CoinAnalysisPage() {
               levAggr={v.leverage.aggressive} levMax={v.leverage.max}
               fundingRatePct={data.funding.ratePct} priceDigits={priceDigits}
               entryPlan={v.entryPlan}
+              onSizing={(sz) => { sizingRef.current = sz; }}
             />
           </div>
 
@@ -1343,6 +1357,8 @@ export default function CoinAnalysisPage() {
                       <span className="text-red-400">손절 ${fmtP(e.stop, e.price < 10 ? 4 : e.price < 1000 ? 2 : 1)}</span>
                       <span className="text-emerald-400">T1 ${fmtP(e.target1, e.price < 10 ? 4 : e.price < 1000 ? 2 : 1)}</span>
                       <span>{e.leverage}배</span>
+                      {e.notionUsdt != null && <span>노션 {Math.round(e.notionUsdt).toLocaleString()} USDT</span>}
+                      {e.seedUsdt != null && e.riskPct != null && <span>시드 {Math.round(e.seedUsdt).toLocaleString()}·리스크 {e.riskPct}%</span>}
                     </div>
                     {/* 결과 입력 */}
                     <div className="flex items-center gap-1.5 mt-2">
