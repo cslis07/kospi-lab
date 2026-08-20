@@ -178,6 +178,31 @@ ok('수급 결측이면 기술적으로 강해도 entryOk=false', () => {
   assert.equal(withSupply.entryOk, true, '수급 양호면 진입 가능해야');
   assert.equal(noSupply.entryOk, false, '수급 결측이면 진입 차단');
   assert.ok(noSupply.entryNote.includes('수급 데이터 없음'));
+
+  // M-1 회귀: supply 객체가 있어도 값이 전부 0(파서 실패·거래 없음)이면 통과하면 안 된다
+  const zeroSupply: InvestorDay[] = Array.from({ length: 10 }, (_, i) => ({
+    date: `2026-07-${String(i + 1).padStart(2, '0')}`,
+    individual: 0, foreign: 0, institution: 0, foreignHoldRatio: null, close: price,
+  }));
+  const s = analyzeSupply(zeroSupply);
+  assert.equal(s.dataDays, 0, '전부 0이면 dataDays=0');
+  const zeroV = buildStockVerdict(daily, candles, fib, zones, { ...boost, supply: s });
+  assert.equal(zeroV.entryOk, false, '전부 0인 수급은 검증됨으로 보지 않아 진입 차단');
+});
+
+console.log('\n[ coinAnalysis — 게이트 회귀 (M-4·M-5) ]');
+ok('M-5: 펀딩 정산 직후(음수 분)도 회피 구간 — entryOk 차단', () => {
+  const nextTs = Date.now() - 3 * 60_000;   // 3분 전 정산됨
+  const v = buildVerdict(bullTF(P), bullTF(P), longM5(), 0, nextTs, null, [supportZone, farRes], null, {});
+  assert.equal(v.entryOk, false, '정산 직후는 진입 불가');
+  assert.ok(v.warnings.some((w) => w.includes('정산 직후')), `warnings=${v.warnings}`);
+});
+ok('M-4: 이벤트 임박이면 confidence 가 견고/보통이 아니라 약함', () => {
+  const v = buildVerdict(bullTF(P), bullTF(P), longM5(), 0, null, null, [supportZone, farRes], null,
+    { event: { title: 'CPI', hoursUntil: 3 }, htf: { h4: bullTF(P), d1: bullTF(P) } });
+  assert.equal(v.entryOk, false);
+  assert.equal(v.confidence.grade, '약함', `grade=${v.confidence.grade} pct=${v.confidence.pct}`);
+  assert.ok(v.confidence.pct <= 40, `차단 게이트면 pct 상한 40: ${v.confidence.pct}`);
 });
 
 /* ── 2026-07-27 전체 점검에서 확정된 버그들의 회귀 테스트 ──────────────

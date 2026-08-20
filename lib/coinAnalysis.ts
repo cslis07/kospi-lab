@@ -487,8 +487,14 @@ export function buildVerdict(
     score -= Math.sign(fPct) * 5;
   }
   const minToFunding = nextFundingTs ? (nextFundingTs - Date.now()) / 60000 : null;
-  const nearFunding = minToFunding !== null && minToFunding >= 0 && minToFunding <= 10;
-  if (nearFunding) warnings.push(`다음 펀딩까지 ${Math.round(minToFunding!)}분 — 펀딩 직전 5~10분 진입 회피 구간`);
+  // 회피 구간: 정산 직전 10분 ~ 정산 직후 5분. 과거 이전 구현은 `>= 0` 이라
+  // 타임스탬프가 정산을 막 지난(음수) 경우 게이트가 열렸다(감사 M-5). 정산 직후도 변동성 구간이다.
+  const nearFunding = minToFunding !== null && minToFunding >= -5 && minToFunding <= 10;
+  if (nearFunding) {
+    warnings.push(minToFunding! < 0
+      ? `펀딩 정산 직후 ${Math.round(-minToFunding!)}분 — 정산 전후 변동성 회피 구간`
+      : `다음 펀딩까지 ${Math.round(minToFunding!)}분 — 펀딩 직전 회피 구간`);
+  }
 
   /* 5-1) 롱숏 계정 비율 — 과도한 쏠림은 역방향 스퀴즈 위험(문서: OI·펀딩 쏠림 체제 신호) */
   if (longShortRatio !== null) {
@@ -714,6 +720,10 @@ export function buildVerdict(
       : false;
   const regimeAligned = regime?.aligned === true;
   const regimeCounter = regime?.aligned === false;
+  // 진입을 막는 하드 게이트 — 방향이 아무리 견고해도 "지금은 못 들어간다"는 사실을
+  // confidence 가 반영해야 한다. 예전에는 이벤트 임박·펀딩·진입자리 불량인데도
+  // "🟢 견고 95%"와 "진입 대기"가 동시에 떴다(감사 M-4).
+  const hardBlock = eventBlock || nearFunding || !roomOk;
   let confPct = 0;
   if (direction !== 'wait') {
     confPct = 25;
@@ -723,10 +733,12 @@ export function buildVerdict(
     if (regimeCounter) confPct -= 25;                       // 상위 추세 역행
     if (!trigger) confPct -= 8;                             // 5m 트리거 미확인
     if (extremeVol) confPct -= 10;
+    if (hardBlock) confPct = Math.min(confPct, 40);         // 차단 게이트 시 상한 40
     confPct = Math.max(5, Math.min(100, Math.round(confPct)));
   }
   const grade: '견고' | '보통' | '약함' =
     direction === 'wait' ? '약함'
+    : hardBlock ? '약함'                                    // 진입 불가 구간은 견고/보통 표기 금지
     : confPct >= 65 && h1Agrees && !regimeCounter ? '견고'
     : confPct >= 45 ? '보통' : '약함';
   const confNote =

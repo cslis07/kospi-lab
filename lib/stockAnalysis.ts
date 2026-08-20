@@ -31,6 +31,7 @@ export interface SupplyDemand {
   holdRatioNow: number | null;
   holdRatioChange5d: number | null; // 외국인 보유율 5일 변화(%p)
   score: number;           // -100~+100 수급 종합
+  dataDays: number;        // 실제 수급 값이 있는(0이 아닌) 일수 — 결측 판정용
 }
 
 export function analyzeSupply(days: InvestorDay[]): SupplyDemand {
@@ -76,11 +77,16 @@ export function analyzeSupply(days: InvestorDay[]): SupplyDemand {
   if (foreign5d > 0 && inst5d > 0) score += 8;
   else if (foreign5d < 0 && inst5d < 0) score -= 8;
 
+  // 값이 하나라도 0이 아닌 날 = 실제 데이터가 있는 날. 전부 0이면 파서 실패·거래 없음이므로
+  // 수급을 '검증됨'으로 취급하면 안 된다(감사 M-1).
+  const dataDays = d.filter((x) => x.foreign !== 0 || x.institution !== 0 || x.individual !== 0).length;
+
   return {
     foreign5d, inst5d, indiv5d, foreign20d, inst20d,
     foreignStreak, instStreak, smartMoney5d,
     holdRatioNow: holdNow, holdRatioChange5d: holdChange,
     score: Math.max(-100, Math.min(100, score)),
+    dataDays,
   };
 }
 
@@ -341,7 +347,11 @@ export function buildStockVerdict(
   // 취급하면 검증되지 않은 종목이 매수 판정을 통과한다 → 결측은 진입 불가로 본다.
   // 백테스트는 과거 수급을 구할 수 없어 이 게이트를 통과할 방법이 없다 →
   // technicalOnly 일 때만 면제. (면제 없이 두면 백테스트 신호가 영구히 0건이 된다)
-  const strongSupply = extras.technicalOnly || (!!extras.supply && extras.supply.score >= 0);
+  // 결측 방어(M-1): supply 객체가 있어도 실제 데이터가 3일 미만이거나 5일 합계가 전부 0이면
+  // '검증됨'으로 보지 않는다. technicalOnly(백테스트)는 애초에 수급이 없으므로 면제.
+  const supplyReal = !!extras.supply && extras.supply.dataDays >= 3
+    && (extras.supply.foreign5d !== 0 || extras.supply.inst5d !== 0);
+  const strongSupply = extras.technicalOnly || (supplyReal && extras.supply!.score >= 0);
   const entryOk = stance === 'buy' && score >= 40 && strongSupply && posInRange < 0.97;
   let entryNote: string;
   if (stance === 'reduce') entryNote = '하락 추세·수급 이탈 — 신규 매수 부적합, 보유 시 비중축소 검토.';
