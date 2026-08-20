@@ -45,6 +45,25 @@ interface ActivityResp {
   fills?: Fill[];
   error?: string;
 }
+interface Position {
+  symbol: string;
+  side: 'long' | 'short';
+  size: number;
+  openAvg: number;
+  markPrice: number;
+  leverage: number;
+  marginMode: string | null;
+  marginSize: number;
+  unrealizedPL: number;
+  liquidationPrice: number;
+  liqDistPct: number | null;
+}
+interface PositionsResp {
+  configured?: boolean;
+  positions?: Position[];
+  account?: { equity: number; available: number; unrealizedPL: number; marginCoin: string } | null;
+  error?: string;
+}
 
 const fmtTs = (ts: number) => {
   if (!ts) return '-';
@@ -86,6 +105,12 @@ export default function BitgetPage() {
     data?.configured ? '/api/bitget/activity' : null,
     fetcher,
     { refreshInterval: 60000, revalidateOnFocus: false },
+  );
+  // 선물 포지션 — 실제 청산가·레버리지·미실현손익. 마크가가 자주 바뀌므로 15초 폴링
+  const { data: pos } = useSWR<PositionsResp>(
+    data?.configured ? '/api/bitget/positions' : null,
+    fetcher,
+    { refreshInterval: 15000, revalidateOnFocus: false },
   );
 
   return (
@@ -149,8 +174,71 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
             <p className="text-3xl font-bold text-sky-400 tabular-nums">
               ${fmtUsd(data.totalUsdt ?? 0)}
             </p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">{data.assets.length}개 자산 보유</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">{data.assets.length}개 자산 보유 · 현물(spot)</p>
           </div>
+
+          {/* 선물 포지션 — 리스크 도구의 핵심: 실제 청산가·레버리지·미실현손익 */}
+          {pos?.configured && (
+            pos.error ? (
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                <p className="text-xs font-semibold text-[var(--text)] mb-1">USDT 선물</p>
+                <p className="text-[11px] text-[var(--text-muted)]">선물 조회 실패 — 키에 선물 읽기 권한이 없을 수 있습니다. (현물은 정상)</p>
+              </div>
+            ) : pos.positions && pos.positions.length > 0 ? (
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm font-bold text-[var(--text)]">USDT 선물 포지션 <span className="text-[10px] font-normal text-[var(--text-muted)]">{pos.positions.length}건</span></h2>
+                  {pos.account && (
+                    <span className="text-[11px] tabular-nums">
+                      <span className="text-[var(--text-muted)]">미실현 </span>
+                      <strong className={pos.account.unrealizedPL >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                        {pos.account.unrealizedPL >= 0 ? '+' : ''}{pos.account.unrealizedPL.toFixed(2)}
+                      </strong>
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {pos.positions.map((p) => {
+                    const near = p.liqDistPct != null && p.liqDistPct < 15;
+                    return (
+                      <div key={p.symbol + p.side} className={`rounded-xl border p-3 ${near ? 'border-red-500/40 bg-red-500/[0.06]' : 'border-[var(--border)] bg-white/[0.02]'}`}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-bold text-[var(--text)]">{p.symbol.replace('USDT', '')}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${p.side === 'long' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                              {p.side === 'long' ? '롱' : '숏'} {p.leverage}x
+                            </span>
+                            {p.marginMode && <span className="text-[9px] text-[var(--text-muted)]">{p.marginMode === 'isolated' ? '격리' : '교차'}</span>}
+                          </div>
+                          <span className={`text-sm font-bold tabular-nums ${p.unrealizedPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {p.unrealizedPL >= 0 ? '+' : ''}{p.unrealizedPL.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 text-[10px] text-[var(--text-muted)] tabular-nums">
+                          <span>평단 {fmtUsd(p.openAvg)}</span>
+                          <span>마크 {fmtUsd(p.markPrice)}</span>
+                          <span>증거금 {p.marginSize.toFixed(2)}</span>
+                          <span className={near ? 'text-red-400 font-semibold' : ''}>
+                            청산 {p.liquidationPrice > 0 ? fmtUsd(p.liquidationPrice) : '-'}
+                          </span>
+                          <span className={near ? 'text-red-400 font-semibold col-span-2' : 'col-span-2'}>
+                            {p.liqDistPct != null ? `청산까지 ${p.liqDistPct.toFixed(1)}%` : ''}
+                            {near ? ' ⚠ 청산 근접' : ''}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[9px] text-[var(--text-muted)] mt-2 opacity-70">읽기 전용 · 15초 갱신 · 청산가는 거래소 계산값</p>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                <p className="text-xs font-semibold text-[var(--text)] mb-0.5">USDT 선물</p>
+                <p className="text-[11px] text-[var(--text-muted)]">열린 포지션이 없습니다.</p>
+              </div>
+            )
+          )}
 
           {data.assets.length === 0 ? (
             <p className="text-center text-sm text-[var(--text-muted)] py-8">보유 자산이 없습니다</p>
