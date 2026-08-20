@@ -17,6 +17,7 @@ import { analyzeTimeframe, srZones, fibonacci, atr } from '../lib/coinAnalysis';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '../lib/positionSizing';
 import { scoreGrowth, growthPct } from '../lib/growthScreener';
 import { scoreUsGrowth, US_UNIVERSE, US_SECTORS, US_THEMES } from '../lib/usGrowth';
+import { scoreboard } from '../lib/journalStats';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -413,6 +414,50 @@ console.log('\n[ usGrowth — 미국 성장주 점수 (Yahoo 필드) ]');
     const sum = s.parts.growth + s.parts.outlook + s.parts.quality + s.parts.valuation;
     assert.ok(Math.abs(sum - s.total) < 0.001, `sum=${sum} total=${s.total}`);
     assert.ok(s.parts.growth <= 35 && s.parts.outlook <= 30 && s.parts.quality <= 15 && s.parts.valuation <= 20);
+  });
+}
+
+console.log('\n[ journalStats — 성적 실측 (순수 함수) ]');
+{
+  const now = 1_000_000_000_000;
+  const DAY = 86_400_000;
+  const rows = [
+    { ts: now - 1 * DAY, result: 'win' as const, resultR: 1, realizedUsdt: 20 },
+    { ts: now - 2 * DAY, result: 'loss' as const, resultR: -1, realizedUsdt: -18 },
+    { ts: now - 3 * DAY, result: 'win' as const, resultR: 1.5, realizedUsdt: 30 },
+    { ts: now - 40 * DAY, result: 'loss' as const, resultR: -1, realizedUsdt: null },
+    { ts: now - 1 * DAY, result: 'open' as const, resultR: null },
+    { ts: now - 5 * DAY, result: 'even' as const, resultR: 0 },
+  ];
+  ok('승률은 even·open 제외, 결정된 것만으로 계산', () => {
+    const s = scoreboard(rows, now);
+    // 승 2 · 패 2 → 50%
+    assert.equal(s.winRate, 50);
+    assert.equal(s.wins, 2); assert.equal(s.losses, 2); assert.equal(s.evens, 1); assert.equal(s.open, 1);
+  });
+  ok('기대값·best·worst·실현손익 합계', () => {
+    const s = scoreboard(rows, now);
+    // 청산 5건(win1+loss-1+win1.5+loss-1+even0)/5 = 0.1
+    assert.ok(Math.abs(s.avgR! - 0.1) < 1e-9, `avgR=${s.avgR}`);
+    assert.equal(s.bestR, 1.5); assert.equal(s.worstR, -1);
+    assert.equal(s.realizedUsdt, 32); assert.equal(s.realizedCount, 3);   // null 은 제외
+  });
+  ok('미청산 비율 — 규율 신호', () => {
+    const s = scoreboard(rows, now);
+    assert.ok(Math.abs(s.openRatio - 1 / 6) < 1e-9, `openRatio=${s.openRatio}`);
+  });
+  ok('시간창: 최근 7일은 40일 전 건을 제외', () => {
+    const s = scoreboard(rows, now);
+    const w7 = s.windows.find((w) => w.label === '최근 7일')!;
+    const all = s.windows.find((w) => w.label === '전체')!;
+    assert.equal(w7.closed, 4);   // 40일 전 loss 제외, open 제외
+    assert.equal(all.closed, 5);
+  });
+  ok('빈 저널은 null 로 안전 (0으로 나누기 방어)', () => {
+    const s = scoreboard([], now);
+    assert.equal(s.winRate, null); assert.equal(s.avgR, null);
+    assert.equal(s.bestR, null); assert.equal(s.realizedUsdt, null);
+    assert.equal(s.openRatio, 0);
   });
 }
 
