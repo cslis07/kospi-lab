@@ -10,7 +10,9 @@
 
 ## 0. 지금 하던 일 (WIP)
 
-**깨끗한 상태** — 워킹트리 비어 있음(루트에 핸드오프 PDF 1개만 미추적, 커밋 대상 아님). `main`이 `origin/main`과 동기. 게이트 전부 통과(테스트 42/42 · tsc 0 · build OK · 프로덕션 실측).
+**깨끗한 상태** — 워킹트리 비어 있음(루트에 핸드오프 PDF 1개만 미추적, 커밋 대상 아님). `main`이 `origin/main`과 동기. 게이트 전부 통과(테스트 42/42 · tsc 0 · build OK).
+
+⚠️ **7차(`c92f514` 성장주 미국검색 fix)는 커밋·push 완료했으나 아직 프로덕션 미배포** — 2026-08-21 **Vercel 무료 플랜 일일 배포 한도(100건/일) 소진**으로 배포 거부(`api-deployments-free-per-day`, "try again in 24h"). git 자동배포·수동 `vercel --prod` 모두 같은 사유로 실패. **원인: 15분 코인 크론(coin-track.yml)이 data 커밋마다 배포를 트리거**(최근 20h 커밋 30개 중 17개가 TRACK)+당일 내 수동 배포 누적. **해소: 한도 리셋(~24h) 후 다음 크론 push가 main(=fix 포함)을 자동 배포하므로 자가치유됨.** 근본해결은 아래 §6 "배포 예산" 항목(vercel.json Ignored Build Step) — 미적용(제안 상태). 현재 프로덕션은 6차(모바일 홈메뉴)까지 정상.
 
 ⚠️ **로컬 HEAD가 크론 봇 커밋일 수 있다** — `.github/workflows/coin-track.yml`(15분 크론)이 `data/coin-signals.json`을 갱신·push하므로 최근 커밋이 `kospi-lab-bot [TRACK] ...`일 수 있다. 내 코드 마지막 커밋은 3모드 엣지 측정·UI 정렬(2026-08-21 5차). **push 전 반드시 `git fetch && git rebase origin/main`**(§9).
 
@@ -182,6 +184,7 @@ npx tsx scripts/verify-macro.ts                      # 경제지표 수집 검�
 - gh CLI 두 계정: `cslis07`(소유자), `histobio0302-oss`. push 403 시 `gh auth switch --user cslis07`
 - ⚠️ **저장소 public.** 시크릿이 코드에 들어가면 즉시 유출(§9)
 - ⚠️ **크론이 원격을 앞서게 한다** — `coin-track.yml`이 `data/coin-signals.json`을 15분마다 커밋·push. **push 전 `git fetch && git rebase origin/main`**(봇 커밋은 data만 건드리므로 rebase 안전)
+- ⚠️ **배포 예산(무료 100건/일) — 크론 data 커밋이 매번 Vercel 배포를 트리거해 한도를 잡아먹는다.** 2026-08-21 실제로 100건/일 초과로 배포 거부됨(`api-deployments-free-per-day`). 커밋 메시지의 `[skip ci]`는 GitHub Actions만 건너뛰고 **Vercel Git 통합은 무시**. **권장 해결(미적용): `vercel.json`에 Ignored Build Step 또는 프로젝트 설정에서 `git diff`가 `data/`만 바뀌면 빌드 취소**(예: Ignored Build Step 명령 `git diff --quiet HEAD^ HEAD -- . ':(exclude)data/'`). 이러면 크론 data 커밋은 배포를 소비하지 않는다. 한도 소진 시 코드 배포는 리셋(~24h)까지 대기.
 
 ### Vercel 환경변수 (`vercel env ls production` 실측 · 14개)
 | 키 | 용도 | 설정된 곳 |
