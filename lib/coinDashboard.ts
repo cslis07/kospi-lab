@@ -55,13 +55,15 @@ async function upbitPrices(markets: string[]): Promise<Record<string, number>> {
     return out;
   } catch { return {}; }
 }
-async function binancePrices(symbols: string[]): Promise<Record<string, number>> {
+/** USD 기준가 — Bitget 공개 스팟 티커. 바이낸스는 클라우드 IP를 차단하므로 Bitget 사용
+ *  (은퇴한 coin-signal 앱도 김프의 USD 쪽은 거래소 공개 티커를 썼다). */
+async function bitgetPrices(symbols: string[]): Promise<Record<string, number>> {
   try {
-    const res = await fetch('https://api.binance.com/api/v3/ticker/price', { cache: 'no-store', signal: AbortSignal.timeout(6000) });
-    const arr = await res.json();
+    const res = await fetch('https://api.bitget.com/api/v2/spot/market/tickers', { cache: 'no-store', signal: AbortSignal.timeout(6000) });
+    const j = await res.json();
     const want = new Set(symbols);
     const out: Record<string, number> = {};
-    if (Array.isArray(arr)) for (const t of arr) if (want.has(t.symbol)) out[t.symbol] = Number(t.price);
+    for (const t of (j?.data ?? []) as { symbol: string; lastPr: string }[]) if (want.has(t.symbol)) out[t.symbol] = Number(t.lastPr);
     return out;
   } catch { return {}; }
 }
@@ -96,7 +98,7 @@ export async function fetchCoinEnv(now = Date.now()): Promise<CoinEnv> {
     fredLatest('DGS10'), fredLatest('DGS2'), fredLatest('DGS30'),
     fredLatest('DCOILBRENTEU'), fredLatest('DTWEXBGS'),
     upbitPrices(['KRW-USDT', ...COINS.map((c) => c[1])]),
-    binancePrices(COINS.map((c) => c[2])),
+    bitgetPrices(COINS.map((c) => c[2])),
     fearGreed(),
   ]);
 

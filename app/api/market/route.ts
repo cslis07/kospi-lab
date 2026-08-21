@@ -99,7 +99,7 @@ export async function GET() {
       fetchMarketIndex('KOSPI'),
       fetchMarketIndex('KOSDAQ'),
       fetchMarketIndex('KPI200'),
-      fetchYahooIndex('%5EIXIC', 'NASDAQ'),
+      fetchYahooIndex('^IXIC', 'NASDAQ'),
       fetchFxRates(),
       fetchUsdtKrw(),
     ]);
