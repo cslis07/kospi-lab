@@ -10,6 +10,7 @@ const CoinCandleChart = dynamic(() => import('@/components/CoinCandleChart'), {
   loading: () => <div className="h-72 rounded-xl bg-white/5 animate-pulse" aria-label="차트 로딩 중" />,
 });
 import { useCoinJournal } from '@/hooks/useCoinJournal';
+const WhaleLiquidationPanel = dynamic(() => import('@/components/WhaleLiquidationPanel'), { ssr: false });
 import { useCoinAlerts } from '@/hooks/useCoinAlerts';
 import BriefingModelPicker from '@/components/BriefingModelPicker';
 import LivePriceTag from '@/components/LivePriceTag';
@@ -779,6 +780,8 @@ export default function CoinAnalysisPage() {
         <div className="space-y-4">
           {/* 진입 모드 (coin-signal 이식: 단타·중장기·장기) */}
           {data.modes && <ModesSection modes={data.modes} symbol={data.symbol} />}
+          {/* 실시간 청산 + 온체인 고래 (coin-signal 이식) */}
+          <WhaleLiquidationPanel />
           {/* 임박 경제 이벤트 경고 */}
           {data.event && (
             <div className={`flex items-center gap-2.5 rounded-2xl border px-4 py-3 text-sm font-semibold ${
