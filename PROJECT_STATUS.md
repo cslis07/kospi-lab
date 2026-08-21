@@ -1,10 +1,10 @@
 # KOSPI LAB — Project Status
 
-> **마지막 업데이트: 2026-08-21 (5차)**
+> **마지막 업데이트: 2026-08-21 (6차)**
 > **위치:** `C:\Users\GB\Documents\kospi-lab`
 > **GitHub:** `cslis07/kospi-lab` · 기본 브랜치 `main` · ⚠️ **저장소 공개(public)**
 > **배포:** [kospi-lab.vercel.app](https://kospi-lab.vercel.app) · Vercel (git push → 자동 배포)
-> **규모:** API 라우트 44 · 페이지 25 · lib 32 · hooks 11 · components 25 · scripts 11 · tests 1(42케이스)
+> **규모:** API 라우트 44 · 페이지 25 · lib 32 · hooks 11 · components 26 · scripts 11 · tests 1(42케이스)
 
 ---
 
@@ -68,7 +68,7 @@
 ## 2. 현재 구현된 기능
 
 ### 🏠 홈 대시보드 `/` (2026-08-21 재구성)
-데이터 중심 홈. **주식 섹션**(코스피·코스닥·코스피200·나스닥 지수 카드, `IndexCards`) + **코인 섹션**(시장환경 그리드 + 현물 ETF 순유입, `CoinDashboard`). 아래에 기존 빠른이동 카드.
+데이터 중심 홈. **주식 섹션**(코스피·코스닥·코스피200·나스닥 지수 카드, `IndexCards`) + **코인 섹션**(시장환경 그리드 + 현물 ETF 순유입, `CoinDashboard`). **모바일은 최상단에 앱 런처형 아이콘 그리드 홈메뉴**(`HomeMenu`·`md:hidden` · 아이쑥쑥·약보듬 방식, 2026-08-21 6차), 데스크탑은 하단 빠른이동 카드(`hidden md:block`). 헤더 로고는 홈 링크.
 - **시장환경 그리드** — 미국채 10Y/2Y/30Y·Brent·달러인덱스·USDT/KRW·김치프리미엄(평균)·공포탐욕·다음 FOMC. 무키 소스(FRED·업비트·Bitget·alternative.me·calendarEvents), `/api/coin-env`(공개·icn1·5분 캐시)
 
 ### 🔬 분석
@@ -347,7 +347,7 @@ kospi-lab/
 │   ├── coin-analysis/ · stock-analysis/ · growth/ · journal/ · krx/   # 주요 페이지
 │   ├── error.tsx · not-found.tsx · global-error.tsx · robots.ts · sitemap.ts
 │   └── page.tsx(홈) · *.tsx   # 25 pages
-├── components/               # 25 — MarketEnvGrid🆕 EtfInflow🆕 IndexCards🆕 CoinDashboard🆕
+├── components/               # 26 — HomeMenu🆕(모바일 런처) MarketEnvGrid🆕 EtfInflow🆕 IndexCards🆕 CoinDashboard🆕
 │                             #      HBarChart🆕 WhaleLiquidationPanel🆕 CandidateBoard · ...
 ├── lib/                      # 32
 │   ├── coinSignalModes.ts🆕  # ★ 3모드 엔진(이관, 엣지 미측정)

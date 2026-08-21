@@ -2,6 +2,17 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-08-21 (6차)
+
+### ✨ 모바일 홈메뉴 — 앱 런처형 아이콘 그리드(아이쑥쑥·약보듬 방식)
+모바일 첫 화면에서 전체 기능을 아이콘 타일로 한눈에 탭하도록 홈메뉴를 추가.
+- `components/HomeMenu.tsx` 신규 — NavTabs 그룹(시장·내자산·분석·설계 22개 라우트+이용가이드)을
+  4열 아이콘 타일 그리드로. 다크 테마 그룹별 색조(sky/emerald/violet/amber)
+- `app/page.tsx` — 모바일(`md:hidden`) 최상단에 HomeMenu 배치. 기존 하단 QuickCard 4섹션은
+  데스크탑 전용(`hidden md:block`)으로 돌려 모바일 중복 제거. '이 도구의 역할' 정직성 문구는 양쪽 유지
+- `components/Header.tsx` — 로고를 홈('/') 링크로(모바일에서 홈메뉴 복귀 경로)
+- 데스크탑은 기존 상단 탭 드롭다운 내비 그대로. 게이트: 테스트 42/42·tsc 0·build OK
+
 ## 2026-08-21 (5차)
 
 ### 🔬 3모드 진입엔진 엣지 측정 → 우위 없음(옛 엔진과 동일 결론)

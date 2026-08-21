@@ -1,6 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import ThemeToggle from './ThemeToggle';
 import GlobalSearch from './GlobalSearch';
@@ -109,10 +110,10 @@ export default function Header() {
 
         {/* ── Left: 로고 + 시장 상태 ── */}
         <div className="flex items-center gap-3 shrink-0 min-w-0">
-          <div className="leading-tight">
+          <Link href="/" aria-label="홈으로" className="leading-tight block">
             <h1 className="text-sm font-bold tracking-wider text-[var(--text)]">KOSPI LAB</h1>
             <p className="text-[9px] text-[var(--text-muted)] leading-none mt-0.5 hidden sm:block">실시간 시세</p>
-          </div>
+          </Link>
           {/* 시장 상태 dot — md+ 에서만 표시 */}
           <div className="hidden md:flex items-center gap-2 text-xs ml-2 pl-3 border-l border-[var(--border)]">
             <div className="flex items-center gap-1.5">
