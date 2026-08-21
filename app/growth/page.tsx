@@ -18,7 +18,7 @@ interface UniverseItem {
   close: number; changeRate: number; marketCap: number; tradingValue: number;
   adhoc?: boolean;
 }
-interface SearchHit { symbol: string; name: string; exchange: string }
+interface SearchHit { symbol: string; name: string; exchange: string; us: boolean }
 interface ScoreMetrics {
   revYoY: number | null; opYoY: number | null; revYoYPrev: number | null;
   cRevGrowth: number | null; cOpGrowth: number | null; cEpsGrowth: number | null;
@@ -150,14 +150,22 @@ export default function GrowthPage() {
     setSearching(true);
     const t = setTimeout(async () => {
       try {
-        const url = isUs ? `/api/overseas/search?q=${encodeURIComponent(q)}` : `/api/stock-search?q=${encodeURIComponent(q)}`;
+        // 검색 대상 시장은 탭이 아니라 '검색어'로 판정한다 — 한국 탭인 채로 'coinbase'를 쳐도
+        // 미국 종목이 나오도록. 6자리 숫자=국내코드, 영문=미국, 한글은 현재 탭을 따른다.
+        const isKrCode = /^\d{4,6}$/.test(q);
+        const hasKorean = /[가-힣]/.test(q);
+        const asciiName = !hasKorean && /[A-Za-z]/.test(q);
+        const useUs = isKrCode ? false : asciiName ? true : isUs;
+        const url = useUs ? `/api/overseas/search?q=${encodeURIComponent(q)}` : `/api/stock-search?q=${encodeURIComponent(q)}`;
         const r = await fetch(url);
         const j = await r.json();
         setHits(
-          isUs
-            ? (Array.isArray(j) ? j : []).slice(0, 8)
+          useUs
+            ? (Array.isArray(j) ? j : []).slice(0, 8).map((x: { symbol: string; name: string; exchange?: string }) => ({
+                symbol: x.symbol, name: x.name, exchange: x.exchange ?? 'US', us: true,
+              }))
             : (Array.isArray(j) ? j : []).slice(0, 8).map((x: { code?: string; ticker?: string; name: string }) => ({
-                symbol: x.code ?? String(x.ticker ?? '').replace(/\.(KS|KQ)$/, ''), name: x.name, exchange: 'KRX',
+                symbol: x.code ?? String(x.ticker ?? '').replace(/\.(KS|KQ)$/, ''), name: x.name, exchange: 'KRX', us: false,
               })),
         );
       } catch { setHits([]); }
@@ -166,17 +174,21 @@ export default function GrowthPage() {
     return () => clearTimeout(t);
   }, [query, isUs]);
 
-  /** 검색 결과 한 종목만 스캔해 결과 맨 위에 추가 */
-  const scanOne = async (symbol: string, name: string) => {
+  /** 검색 결과 한 종목만 스캔해 결과 맨 위에 추가 — 스캔 시장은 탭이 아니라 '선택한 종목'을 따른다 */
+  const scanOne = async (hit: SearchHit) => {
+    const { symbol, name, us } = hit;
     setQuery(''); setHits([]);
+    // 선택한 종목의 시장으로 탭을 맞춰 결과 표기(현재가·시총·컬럼)를 일치시킨다
+    if (us && market !== 'US') { setMarket('US'); setSector(null); setTheme(null); }
+    else if (!us && isUs) { setMarket('ALL'); setSector(null); setTheme(null); }
     setScanning(true); setScanError(null);
     try {
-      const param = isUs ? `tickers=${encodeURIComponent(symbol)}` : `codes=${encodeURIComponent(symbol)}`;
+      const param = us ? `tickers=${encodeURIComponent(symbol)}` : `codes=${encodeURIComponent(symbol)}`;
       const r = await fetch(`/api/growth-scan?${param}`);
       const j = await r.json();
       const items = j.items ?? [];
       if (!items.length) throw new Error(`${name}(${symbol}) 재무 데이터를 가져오지 못했습니다 — 신규상장·ETF·소형주일 수 있습니다.`);
-      const row: ResultRow = isUs
+      const row: ResultRow = us
         ? (() => {
             const it = items[0] as UsScanItem;
             return {
@@ -378,7 +390,7 @@ export default function GrowthPage() {
             <div className="absolute z-20 mt-1 w-full sm:max-w-md rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl overflow-hidden">
               {searching && !hits.length && <p className="px-3 py-2 text-xs text-[var(--text-muted)]">검색 중…</p>}
               {hits.map((h) => (
-                <button key={h.symbol} onClick={() => scanOne(h.symbol, h.name)}
+                <button key={h.symbol} onClick={() => scanOne(h)}
                   className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-white/5 transition-colors">
                   <span className="text-xs text-[var(--text)] truncate">
                     <span className="font-semibold">{h.symbol}</span> <span className="text-[var(--text-muted)]">{h.name}</span>
@@ -389,7 +401,7 @@ export default function GrowthPage() {
             </div>
           )}
           <p className="text-[10px] text-[var(--text-muted)] mt-1">
-            찾는 종목이 카테고리에 없으면 여기서 직접 검색하세요 — 선택 즉시 그 종목만 스캔해 맨 위에 추가합니다.
+            찾는 종목이 카테고리에 없으면 여기서 직접 검색하세요 — 선택 즉시 그 종목만 스캔해 맨 위에 추가합니다. 영문명·티커(예: coinbase, COIN)는 어느 탭에서든 미국 종목을 찾습니다.
           </p>
         </div>
 
