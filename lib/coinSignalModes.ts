@@ -2,6 +2,7 @@
 // Direction(-100~+100) / Entry Quality(0~100) / Confidence(0~100) / Event Risk(0~100)
 // 상태: TRADE / WATCH / NO_TRADE / PAUSED  +  ULTRA 승격, 추격 감쇠 포함
 import type { Candle } from './coinAnalysis';
+export type { Candle };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
