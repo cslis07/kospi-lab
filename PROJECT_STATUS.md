@@ -1,10 +1,10 @@
 # KOSPI LAB — Project Status
 
-> **마지막 업데이트: 2026-08-21 (4차)**
+> **마지막 업데이트: 2026-08-21 (5차)**
 > **위치:** `C:\Users\GB\Documents\kospi-lab`
 > **GitHub:** `cslis07/kospi-lab` · 기본 브랜치 `main` · ⚠️ **저장소 공개(public)**
 > **배포:** [kospi-lab.vercel.app](https://kospi-lab.vercel.app) · Vercel (git push → 자동 배포)
-> **규모:** API 라우트 44 · 페이지 25 · lib 32 · hooks 11 · components 25 · scripts 10 · tests 1(42케이스)
+> **규모:** API 라우트 44 · 페이지 25 · lib 32 · hooks 11 · components 25 · scripts 11 · tests 1(42케이스)
 
 ---
 
@@ -12,7 +12,7 @@
 
 **깨끗한 상태** — 워킹트리 비어 있음(루트에 핸드오프 PDF 1개만 미추적, 커밋 대상 아님). `main`이 `origin/main`과 동기. 게이트 전부 통과(테스트 42/42 · tsc 0 · build OK · 프로덕션 실측).
 
-⚠️ **로컬 HEAD가 크론 봇 커밋일 수 있다** — `.github/workflows/coin-track.yml`(15분 크론)이 `data/coin-signals.json`을 갱신·push하므로 최근 커밋이 `kospi-lab-bot [TRACK] ...`일 수 있다. 내 코드 마지막 커밋은 `c1cfc62`(대시보드 김프/나스닥 fix). **push 전 반드시 `git fetch && git rebase origin/main`**(§9).
+⚠️ **로컬 HEAD가 크론 봇 커밋일 수 있다** — `.github/workflows/coin-track.yml`(15분 크론)이 `data/coin-signals.json`을 갱신·push하므로 최근 커밋이 `kospi-lab-bot [TRACK] ...`일 수 있다. 내 코드 마지막 커밋은 3모드 엣지 측정·UI 정렬(2026-08-21 5차). **push 전 반드시 `git fetch && git rebase origin/main`**(§9).
 
 ### 🔴 사용자가 직접 해야 할 것 (미완, 코드로 해결 불가)
 - **KRX API 키 재발급** — `data.krx.co.kr`. 하드코딩 폴백이 **public 저장소**에 커밋돼 있었고(`3876676`), 실측으로 **키가 아직 유효함**을 확인했다. 코드에서는 제거(`24ee41c`)했으나 **git 이력에 남아 있어 재발급 외에 방법이 없다.** 재발급 후 `vercel env add KRX_API_KEY production` + `.env.local` 갱신.
@@ -21,7 +21,8 @@
 - **텔레그램 알림 켜기** — GitHub 저장소 Secrets에 `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` 추가([Secrets 위치](https://github.com/cslis07/kospi-lab/settings/secrets/actions)). CHAT_ID=`8710847228`. 봇 토큰은 BotFather 또는 coin-signal 저장소 Secrets에서 확인(보안상 문서 미기재). 없으면 크론은 스냅샷만 갱신하고 알림은 조용히 건너뛴다.
 
 ### 다음 채팅이 가장 먼저 할 한 가지
-**코인 엔진 정리.** 지금 `/coin-analysis`에 **엔진 두 개가 병존**한다 — 옛 `lib/coinAnalysis.ts`(measured, 무엣지 49.7%)의 `verdict`와 새 `lib/coinSignalModes.ts`(coin-signal에서 이관, 3모드)의 `modes`. 사용자는 coin-signal의 코인분석이 "훨씬 좋다"며 그대로 이식을 원한다. **권고: UX·구조는 가져오되, 3모드 엔진을 먼저 `scripts/backtest-lab.ts`·`validate-funding.ts`로 엣지 측정한 뒤** (한 시간) 결과에 따라 (a)엣지 있으면 정본화+옛 엔진 은퇴 (b)없으면 리스크 관점 표현으로 통일 — **어느 쪽이든 엔진은 하나로.** "측정하고 이식"이지 "이식하고 믿기"가 아니다(§9 원칙).
+**코인 엔진 정리 — ✅ 측정·정렬 완료(2026-08-21 5차).** 3모드 엔진을 `scripts/backtest-modes.ts`로 측정(45일·4코인·81신호·**승률 41.7%**)한 결과 옛 엔진(49.7%)과 같은 **무엣지** 판정 → 방향 **(b) 리스크 프레이밍 통일** 확정. 3모드 UI(ModesSection)의 `TRADE=진입`(초록불)·`ULTRA=최상급` 프레이밍을 옛 엔진과 같은 정직성 기준(체크리스트·미검증 41.7% 명시)으로 정렬함.
+**남은 결정(사용자 몫):** 두 엔진을 코드 레벨에서 하나로 은퇴시킬지 여부. 현재는 둘 다 무엣지 상보 뷰로 유지 중(옛=심화 리스크패널/백테스트/AI, 3모드=즉시 다타임프레임 구조). 실제 삭제는 작동 기능 손실이라 사용자 승인 후.
 
 ### 🔬 엔진 엣지 측정 결과 (2026-08-07 · 이 프로젝트의 가장 중요한 사실)
 
@@ -32,12 +33,13 @@
 | 추세추종 — 가격 지표만 | 45일·4코인·727건 | 승률 **49.7%** (±1.9%p), 기대값 −0.006R | `scripts/backtest-lab.ts` |
 | 추세추종 — 파생 수급 포함 | 28일·4코인·407건 | 승률 **48.4%** (±2.5%p), 차이 −1.1%p로 오차범위 안 | `scripts/backtest-deriv.ts` |
 | 펀딩 극단 되돌림 | 89일·19종목·2,168건 | **3/6 통과** → 하락장 베타로 판명 | `scripts/validate-funding.ts` |
+| 3모드 진입엔진(이관) | 45일·4코인·81신호 | 승률 **41.7%** (±5.9%p), 기대값 −0.167R | `scripts/backtest-modes.ts` |
 
 - 손익분기 승률 50%(1R:1R). **왕복 수수료 0.12%가 손절폭 0.2% 기준 1R의 60%**를 먹어 실제로는 마이너스. 손절폭 1%로 넓히면 필요 승률 80%→56%지만, **엣지 0이면 수수료를 줄여도 0에 수렴할 뿐 못 넘는다.**
 - **펀딩 전략 탈락 결정타**: 대조군에서 **펀딩 무관하게 항상 숏만 쳐도 +0.222%(t=5.02)**. 전략의 83%가 숏이라 수익 상당분이 하락장 베타, 롱은 음수(−0.228%), 후반 45일 6배 약화, 파라미터 민감(16h/2%는 2/6). **실투자 금지.**
-- ⚠️ **`lib/coinSignalModes.ts`(3모드)는 아직 이 측정을 한 번도 안 거쳤다.** "정교해 보임"은 측정된 우위가 아니다.
+- ✅ **`lib/coinSignalModes.ts`(3모드)도 이제 측정됨(2026-08-21 5차)** — 45일·4코인·81신호 **승률 41.7%**(scalp 46.6%/swing 27.3%/position 0%·n=3), 기대값 −0.167R(대칭1R)·−0.530R(수수료 반영). EQ 80~100만 66.7%지만 n=6이라 근거 불가(과적합). **옛 엔진과 같은 무엣지.** "정교해 보임"은 측정된 우위가 아니었다(`scripts/backtest-modes.ts`).
 
-**➡️ 도구 위치 재정의(`1054f57`)** — 사이트 제목·설명, 내비, 홈 안내, 푸터, `entryOk` 배지(초록`✓ 진입조건` → 파랑`체크리스트 통과(우위 아님)`)에 반영. AI 프롬프트도 방향 추천 제거(`【진입 관점】` → `【리스크 점검】`, 추천성 표현 0건 실측). ⚠ 단 이관된 3모드 UI는 `TRADE/ULTRA`를 진입 신호로 내세우므로 재정의와 **아직 정렬 안 됨**(다음 채팅 과제).
+**➡️ 도구 위치 재정의(`1054f57`)** — 사이트 제목·설명, 내비, 홈 안내, 푸터, `entryOk` 배지(초록`✓ 진입조건` → 파랑`체크리스트 통과(우위 아님)`)에 반영. AI 프롬프트도 방향 추천 제거(`【진입 관점】` → `【리스크 점검】`, 추천성 표현 0건 실측). ✅ **이관된 3모드 UI도 재정의와 정렬 완료(2026-08-21 5차)** — TRADE 초록불 제거(sky 톤)·`진입`→`체크리스트 통과`·`ULTRA 최상급`→`다수조건 충족(우위 아님)`·미검증(41.7%) 문구 명시.
 
 ### 🟡 엔진 감사 잔여 (미착수 — 표시·정확도 계열)
 - **M-7 `trigger`가 방향을 기억하지 않음** — 표시·근거만 오염(진입 판정 오염은 재현 안 됨)
@@ -124,8 +126,8 @@
 ## 4. 남은 작업
 
 ### 우선순위 높음
-- [ ] **코인 엔진 통일 + 3모드 엣지 측정** — 두 엔진 병존(§0). **왜 아직?** 이번 세션은 홈 대시보드에 집중했고, 통일은 측정 결과에 따라 방향이 갈려서 사용자 결정 대기
-- [ ] **3모드 UI를 리스크 재정의와 정렬** — `TRADE/ULTRA` 진입 신호 프레이밍이 "엣지 미검증" 원칙과 미정렬. **왜 아직?** 엣지 측정 결과부터 봐야 표현을 정할 수 있어서
+- [x] **3모드 엣지 측정 + UI 정렬** — ✅ 완료(2026-08-21 5차). 측정 41.7%→무엣지→리스크 프레이밍 통일(b). `scripts/backtest-modes.ts`
+- [ ] **두 엔진 코드 레벨 은퇴 여부(사용자 결정)** — 현재 둘 다 무엣지 상보 뷰로 유지. 하나로 줄이면 기능 손실이라 사용자 승인 필요
 
 ### 개선 여지
 - [ ] **M-7/M-8** — 표시·정확도 계열이라 진입 판정 오염 없음, 급하지 않음
@@ -332,8 +334,8 @@ kospi-lab/
 ├── tests/engine.test.ts      # 회귀 42케이스 (npm test)
 ├── data/coin-signals.json    # 크론이 15분마다 커밋(적중률 스냅샷)
 ├── .github/workflows/coin-track.yml   # 15분 크론 → coinTrack.mts
-├── scripts/                  # 10 — 측정·검증·크론(coinTrack.mts는 .mts)
-│   ├── backtest-lab · backtest-deriv · backtest-funding · validate-funding
+├── scripts/                  # 11 — 측정·검증·크론(coinTrack.mts는 .mts)
+│   ├── backtest-lab · backtest-deriv · backtest-funding · validate-funding · backtest-modes🆕(3모드 측정)
 │   ├── measure-backtest-bias · verify-{macro,growth,growth-us}
 │   └── coinTrack.mts · generate-icons.js
 ├── app/

@@ -130,7 +130,7 @@ const MODE_META: { key: 'scalp' | 'swing' | 'position'; label: string; sub: stri
   { key: 'swing', label: '중장기 SWING', sub: '1H·4H·1D' },
   { key: 'position', label: '장기 POSITION', sub: '1D·거시' },
 ];
-const STATE_KO: Record<string, string> = { TRADE: '진입', WATCH: '관망', NO_TRADE: '거래거부', PAUSED: '정지' };
+const STATE_KO: Record<string, string> = { TRADE: '체크리스트 통과', WATCH: '관망', NO_TRADE: '조건 미달', PAUSED: '정지' };
 const DIR_KO: Record<string, string> = { LONG: '롱', SHORT: '숏', WAIT: '대기' };
 
 function ModesSection({ modes, symbol }: { modes: NonNullable<AnalysisData['modes']>; symbol: string }) {
@@ -139,7 +139,8 @@ function ModesSection({ modes, symbol }: { modes: NonNullable<AnalysisData['mode
   const dg = (n: number) => (symbol === 'BTCUSDT' ? 1 : symbol === 'ETHUSDT' ? 2 : symbol === 'SOLUSDT' ? 2 : 4);
   const fp = (v: number | null) => v == null ? '-' : v.toLocaleString('en-US', { minimumFractionDigits: dg(v), maximumFractionDigits: dg(v) });
   const dirCls = m.dirLabel === 'LONG' ? 'text-emerald-400' : m.dirLabel === 'SHORT' ? 'text-red-400' : 'text-amber-400';
-  const stateCls = m.state === 'TRADE' ? 'bg-emerald-500 text-black' : m.state === 'WATCH' ? 'bg-amber-500/25 text-amber-300' : m.state === 'PAUSED' ? 'bg-red-500/25 text-red-300' : 'bg-white/10 text-[var(--text-muted)]';
+  // 엣지 미검증(자체 측정 승률 41.7%)이므로 TRADE를 초록불로 표시하지 않는다 — '사도 된다'로 읽히지 않게 옛 룰엔진 배지와 같은 톤(sky)으로 통일
+  const stateCls = m.state === 'TRADE' ? 'bg-sky-500/15 text-sky-400 border border-sky-500/40' : m.state === 'WATCH' ? 'bg-amber-500/25 text-amber-300' : m.state === 'PAUSED' ? 'bg-red-500/25 text-red-300' : 'bg-white/10 text-[var(--text-muted)]';
   const bar = (v: number, cls: string) => (
     <div className="h-1.5 rounded bg-white/10 overflow-hidden"><div className={`h-full rounded ${cls}`} style={{ width: `${Math.min(100, v)}%` }} /></div>
   );
@@ -147,7 +148,7 @@ function ModesSection({ modes, symbol }: { modes: NonNullable<AnalysisData['mode
   return (
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 mb-4">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-        <h3 className="text-sm font-bold text-[var(--text)]">진입 모드 <span className="text-[10px] font-normal text-[var(--text-muted)]">단타·중장기·장기 · 방향과 진입 타이밍 분리 (AccuracyV3)</span></h3>
+        <h3 className="text-sm font-bold text-[var(--text)]">진입 모드 <span className="text-[10px] font-normal text-[var(--text-muted)]">단타·중장기·장기 · 방향·타이밍 분리 · 리스크 체크리스트(엣지 미검증)</span></h3>
         <div className="flex gap-1">
           {MODE_META.map((mm) => (
             <button key={mm.key} onClick={() => setMode(mm.key)}
@@ -160,7 +161,7 @@ function ModesSection({ modes, symbol }: { modes: NonNullable<AnalysisData['mode
       <div className="flex items-center gap-2 flex-wrap mb-3">
         <span className={`text-lg font-extrabold ${dirCls}`}>{m.dirLabel} {DIR_KO[m.dirLabel]}</span>
         <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${stateCls}`}>{(m.state === 'NO_TRADE' ? 'NO TRADE' : m.state)} · {STATE_KO[m.state]}</span>
-        {m.ultra && <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full text-white" style={{ background: 'linear-gradient(90deg,#4f8cff,#a04fff)' }}>ULTRA 최상급</span>}
+        {m.ultra && <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full text-white" style={{ background: 'linear-gradient(90deg,#4f8cff,#a04fff)' }}>ULTRA · 다수조건 충족(우위 아님)</span>}
       </div>
       <div className="grid grid-cols-[80px_1fr_34px] gap-x-2 gap-y-1.5 items-center text-[11px] text-[var(--text)] mb-3">
         <span>방향<span className="block text-[8px] text-[var(--text-muted)]">Direction</span></span>
@@ -187,7 +188,10 @@ function ModesSection({ modes, symbol }: { modes: NonNullable<AnalysisData['mode
       <ul className="text-[11px] text-[var(--text-muted)] list-disc pl-4 space-y-0.5">
         {m.reasons.map((r, i) => <li key={i}>{r}</li>)}
       </ul>
-      <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-70">방향(Direction)과 진입 적합도(Entry)는 별개입니다. 방향이 강해도 현재가가 추격 구간이면 Entry가 낮아져 NO TRADE로 표시됩니다. 진입존 도달을 기다리세요.</p>
+      <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
+        <strong className="text-amber-400">TRADE·ULTRA는 진입 신호가 아니라 체크리스트 충족도입니다.</strong> 이 3모드 엔진도 자체 측정(45일·4코인·81신호)에서 승률 <strong className="text-[var(--text)]">41.7%</strong>로 예측 우위가 확인되지 않았습니다 — 방향은 직접 판단하고 이 화면은 손절·사이징·기록에 쓰세요.
+        방향(Direction)과 진입 적합도(Entry)는 별개이며, 방향이 강해도 현재가가 추격 구간이면 Entry가 낮아져 조건 미달로 표시됩니다.
+      </p>
     </section>
   );
 }
