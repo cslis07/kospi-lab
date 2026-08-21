@@ -486,6 +486,13 @@ export default function CoinAnalysisPage() {
   const dirty = !!run && (run.symbol !== symbol || run.model !== aiModel);
   const analyze = () => { if (modelReady) setRun({ symbol, model: aiModel }); };
 
+  // 3모드 진입 신호 — '분석'과 무관하게 선택된 코인 기준 즉시 로딩 + 45초 자동 갱신 (경량 엔드포인트)
+  const { data: fastSig } = useSWR<{ symbol: string; price: number; modes: NonNullable<AnalysisData['modes']> }>(
+    `/api/coin-signal?symbol=${symbol}`,
+    jsonFetcher,
+    { refreshInterval: 45000, revalidateOnFocus: false, keepPreviousData: true },
+  );
+
   // 분석(무거운 스냅샷)과 별개로 시세만 5초 폴링 — Bitget 공개 티커라 저렴하다
   const { data: liveMap } = useSWR<Record<string, { price: number; changeRate: number }>>(
     run ? `/api/crypto/batch?symbols=${run.symbol}` : null,
@@ -686,15 +693,19 @@ export default function CoinAnalysisPage() {
         </div>
       )}
 
-      {/* 아직 실행 전 */}
+      {/* 3모드 진입 신호 + 실시간 청산·고래 — 코인 선택만으로 즉시 표시(분석 불필요) */}
+      {fastSig?.modes && <ModesSection modes={fastSig.modes} symbol={fastSig.symbol} />}
+      <WhaleLiquidationPanel />
+
+      {/* 아직 실행 전 — 심화 분석(AI브리핑·백테스트·오더북·뉴스) 안내 */}
       {!run && !isValidating && (
-        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-card)] p-12 text-center">
-          <p className="text-3xl mb-3">🪙</p>
+        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-card)] p-8 text-center">
+          <p className="text-2xl mb-2">🔬</p>
           <p className="text-sm font-semibold text-[var(--text)] mb-1">
-            코인을 고르고 <span className="text-sky-400">분석</span> 버튼을 누르세요
+            위 진입 신호는 자동으로 뜹니다. <span className="text-sky-400">분석</span>은 <b>심화 분석</b>용입니다.
           </p>
           <p className="text-xs text-[var(--text-muted)]">
-            페이지를 열 때 자동으로 실행되지 않습니다. 캔들·파생 수급 수집과 AI 브리핑 호출을 아끼기 위해서입니다.
+            AI 브리핑·백테스트 성적표·오더북·뉴스·수급 정밀 지표는 캔들 수집과 AI 호출을 아끼기 위해 분석 버튼을 눌렀을 때만 실행됩니다.
           </p>
         </div>
       )}
@@ -778,10 +789,6 @@ export default function CoinAnalysisPage() {
 
       {data && !data.error && v && (
         <div className="space-y-4">
-          {/* 진입 모드 (coin-signal 이식: 단타·중장기·장기) */}
-          {data.modes && <ModesSection modes={data.modes} symbol={data.symbol} />}
-          {/* 실시간 청산 + 온체인 고래 (coin-signal 이식) */}
-          <WhaleLiquidationPanel />
           {/* 임박 경제 이벤트 경고 */}
           {data.event && (
             <div className={`flex items-center gap-2.5 rounded-2xl border px-4 py-3 text-sm font-semibold ${
