@@ -341,6 +341,8 @@ function judgeMode(mode: Mode, frames: Frames, dv: Derivs | null, macro: { score
   else if (dirLabel === 'WAIT') state = 'NO_TRADE';
   else if (eqRes.eq >= 62 && absDir >= 40 && conf >= 55 && ev.risk < 60) state = 'TRADE';
   else if (eqRes.eq >= 40 && absDir >= 30) state = 'WATCH';
+  // 방향은 뚜렷한데 현재가가 추격 구간이라 Entry가 낮은 경우: 거부가 아니라 '눌림 대기(WATCH)'
+  else if (absDir >= 35 && (eqRes.chasing || eqRes.distAtr > 0.3)) state = 'WATCH';
   else state = 'NO_TRADE';
   const ultra = state === 'TRADE' && absDir >= 60 && eqRes.eq >= 75 && conf >= 70;
 
