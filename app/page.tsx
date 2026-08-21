@@ -2,7 +2,8 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import KospiBar from '@/components/KospiBar';
+import IndexCards from '@/components/IndexCards';
+import CoinDashboard from '@/components/CoinDashboard';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
@@ -76,9 +77,26 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 /* ── 대시보드 내부 ──────────────────────────────────────── */
 function DashboardInner() {
   return (
-    <div className="space-y-6">
-      {/* 시장 지수 바 */}
-      <KospiBar />
+    <div className="space-y-8">
+      {/* ── 주식 ── 지수 4종 (코스피·코스닥·코스피200·나스닥) */}
+      <section>
+        <div className="flex items-baseline gap-2 mb-3">
+          <h2 className="text-base font-bold text-[var(--text)]">주식</h2>
+          <span className="text-xs text-[var(--text-muted)]">주요 지수</span>
+          <Link href="/krx" className="text-xs text-sky-400 hover:underline ml-auto">KRX 시장 →</Link>
+        </div>
+        <IndexCards />
+      </section>
+
+      {/* ── 코인 ── 시장환경 + 현물 ETF (첨부 이미지 구성) */}
+      <section>
+        <div className="flex items-baseline gap-2 mb-3">
+          <h2 className="text-base font-bold text-[var(--text)]">코인</h2>
+          <span className="text-xs text-[var(--text-muted)]">거시 환경 · 기관 수급</span>
+          <Link href="/coin-analysis" className="text-xs text-sky-400 hover:underline ml-auto">코인선물 분석 →</Link>
+        </div>
+        <CoinDashboard />
+      </section>
 
       {/* 관심종목 바로가기 */}
       <WatchlistSummary />

@@ -54,6 +54,23 @@ async function fetchFxRates(): Promise<{ usdkrw: FxRate | null; jpykrw: FxRate |
   }
 }
 
+/** 해외 지수 — Yahoo chart meta(무키). NASDAQ=^IXIC. 종가·전일종가로 변동 계산 */
+async function fetchYahooIndex(symbol: string, name: string): Promise<MarketIndex | null> {
+  try {
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`,
+      { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store', signal: AbortSignal.timeout(6000) },
+    );
+    if (!res.ok) return null;
+    const m = (await res.json())?.chart?.result?.[0]?.meta;
+    if (!m?.regularMarketPrice) return null;
+    const value = Number(m.regularMarketPrice);
+    const prev = Number(m.chartPreviousClose ?? m.previousClose ?? value);
+    const change = value - prev;
+    return { name, value, change, changeRate: prev ? (change / prev) * 100 : 0, status: 'CLOSE' };
+  } catch { return null; }
+}
+
 /** USDT/KRW — 업비트 KRW-USDT 티커(공개, 인증 불필요). 김치 프리미엄 반영 실거래가 */
 async function fetchUsdtKrw(): Promise<FxRate | null> {
   try {
@@ -78,10 +95,11 @@ async function fetchUsdtKrw(): Promise<FxRate | null> {
 
 export async function GET() {
   try {
-    const [kospi, kosdaq, kpi200, fx, usdt] = await Promise.allSettled([
+    const [kospi, kosdaq, kpi200, nasdaq, fx, usdt] = await Promise.allSettled([
       fetchMarketIndex('KOSPI'),
       fetchMarketIndex('KOSDAQ'),
       fetchMarketIndex('KPI200'),
+      fetchYahooIndex('%5EIXIC', 'NASDAQ'),
       fetchFxRates(),
       fetchUsdtKrw(),
     ]);
@@ -92,6 +110,7 @@ export async function GET() {
       kospi:  kospi.status  === 'fulfilled' ? parseIndex(kospi.value,  'KOSPI')  : null,
       kosdaq: kosdaq.status === 'fulfilled' ? parseIndex(kosdaq.value, 'KOSDAQ') : null,
       kpi200: kpi200.status === 'fulfilled' ? parseIndex(kpi200.value, 'KPI200') : null,
+      nasdaq: nasdaq.status === 'fulfilled' ? nasdaq.value : null,
       usdkrw: fxData.usdkrw,
       jpykrw: fxData.jpykrw,
       usdtkrw: usdt.status === 'fulfilled' ? usdt.value : null,
