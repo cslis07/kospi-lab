@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
+import HBarChart, { type BarItem } from '@/components/HBarChart';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
@@ -81,7 +82,7 @@ export default function KrxPage() {
           {market?.indices?.list && market.indices.list.length > 0 && (
             <section>
               <h2 className="text-sm font-semibold text-[var(--text)] mb-2">주요 지수</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
                 {market.indices.list.map((idx) => (
                   <div key={idx.name} className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
                     <p className="text-[11px] text-[var(--text-muted)] mb-0.5">{idx.name}</p>
@@ -91,6 +92,12 @@ export default function KrxPage() {
                     </p>
                   </div>
                 ))}
+              </div>
+              {/* 그래프 요약 — 지수 등락률 */}
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
+                <p className="text-[11px] text-[var(--text-muted)] mb-2">지수 등락률 (%)</p>
+                <HBarChart mode="divergent"
+                  items={market.indices.list.map((idx): BarItem => ({ label: idx.name, value: idx.changeRate, display: sign(idx.changeRate) }))} />
               </div>
             </section>
           )}
@@ -137,7 +144,22 @@ export default function KrxPage() {
             ) : rank?.error || (rank?.count ?? 0) === 0 ? (
               <p className="text-xs text-[var(--text-muted)] text-center py-6">데이터를 불러올 수 없습니다 (KRX 키 확인)</p>
             ) : (
-              <RankTable rows={rankRows} tab={rankTab} />
+              <>
+                {/* 그래프 요약 — 현재 탭 상위 10 */}
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 mb-3">
+                  <p className="text-[11px] text-[var(--text-muted)] mb-2">상위 10 그래프</p>
+                  <HBarChart
+                    mode={rankTab === 'gainers' || rankTab === 'losers' ? 'divergent' : 'magnitude'}
+                    posColor={rankTab === 'losers' ? 'bg-blue-400/70' : 'bg-red-400/70'}
+                    items={rankRows.slice(0, 10).map((r): BarItem => {
+                      if (rankTab === 'gainers' || rankTab === 'losers') return { label: r.name, value: r.changeRate, display: sign(r.changeRate) };
+                      if (rankTab === 'volume') return { label: r.name, value: r.volume, display: `${fmtVol(r.volume)}주` };
+                      if (rankTab === 'marketcap') return { label: r.name, value: r.marketCap, display: fmtWon(r.marketCap) };
+                      return { label: r.name, value: r.tradingValue, display: fmtWon(r.tradingValue) };
+                    })} />
+                </div>
+                <RankTable rows={rankRows} tab={rankTab} />
+              </>
             )}
           </section>
 
@@ -160,6 +182,18 @@ export default function KrxPage() {
             ) : (etf.count ?? 0) === 0 ? (
               <p className="text-xs text-[var(--text-muted)] text-center py-6">ETF 데이터를 불러올 수 없습니다</p>
             ) : (
+              <>
+                {/* 그래프 요약 — ETF 상위 10 */}
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 mb-3">
+                  <p className="text-[11px] text-[var(--text-muted)] mb-2">상위 10 그래프</p>
+                  <HBarChart
+                    mode={etfTab === 'value' ? 'magnitude' : 'divergent'}
+                    posColor={etfTab === 'losers' ? 'bg-blue-400/70' : 'bg-red-400/70'}
+                    items={etfRows.slice(0, 10).map((r): BarItem =>
+                      etfTab === 'value'
+                        ? { label: r.name, value: r.tradingValue, display: fmtWon(r.tradingValue) }
+                        : { label: r.name, value: r.changeRate, display: sign(r.changeRate) })} />
+                </div>
               <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]">
                 <table className="w-full text-xs">
                   <tbody>
@@ -180,6 +214,7 @@ export default function KrxPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </section>
 
