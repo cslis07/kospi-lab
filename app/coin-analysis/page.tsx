@@ -53,6 +53,15 @@ interface Fib {
 }
 interface LSPoint { ts: number; longRatio: number; shortRatio: number; ratio: number }
 interface Driver { text: string; tone: 'up' | 'down' | 'warn' | 'info' }
+interface ModeSignal {
+  direction: number; dirLabel: 'LONG' | 'SHORT' | 'WAIT';
+  entryQuality: number; confidence: number; eventRisk: number;
+  state: 'TRADE' | 'WATCH' | 'NO_TRADE' | 'PAUSED'; ultra: boolean; rr: number;
+  entryZone: [number | null, number | null]; invalidation: number | null; tp1: number | null; tp2: number | null;
+  rsi: number | null; vwap: number | null; ema20: number | null; ema50: number | null;
+  support: number | null; resistance: number | null; atr: number | null; reasons: string[];
+}
+
 interface AnalysisData {
   symbol: string; name: string; updatedAt: number;
   price: number; change24h: number | null; high24h: number | null; low24h: number | null;
@@ -97,6 +106,7 @@ interface AnalysisData {
     bidWall: { price: number; size: number; distPct: number } | null;
     askWall: { price: number; size: number; distPct: number } | null;
   } | null;
+  modes?: { scalp: ModeSignal; swing: ModeSignal; position: ModeSignal };
   news: { title: string; link: string; source: string; pubDate: string; sentiment: 'pos' | 'neg' | 'neu' }[];
   aiBriefing: string | null; aiError: string | null; aiModel?: string;
   error?: string;
@@ -111,6 +121,74 @@ function fmtP(n: number | null | undefined, digits?: number): string {
 function timeAgo(ts: number): string {
   const kst = new Date(ts + 9 * 3600_000);
   return `${String(kst.getUTCHours()).padStart(2, '0')}:${String(kst.getUTCMinutes()).padStart(2, '0')}:${String(kst.getUTCSeconds()).padStart(2, '0')}`;
+}
+
+/* ── 3모드 진입 엔진 (coin-signal 이식) ─────────────────── */
+const MODE_META: { key: 'scalp' | 'swing' | 'position'; label: string; sub: string }[] = [
+  { key: 'scalp', label: '단타 SCALP', sub: '5m·15m' },
+  { key: 'swing', label: '중장기 SWING', sub: '1H·4H·1D' },
+  { key: 'position', label: '장기 POSITION', sub: '1D·거시' },
+];
+const STATE_KO: Record<string, string> = { TRADE: '진입', WATCH: '관망', NO_TRADE: '거래거부', PAUSED: '정지' };
+const DIR_KO: Record<string, string> = { LONG: '롱', SHORT: '숏', WAIT: '대기' };
+
+function ModesSection({ modes, symbol }: { modes: NonNullable<AnalysisData['modes']>; symbol: string }) {
+  const [mode, setMode] = useState<'scalp' | 'swing' | 'position'>('scalp');
+  const m = modes[mode];
+  const dg = (n: number) => (symbol === 'BTCUSDT' ? 1 : symbol === 'ETHUSDT' ? 2 : symbol === 'SOLUSDT' ? 2 : 4);
+  const fp = (v: number | null) => v == null ? '-' : v.toLocaleString('en-US', { minimumFractionDigits: dg(v), maximumFractionDigits: dg(v) });
+  const dirCls = m.dirLabel === 'LONG' ? 'text-emerald-400' : m.dirLabel === 'SHORT' ? 'text-red-400' : 'text-amber-400';
+  const stateCls = m.state === 'TRADE' ? 'bg-emerald-500 text-black' : m.state === 'WATCH' ? 'bg-amber-500/25 text-amber-300' : m.state === 'PAUSED' ? 'bg-red-500/25 text-red-300' : 'bg-white/10 text-[var(--text-muted)]';
+  const bar = (v: number, cls: string) => (
+    <div className="h-1.5 rounded bg-white/10 overflow-hidden"><div className={`h-full rounded ${cls}`} style={{ width: `${Math.min(100, v)}%` }} /></div>
+  );
+  const dirBarStyle = () => { const half = Math.min(Math.abs(m.direction), 100) / 2; return m.direction >= 0 ? { left: '50%', width: `${half}%` } : { left: `${50 - half}%`, width: `${half}%` }; };
+  return (
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 mb-4">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <h3 className="text-sm font-bold text-[var(--text)]">진입 모드 <span className="text-[10px] font-normal text-[var(--text-muted)]">단타·중장기·장기 · 방향과 진입 타이밍 분리 (AccuracyV3)</span></h3>
+        <div className="flex gap-1">
+          {MODE_META.map((mm) => (
+            <button key={mm.key} onClick={() => setMode(mm.key)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex flex-col items-center leading-tight ${mode === mm.key ? 'bg-[var(--accent)]/15 text-[var(--text)] border border-[var(--accent)]/50' : 'bg-white/5 text-[var(--text-muted)] border border-transparent'}`}>
+              {mm.label}<span className="text-[9px] font-normal opacity-70">{mm.sub}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap mb-3">
+        <span className={`text-lg font-extrabold ${dirCls}`}>{m.dirLabel} {DIR_KO[m.dirLabel]}</span>
+        <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${stateCls}`}>{(m.state === 'NO_TRADE' ? 'NO TRADE' : m.state)} · {STATE_KO[m.state]}</span>
+        {m.ultra && <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full text-white" style={{ background: 'linear-gradient(90deg,#4f8cff,#a04fff)' }}>ULTRA 최상급</span>}
+      </div>
+      <div className="grid grid-cols-[80px_1fr_34px] gap-x-2 gap-y-1.5 items-center text-[11px] text-[var(--text)] mb-3">
+        <span>방향<span className="block text-[8px] text-[var(--text-muted)]">Direction</span></span>
+        <div className="relative h-1.5 rounded bg-white/10"><div className={`absolute h-full rounded ${m.direction >= 0 ? 'bg-emerald-400' : 'bg-red-400'}`} style={dirBarStyle()} /></div>
+        <span className="text-right tabular-nums">{m.direction}</span>
+        <span>진입적합<span className="block text-[8px] text-[var(--text-muted)]">Entry</span></span>{bar(m.entryQuality, 'bg-[var(--accent)]')}<span className="text-right tabular-nums">{m.entryQuality}</span>
+        <span>신뢰도<span className="block text-[8px] text-[var(--text-muted)]">Confidence</span></span>{bar(m.confidence, 'bg-violet-400')}<span className="text-right tabular-nums">{m.confidence}</span>
+        <span>이벤트위험<span className="block text-[8px] text-[var(--text-muted)]">Event Risk</span></span>{bar(m.eventRisk, 'bg-red-400')}<span className="text-right tabular-nums">{m.eventRisk}</span>
+      </div>
+      <table className="w-full text-[12px] mb-2">
+        <tbody>
+          <tr className="border-b border-dashed border-[var(--border)]"><td className="py-1 text-[var(--text-muted)]">진입구간 (Entry Zone)</td><td className="py-1 text-right tabular-nums">{fp(m.entryZone[0])} ~ {fp(m.entryZone[1])}</td></tr>
+          <tr className="border-b border-dashed border-[var(--border)]"><td className="py-1 text-[var(--text-muted)]">무효화·손절 (SL)</td><td className="py-1 text-right tabular-nums">{fp(m.invalidation)}</td></tr>
+          <tr className="border-b border-dashed border-[var(--border)]"><td className="py-1 text-[var(--text-muted)]">목표가 TP1 / TP2</td><td className="py-1 text-right tabular-nums">{fp(m.tp1)} / {fp(m.tp2)}</td></tr>
+          <tr><td className="py-1 text-[var(--text-muted)]">손익비 (R:R)</td><td className="py-1 text-right tabular-nums">{m.rr ?? '-'}</td></tr>
+        </tbody>
+      </table>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[var(--text-muted)] mb-2">
+        <span>RSI <b className="text-[var(--text)]">{m.rsi ?? '-'}</b></span>
+        <span>VWAP <b className="text-[var(--text)]">{fp(m.vwap)}</b></span>
+        <span>지지 <b className="text-[var(--text)]">{fp(m.support)}</b></span>
+        <span>저항 <b className="text-[var(--text)]">{fp(m.resistance)}</b></span>
+      </div>
+      <ul className="text-[11px] text-[var(--text-muted)] list-disc pl-4 space-y-0.5">
+        {m.reasons.map((r, i) => <li key={i}>{r}</li>)}
+      </ul>
+      <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-70">방향(Direction)과 진입 적합도(Entry)는 별개입니다. 방향이 강해도 현재가가 추격 구간이면 Entry가 낮아져 NO TRADE로 표시됩니다. 진입존 도달을 기다리세요.</p>
+    </section>
+  );
 }
 
 /* ── 서브 컴포넌트 ───────────────────────────────────── */
@@ -699,6 +777,8 @@ export default function CoinAnalysisPage() {
 
       {data && !data.error && v && (
         <div className="space-y-4">
+          {/* 진입 모드 (coin-signal 이식: 단타·중장기·장기) */}
+          {data.modes && <ModesSection modes={data.modes} symbol={data.symbol} />}
           {/* 임박 경제 이벤트 경고 */}
           {data.event && (
             <div className={`flex items-center gap-2.5 rounded-2xl border px-4 py-3 text-sm font-semibold ${

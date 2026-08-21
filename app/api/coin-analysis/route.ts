@@ -5,6 +5,7 @@ import {
   TimeframeAnalysis, VerdictExtras,
 } from '@/lib/coinAnalysis';
 import { backtestEngine, BacktestResult } from '@/lib/coinBacktest';
+import { buildModes } from '@/lib/coinSignalModes';
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 import { BITGET_BASE, fetchBitgetFuturesTickers } from '@/lib/bitget';
 import { claudeBriefing, resolveBriefingModel, BriefingResult } from '@/lib/anthropic';
@@ -680,6 +681,15 @@ export async function GET(req: NextRequest) {
       (dvol ? `\nBTC DVOL(옵션 내재변동성): ${dvol.value.toFixed(1)}${dvol.change24h !== null ? ` (24h ${dvol.change24h > 0 ? '+' : ''}${dvol.change24h.toFixed(1)})` : ''}` : '') +
       (event ? `\n임박 이벤트: ${event.title} (약 ${Math.round(event.hoursUntil)}시간 후)` : '');
 
+    // ── coin-signal 이식: SCALP·SWING·POSITION 3모드 진입 엔진 ──
+    const modes = buildModes({
+      candles: { c5m: c5mFull, c15m: c15mFull, c1h: c1hFull, c4h: c4hFull, c1d: c1dFull },
+      derivs: { funding: funding.rate, oiChgPct: oiChange1hPct, takerRatio, lsRatio: longShort.latest?.ratio ?? null },
+      newsBias: Math.max(-1, Math.min(1, (newsPos - newsNeg) / 3)),
+      etfBias: 0, // ETF 순유입은 별도 라우트에서 반영(추후 병합)
+      eventHoursUntil: event ? event.hoursUntil : null,
+    });
+
     const ai = await aiBriefing(symbol, coin.name, price, verdictSummary, tfSummary, news.map((n) => n.title), moveSummary, briefingModel);
 
     return NextResponse.json({
@@ -716,6 +726,7 @@ export async function GET(req: NextRequest) {
       event,
       backtest,
       verdict,
+      modes,
       news: newsTagged,
       aiBriefing: ai.text ?? null,
       aiError: ai.error ?? null,
