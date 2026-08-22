@@ -1,6 +1,22 @@
 {
-  "updated": "2026-08-22T02:18:19.317Z",
-  "open": [],
+  "updated": "2026-08-22T02:41:57.870Z",
+  "open": [
+    {
+      "id": "BTCUSDT-scalp-1787366516705",
+      "sym": "BTCUSDT",
+      "mode": "scalp",
+      "dir": 1,
+      "dirLabel": "LONG",
+      "entry": 78012.15,
+      "tp": 78713.8,
+      "sl": 77683.1,
+      "ts": 1787366516705,
+      "price0": 78395,
+      "ultra": false,
+      "conf": 92,
+      "eq": 66
+    }
+  ],
   "closed": [],
   "stats": {
     "scalp": {
