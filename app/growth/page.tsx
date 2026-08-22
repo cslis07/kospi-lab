@@ -162,7 +162,11 @@ export default function GrowthPage() {
         const j = await r.json();
         setHits(
           useUs
-            ? (Array.isArray(j) ? j : []).slice(0, 8).map((x: { symbol: string; name: string; exchange?: string }) => ({
+            ? (Array.isArray(j) ? j : [])
+                // Yahoo는 해외 교차상장(1QZ.F·COIN.MX 등)도 돌려주는데 이는 스캔 불가/무의미 —
+                // 미국 티커(클래스주 BRK-B/BF.B 포함)와 국내 상장(.KS/.KQ, 스캔 시 국내로 정규화)만 노출
+                .filter((x: { symbol: string }) => /^[A-Z]{1,6}([.\-][A-Z])?$/.test(x.symbol) || /^\d{6}\.K[SQ]$/.test(x.symbol))
+                .slice(0, 8).map((x: { symbol: string; name: string; exchange?: string }) => ({
                 symbol: x.symbol, name: x.name, exchange: x.exchange ?? 'US', us: true,
               }))
             : (Array.isArray(j) ? j : []).slice(0, 8).map((x: { code?: string; ticker?: string; name: string }) => ({
