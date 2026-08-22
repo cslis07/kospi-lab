@@ -42,3 +42,9 @@ next-env.d.ts
 
 .vercel
 .claude/
+
+# 크론 스냅샷은 data 브랜치에 산다 (배포예산 — coin-track.yml 참조)
+data/coin-signals.json
+
+# 핸드오프 문서 — 커밋 금지(public 저장소)
+*.pdf

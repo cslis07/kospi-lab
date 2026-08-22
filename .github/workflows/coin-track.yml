@@ -19,19 +19,38 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      # 스냅샷은 main이 아니라 data 브랜치에 산다.
+      # main에 커밋하면 Vercel Git 통합이 매번 배포를 만들어 무료 한도(100회/일)를
+      # 크론 혼자 96회씩 소진했다([skip ci]는 Vercel에 무효). 앱 코드는 이 파일을
+      # 읽지 않으므로(소비처는 이 스크립트뿐) data 브랜치 격리에 기능 손실이 없다.
+      - name: 이전 스냅샷 복원 (data 브랜치)
+        run: |
+          git fetch origin data 2>/dev/null || true
+          if git cat-file -e origin/data:data/coin-signals.json 2>/dev/null; then
+            mkdir -p data
+            git show origin/data:data/coin-signals.json > data/coin-signals.json
+          fi
       - name: 신호 추적 실행
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: npx --yes tsx scripts/coinTrack.mts
-      - name: 변경분 커밋
+      # plumbing(commit-tree)으로 data 브랜치에 직접 커밋 — 워킹트리 전환 없이 main 무접촉
+      - name: data 브랜치에 커밋
         run: |
+          set -e
           git config user.name "kospi-lab-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add data/coin-signals.json
-          if git diff --staged --quiet; then
-            echo "변경 없음"
-          else
-            git commit -m "[TRACK] 코인 신호 스냅샷·판정 갱신 [skip ci]"
-            git push
+          BLOB=$(git hash-object -w data/coin-signals.json)
+          if OLD=$(git rev-parse -q --verify origin/data:data/coin-signals.json); then
+            if [ "$OLD" = "$BLOB" ]; then echo "변경 없음"; exit 0; fi
           fi
+          INNER=$(printf '100644 blob %s\tcoin-signals.json\n' "$BLOB" | git mktree)
+          TREE=$(printf '040000 tree %s\tdata\n' "$INNER" | git mktree)
+          PARENT=$(git rev-parse -q --verify origin/data || true)
+          if [ -n "$PARENT" ]; then
+            COMMIT=$(git commit-tree "$TREE" -p "$PARENT" -m "[TRACK] 코인 신호 스냅샷·판정 갱신")
+          else
+            COMMIT=$(git commit-tree "$TREE" -m "[TRACK] 코인 신호 스냅샷·판정 갱신")
+          fi
+          git push origin "$COMMIT":refs/heads/data

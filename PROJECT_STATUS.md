@@ -1,6 +1,6 @@
 # KOSPI LAB — Project Status
 
-> **마지막 업데이트: 2026-08-21 (6차)**
+> **마지막 업데이트: 2026-08-22 (8차)**
 > **위치:** `C:\Users\GB\Documents\kospi-lab`
 > **GitHub:** `cslis07/kospi-lab` · 기본 브랜치 `main` · ⚠️ **저장소 공개(public)**
 > **배포:** [kospi-lab.vercel.app](https://kospi-lab.vercel.app) · Vercel (git push → 자동 배포)
@@ -12,9 +12,9 @@
 
 **깨끗한 상태** — 워킹트리 비어 있음(루트에 핸드오프 PDF 1개만 미추적, 커밋 대상 아님). `main`이 `origin/main`과 동기. 게이트 전부 통과(테스트 42/42 · tsc 0 · build OK).
 
-⚠️ **7차(`c92f514` 성장주 미국검색 fix)는 커밋·push 완료했으나 아직 프로덕션 미배포** — 2026-08-21 **Vercel 무료 플랜 일일 배포 한도(100건/일) 소진**으로 배포 거부(`api-deployments-free-per-day`, "try again in 24h"). git 자동배포·수동 `vercel --prod` 모두 같은 사유로 실패. **원인: 15분 코인 크론(coin-track.yml)이 data 커밋마다 배포를 트리거**(최근 20h 커밋 30개 중 17개가 TRACK)+당일 내 수동 배포 누적. **해소: 한도 리셋(~24h) 후 다음 크론 push가 main(=fix 포함)을 자동 배포하므로 자가치유됨.** 근본해결은 아래 §6 "배포 예산" 항목(vercel.json Ignored Build Step) — 미적용(제안 상태). 현재 프로덕션은 6차(모바일 홈메뉴)까지 정상.
+✅ **7차(성장주 미국검색 fix)는 2026-08-22 오전 한도 리셋 후 배포 완료**(프로덕션 마커 실측). ✅ **8차에서 배포예산 문제를 구조적으로 해결** — 크론 스냅샷을 **data 브랜치로 이전**(§6). 이제 크론은 main을 건드리지 않아 Vercel 배포를 소비하지 않고, main 히스토리도 봇 커밋 없이 깨끗하다.
 
-⚠️ **로컬 HEAD가 크론 봇 커밋일 수 있다** — `.github/workflows/coin-track.yml`(15분 크론)이 `data/coin-signals.json`을 갱신·push하므로 최근 커밋이 `kospi-lab-bot [TRACK] ...`일 수 있다. 내 코드 마지막 커밋은 3모드 엣지 측정·UI 정렬(2026-08-21 5차). **push 전 반드시 `git fetch && git rebase origin/main`**(§9).
+✅ **크론은 이제 main을 push하지 않는다(2026-08-22 8차)** — `coin-track.yml`이 스냅샷을 **data 브랜치**에 plumbing 커밋한다. main에 봇 커밋이 더 안 생기므로 "push 전 rebase" 강박도 해소(습관으로만 유지, §9).
 
 ### 🔴 사용자가 직접 해야 할 것 (미완, 코드로 해결 불가)
 - **KRX API 키 재발급** — `data.krx.co.kr`. 하드코딩 폴백이 **public 저장소**에 커밋돼 있었고(`3876676`), 실측으로 **키가 아직 유효함**을 확인했다. 코드에서는 제거(`24ee41c`)했으나 **git 이력에 남아 있어 재발급 외에 방법이 없다.** 재발급 후 `vercel env add KRX_API_KEY production` + `.env.local` 갱신.
@@ -92,7 +92,7 @@
 **기타** — 버핏 스크리너 `/screener` · 뉴스 `/news` · 공시 `/dart` · 리포트 `/report` · 캘린더 `/calendar` · 커뮤니티 `/community`(스텁) · 가상투자·백업 `/virtual`
 
 ### 자동화 (GitHub Actions)
-**코인 신호 적중률 + 텔레그램** — `.github/workflows/coin-track.yml`(15분 크론) → `scripts/coinTrack.mts`가 3모드 신호를 직접 계산·스냅샷(`data/coin-signals.json` 커밋)하고 TP/SL 자동판정 + 텔레그램 알림(시크릿 있을 때만).
+**코인 신호 적중률 + 텔레그램** — `.github/workflows/coin-track.yml`(15분 크론) → `scripts/coinTrack.mts`가 3모드 신호를 직접 계산·스냅샷하고 TP/SL 자동판정 + 텔레그램 알림(시크릿 있을 때만). 스냅샷은 **data 브랜치**(`data/coin-signals.json`)에 plumbing 커밋 — main·배포 무접촉(8차).
 
 ### 시장 · 내 자산 · 설계
 `/domestic` · `/overseas` · `/my-stocks` · `/futures` · `/portfolio` · `/invest` · `/tax` · `/brokerage` · `/simulate`
@@ -183,8 +183,8 @@ npx tsx scripts/verify-macro.ts                      # 경제지표 수집 검�
 ### GitHub 인증
 - gh CLI 두 계정: `cslis07`(소유자), `histobio0302-oss`. push 403 시 `gh auth switch --user cslis07`
 - ⚠️ **저장소 public.** 시크릿이 코드에 들어가면 즉시 유출(§9)
-- ⚠️ **크론이 원격을 앞서게 한다** — `coin-track.yml`이 `data/coin-signals.json`을 15분마다 커밋·push. **push 전 `git fetch && git rebase origin/main`**(봇 커밋은 data만 건드리므로 rebase 안전)
-- ⚠️ **배포 예산(무료 100건/일) — 크론 data 커밋이 매번 Vercel 배포를 트리거해 한도를 잡아먹는다.** 2026-08-21 실제로 100건/일 초과로 배포 거부됨(`api-deployments-free-per-day`). 커밋 메시지의 `[skip ci]`는 GitHub Actions만 건너뛰고 **Vercel Git 통합은 무시**. **권장 해결(미적용): `vercel.json`에 Ignored Build Step 또는 프로젝트 설정에서 `git diff`가 `data/`만 바뀌면 빌드 취소**(예: Ignored Build Step 명령 `git diff --quiet HEAD^ HEAD -- . ':(exclude)data/'`). 이러면 크론 data 커밋은 배포를 소비하지 않는다. 한도 소진 시 코드 배포는 리셋(~24h)까지 대기.
+- ✅ **크론 스냅샷은 data 브랜치에 산다(2026-08-22 8차 해결)** — `coin-track.yml`이 origin/data에서 이전 스냅샷을 복원해 실행 후 **plumbing(commit-tree)으로 data 브랜치에만 push**. main 무접촉 → 원격이 앞서는 일도, 배포 소비도 없다. `data/coin-signals.json`은 main에서 untrack+gitignore(앱 코드는 이 파일을 읽지 않음 — 소비처는 크론 스크립트 자신뿐).
+- ⚠️ **배포 예산(무료 100건/일)** — 2026-08-21 크론 96배포/일 낭비로 실제 차단됨(`api-deployments-free-per-day`, `[skip ci]`는 Vercel에 무효). **8차의 data 브랜치 이전으로 근본 해결**. 대시보드 Ignored Build Step(`git diff --quiet HEAD^ HEAD -- . ':(exclude)data/'`)은 이제 이중 안전장치(선택). 한도 리셋은 UTC 자정=한국 09:00.
 
 ### Vercel 환경변수 (`vercel env ls production` 실측 · 14개)
 | 키 | 용도 | 설정된 곳 |
@@ -295,7 +295,7 @@ npx tsx scripts/verify-macro.ts                      # 경제지표 수집 검�
 ## 9. ⛔ 하지 말 것
 
 - **시크릿에 하드코딩 폴백(`process.env.X ?? '실제값'`) 금지** — 저장소 public. KRX 키가 이 패턴으로 유출됨. 없으면 빈 문자열 + graceful 실패(`lib/krx.ts`).
-- **`git push` 전 반드시 `git fetch && git rebase origin/main`** — 15분 크론이 `data/coin-signals.json`을 push해 원격이 앞선다. 안 하면 non-fast-forward 거부 또는 불필요한 머지 커밋.
+- **`git push` 전 `git fetch && git rebase origin/main` 습관 유지** — (완화됨) 크론이 main을 더는 push하지 않아(8차, data 브랜치 이전) 필수는 아니나, 다중 세션 병행 시 여전히 안전한 습관.
 - **`vercel env pull` 절대 금지** — 로컬 `.env.local` 로컬 전용 키가 삭제됨. `vercel env add`만.
 - **`APP_ACCESS_TOKEN`을 Vercel에서 지우지 말 것** — 게이트 라우트 전부 503(fail-closed).
 - **`.env.local` 커밋 금지.** 토큰·키를 로그·응답에 출력 금지.
@@ -335,8 +335,8 @@ kospi-lab/
 ├── middleware.ts             # 인증 게이트 (matcher 5개 — §6)
 ├── PROJECT_STATUS.md · CHANGELOG.md · COMPLETENESS.md   # 기록 문서 3종
 ├── tests/engine.test.ts      # 회귀 42케이스 (npm test)
-├── data/coin-signals.json    # 크론이 15분마다 커밋(적중률 스냅샷)
-├── .github/workflows/coin-track.yml   # 15분 크론 → coinTrack.mts
+├── data/coin-signals.json    # gitignore — 정본은 data 브랜치(크론 적중률 스냅샷, 8차)
+├── .github/workflows/coin-track.yml   # 15분 크론 → coinTrack.mts → data 브랜치 plumbing 커밋
 ├── scripts/                  # 11 — 측정·검증·크론(coinTrack.mts는 .mts)
 │   ├── backtest-lab · backtest-deriv · backtest-funding · validate-funding · backtest-modes🆕(3모드 측정)
 │   ├── measure-backtest-bias · verify-{macro,growth,growth-us}

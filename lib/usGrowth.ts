@@ -246,8 +246,8 @@ export function scoreUsGrowth(d: any): GrowthScore {
   const ks = d.defaultKeyStatistics ?? {};
   const sd = d.summaryDetail ?? {};
 
-  const revYoY = pctOf(yfRaw(fd, 'revenueGrowth', 'raw'));            // TTM YoY %
-  const opYoY = pctOf(yfRaw(fd, 'earningsGrowth', 'raw'));            // 이익 성장 YoY %
+  const revYoY = pctOf(yfRaw(fd, 'revenueGrowth', 'raw'));            // ⚠ 최근 '분기' 매출 YoY % (KR의 연간과 주기 다름 — UI 라벨에 명시)
+  const opYoY = pctOf(yfRaw(fd, 'earningsGrowth', 'raw'));            // ⚠ 최근 '분기' 순이익 YoY % (영업이익 아님 — UI 라벨에 명시)
   const roe = pctOf(yfRaw(fd, 'returnOnEquity', 'raw'));
   const opMargin = pctOf(yfRaw(fd, 'operatingMargins', 'raw'));
   const profitMargin = pctOf(yfRaw(fd, 'profitMargins', 'raw'));

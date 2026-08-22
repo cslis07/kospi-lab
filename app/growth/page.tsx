@@ -8,7 +8,7 @@
  * 원칙: 페이지 진입만으로는 아무것도 호출하지 않는다(버튼 실행 — §0 비용 원칙).
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useCandidates } from '@/hooks/useCandidates';
 import CandidateBoard from '@/components/CandidateBoard';
@@ -151,11 +151,12 @@ export default function GrowthPage() {
     const t = setTimeout(async () => {
       try {
         // 검색 대상 시장은 탭이 아니라 '검색어'로 판정한다 — 한국 탭인 채로 'coinbase'를 쳐도
-        // 미국 종목이 나오도록. 6자리 숫자=국내코드, 영문=미국, 한글은 현재 탭을 따른다.
+        // 미국 종목이 나오도록. 숫자코드·한글=국내(어느 탭이든), 영문=미국(어느 탭이든).
+        // 한글을 탭에 맡기면 US 탭에서 '삼성전자'가 Yahoo로 가 005930.KS(스캔 불가 형식)를 받는다.
         const isKrCode = /^\d{4,6}$/.test(q);
         const hasKorean = /[가-힣]/.test(q);
         const asciiName = !hasKorean && /[A-Za-z]/.test(q);
-        const useUs = isKrCode ? false : asciiName ? true : isUs;
+        const useUs = isKrCode || hasKorean ? false : asciiName ? true : isUs;
         const url = useUs ? `/api/overseas/search?q=${encodeURIComponent(q)}` : `/api/stock-search?q=${encodeURIComponent(q)}`;
         const r = await fetch(url);
         const j = await r.json();
@@ -176,7 +177,12 @@ export default function GrowthPage() {
 
   /** 검색 결과 한 종목만 스캔해 결과 맨 위에 추가 — 스캔 시장은 탭이 아니라 '선택한 종목'을 따른다 */
   const scanOne = async (hit: SearchHit) => {
-    const { symbol, name, us } = hit;
+    let { symbol, us } = hit;
+    const { name } = hit;
+    // Yahoo는 영문 질의('samsung')에도 국내 상장(005930.KS/.KQ)을 돌려준다 —
+    // 그대로 tickers= 로 보내면 서버 정규식(숫자 불허)에서 걸러져 실패하므로 국내 코드로 정규화
+    const krListed = symbol.match(/^(\d{6})\.K[SQ]$/);
+    if (us && krListed) { symbol = krListed[1]; us = false; }
     setQuery(''); setHits([]);
     // 선택한 종목의 시장으로 탭을 맞춰 결과 표기(현재가·시총·컬럼)를 일치시킨다
     if (us && market !== 'US') { setMarket('US'); setSector(null); setTheme(null); }
@@ -553,8 +559,9 @@ export default function GrowthPage() {
                   <th className="px-2 py-2 text-left text-[10px] font-semibold text-[var(--text-muted)]">종목</th>
                   {th('total', '점수')}
                   <th className="px-2 py-2 text-left text-[10px] font-semibold text-[var(--text-muted)]">배지</th>
-                  {th('revYoY', '매출YoY', '최근 확정 연도 매출 성장률')}
-                  {th('opYoY', '영업YoY', '최근 확정 연도 영업이익 성장률')}
+                  {/* US는 Yahoo 필드 특성상 주기·항목이 KR과 다르다 — 라벨·툴팁으로 정직하게 구분 */}
+                  {th('revYoY', isUs ? '매출YoY·분기' : '매출YoY', isUs ? '최근 분기 매출 YoY (Yahoo revenueGrowth) — 한국 탭의 연간 YoY와 주기가 다름' : '최근 확정 연도 매출 성장률')}
+                  {th('opYoY', isUs ? '순익YoY·분기' : '영업YoY', isUs ? '최근 분기 순이익 YoY (Yahoo earningsGrowth) — 영업이익이 아닌 순이익 기준' : '최근 확정 연도 영업이익 성장률')}
                   {th('cOpGrowth', isUs ? '포워드EPS' : '컨센영업', isUs ? '포워드 EPS 성장률 (트레일링→포워드 PER 격차)' : '컨센서스(추정) 영업이익 성장률')}
                   {th('forwardPer', 'fwdPER', '컨센서스 EPS 기준 포워드 PER')}
                   {th('peg', 'PEG', '포워드 PER ÷ 컨센서스 EPS 성장률 — 1 미만이면 성장 대비 저평가')}
@@ -565,8 +572,8 @@ export default function GrowthPage() {
               </thead>
               <tbody>
                 {(view ?? []).map((r, i) => (
-                  <>
-                    <tr key={r.code}
+                  <Fragment key={r.code}>
+                    <tr
                       className="border-b border-[var(--border)]/50 hover:bg-white/[0.03] cursor-pointer"
                       onClick={() => setExpanded(expanded === r.code ? null : r.code)}>
                       <td className="px-3 py-2 text-[var(--text-muted)] tabular-nums">{i + 1}</td>
@@ -679,7 +686,7 @@ export default function GrowthPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>
