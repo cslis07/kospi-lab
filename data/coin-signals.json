@@ -1,6 +1,7 @@
 {
-  "updated": "2026-08-22T09:53:02.901Z",
-  "open": [
+  "updated": "2026-08-22T10:23:58.571Z",
+  "open": [],
+  "closed": [
     {
       "id": "SOLUSDT-scalp-1787388480429",
       "sym": "SOLUSDT",
@@ -14,10 +15,12 @@
       "price0": 93.396,
       "ultra": false,
       "conf": 91,
-      "eq": 66
-    }
-  ],
-  "closed": [
+      "eq": 66,
+      "closeTs": 1787394237998,
+      "closePrice": 91.628,
+      "outcome": "WIN",
+      "r": 1.17
+    },
     {
       "id": "BTCUSDT-scalp-1787366516705",
       "sym": "BTCUSDT",
@@ -40,9 +43,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 1,
-      "winRate": 0,
-      "avgR": -1
+      "n": 2,
+      "winRate": 50,
+      "avgR": 0.08
     },
     "swing": {
       "n": 0,
@@ -50,9 +53,9 @@
       "avgR": null
     },
     "all": {
-      "n": 1,
-      "winRate": 0,
-      "avgR": -1
+      "n": 2,
+      "winRate": 50,
+      "avgR": 0.08
     }
   }
 }
