@@ -1,6 +1,7 @@
 {
-  "updated": "2026-08-22T04:50:25.471Z",
-  "open": [
+  "updated": "2026-08-22T05:28:24.447Z",
+  "open": [],
+  "closed": [
     {
       "id": "BTCUSDT-scalp-1787366516705",
       "sym": "BTCUSDT",
@@ -14,15 +15,18 @@
       "price0": 78395,
       "ultra": false,
       "conf": 92,
-      "eq": 66
+      "eq": 66,
+      "closeTs": 1787376503841,
+      "closePrice": 77253.1,
+      "outcome": "LOSS",
+      "r": -1
     }
   ],
-  "closed": [],
   "stats": {
     "scalp": {
-      "n": 0,
-      "winRate": null,
-      "avgR": null
+      "n": 1,
+      "winRate": 0,
+      "avgR": -1
     },
     "swing": {
       "n": 0,
@@ -30,9 +34,9 @@
       "avgR": null
     },
     "all": {
-      "n": 0,
-      "winRate": null,
-      "avgR": null
+      "n": 1,
+      "winRate": 0,
+      "avgR": -1
     }
   }
 }
