@@ -1,0 +1,22 @@
+{
+  "updated": "2026-08-22T01:44:48.056Z",
+  "open": [],
+  "closed": [],
+  "stats": {
+    "scalp": {
+      "n": 0,
+      "winRate": null,
+      "avgR": null
+    },
+    "swing": {
+      "n": 0,
+      "winRate": null,
+      "avgR": null
+    },
+    "all": {
+      "n": 0,
+      "winRate": null,
+      "avgR": null
+    }
+  }
+}
