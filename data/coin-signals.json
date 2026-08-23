@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-23T11:01:00.738Z",
+  "updated": "2026-08-23T11:35:07.109Z",
   "open": [
     {
       "id": "BTCUSDT-swing-1787457056736",
@@ -30,21 +30,27 @@
       "ultra": false,
       "conf": 74,
       "eq": 76
-    },
+    }
+  ],
+  "closed": [
     {
-      "id": "ETHUSDT-scalp-1787474224997",
-      "sym": "ETHUSDT",
+      "id": "XRPUSDT-scalp-1787481665145",
+      "sym": "XRPUSDT",
       "mode": "scalp",
       "dir": 1,
       "dirLabel": "LONG",
-      "entry": 2401.8450000000003,
-      "tp": 2424.44,
-      "sl": 2391.69,
-      "ts": 1787474224997,
-      "price0": 2414.69,
+      "entry": 1.4766,
+      "tp": 1.4894,
+      "sl": 1.46366,
+      "ts": 1787481665145,
+      "price0": 1.4877,
       "ultra": false,
       "conf": 100,
-      "eq": 63
+      "eq": 65,
+      "closeTs": 1787484905676,
+      "closePrice": 1.4972,
+      "outcome": "WIN",
+      "r": 0.99
     },
     {
       "id": "BTCUSDT-scalp-1787481665145",
@@ -59,25 +65,31 @@
       "price0": 76809.8,
       "ultra": false,
       "conf": 98,
-      "eq": 68
+      "eq": 68,
+      "closeTs": 1787484905676,
+      "closePrice": 77179,
+      "outcome": "WIN",
+      "r": 2.3
     },
     {
-      "id": "XRPUSDT-scalp-1787481665145",
-      "sym": "XRPUSDT",
+      "id": "ETHUSDT-scalp-1787474224997",
+      "sym": "ETHUSDT",
       "mode": "scalp",
       "dir": 1,
       "dirLabel": "LONG",
-      "entry": 1.4766,
-      "tp": 1.4894,
-      "sl": 1.46366,
-      "ts": 1787481665145,
-      "price0": 1.4877,
+      "entry": 2401.8450000000003,
+      "tp": 2424.44,
+      "sl": 2391.69,
+      "ts": 1787474224997,
+      "price0": 2414.69,
       "ultra": false,
       "conf": 100,
-      "eq": 65
-    }
-  ],
-  "closed": [
+      "eq": 63,
+      "closeTs": 1787484905676,
+      "closePrice": 2429.25,
+      "outcome": "WIN",
+      "r": 2.23
+    },
     {
       "id": "SOLUSDT-scalp-1787475857953",
       "sym": "SOLUSDT",
@@ -157,9 +169,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 4,
-      "winRate": 50,
-      "avgR": -0.08
+      "n": 7,
+      "winRate": 71,
+      "avgR": 0.74
     },
     "swing": {
       "n": 0,
@@ -167,9 +179,9 @@
       "avgR": null
     },
     "all": {
-      "n": 4,
-      "winRate": 50,
-      "avgR": -0.08
+      "n": 7,
+      "winRate": 71,
+      "avgR": 0.74
     }
   }
 }
