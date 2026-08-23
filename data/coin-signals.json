@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-23T08:37:05.544Z",
+  "updated": "2026-08-23T09:04:18.531Z",
   "open": [
     {
       "id": "BTCUSDT-swing-1787457056736",
@@ -45,6 +45,21 @@
       "ultra": false,
       "conf": 100,
       "eq": 63
+    },
+    {
+      "id": "SOLUSDT-scalp-1787475857953",
+      "sym": "SOLUSDT",
+      "mode": "scalp",
+      "dir": 1,
+      "dirLabel": "LONG",
+      "entry": 93.16929999999999,
+      "tp": 93.441,
+      "sl": 92.6279,
+      "ts": 1787475857953,
+      "price0": 93.339,
+      "ultra": false,
+      "conf": 94,
+      "eq": 71
     }
   ],
   "closed": [
