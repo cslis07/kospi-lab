@@ -1,21 +1,6 @@
 {
-  "updated": "2026-08-23T03:50:57.217Z",
+  "updated": "2026-08-23T04:38:12.205Z",
   "open": [
-    {
-      "id": "XRPUSDT-scalp-1787448149935",
-      "sym": "XRPUSDT",
-      "mode": "scalp",
-      "dir": 1,
-      "dirLabel": "LONG",
-      "entry": 1.48571,
-      "tp": 1.504,
-      "sl": 1.47015,
-      "ts": 1787448149935,
-      "price0": 1.4988,
-      "ultra": false,
-      "conf": 92,
-      "eq": 62
-    },
     {
       "id": "BTCUSDT-swing-1787457056736",
       "sym": "BTCUSDT",
@@ -33,6 +18,25 @@
     }
   ],
   "closed": [
+    {
+      "id": "XRPUSDT-scalp-1787448149935",
+      "sym": "XRPUSDT",
+      "mode": "scalp",
+      "dir": 1,
+      "dirLabel": "LONG",
+      "entry": 1.48571,
+      "tp": 1.504,
+      "sl": 1.47015,
+      "ts": 1787448149935,
+      "price0": 1.4988,
+      "ultra": false,
+      "conf": 92,
+      "eq": 62,
+      "closeTs": 1787459891549,
+      "closePrice": 1.4648,
+      "outcome": "LOSS",
+      "r": -1
+    },
     {
       "id": "SOLUSDT-scalp-1787388480429",
       "sym": "SOLUSDT",
@@ -74,9 +78,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 2,
-      "winRate": 50,
-      "avgR": 0.08
+      "n": 3,
+      "winRate": 33,
+      "avgR": -0.28
     },
     "swing": {
       "n": 0,
@@ -84,9 +88,9 @@
       "avgR": null
     },
     "all": {
-      "n": 2,
-      "winRate": 50,
-      "avgR": 0.08
+      "n": 3,
+      "winRate": 33,
+      "avgR": -0.28
     }
   }
 }
