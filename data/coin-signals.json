@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-24T02:46:13.773Z",
+  "updated": "2026-08-24T03:55:00.567Z",
   "open": [
     {
       "id": "BTCUSDT-swing-1787457056736",
@@ -32,6 +32,23 @@
       "eq": 76
     },
     {
+      "id": "ETHUSDT-scalp-1787543698680",
+      "sym": "ETHUSDT",
+      "mode": "scalp",
+      "dir": -1,
+      "dirLabel": "SHORT",
+      "entry": 2439.675,
+      "tp": 2430.83,
+      "sl": 2450.86,
+      "ts": 1787543698680,
+      "price0": 2432.17,
+      "ultra": false,
+      "conf": 99,
+      "eq": 64
+    }
+  ],
+  "closed": [
+    {
       "id": "XRPUSDT-scalp-1787534404750",
       "sym": "XRPUSDT",
       "mode": "scalp",
@@ -44,10 +61,12 @@
       "price0": 1.4848,
       "ultra": false,
       "conf": 96,
-      "eq": 71
-    }
-  ],
-  "closed": [
+      "eq": 71,
+      "closeTs": 1787543698680,
+      "closePrice": 1.4683,
+      "outcome": "WIN",
+      "r": 1.43
+    },
     {
       "id": "XRPUSDT-scalp-1787481665145",
       "sym": "XRPUSDT",
@@ -184,9 +203,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 7,
-      "winRate": 71,
-      "avgR": 0.74
+      "n": 8,
+      "winRate": 75,
+      "avgR": 0.83
     },
     "swing": {
       "n": 0,
@@ -194,9 +213,9 @@
       "avgR": null
     },
     "all": {
-      "n": 7,
-      "winRate": 71,
-      "avgR": 0.74
+      "n": 8,
+      "winRate": 75,
+      "avgR": 0.83
     }
   }
 }
