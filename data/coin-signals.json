@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-23T23:46:47.035Z",
+  "updated": "2026-08-24T01:20:05.481Z",
   "open": [
     {
       "id": "BTCUSDT-swing-1787457056736",
@@ -30,6 +30,21 @@
       "ultra": false,
       "conf": 74,
       "eq": 76
+    },
+    {
+      "id": "XRPUSDT-scalp-1787534404750",
+      "sym": "XRPUSDT",
+      "mode": "scalp",
+      "dir": -1,
+      "dirLabel": "SHORT",
+      "entry": 1.49682,
+      "tp": 1.4767,
+      "sl": 1.51088,
+      "ts": 1787534404750,
+      "price0": 1.4848,
+      "ultra": false,
+      "conf": 96,
+      "eq": 71
     }
   ],
   "closed": [
