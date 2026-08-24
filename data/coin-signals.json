@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-24T06:24:15.666Z",
+  "updated": "2026-08-24T07:37:50.186Z",
   "open": [
     {
       "id": "BTCUSDT-swing-1787457056736",
@@ -45,6 +45,21 @@
       "ultra": false,
       "conf": 94,
       "eq": 71
+    },
+    {
+      "id": "ETHUSDT-scalp-1787557069510",
+      "sym": "ETHUSDT",
+      "mode": "scalp",
+      "dir": 1,
+      "dirLabel": "LONG",
+      "entry": 2445.665,
+      "tp": 2459.07,
+      "sl": 2432.91,
+      "ts": 1787557069510,
+      "price0": 2454.62,
+      "ultra": false,
+      "conf": 93,
+      "eq": 62
     }
   ],
   "closed": [
