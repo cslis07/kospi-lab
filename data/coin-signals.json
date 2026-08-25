@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-24T23:58:46.626Z",
+  "updated": "2026-08-25T01:45:47.081Z",
   "open": [
     {
       "id": "ETHUSDT-swing-1787467312879",
@@ -15,6 +15,36 @@
       "ultra": false,
       "conf": 74,
       "eq": 76
+    },
+    {
+      "id": "ETHUSDT-scalp-1787622345167",
+      "sym": "ETHUSDT",
+      "mode": "scalp",
+      "dir": 1,
+      "dirLabel": "LONG",
+      "entry": 2488.045,
+      "tp": 2504.52,
+      "sl": 2478.49,
+      "ts": 1787622345167,
+      "price0": 2494.24,
+      "ultra": false,
+      "conf": 98,
+      "eq": 82
+    },
+    {
+      "id": "XRPUSDT-scalp-1787622345167",
+      "sym": "XRPUSDT",
+      "mode": "scalp",
+      "dir": 1,
+      "dirLabel": "LONG",
+      "entry": 1.496375,
+      "tp": 1.5089,
+      "sl": 1.48555,
+      "ts": 1787622345167,
+      "price0": 1.5047,
+      "ultra": false,
+      "conf": 94,
+      "eq": 69
     }
   ],
   "closed": [
