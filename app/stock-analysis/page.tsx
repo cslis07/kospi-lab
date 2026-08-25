@@ -94,7 +94,7 @@ function StanceBadge({ stance }: { stance: 'buy' | 'neutral' | 'reduce' }) {
   // 라벨은 룰 엔진 점수를 서술한 것이지 매매 추천이 아니다 — 툴팁으로 명시한다
   return (
     <span className={`inline-flex items-center border rounded-xl font-bold px-4 py-1.5 text-lg ${c.cls}`}
-      title="룰 엔진 점수를 서술한 라벨입니다. 예측 우위가 검증되지 않았으므로 매매 추천이 아닙니다.">
+      title="룰 엔진 점수를 서술한 라벨입니다. 대규모 측정(32종목·3년·362건)에서 진입 필터의 우위가 확인되지 않았으므로(대조군 대비 −0.7%p) 매매 추천이 아닙니다.">
       {c.l}
     </span>
   );
@@ -374,8 +374,8 @@ export default function StockAnalysisPage() {
               <StanceBadge stance={v.stance} />
               <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-[var(--border)] text-xs font-semibold text-[var(--text)]">{v.state}</span>
               <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${v.entryOk ? 'bg-red-500/10 text-red-400 border-red-500/30' : 'bg-slate-500/10 text-[var(--text-muted)] border-[var(--border)]'}`}
-                title="체크리스트를 모두 통과했다는 뜻입니다. 이 엔진의 예측력(엣지)은 아직 대규모 표본으로 검증되지 않았습니다.">
-                {v.entryOk ? '체크리스트 통과' : '매수 대기'}
+                title="체크리스트를 모두 통과했다는 뜻입니다. 대규모 측정(32종목·3년·362건) 결과 이 통과 판정은 진입 필터로서 우위가 없습니다 — 아무 때나 진입한 대조군(54.8%)이 오히려 더 높았습니다.">
+                {v.entryOk ? '체크리스트 통과 (우위 아님)' : '매수 대기'}
               </span>
               <button onClick={saveToJournal}
                 className="ml-auto px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-sky-500/40 transition-colors"
@@ -498,15 +498,18 @@ export default function StockAnalysisPage() {
                 과거 일봉에서 매수 신호 발생 시 1R 익절 vs 손절 판정. ⚠ 수수료·세금 미반영,
                 과거 투자자 수급 데이터가 없어 <strong>기술적 신호만 검증</strong>.
               </p>
+              {/* 2026-08-24 대규모 측정으로 '미검증'이 '측정됨 — 우위 없음'으로 확정됐다.
+                  대조군(진입 필터만 제거) 대비 −0.7%p 라 이 엔진의 진입 판정은 값어치를 못 한다. */}
               <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-2.5">
-                <p className="text-[11px] font-bold text-amber-400 mb-1">⚠ 이 엔진의 예측력은 검증되지 않았습니다</p>
+                <p className="text-[11px] font-bold text-amber-400 mb-1">⚠ 측정 결과: 이 엔진의 진입 판정에 우위가 없습니다</p>
                 <p className="text-[10px] leading-relaxed text-[var(--text-muted)]">
-                  아래는 <strong className="text-[var(--text)]">이 종목·이 기간</strong>의 성적일 뿐 표본이 수 건~수십 건이라
-                  우연과 구분되지 않습니다. 다종목 대규모 표본으로 엣지를 측정한 적이 없습니다.
+                  대규모 측정(2026-08-24 · 32종목 · 3년 · 362건) 결과 엔진 승률 <strong className="text-[var(--text)]">54.1%</strong>,
+                  수수료·세금 반영 기대값 <strong className="text-[var(--text)]">−0.017R</strong>.
+                  결정적으로 <strong className="text-[var(--text)]">진입 필터만 제거한 대조군(3,441건)이 54.8%</strong>로 오히려 더 높습니다
+                  (차이 −0.7%p, 오차범위 안) — <strong className="text-[var(--text)]">54%라는 승률은 엔진의 실력이 아니라 상승장 베타</strong>입니다.
                   <br />
-                  참고로 <strong className="text-[var(--text)]">같은 구조의 코인 엔진</strong>은 대규모 측정(45일·4코인·727건)에서
-                  승률 49.7%로 <strong className="text-[var(--text)]">엣지가 확인되지 않았습니다</strong>.
-                  성적표가 좋게 나와도 <strong className="text-[var(--text)]">매수 근거로 삼지 마세요.</strong>
+                  아래 성적표는 <strong className="text-[var(--text)]">이 종목·이 기간</strong>의 표본 수 건짜리 참고치이며,
+                  좋게 나와도 <strong className="text-[var(--text)]">매수 근거로 삼지 마세요.</strong> 같은 구조의 코인 엔진도 동일 결론(49.7%·41.7%)입니다.
                 </p>
               </div>
               {data.backtest.signals === 0 ? (

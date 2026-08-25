@@ -50,6 +50,7 @@ export const config = {
     '/api/stock-analysis',   // Anthropic 실과금 — 공개 시 크레딧 소진 유도 가능
     '/api/coin-analysis',    // 동일
     '/api/debug/:path*',     // 디버그 — 요청당 상류 8콜(증폭)
+    '/api/sync',             // 내 매매일지·포트폴리오 원본 — 개인 데이터라 반드시 게이트
   ],
   // ⚠ /api/kis/price 는 StockDetailModal 이 쓰므로 /api/kis/:path* 로 묶지 말 것
 };

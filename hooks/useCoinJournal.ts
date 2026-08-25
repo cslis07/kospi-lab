@@ -20,6 +20,8 @@ export interface JournalEntry {
   result: 'open' | 'win' | 'loss' | 'even';
   resultR: number | null;     // 실현 R (win: +, loss: -)
   realizedUsdt?: number | null; // 실제 실현손익 (USDT) — 엔진 판정 vs 실제 성적 비교용
+  /** 거래소 청산 포지션 id — 자동 대조에서 같은 체결을 두 번 반영하지 않기 위한 표식 */
+  exchangePositionId?: string | null;
   // 기록 시점 리스크 패널 값 — "엔진 판정 vs 내 실제 사이징" 복기용
   seedUsdt?: number | null;   // 시드
   riskPct?: number | null;    // 1회 허용손실 %
@@ -79,6 +81,26 @@ export function useCoinJournal() {
 
   const clear = useCallback(() => save([]), [save]);
 
+  /**
+   * 거래소 대조 결과를 한 번에 반영한다(갱신 + 신규를 원자적으로).
+   * 낱개 update/add 를 여러 번 부르면 setState 배칭 때문에 일부가 유실될 수 있어 하나로 묶는다.
+   */
+  const applyReconcile = useCallback((
+    updates: { id: string; patch: Partial<JournalEntry> }[],
+    additions: JournalEntry[],
+  ) => {
+    if (!updates.length && !additions.length) return;
+    setEntries((prev) => {
+      const patchMap = new Map(updates.map((u) => [u.id, u.patch]));
+      const patched = prev.map((x) => (patchMap.has(x.id) ? { ...x, ...patchMap.get(x.id)! } : x));
+      const have = new Set(patched.map((x) => x.id));
+      const fresh = additions.filter((a) => !have.has(a.id));
+      const next = [...fresh, ...patched].sort((a, b) => b.ts - a.ts).slice(0, 1000);
+      try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
   // 통계: 마감된 기록만 집계
   const closed = entries.filter((e) => e.result !== 'open');
   const wins = closed.filter((e) => e.result === 'win');
@@ -95,5 +117,5 @@ export function useCoinJournal() {
     usdtCount: withUsdt.length,
   };
 
-  return { entries, mounted, add, update, remove, clear, stats };
+  return { entries, mounted, add, update, remove, clear, applyReconcile, stats };
 }

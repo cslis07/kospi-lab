@@ -1,6 +1,6 @@
 # KOSPI LAB — Project Status
 
-> **마지막 업데이트: 2026-08-22 (8차)**
+> **마지막 업데이트: 2026-08-24 (9차 — 대규모 업그레이드 4종)**
 > **위치:** `C:\Users\GB\Documents\kospi-lab`
 > **GitHub:** `cslis07/kospi-lab` · 기본 브랜치 `main` · ⚠️ **저장소 공개(public)**
 > **배포:** [kospi-lab.vercel.app](https://kospi-lab.vercel.app) · Vercel (git push → 자동 배포)
@@ -22,13 +22,27 @@
 - **Bitget 키에 선물 읽기 권한 추가** — `/api/bitget/positions`가 `40014: need future pos read`로 실패(프로덕션 실측). 현재 키가 현물 전용. Bitget API 관리에서 **선물 포지션 읽기(Futures/Position - Read)** 추가(읽기 전용 유지)하면 `/bitget`에 실제 청산가·미실현손익 표시. 라우트·서명은 정상.
 - **텔레그램 알림 켜기** — GitHub 저장소 Secrets에 `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` 추가([Secrets 위치](https://github.com/cslis07/kospi-lab/settings/secrets/actions)). CHAT_ID=`8710847228`. 봇 토큰은 BotFather 또는 coin-signal 저장소 Secrets에서 확인(보안상 문서 미기재). 없으면 크론은 스냅샷만 갱신하고 알림은 조용히 건너뛴다.
 
+### 🆕 2026-08-24 9차 — 대규모 업그레이드 4종 완료
+1. **주식 엔진 엣지 측정**(위 표) — 앱의 모든 엔진이 이제 측정됐다. 결과는 전부 "우위 없음"
+2. **클라우드 동기화** — 11개 localStorage 자산의 PC↔모바일 동기화(`/api/sync`·`useCloudSync`·헤더 표시등).
+   ⚠ **사용자 작업 필요**: Supabase에 `supabase/migrations/2026-08-24-cloud-sync.sql` 실행 +
+   Vercel env에 `SUPABASE_URL`·`SUPABASE_SERVICE_ROLE_KEY` 추가. **넣기 전까지는 '로컬 전용'으로 정상 동작**(에러 아님)
+3. **포지션 자동 기록** — Bitget 청산 이력 → 매매일지 자동 대조(`/journal` 거래소 대조 패널).
+   ⚠ 선물 읽기 권한 필요(§0 사용자 미완 항목과 동일)
+4. **통합 리스크 `/risk`** — 계좌 전체 익스포저·실효 레버리지·동시 손절 손실·집중도·상관 경고
+
 ### 다음 채팅이 가장 먼저 할 한 가지
 **코인 엔진 정리 — ✅ 측정·정렬 완료(2026-08-21 5차).** 3모드 엔진을 `scripts/backtest-modes.ts`로 측정(45일·4코인·81신호·**승률 41.7%**)한 결과 옛 엔진(49.7%)과 같은 **무엣지** 판정 → 방향 **(b) 리스크 프레이밍 통일** 확정. 3모드 UI(ModesSection)의 `TRADE=진입`(초록불)·`ULTRA=최상급` 프레이밍을 옛 엔진과 같은 정직성 기준(체크리스트·미검증 41.7% 명시)으로 정렬함.
 **남은 결정(사용자 몫):** 두 엔진을 코드 레벨에서 하나로 은퇴시킬지 여부. 현재는 둘 다 무엣지 상보 뷰로 유지 중(옛=심화 리스크패널/백테스트/AI, 3모드=즉시 다타임프레임 구조). 실제 삭제는 작동 기능 손실이라 사용자 승인 후.
 
 ### 🔬 엔진 엣지 측정 결과 (2026-08-07 · 이 프로젝트의 가장 중요한 사실)
 
-**측정 가능한 엣지가 어디에도 없다.** 독립적인 세 실험이 같은 결론:
+**측정 가능한 엣지가 어디에도 없다.** 독립적인 네 실험이 같은 결론(2026-08-24 주식까지 측정 완료 — 이제 이 앱의 모든 엔진이 측정됐다):
+
+> 🔴 **주식 측정의 결정적 함의**: 엔진 승률 54.1%는 좋아 보이지만 **진입 판정을 통째로 제거한 대조군이 54.8%**다.
+> 즉 "엔진이 골라준 자리"가 "아무 자리"보다 나을 게 없고, 54%는 전부 **롱온리 상승장 베타**다.
+> 절대 승률만 보면 속는다 — 대조군 없는 백테스트는 자기기만이다.
+
 
 | 실험 | 표본 | 결과 | 스크립트 |
 |---|---|---|---|
@@ -36,6 +50,7 @@
 | 추세추종 — 파생 수급 포함 | 28일·4코인·407건 | 승률 **48.4%** (±2.5%p), 차이 −1.1%p로 오차범위 안 | `scripts/backtest-deriv.ts` |
 | 펀딩 극단 되돌림 | 89일·19종목·2,168건 | **3/6 통과** → 하락장 베타로 판명 | `scripts/validate-funding.ts` |
 | 3모드 진입엔진(이관) | 45일·4코인·81신호 | 승률 **41.7%** (±5.9%p), 기대값 −0.167R | `scripts/backtest-modes.ts` |
+| **주식 룰 엔진**(2026-08-24) | 32종목·3년·362신호 | 승률 **54.1%**인데 **대조군 54.8%보다 낮음**(−0.7%p) | `scripts/backtest-stock-lab.ts` |
 
 - 손익분기 승률 50%(1R:1R). **왕복 수수료 0.12%가 손절폭 0.2% 기준 1R의 60%**를 먹어 실제로는 마이너스. 손절폭 1%로 넓히면 필요 승률 80%→56%지만, **엣지 0이면 수수료를 줄여도 0에 수렴할 뿐 못 넘는다.**
 - **펀딩 전략 탈락 결정타**: 대조군에서 **펀딩 무관하게 항상 숏만 쳐도 +0.222%(t=5.02)**. 전략의 83%가 숏이라 수익 상당분이 하락장 베타, 롱은 음수(−0.228%), 후반 45일 6배 약화, 파라미터 민감(16h/2%는 2/6). **실투자 금지.**
@@ -139,7 +154,8 @@
 - [ ] 해외/코인 portfolio 수기 입력 · DART 공시 정렬
 
 ### 구조적 (우선순위 낮음)
-- [ ] 통합 테스트 · 서버 컴포넌트 전환 · 모달 포커스 트랩 · **주식 엔진 엣지 측정**(코인만 측정함, UI엔 "미검증" 표기 완료)
+- [x] ~~주식 엔진 엣지 측정~~ ✅ 2026-08-24 완료(대조군 대비 −0.7%p, UI 반영 완료)
+- [ ] 통합 테스트 · 서버 컴포넌트 전환 · 모달 포커스 트랩
 
 ### 확장 여지 (KRX 추가 API — 활용신청·승인 필요)
 - [ ] 채권(bon)/파생(drv)/ESG — 미승인 401. data.krx.co.kr 활용신청 후 `lib/krx.ts`
@@ -198,11 +214,12 @@ npx tsx scripts/verify-macro.ts                      # 경제지표 수집 검�
 | `ECOS_API_KEY` | 한국은행 | 양쪽 |
 | `FRED_API_KEY` | 미국 CPI·국채·Brent·DXY·VIX | 양쪽 |
 | `CUSTOMS_API_KEY` | 관세청 | 양쪽 |
+| 🆕 `SUPABASE_URL`·`SUPABASE_SERVICE_ROLE_KEY` | 클라우드 동기화(`/api/sync`) | **미설정 — 넣으면 켜짐**(없으면 로컬 전용으로 정상 동작) |
 
 **GitHub Actions Secrets(Vercel env 아님)** — `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID`(크론 알림용, §0). ⚠ env 변경 후 반드시 재배포.
 
 ### 🔒 인증 게이트 (`middleware.ts` matcher — 코드 확인)
-- 게이트 대상 5개: `/api/bitget/*` · `/api/analyze` · `/api/stock-analysis` · `/api/coin-analysis` · `/api/debug/*`
+- 게이트 대상 6개: `/api/bitget/*` · `/api/analyze` · `/api/stock-analysis` · `/api/coin-analysis` · `/api/debug/*` · 🆕`/api/sync`(개인 데이터 원본)
 - **코인 신호·시장환경·ETF·고래는 공개**(`/api/coin-signal`·`/api/coin-env`·`/api/etf`·`/api/whale` 게이트 밖 — 의도됨)
 - 잠긴 페이지: 토큰 폼에 `APP_ACCESS_TOKEN` → HttpOnly 쿠키(1년). curl `-H "x-app-token: <토큰>"`
 

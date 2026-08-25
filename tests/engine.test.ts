@@ -18,6 +18,8 @@ import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '../lib/po
 import { scoreGrowth, growthPct } from '../lib/growthScreener';
 import { scoreUsGrowth, US_UNIVERSE, US_SECTORS, US_THEMES } from '../lib/usGrowth';
 import { scoreboard } from '../lib/journalStats';
+import { reconcileClosedPositions, plannedRiskUsdt, normSymbol, type ClosedPositionLike, type JournalLike } from '../lib/bitgetJournal';
+import { aggregateRisk, type FuturesPositionLike } from '../lib/riskDashboard';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -483,6 +485,197 @@ console.log('\n[ journalStats — 성적 실측 (순수 함수) ]');
     assert.equal(s.winRate, null); assert.equal(s.avgR, null);
     assert.equal(s.bestR, null); assert.equal(s.realizedUsdt, null);
     assert.equal(s.openRatio, 0);
+  });
+}
+
+/* ── 거래소 대조 (돈이 걸린 판정이라 고정한다) ──────────── */
+{
+  const DAY = 86_400_000;
+  const t0 = Date.UTC(2026, 7, 1);
+  const closed = (over: Partial<ClosedPositionLike> = {}): ClosedPositionLike => ({
+    positionId: 'p1', symbol: 'BTCUSDT', side: 'long',
+    openAvg: 100, closeAvg: 110, netProfit: 50,
+    openTs: t0, closeTs: t0 + DAY, ...over,
+  });
+  const plan = (over: Partial<JournalLike> = {}): JournalLike => ({
+    id: 'j1', ts: t0, symbol: 'BTCUSDT', direction: 'long',
+    entry: 100, stop: 95, result: 'open',
+    seedUsdt: 1000, riskPct: 1, ...over,
+  });
+
+  ok('대조: 계획 기록에 실제 실현손익을 채우고 R 로 환산', () => {
+    const r = reconcileClosedPositions([closed()], [plan()]);
+    assert.equal(r.updates.length, 1);
+    assert.equal(r.additions.length, 0);
+    const p = r.updates[0].patch;
+    assert.equal(p.result, 'win');
+    assert.equal(p.realizedUsdt, 50);
+    assert.equal(p.resultR, 5);              // 1R=시드1000의 1%=10 USDT → 50/10 = 5R
+    assert.equal(p.exchangePositionId, 'p1');
+  });
+
+  ok('대조: 계획 리스크를 모르면 R 을 지어내지 않는다(null)', () => {
+    const r = reconcileClosedPositions([closed()], [plan({ seedUsdt: null, riskPct: null })]);
+    assert.equal(r.updates[0].patch.resultR, null);
+    assert.equal(r.updates[0].patch.realizedUsdt, 50);
+  });
+
+  ok('대조: 노션·손절거리로 1R 역산 (2순위 경로)', () => {
+    // 노션 2000 · 손절거리 5% → 1R = 100 USDT. 실현 50 → 0.5R
+    const r = reconcileClosedPositions([closed()], [plan({ seedUsdt: null, riskPct: null, notionUsdt: 2000 })]);
+    assert.equal(r.updates[0].patch.resultR, 0.5);
+  });
+
+  ok('대조: 계획 없이 친 매매는 숨기지 않고 새 기록으로 남긴다', () => {
+    const r = reconcileClosedPositions([closed({ netProfit: -30 })], []);
+    assert.equal(r.updates.length, 0);
+    assert.equal(r.additions.length, 1);
+    const a = r.additions[0];
+    assert.equal(a.id, 'bitget-p1');
+    assert.equal(a.result, 'loss');
+    assert.equal(a.realizedUsdt, -30);
+    assert.equal(a.resultR, null);          // 계획이 없으니 R 없음
+    assert.equal(a.stop, 0);                // 손절가를 지어내지 않는다
+  });
+
+  ok('대조: 이미 반영된 포지션은 두 번 반영하지 않는다', () => {
+    const done = plan({ id: 'j1', result: 'win', exchangePositionId: 'p1' });
+    const r = reconcileClosedPositions([closed()], [done]);
+    assert.equal(r.updates.length, 0);
+    assert.equal(r.additions.length, 0);
+    assert.equal(r.skipped, 1);
+    // 자동 생성분(bitget-p1)도 같은 방식으로 걸러진다
+    const r2 = reconcileClosedPositions([closed()], [{ ...done, id: 'bitget-p1', exchangePositionId: null }]);
+    assert.equal(r2.skipped, 1);
+  });
+
+  ok('대조: 방향·심볼이 다르면 매칭하지 않는다', () => {
+    const rDir = reconcileClosedPositions([closed({ side: 'short' })], [plan()]);
+    assert.equal(rDir.updates.length, 0);
+    assert.equal(rDir.additions.length, 1);
+    const rSym = reconcileClosedPositions([closed({ symbol: 'ETHUSDT' })], [plan()]);
+    assert.equal(rSym.updates.length, 0);
+  });
+
+  ok('대조: 한 계획 기록이 두 포지션에 중복 매칭되지 않는다', () => {
+    const two = [closed({ positionId: 'p1' }), closed({ positionId: 'p2', closeTs: t0 + 2 * DAY })];
+    const r = reconcileClosedPositions(two, [plan()]);
+    assert.equal(r.updates.length, 1);      // 하나만 계획에 매칭
+    assert.equal(r.additions.length, 1);    // 나머지는 계획 없는 매매로
+  });
+
+  ok('대조: 청산보다 나중에 기록된 계획은 매칭 대상이 아니다', () => {
+    const r = reconcileClosedPositions([closed()], [plan({ ts: t0 + 5 * DAY })]);
+    assert.equal(r.updates.length, 0);
+    assert.equal(r.additions.length, 1);
+  });
+
+  ok('대조: 심볼 표기 차이(_UMCBL·소문자)를 흡수한다', () => {
+    assert.equal(normSymbol('BTCUSDT_UMCBL'), 'BTCUSDT');
+    assert.equal(normSymbol('btcusdt'), 'BTCUSDT');
+    const r = reconcileClosedPositions([closed({ symbol: 'BTCUSDT_UMCBL' })], [plan()]);
+    assert.equal(r.updates.length, 1);
+  });
+
+  ok('대조: 손익 0은 even', () => {
+    const r = reconcileClosedPositions([closed({ netProfit: 0 })], [plan()]);
+    assert.equal(r.updates[0].patch.result, 'even');
+  });
+
+  ok('plannedRiskUsdt: 시드·리스크% 우선, 없으면 노션×손절거리, 둘 다 없으면 null', () => {
+    assert.equal(plannedRiskUsdt(plan()), 10);
+    assert.equal(plannedRiskUsdt(plan({ seedUsdt: null, riskPct: null, notionUsdt: 2000 })), 100);
+    assert.equal(plannedRiskUsdt(plan({ seedUsdt: null, riskPct: null })), null);
+  });
+}
+
+/* ── 통합 리스크 집계 ────────────────────────────────── */
+{
+  const fx = 1400;
+  const fut = (o: Partial<FuturesPositionLike> = {}): FuturesPositionLike => ({
+    symbol: 'BTCUSDT', side: 'long', size: 1, markPrice: 100, leverage: 5,
+    marginSize: 20, unrealizedPL: 0, liquidationPrice: 80, liqDistPct: 20, ...o,
+  });
+  const base = { futures: [], openPlans: [], holdings: [], futuresEquity: null, usdkrw: fx };
+
+  ok('리스크: 빈 계좌는 0 과 null 로 안전', () => {
+    const r = aggregateRisk({ ...base });
+    assert.equal(r.grossExposureKrw, 0);
+    assert.equal(r.effectiveLeverage, null);
+    assert.equal(r.nearestLiq, null);
+    assert.equal(r.warnings.length, 0);
+  });
+
+  ok('리스크: 선물 노션·주식 보유를 원화로 합산', () => {
+    const r = aggregateRisk({
+      ...base,
+      futures: [fut({ size: 2, markPrice: 100 })],                    // 200 USDT
+      holdings: [{ ticker: '005930', quantity: 10, avgPrice: 70000, price: null, currency: 'KRW' }], // 70만원
+    });
+    assert.equal(r.futuresNotionalKrw, 200 * fx);
+    assert.equal(r.equityValueKrw, 700_000);
+    assert.equal(r.grossExposureKrw, 200 * fx + 700_000);
+    assert.equal(r.unpricedHoldings, 1);   // 현재가 없어 평단 대체 — 정직하게 센다
+  });
+
+  ok('리스크: 동시 손절 손실은 계획 있는 건만 합산하고 없는 건은 따로 센다', () => {
+    const r = aggregateRisk({
+      ...base,
+      openPlans: [
+        { symbol: 'BTCUSDT', direction: 'long', entry: 100, stop: 95, seedUsdt: 1000, riskPct: 1, result: 'open' },  // 10 USDT
+        { symbol: 'ETHUSDT', direction: 'long', entry: 100, stop: 90, notionUsdt: 500, result: 'open' },             // 50 USDT
+        { symbol: 'XRPUSDT', direction: 'long', entry: 100, stop: 0, result: 'open' },                               // 손절 없음
+        { symbol: 'SOLUSDT', direction: 'long', entry: 100, stop: 95, seedUsdt: 1000, riskPct: 1, result: 'win' },   // 닫힘 → 제외
+      ],
+    });
+    assert.equal(r.plannedStopLossKrw, 60 * fx);
+    assert.equal(r.plansWithoutStop, 1);
+  });
+
+  ok('리스크: 청산 임박·고레버리지를 경고로 승격', () => {
+    const r = aggregateRisk({
+      ...base,
+      futures: [fut({ liqDistPct: 6 })],
+      futuresEquity: 10,                     // 노션 100 / 자기자본 10 → 10배
+    });
+    const liq = r.warnings.find((w) => w.title.includes('청산까지'));
+    assert.ok(liq && liq.level === 'high', '청산 8% 미만은 high');
+    const lev = r.warnings.find((w) => w.title.includes('실효 레버리지'));
+    assert.ok(lev && lev.level === 'high', '6배 초과는 high');
+    assert.ok(Math.abs(r.effectiveLeverage! - 10) < 1e-9);
+  });
+
+  ok('리스크: 코인 상관 경고 — 나눠 담아도 분산이 아니다', () => {
+    const r = aggregateRisk({
+      ...base,
+      futures: [fut({ symbol: 'BTCUSDT' }), fut({ symbol: 'ETHUSDT' })],
+    });
+    assert.ok(r.warnings.some((w) => w.title.includes('코인 익스포저')));
+  });
+
+  ok('리스크: 방향 편중과 최대 집중을 계산', () => {
+    const r = aggregateRisk({
+      ...base,
+      futures: [fut({ symbol: 'BTCUSDT', size: 8 }), fut({ symbol: 'ETHUSDT', size: 2, side: 'short' })],
+    });
+    assert.equal(r.longKrw, 800 * fx);
+    assert.equal(r.shortKrw, 200 * fx);
+    assert.equal(r.netDirectionKrw, 600 * fx);
+    assert.equal(r.topConcentration!.label, 'BTC');
+    assert.ok(Math.abs(r.topConcentration!.pct - 80) < 1e-9);
+  });
+
+  ok('리스크: 경고는 심각도 순으로 정렬된다', () => {
+    const r = aggregateRisk({ ...base, futures: [fut({ liqDistPct: 5 })], futuresEquity: 10 });
+    const lv = r.warnings.map((w) => w.level);
+    const rank = { high: 0, mid: 1, low: 2 };
+    for (let i = 1; i < lv.length; i++) assert.ok(rank[lv[i - 1]] <= rank[lv[i]], '정렬 위반');
+  });
+
+  ok('리스크: 환율 0·음수는 기본값으로 방어', () => {
+    const r = aggregateRisk({ ...base, futures: [fut()], usdkrw: 0 });
+    assert.equal(r.usdkrw, 1400);
+    assert.ok(r.grossExposureKrw > 0);
   });
 }
 

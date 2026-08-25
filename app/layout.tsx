@@ -38,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           데이터 출처: 네이버 금융·KIS·KRX·DART·Bitget · 투자 참고용<br />
           <span className="opacity-70">
             본 서비스의 모든 분석·점수는 자동 계산 참고 정보이며 투자 권유가 아닙니다.
-            <strong className="opacity-100"> 룰 엔진은 자체 백테스트(727건)에서 승률 49.7%로 예측 우위가 확인되지 않았습니다</strong> —
+            <strong className="opacity-100"> 자체 대규모 측정에서 코인(727건 49.7% · 81건 41.7%)·주식(362건 54.1%, 진입필터 없는 대조군 54.8%보다 낮음) 모두 예측 우위가 확인되지 않았습니다</strong> —
             체크리스트로만 사용하세요. 투자 손실의 책임은 본인에게 있으며, 레버리지 상품은 원금 초과 손실이 발생할 수 있습니다.
           </span>
         </footer>

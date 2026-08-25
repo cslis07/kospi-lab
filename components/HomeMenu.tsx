@@ -27,6 +27,7 @@ const GROUPS: Group[] = [
       { href: '/portfolio', icon: '💰', label: '통합자산' },
       { href: '/my-stocks', icon: '⭐', label: '내 주식' },
       { href: '/bitget',    icon: '🪙', label: '비트겟' },
+      { href: '/risk',      icon: '🛡', label: '통합리스크' },
       { href: '/virtual',   icon: '🧪', label: '가상투자' },
     ],
   },

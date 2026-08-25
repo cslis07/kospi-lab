@@ -4,6 +4,7 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import ThemeToggle from './ThemeToggle';
+import SyncIndicator from './SyncIndicator';
 import GlobalSearch from './GlobalSearch';
 import type { FxRate } from '@/lib/types';
 
@@ -160,6 +161,7 @@ export default function Header() {
             <span>{time}</span>
           </div>
 
+          <SyncIndicator />
           <ThemeToggle />
         </div>
 

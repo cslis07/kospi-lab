@@ -13,6 +13,7 @@ import { useMemo } from 'react';
 import { useCoinJournal } from '@/hooks/useCoinJournal';
 import { useStockJournal } from '@/hooks/useStockJournal';
 import { scoreboard, type Scoreboard } from '@/lib/journalStats';
+import ExchangeReconcile from '@/components/ExchangeReconcile';
 
 function pct(v: number | null) { return v == null ? '-' : `${v.toFixed(1)}%`; }
 function r(v: number | null) { return v == null ? '-' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}R`; }
@@ -116,11 +117,14 @@ export default function JournalPage() {
       <div className="mb-4">
         <h1 className="text-lg font-bold text-[var(--text)]">매매일지 성적표 <span className="text-xs font-normal text-[var(--text-muted)]">내 실제 성적 실측</span></h1>
         <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
-          이 앱의 룰 엔진은 예측 우위가 확인되지 않았습니다(자체 백테스트 727건 · 승률 49.7%).
+          이 앱의 룰 엔진은 예측 우위가 확인되지 않았습니다(코인 727건 49.7%·81건 41.7% / 주식 362건 54.1%로 진입필터 없는 대조군 54.8%보다 낮음).
           <strong className="text-[var(--text)]"> 믿을 것은 엔진 점수가 아니라 내 실제 성적</strong>입니다 —
           손절을 지켰는지, 승률과 기대값이 실제로 어떤지를 여기서 봅니다.
         </p>
       </div>
+
+      {/* 거래소 대조 — 성적표의 입력을 손이 아니라 거래소가 채우게 한다(생존 편향 차단) */}
+      {coin.mounted && <ExchangeReconcile entries={coin.entries} applyReconcile={coin.applyReconcile} />}
 
       {(coin.mounted || stock.mounted) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

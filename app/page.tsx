@@ -115,8 +115,8 @@ function DashboardInner() {
           <strong className="text-[var(--text)]">방향 판단은 사용자 몫</strong>이고, 앱은
           <strong className="text-[var(--text)]"> 손절·사이징·청산가·기록</strong>을 맡습니다.
           룰 엔진 점수는 체크리스트일 뿐 매수·매도 신호가 아닙니다 —
-          자체 대규모 백테스트에서 <strong className="text-[var(--text)]">승률 49.7%</strong>로
-          예측 우위가 확인되지 않았습니다(2026-08-07 · 727건).
+          자체 대규모 측정에서 <strong className="text-[var(--text)]">코인·주식 엔진 모두 예측 우위가 확인되지 않았습니다</strong>
+          (코인 727건 49.7%·81건 41.7% / 주식 362건 54.1%인데 <strong className="text-[var(--text)]">진입 판정을 뺀 대조군이 54.8%로 더 높음</strong> — 상승장 베타).
         </p>
       </div>
 
@@ -133,6 +133,7 @@ function DashboardInner() {
           <QuickCard href="/portfolio" emoji="💰" title="통합 자산"         desc="국내·해외·코인 합산" />
           <QuickCard href="/my-stocks" emoji="⭐" title="내 주식"           desc="관심·포트폴리오" />
           <QuickCard href="/bitget"    emoji="🪙" title="비트겟 포트폴리오" desc="내 코인 잔고" />
+          <QuickCard href="/risk"      emoji="🛡" title="통합 리스크"       desc="계좌 전체 익스포저·집중도" />
           <QuickCard href="/virtual"   emoji="🧪" title="가상투자·백업"     desc="모의매매 · 백업/복원" />
         </Section>
 
