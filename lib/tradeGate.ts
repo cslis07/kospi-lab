@@ -154,10 +154,14 @@ export function evaluateTradeGate(p: TradePlan): GateResult {
     const after = p.account.sameSideExposure + p.notion;
     const total = p.account.totalExposure + p.notion;
     const pctAfter = total > 0 ? (after / total) * 100 : 0;
-    const bad = pctAfter > LIMITS.maxSameSidePct && p.account.totalExposure > 0;
+    const first = p.account.totalExposure <= 0;
+    const bad = pctAfter > LIMITS.maxSameSidePct && !first;
     checks.push({
       id: 'skew', label: '방향 쏠림', state: bad ? 'fail' : 'pass',
-      detail: `진입 후 ${p.direction === 'long' ? '롱' : '숏'} 비중 ${pctAfter.toFixed(0)}%`,
+      // 열린 포지션이 없으면 '비중 100%'는 쏠림이 아니라 그냥 첫 포지션이다 — 그대로 쓰면 오해를 준다
+      detail: first
+        ? '열린 포지션 없음 — 이 매매가 첫 포지션'
+        : `진입 후 ${p.direction === 'long' ? '롱' : '숏'} 비중 ${pctAfter.toFixed(0)}%`,
       fix: bad ? '이미 같은 방향에 몰려 있습니다. 이 진입은 분산이 아니라 같은 베팅을 키우는 것입니다.' : undefined,
     });
   } else {

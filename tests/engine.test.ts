@@ -783,6 +783,14 @@ console.log('\n[ journalStats — 성적 실측 (순수 함수) ]');
     assert.equal(evaluateTradeGate(plan({ account: { sameSideExposure: 0, totalExposure: 9000 } })).verdict, 'go');
   });
 
+  ok('판정: 열린 포지션이 없으면 비중 100%를 쏠림으로 부르지 않는다', () => {
+    const g = evaluateTradeGate(plan({ account: { sameSideExposure: 0, totalExposure: 0 } }));
+    const skew = g.checks.find((c) => c.id === 'skew')!;
+    assert.equal(skew.state, 'pass');
+    assert.ok(skew.detail.includes('첫 포지션'), skew.detail);
+    assert.equal(g.verdict, 'go');
+  });
+
   ok('판정: 계좌 정보를 못 읽으면 실패가 아니라 unknown (모르는 걸 통과로 위장하지 않는다)', () => {
     const g = evaluateTradeGate(plan());
     assert.equal(g.checks.find((c) => c.id === 'skew')!.state, 'unknown');
