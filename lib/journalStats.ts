@@ -15,6 +15,8 @@ export interface JournalRow {
 }
 
 export interface WindowStat {
+  /** R 이 기록된 건수 — 기대값의 실제 표본 */
+  rCount?: number;
   label: string;
   closed: number;
   winRate: number | null;   // %
@@ -37,6 +39,9 @@ export interface Scoreboard {
   /** 실현손익 합계(입력된 건만) + 입력 건수 */
   realizedUsdt: number | null;
   realizedCount: number;
+  /** R 이 기록된 건수 / R 을 모르는 건수 — 기대값을 믿어도 되는지 판단용 */
+  rCount: number;
+  noRCount: number;
   windows: WindowStat[];    // 7일 / 30일 / 전체
   /** R 분포 히스토그램 (버킷) */
   rBuckets: { label: string; count: number }[];
@@ -49,11 +54,15 @@ function windowStat(label: string, rows: JournalRow[]): WindowStat {
   const w = closed.filter((r) => r.result === 'win').length;
   const l = closed.filter((r) => r.result === 'loss').length;
   const decided = w + l;   // even 은 승률 분모에서 제외
+  const rWithin = closed.map((r) => r.resultR).filter((x): x is number => x != null);
   return {
     label,
     closed: closed.length,
     winRate: decided ? (w / decided) * 100 : null,
-    avgR: closed.length ? closed.reduce((a, r) => a + (r.resultR ?? 0), 0) / closed.length : null,
+    // ⚠ R 이 없는 기록(계획 없이 친 매매·거래소 자동수집)을 0 으로 세면 안 된다.
+    //    "모른다"가 "본전"으로 둔갑해, 실제로 크게 잃은 계좌가 기대값 0.00R 로 보인다.
+    avgR: rWithin.length ? rWithin.reduce((a, v) => a + v, 0) / rWithin.length : null,
+    rCount: rWithin.length,
   };
 }
 
@@ -82,7 +91,10 @@ export function scoreboard(rows: JournalRow[], now = Date.now()): Scoreboard {
     losses: losses.length,
     evens: evens.length,
     winRate: decided ? (wins.length / decided) * 100 : null,
-    avgR: closed.length ? closed.reduce((a, r) => a + (r.resultR ?? 0), 0) / closed.length : null,
+    // R 이 기록된 건만으로 계산한다(위 windowStat 과 같은 이유)
+    avgR: rValues.length ? rValues.reduce((a, v) => a + v, 0) / rValues.length : null,
+    rCount: rValues.length,
+    noRCount: closed.length - rValues.length,
     bestR: rValues.length ? Math.max(...rValues) : null,
     worstR: rValues.length ? Math.min(...rValues) : null,
     openRatio: rows.length ? (rows.length - closed.length) / rows.length : 0,

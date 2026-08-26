@@ -44,7 +44,12 @@ function ScoreCard({ title, href, sb, unit }: { title: string; href: string; sb:
             </div>
             <div className="rounded-xl bg-white/[0.03] p-2.5 text-center">
               <p className="text-[10px] text-[var(--text-muted)]">기대값</p>
-              <p className={`text-lg font-bold tabular-nums ${sb.avgR != null && sb.avgR >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{r(sb.avgR)}</p>
+              <p className={`text-lg font-bold tabular-nums ${sb.avgR == null ? 'text-[var(--text-muted)]' : sb.avgR >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{r(sb.avgR)}</p>
+              {/* R 은 계획(손절·사이징)이 있어야 환산된다. 없는 걸 0 으로 채우면 잃은 계좌가 본전으로 보인다 */}
+              <p className="text-[9px] text-[var(--text-muted)] mt-0.5 leading-tight">
+                {sb.rCount > 0 ? `R 기록 ${sb.rCount}건 기준` : 'R 환산 불가 — 계획(손절·사이징) 기록 없음'}
+                {sb.noRCount > 0 && sb.rCount > 0 ? ` · 제외 ${sb.noRCount}건` : ''}
+              </p>
               <p className="text-[9px] text-[var(--text-muted)]">청산 {sb.closed}건</p>
             </div>
             <div className="rounded-xl bg-white/[0.03] p-2.5 text-center">
@@ -135,6 +140,9 @@ export default function JournalPage() {
 
       <p className="text-[10px] text-[var(--text-muted)] mt-4 leading-relaxed">
         ※ 실현손익·승률은 <strong>결과를 입력한 청산 건</strong>만 반영합니다. 미청산(결과 미입력)은 승률 분모에서 제외됩니다.
+        <br />※ <strong>기대값(R)은 계획을 기록한 매매에서만</strong> 계산됩니다 — 손절·사이징이 없으면 1R 이 얼마인지 알 수 없어 비워 둡니다.
+        거래소에서 자동 수집한 매매(계획 없이 진입)는 <strong>실현손익에는 들어가고 R 에는 안 들어갑니다.</strong>
+        기대값이 비어 있는데 실현손익이 마이너스라면, <strong className="text-[var(--text)]">계획 없이 친 매매가 손실을 냈다는 뜻</strong>입니다.
         데이터는 이 브라우저에만 저장되며 <Link href="/virtual" className="text-sky-400 hover:underline">가상투자·백업</Link>에서 내보낼 수 있습니다.
       </p>
     </div>
