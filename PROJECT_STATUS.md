@@ -4,13 +4,13 @@
 > **위치:** `C:\Users\GB\Documents\kospi-lab`
 > **GitHub:** `cslis07/kospi-lab` · 기본 브랜치 `main` · ⚠️ **저장소 공개(public)**
 > **배포:** [kospi-lab.vercel.app](https://kospi-lab.vercel.app) · Vercel (git push → 자동 배포)
-> **규모:** API 라우트 44 · 페이지 25 · lib 32 · hooks 11 · components 26 · scripts 11 · tests 1(42케이스)
+> **규모:** API 라우트 44 · 페이지 25 · lib 32 · hooks 11 · components 26 · scripts 12 · tests 1(61케이스)
 
 ---
 
 ## 0. 지금 하던 일 (WIP)
 
-**깨끗한 상태** — 워킹트리 비어 있음(루트에 핸드오프 PDF 1개만 미추적, 커밋 대상 아님). `main`이 `origin/main`과 동기. 게이트 전부 통과(테스트 42/42 · tsc 0 · build OK).
+**깨끗한 상태** — 워킹트리 비어 있음(루트에 핸드오프 PDF 1개만 미추적, 커밋 대상 아님). `main`이 `origin/main`과 동기. 게이트 전부 통과(테스트 61/61 · tsc 0 · build OK).
 
 ✅ **7차(성장주 미국검색 fix)는 2026-08-22 오전 한도 리셋 후 배포 완료**(프로덕션 마커 실측). ✅ **8차에서 배포예산 문제를 구조적으로 해결** — 크론 스냅샷을 **data 브랜치로 이전**(§6). 이제 크론은 main을 건드리지 않아 Vercel 배포를 소비하지 않고, main 히스토리도 봇 커밋 없이 깨끗하다.
 
@@ -25,8 +25,10 @@
 ### 🆕 2026-08-24 9차 — 대규모 업그레이드 4종 완료
 1. **주식 엔진 엣지 측정**(위 표) — 앱의 모든 엔진이 이제 측정됐다. 결과는 전부 "우위 없음"
 2. **클라우드 동기화** — 11개 localStorage 자산의 PC↔모바일 동기화(`/api/sync`·`useCloudSync`·헤더 표시등).
-   ⚠ **사용자 작업 필요**: Supabase에 `supabase/migrations/2026-08-24-cloud-sync.sql` 실행 +
-   Vercel env에 `SUPABASE_URL`·`SUPABASE_SERVICE_ROLE_KEY` 추가. **넣기 전까지는 '로컬 전용'으로 정상 동작**(에러 아님)
+   ✅ **가동 완료(2026-08-24)**: 공용 프로젝트 `zsjdilispaoqlcdywxky`에 `kl_sync` 생성 + env 양쪽 등록 + 재배포.
+   **프로덕션 E2E 실측**: `configured:true` · push `applied:1` · 재조회로 내려받기 확인 ·
+   낡은 `updatedAt`은 `applied:0`으로 거부(LWW 정상). **RLS 실측**: 카나리 행을 넣고 anon 키로 조회하면 `[]`,
+   쓰기는 401 `42501` — 공용 프로젝트여도 개인 데이터가 새지 않는다
 3. **포지션 자동 기록** — Bitget 청산 이력 → 매매일지 자동 대조(`/journal` 거래소 대조 패널).
    ⚠ 선물 읽기 권한 필요(§0 사용자 미완 항목과 동일)
 4. **통합 리스크 `/risk`** — 계좌 전체 익스포저·실효 레버리지·동시 손절 손실·집중도·상관 경고
@@ -90,13 +92,15 @@
 
 ### 🔬 분석
 **코인선물 분석 `/coin-analysis`** (BTC·ETH·XRP·SOL) — ⚠ **엔진 2개 병존**:
-- **3모드 진입엔진**(`lib/coinSignalModes.ts` · `/api/coin-signal` 경량·즉시 로딩 45초): SCALP/SWING/POSITION, Direction·Entry Quality·Confidence·Event Risk → TRADE/WATCH/NO_TRADE/PAUSED/ULTRA. 추격 감쇠(진입존을 방향대로 0.5ATR 초과 시 Entry 곱셈 감소). ⚠ 엣지 미측정
+- **3모드 진입엔진**(`lib/coinSignalModes.ts` · `/api/coin-signal` 경량·즉시 로딩 45초): SCALP/SWING/POSITION, Direction·Entry Quality·Confidence·Event Risk → TRADE/WATCH/NO_TRADE/PAUSED/ULTRA. 추격 감쇠(진입존을 방향대로 0.5ATR 초과 시 Entry 곱셈 감소). ✅ 측정됨 — 승률 41.7%로 무엣지(5차)
 - **기존 룰 엔진**(`lib/coinAnalysis.ts` · `/api/coin-analysis` 게이트·무거움): 다중TF·파생수급·레짐필터·리스크 패널(청산가·분할매수)·백테스트·AI 브리핑. **"분석" 버튼으로만 실행**
 - 실시간 청산(`WhaleLiquidationPanel`, 브라우저 WS Binance→Bybit) · 온체인 고래(`/api/whale`)
 
 **국내주식 분석 `/stock-analysis`** — 버튼 실행 · 룰 엔진(추세+수급±35+재무+공시+정책+CIO+코스피) · 경제지표 패널 · 백테스트 · AI 브리핑 · 판정 기록. `?ticker=` 딥링크.
 
-**매매일지 성적표 `/journal`** — 코인·주식 저널을 시간창별(7/30일/전체) 승률·기대값·R 분포·미실현손익·미청산 비율로 실측(`lib/journalStats.ts` 순수 함수).
+**매매일지 성적표 `/journal`** — 코인·주식 저널을 시간창별(7/30일/전체) 승률·기대값·R 분포·미실현손익·미청산 비율로 실측(`lib/journalStats.ts` 순수 함수). 🆕 **거래소 대조 패널**(`ExchangeReconcile`) — Bitget 청산 이력의 실현손익으로 계획 기록을 닫고, 계획 없이 친 매매도 새 기록으로 드러낸다(생존편향 차단, `lib/bitgetJournal.ts` 순수함수).
+
+**🆕 통합 리스크 `/risk`** — 계좌 전체 관점: 총 익스포저·실효 레버리지·동시 손절 시 손실·방향 편중·최대 집중도·청산 최근접을 원화로 합산. 숫자에서 자동 유도되는 경고만 표시(청산 임박·고레버리지·단일종목 과집중·"코인은 나눠 담아도 분산이 아니다"). 손절 없는 기록은 합계에서 빼고 '계산되지 않은 위험'으로 별도 표기(`lib/riskDashboard.ts` 순수함수).
 
 **Bitget 선물 포지션 `/bitget`** — 현물 + USDT 선물(mix API): 실제 평단·레버리지·미실현손익·청산가·청산까지 거리, 15% 미만 경고. 읽기 전용.
 
@@ -214,7 +218,7 @@ npx tsx scripts/verify-macro.ts                      # 경제지표 수집 검�
 | `ECOS_API_KEY` | 한국은행 | 양쪽 |
 | `FRED_API_KEY` | 미국 CPI·국채·Brent·DXY·VIX | 양쪽 |
 | `CUSTOMS_API_KEY` | 관세청 | 양쪽 |
-| 🆕 `SUPABASE_URL`·`SUPABASE_SERVICE_ROLE_KEY` | 클라우드 동기화(`/api/sync`) | **미설정 — 넣으면 켜짐**(없으면 로컬 전용으로 정상 동작) |
+| 🆕 `SUPABASE_URL`·`SUPABASE_SERVICE_ROLE_KEY` | 클라우드 동기화(`/api/sync`) | ✅ **양쪽 설정 완료(2026-08-24)** — 프로젝트 `zsjdilispaoqlcdywxky`(톡메모·naver-ad-bid·youtube-intelligence 공용, 테이블 `kl_sync`) |
 
 **GitHub Actions Secrets(Vercel env 아님)** — `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID`(크론 알림용, §0). ⚠ env 변경 후 반드시 재배포.
 
