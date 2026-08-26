@@ -17,6 +17,7 @@ import LivePriceTag from '@/components/LivePriceTag';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '@/lib/positionSizing';
 import { jsonFetcher, ApiError } from '@/lib/fetcher';
+import TradeGate from '@/components/TradeGate';
 
 // 시세·스캔 등 부수 요청은 조용히 실패해도 무방하지만, 분석 본문은 jsonFetcher(throw)를 쓴다
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -326,12 +327,15 @@ function OrderbookPanel({ ob, price, digits }: {
 
 export interface RiskSizing { lev: number; seed: number; riskPct: number; notion: number; margin: number }
 
-function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr, levMax, fundingRatePct, priceDigits, entryPlan, onSizing }: {
+function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr, levMax, fundingRatePct, priceDigits, entryPlan, onSizing, eventHoursUntil, eventTitle, account }: {
   entry: number; stop: number; stopPct: number; target1: number; target2: number;
   direction: 'long' | 'short' | 'wait';
   levAggr: number; levMax: number; fundingRatePct: number; priceDigits: number;
   entryPlan: { type: 'now' | 'pullback' | 'wait'; zoneLow: number; zoneHigh: number };
   onSizing?: (s: RiskSizing) => void;   // 부모(매매일지)가 실제 설정값을 읽도록 보고
+  // 실행 가능 판정에 쓰는 맥락 — 없으면 해당 검사는 '확인 불가'로 남는다
+  eventHoursUntil?: number | null; eventTitle?: string | null;
+  account?: { sameSideExposure: number; totalExposure: number } | null;
 }) {
   const [seed, setSeed] = useState('1000');
   const [riskPct, setRiskPct] = useState('1');
@@ -437,6 +441,19 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
       </div>
       {safety < 2 && (
         <p className="text-[10px] font-semibold text-red-400 mt-2.5">⚠ 청산선이 손절선의 {safety.toFixed(1)}배 거리 — 손절 전에 청산될 수 있습니다. 레버리지를 낮추세요.</p>
+      )}
+
+      {/* 실행 가능 판정 — 사이징을 정한 직후가 "해도 되나"를 물을 자리다 */}
+      {direction !== 'wait' && notion > 0 && (
+        <div className="mt-3 pt-3 border-t border-[var(--border)]">
+          <TradeGate plan={{
+            direction, entry, stop, target1,
+            seed: s, riskPct: r, leverage: lev, notion, margin,
+            liqSafety: safety,
+            eventHoursUntil: eventHoursUntil ?? null, eventTitle: eventTitle ?? null,
+            account: account ?? null,
+          }} />
+        </div>
       )}
 
       {/* 분할 매수 플랜 — 얼마씩 나눠 담을지 */}
@@ -584,6 +601,23 @@ export default function CoinAnalysisPage() {
 
   // 리스크 패널이 보고한 실제 설정값(배율·시드·노션). saveToJournal 이 이걸 기록한다.
   const sizingRef = useRef<RiskSizing | null>(null);
+
+  // 실행 가능 판정의 '방향 쏠림' 검사용 계좌 맥락. 게이트 뒤라 잠겨 있으면 조용히 null
+  // → 판정에서 통과가 아니라 '확인 불가'로 표시된다(모르는 걸 통과로 위장하지 않는다).
+  const { data: posData } = useSWR<{ positions?: { symbol: string; side: 'long' | 'short'; size: number; markPrice: number }[] }>(
+    '/api/bitget/positions', fetcher, { refreshInterval: 60000, shouldRetryOnError: false },
+  );
+  const accountCtx = useMemo(() => {
+    const ps = posData?.positions;
+    if (!ps || !v) return null;
+    let same = 0, total = 0;
+    for (const p of ps) {
+      const n = Math.abs(p.size * p.markPrice);
+      total += n;
+      if (p.side === v.direction) same += n;
+    }
+    return { sameSideExposure: same, totalExposure: total };
+  }, [posData, v]);
 
   const saveToJournal = () => {
     if (!data || !v) return;
@@ -1361,6 +1395,9 @@ export default function CoinAnalysisPage() {
               fundingRatePct={data.funding.ratePct} priceDigits={priceDigits}
               entryPlan={v.entryPlan}
               onSizing={(sz) => { sizingRef.current = sz; }}
+              eventHoursUntil={data.event?.hoursUntil ?? null}
+              eventTitle={data.event?.title ?? null}
+              account={accountCtx}
             />
           </div>
 

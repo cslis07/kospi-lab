@@ -21,6 +21,7 @@ import { scoreboard } from '../lib/journalStats';
 import { reconcileClosedPositions, plannedRiskUsdt, normSymbol, type ClosedPositionLike, type JournalLike } from '../lib/bitgetJournal';
 import { aggregateRisk, type FuturesPositionLike } from '../lib/riskDashboard';
 import { isEmptyData, findFirstSyncConflicts } from '../lib/cloudSync';
+import { evaluateTradeGate, LIMITS, type TradePlan } from '../lib/tradeGate';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -709,6 +710,89 @@ console.log('\n[ journalStats — 성적 실측 (순수 함수) ]');
     // 이미 동기화 이력(meta)이 있으면 LWW 로 처리 — 충돌로 보지 않는다
     assert.deepEqual(findFirstSyncConflicts(remote, { 'kospi-lab-coin-journal': { hash: 'h', updatedAt: 1 } }), []);
     delete g.localStorage;
+  });
+}
+
+/* ── 실행 가능 판정 (Go/No-Go) — "사도 되는가"에 정직하게 답하는 부분 ── */
+{
+  const plan = (o: Partial<TradePlan> = {}): TradePlan => ({
+    direction: 'long', entry: 100, stop: 99, target1: 102,
+    seed: 1000, riskPct: 1, leverage: 5, notion: 1000, margin: 200,
+    liqSafety: 5, eventHoursUntil: null, account: null, ...o,
+  });
+
+  ok('판정: 조건이 맞으면 GO — 다만 "돈 번다"가 아니라 "버틴다"', () => {
+    const g = evaluateTradeGate(plan());
+    assert.equal(g.verdict, 'go');
+    assert.equal(g.lossAtStop, 10);          // 노션1000 × 손절1% = 10 USDT
+    assert.equal(g.lossPctOfSeed, 1);
+    assert.ok(g.headline.includes('실행 가능'));
+  });
+
+  ok('판정: 손절 없으면 무조건 NO (크기 조정으로 해결 안 됨)', () => {
+    const g = evaluateTradeGate(plan({ stop: 0 }));
+    assert.equal(g.verdict, 'no');
+    assert.equal(g.checks.find((c) => c.id === 'stop')!.state, 'fail');
+  });
+
+  ok('판정: 롱인데 손절이 진입가 위면 NO', () => {
+    const g = evaluateTradeGate(plan({ stop: 101 }));
+    assert.equal(g.verdict, 'no');
+    assert.ok(g.checks.find((c) => c.id === 'stop')!.fix!.includes('아래로'));
+  });
+
+  ok('판정: 계좌 대비 손실 초과는 RESIZE + 최대 노션 제시', () => {
+    // 노션 5000 × 손절1% = 50 USDT = 시드의 5% > 한도 2%
+    const g = evaluateTradeGate(plan({ notion: 5000 }));
+    assert.equal(g.verdict, 'resize');
+    assert.equal(g.suggest.maxNotion, 2000);   // 1000×2% ÷ 1% = 2000
+  });
+
+  ok('판정: 청산이 손절보다 가까우면 RESIZE + 최대 배율 제시', () => {
+    const g = evaluateTradeGate(plan({ liqSafety: 1 }));
+    assert.equal(g.verdict, 'resize');
+    assert.equal(g.checks.find((c) => c.id === 'liq')!.state, 'fail');
+    assert.equal(g.suggest.maxLeverage, 2);    // 5배 × (1/2)
+  });
+
+  ok('판정: 증거금이 시드를 넘으면 RESIZE + 허용손실 상한 제시', () => {
+    const g = evaluateTradeGate(plan({ margin: 2000 }));
+    assert.equal(g.verdict, 'resize');
+    assert.equal(g.suggest.maxRiskPct, 0.5);   // 1% × 1000/2000
+  });
+
+  ok('판정: 손익비 1 미만이면 NO (크기로 해결 안 되는 산수 문제)', () => {
+    const g = evaluateTradeGate(plan({ target1: 100.5 }));   // 이익 0.5 vs 손실 1
+    assert.equal(g.verdict, 'no');
+    assert.equal(g.checks.find((c) => c.id === 'rr')!.state, 'fail');
+  });
+
+  ok('판정: 이벤트 12h 내면 NO', () => {
+    const g = evaluateTradeGate(plan({ eventHoursUntil: 3, eventTitle: 'CPI' }));
+    assert.equal(g.verdict, 'no');
+    assert.ok(g.checks.find((c) => c.id === 'event')!.detail.includes('CPI'));
+    // 12시간을 넘기면 통과
+    assert.equal(evaluateTradeGate(plan({ eventHoursUntil: 30 })).verdict, 'go');
+  });
+
+  ok('판정: 같은 방향 쏠림이 한도를 넘으면 NO', () => {
+    const g = evaluateTradeGate(plan({ account: { sameSideExposure: 9000, totalExposure: 9000 } }));
+    assert.equal(g.checks.find((c) => c.id === 'skew')!.state, 'fail');
+    assert.equal(g.verdict, 'no');
+    // 반대 방향이 충분히 있으면 통과
+    assert.equal(evaluateTradeGate(plan({ account: { sameSideExposure: 0, totalExposure: 9000 } })).verdict, 'go');
+  });
+
+  ok('판정: 계좌 정보를 못 읽으면 실패가 아니라 unknown (모르는 걸 통과로 위장하지 않는다)', () => {
+    const g = evaluateTradeGate(plan());
+    assert.equal(g.checks.find((c) => c.id === 'skew')!.state, 'unknown');
+    assert.equal(g.verdict, 'go');   // unknown 은 차단 사유가 아니다
+  });
+
+  ok('판정: 한도 상수가 보수적으로 유지된다(무단 완화 방지)', () => {
+    assert.equal(LIMITS.maxRiskPctPerTrade, 2);
+    assert.equal(LIMITS.minLiqSafety, 2);
+    assert.equal(LIMITS.eventBlockHours, 12);
   });
 }
 
