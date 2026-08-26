@@ -77,6 +77,25 @@ export function useCloudSync(): CloudSyncState {
       const force = forceRef.current;
       forceRef.current = null;
 
+      // 충돌 해결 '클라우드 것으로' — 로컬을 절대 밀지 않고 서버 값으로 덮어쓴다.
+      // ⚠ 여기서 아래의 POST 경로를 타면 로컬이 서버를 덮어써(now 타임스탬프) 정반대로 동작한다.
+      //   그래서 GET 만으로 서버를 받아 반영하는 전용 경로를 둔다.
+      if (force === 'remote') {
+        const res = await fetch('/api/sync');
+        if (res.status === 401) { setStatus('locked'); return; }
+        const j = (await res.json()) as { configured?: boolean; items?: SyncItem[]; error?: string };
+        if (j.configured === false) { setStatus('off'); return; }
+        if (!res.ok) { setStatus('error'); setError(j.error ?? `HTTP ${res.status}`); return; }
+        const { applied, meta } = applyRemote(j.items ?? [], {});   // 메타를 비운 상태로 반영 → 서버 값이 전부 이긴다
+        writeMeta(meta);
+        setPushed([]); setPulled(applied.map(labelFor));
+        setLastSyncAt(Date.now()); setError(null); setConflicts([]); blocked.current = false;
+        setStatus('synced');
+        // 로컬을 서버 값으로 덮었으니 화면을 갱신한다. 새로고침 후엔 메타가 차 있어 충돌이 재발하지 않는다(루프 없음).
+        if (applied.length) { try { location.reload(); } catch {} }
+        return;
+      }
+
       // 첫 동기화(이 기기에 동기화 이력 없음)에서는 먼저 서버를 읽어 충돌부터 확인한다.
       // 확인 없이 올리면 나중에 연 기기가 먼저 기기의 기록을 조용히 덮어쓴다.
       if (!force) {
@@ -153,6 +172,9 @@ export function useCloudSync(): CloudSyncState {
 
     // 로컬 변경 감지 → 디바운스 push
     const watch = setInterval(() => {
+      // 충돌 대기 중에는 메타를 건드리지 않는다 — 여기서 메타를 채우면 수동 새로고침 시
+      // 충돌 방어가 우회돼(메타가 차 있으면 LWW 로 넘어감) 데이터가 밀릴 수 있다.
+      if (blocked.current) return;
       const { changed, meta } = detectLocalChanges();
       if (!changed.length) return;
       writeMeta(meta);
@@ -178,8 +200,8 @@ export function useCloudSync(): CloudSyncState {
     syncNow: () => void sync(),
     resolveKeepLocal: () => { forceRef.current = 'local'; blocked.current = false; void sync(); },
     resolveKeepRemote: () => {
-      // 서버 우선: 로컬 메타를 비워 두면 applyRemote 가 서버 값을 전부 내려받아 덮어쓴다
-      writeMeta({});
+      // 서버 우선: sync 의 force==='remote' 전용 경로가 GET 만으로 서버 값을 받아 로컬을 덮는다
+      // (로컬을 POST 하는 경로를 타면 정반대로 로컬이 서버를 밀어버리므로 그 경로를 절대 타지 않는다)
       forceRef.current = 'remote'; blocked.current = false; void sync();
     },
   };
