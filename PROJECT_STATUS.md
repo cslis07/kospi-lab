@@ -19,7 +19,7 @@
 ### 🔴 사용자가 직접 해야 할 것 (미완, 코드로 해결 불가)
 - **KRX API 키 재발급** — `data.krx.co.kr`. 하드코딩 폴백이 **public 저장소**에 커밋돼 있었고(`3876676`), 실측으로 **키가 아직 유효함**을 확인했다. 코드에서는 제거(`24ee41c`)했으나 **git 이력에 남아 있어 재발급 외에 방법이 없다.** 재발급 후 `vercel env add KRX_API_KEY production` + `.env.local` 갱신.
 - **분석 페이지 잠금 해제(브라우저 1회)** — `/api/stock-analysis`·`/api/coin-analysis`가 게이트라 `kl_auth` 쿠키 없으면 401. `/bitget`에서 토큰 1회 입력(§6). (코인 3모드 신호·시장환경 등은 공개 라우트라 게이트 무관)
-- **Bitget 키에 선물 읽기 권한 추가** — `/api/bitget/positions`가 `40014: need future pos read`로 실패(프로덕션 실측). 현재 키가 현물 전용. Bitget API 관리에서 **선물 포지션 읽기(Futures/Position - Read)** 추가(읽기 전용 유지)하면 `/bitget`에 실제 청산가·미실현손익 표시. 라우트·서명은 정상.
+- ✅ ~~Bitget 선물 읽기 권한~~ **2026-08-24 추가 완료** — `40014` 해소. 프로덕션 실측: `/api/bitget/positions` 정상(현재 열린 포지션 0·선물 equity 0), `/api/bitget/history?days=30` **청산 이력 21건 조회**(순손익 합계 −418.63 USDT). 이제 `/journal` 거래소 대조와 `/risk` 실포지션 합산이 실제로 동작한다.
 - **텔레그램 알림 켜기** — GitHub 저장소 Secrets에 `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` 추가([Secrets 위치](https://github.com/cslis07/kospi-lab/settings/secrets/actions)). CHAT_ID=`8710847228`. 봇 토큰은 BotFather 또는 coin-signal 저장소 Secrets에서 확인(보안상 문서 미기재). 없으면 크론은 스냅샷만 갱신하고 알림은 조용히 건너뛴다.
 
 ### 🆕 2026-08-24 9차 — 대규모 업그레이드 4종 완료
