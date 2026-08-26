@@ -33,6 +33,44 @@ function isSyncKey(k: string): boolean {
   return k.startsWith(SYNC_PREFIX) && !SYNC_EXCLUDE.has(k);
 }
 
+/**
+ * 비어 있는 값인가 — 빈 배열/빈 객체/null/빈 문자열.
+ *
+ * 빈 값은 절대 올려보내지 않는다. 새 기기에서 앱을 한 번 열어 빈 목록이 저장되는 것만으로
+ * 다른 기기의 매매일지 전체를 덮어써 지워버릴 수 있기 때문이다.
+ * 그 대가로 "마지막 한 건까지 지운 것"은 다른 기기에 전파되지 않는다 —
+ * 데이터가 되살아나는 불편은 되돌릴 수 있지만, 지워진 기록은 되돌릴 수 없다.
+ */
+export function isEmptyData(v: unknown): boolean {
+  if (v == null) return true;
+  if (Array.isArray(v)) return v.length === 0;
+  if (typeof v === 'string') return v.trim() === '' || v.trim() === '[]' || v.trim() === '{}';
+  if (typeof v === 'object') return Object.keys(v as object).length === 0;
+  return false;
+}
+
+/**
+ * 첫 동기화 충돌 감지 — 이 기기에도, 서버에도 내용이 있는 키.
+ *
+ * 이 기기가 서버 데이터를 한 번도 받아본 적이 없다면(메타 없음) 두 쪽은 서로 다른 역사를
+ * 가진 것이고, 어느 쪽이 최신인지 판단할 근거가 없다. 이럴 때 자동으로 한쪽을 밀어버리면
+ * 사용자는 기록이 사라진 사실조차 모른다. 그래서 자동 진행을 멈추고 사람에게 묻는다.
+ */
+export function findFirstSyncConflicts(remote: SyncItem[], meta: SyncMeta): string[] {
+  const local = collectLocal();
+  const out: string[] = [];
+  for (const it of remote) {
+    if (!it?.id || meta[it.id]) continue;            // 이미 동기화 이력이 있으면 LWW 로 처리
+    if (isEmptyData(it.data)) continue;               // 서버가 비었으면 충돌 아님
+    const raw = local[it.id];
+    if (raw == null) continue;                        // 이 기기에 없으면 그냥 받으면 된다
+    let parsed: unknown; try { parsed = JSON.parse(raw); } catch { parsed = raw; }
+    if (isEmptyData(parsed)) continue;                // 이 기기가 비었으면 충돌 아님
+    out.push(it.id);
+  }
+  return out;
+}
+
 export function readMeta(): SyncMeta {
   try {
     const raw = localStorage.getItem(META_KEY);
@@ -76,7 +114,8 @@ export function detectLocalChanges(now = Date.now()): { items: SyncItem[]; meta:
     }
     let data: unknown;
     try { data = JSON.parse(raw); } catch { data = raw; }
-    items.push({ id: k, data, updatedAt: meta[k].updatedAt });
+    // 빈 값은 올려보내지 않는다 — 새 기기의 빈 목록이 다른 기기 기록을 지우는 사고를 막는다
+    if (!isEmptyData(data)) items.push({ id: k, data, updatedAt: meta[k].updatedAt });
   }
   return { items, meta, changed };
 }

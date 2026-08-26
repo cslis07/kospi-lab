@@ -16,6 +16,7 @@ const STYLE: Record<string, { dot: string; label: string }> = {
   off:     { dot: 'bg-gray-600',                    label: '로컬 전용' },
   locked:  { dot: 'bg-amber-400',                   label: '잠금' },
   error:   { dot: 'bg-red-400',                     label: '동기화 실패' },
+  conflict:{ dot: 'bg-orange-400 animate-pulse',    label: '확인 필요' },
 };
 
 function ago(ts: number | null): string {
@@ -63,6 +64,28 @@ export default function SyncIndicator() {
               <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
                 잠금 상태라 동기화가 멈춰 있습니다. <strong className="text-[var(--text)]">/bitget</strong> 페이지에서 접근 토큰을 1회 입력하면 켜집니다.
               </p>
+            )}
+            {s.status === 'conflict' && (
+              <div>
+                <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+                  이 기기와 클라우드에 <strong className="text-orange-400">서로 다른 기록</strong>이 있습니다
+                  ({s.conflicts.join(', ')}). 어느 쪽이 최신인지 알 수 없어 <strong className="text-[var(--text)]">자동 동기화를 멈췄습니다</strong> —
+                  그냥 진행하면 한쪽 기록이 사라집니다.
+                </p>
+                <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+                  걱정되면 먼저 <a href="/virtual" className="text-sky-400 underline">백업</a>에서 내보내기를 한 뒤 고르세요.
+                </p>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <button onClick={s.resolveKeepLocal}
+                    className="px-2 py-1.5 rounded-lg border border-sky-500/40 bg-sky-500/10 text-[11px] font-semibold text-sky-400">
+                    이 기기 것으로
+                  </button>
+                  <button onClick={s.resolveKeepRemote}
+                    className="px-2 py-1.5 rounded-lg border border-[var(--border)] text-[11px] font-semibold text-[var(--text)]">
+                    클라우드 것으로
+                  </button>
+                </div>
+              </div>
             )}
             {s.status === 'error' && (
               <p className="text-[11px] leading-relaxed text-red-400">동기화 실패: {s.error}</p>

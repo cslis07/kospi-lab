@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { applyRemote, detectLocalChanges, labelFor, readMeta, writeMeta, type SyncItem } from '@/lib/cloudSync';
+import { applyRemote, detectLocalChanges, findFirstSyncConflicts, labelFor, readMeta, writeMeta, type SyncItem } from '@/lib/cloudSync';
 
 const PUSH_DEBOUNCE = 2500;
 const WATCH_INTERVAL = 4000;
@@ -21,7 +21,7 @@ const PULL_INTERVAL = 90_000;
 const RELOAD_FLAG = 'kl-sync-reloaded';
 const DEVICE_KEY = 'kospi-lab-device-id';
 
-export type SyncStatus = 'init' | 'off' | 'locked' | 'syncing' | 'synced' | 'error';
+export type SyncStatus = 'init' | 'off' | 'locked' | 'syncing' | 'synced' | 'error' | 'conflict';
 
 function deviceId(): string {
   try {
@@ -43,7 +43,13 @@ export interface CloudSyncState {
   pulled: string[];        // 마지막으로 내려받은 항목 라벨
   error: string | null;
   device: string;
+  /** 첫 동기화 충돌 항목(사람이 읽는 라벨) — 해결 전까지 자동 동기화가 멈춘다 */
+  conflicts: string[];
   syncNow: () => void;
+  /** 충돌 해결: 이 기기 것을 정본으로 삼아 서버를 덮어쓴다 */
+  resolveKeepLocal: () => void;
+  /** 충돌 해결: 서버 것을 정본으로 삼아 이 기기를 덮어쓴다 */
+  resolveKeepRemote: () => void;
 }
 
 export function useCloudSync(): CloudSyncState {
@@ -53,6 +59,10 @@ export function useCloudSync(): CloudSyncState {
   const [pulled, setPulled] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [device, setDevice] = useState('');
+  const [conflicts, setConflicts] = useState<string[]>([]);
+  // 충돌 해결 방향이 정해지기 전까지 자동 동기화를 멈춘다
+  const blocked = useRef(false);
+  const forceRef = useRef<'local' | 'remote' | null>(null);
 
   const busy = useRef(false);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,11 +70,41 @@ export function useCloudSync(): CloudSyncState {
 
   const sync = useCallback(async () => {
     if (busy.current) return;
+    if (blocked.current && !forceRef.current) return;   // 충돌 대기 중에는 아무것도 밀지 않는다
     busy.current = true;
     setStatus((s) => (s === 'off' ? s : 'syncing'));
     try {
+      const force = forceRef.current;
+      forceRef.current = null;
+
+      // 첫 동기화(이 기기에 동기화 이력 없음)에서는 먼저 서버를 읽어 충돌부터 확인한다.
+      // 확인 없이 올리면 나중에 연 기기가 먼저 기기의 기록을 조용히 덮어쓴다.
+      if (!force) {
+        const meta0 = readMeta();
+        if (Object.keys(meta0).length === 0) {
+          const peek = await fetch('/api/sync');
+          if (peek.status === 401) { setStatus('locked'); return; }
+          const pj = (await peek.json()) as { configured?: boolean; items?: SyncItem[] };
+          if (pj.configured === false) { setStatus('off'); return; }
+          const cf = findFirstSyncConflicts(pj.items ?? [], meta0);
+          if (cf.length) {
+            setConflicts(cf.map(labelFor));
+            blocked.current = true;
+            setStatus('conflict');
+            return;
+          }
+        }
+      }
+
       const { items, meta, changed } = detectLocalChanges();
       writeMeta(meta);
+
+      // 충돌을 '이 기기 우선'으로 해결하는 경우: 로컬 항목에 최신 시각을 찍어 서버를 이기게 한다
+      if (force === 'local') {
+        const now = Date.now();
+        for (const it of items) { it.updatedAt = now; meta[it.id] = { ...(meta[it.id] ?? { hash: '' }), updatedAt: now }; }
+        writeMeta(meta);
+      }
 
       const res = await fetch('/api/sync', {
         method: 'POST',
@@ -85,6 +125,8 @@ export function useCloudSync(): CloudSyncState {
       setPulled(applied.map(labelFor));
       setLastSyncAt(Date.now());
       setError(null);
+      setConflicts([]);
+      blocked.current = false;
       setStatus('synced');
 
       // 내려받은 변경이 있으면 화면이 낡았다 — 첫 동기화에서 1회만 새로고침
@@ -131,5 +173,14 @@ export function useCloudSync(): CloudSyncState {
     };
   }, [sync]);
 
-  return { status, lastSyncAt, pushed, pulled, error, device, syncNow: () => void sync() };
+  return {
+    status, lastSyncAt, pushed, pulled, error, device, conflicts,
+    syncNow: () => void sync(),
+    resolveKeepLocal: () => { forceRef.current = 'local'; blocked.current = false; void sync(); },
+    resolveKeepRemote: () => {
+      // 서버 우선: 로컬 메타를 비워 두면 applyRemote 가 서버 값을 전부 내려받아 덮어쓴다
+      writeMeta({});
+      forceRef.current = 'remote'; blocked.current = false; void sync();
+    },
+  };
 }

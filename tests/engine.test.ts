@@ -20,6 +20,7 @@ import { scoreUsGrowth, US_UNIVERSE, US_SECTORS, US_THEMES } from '../lib/usGrow
 import { scoreboard } from '../lib/journalStats';
 import { reconcileClosedPositions, plannedRiskUsdt, normSymbol, type ClosedPositionLike, type JournalLike } from '../lib/bitgetJournal';
 import { aggregateRisk, type FuturesPositionLike } from '../lib/riskDashboard';
+import { isEmptyData, findFirstSyncConflicts } from '../lib/cloudSync';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -676,6 +677,38 @@ console.log('\n[ journalStats — 성적 실측 (순수 함수) ]');
     const r = aggregateRisk({ ...base, futures: [fut()], usdkrw: 0 });
     assert.equal(r.usdkrw, 1400);
     assert.ok(r.grossExposureKrw > 0);
+  });
+}
+
+/* ── 클라우드 동기화 안전장치 (데이터 손실 방지) ────────── */
+{
+  ok('동기화: 빈 값 판별 — 빈 배열·객체·null·빈 문자열', () => {
+    for (const v of [[], {}, null, undefined, '', '  ', '[]', '{}']) assert.equal(isEmptyData(v), true, String(v));
+    for (const v of [[1], { a: 1 }, 'x', 0, false]) assert.equal(isEmptyData(v), false, String(v));
+  });
+
+  ok('동기화: 첫 동기화 충돌 — 양쪽에 내용이 있을 때만 충돌로 본다', () => {
+    const g = globalThis as unknown as { localStorage?: unknown };
+    const store: Record<string, string> = {
+      'kospi-lab-coin-journal': JSON.stringify([{ id: 'a' }]),   // 이 기기에 기록 있음
+      'kospi-lab-watchlist': JSON.stringify([]),                 // 이 기기는 비어 있음
+    };
+    const keys = Object.keys(store);
+    g.localStorage = {
+      length: keys.length,
+      key: (i: number) => keys[i] ?? null,
+      getItem: (k: string) => store[k] ?? null,
+      setItem: () => {}, removeItem: () => {},
+    };
+    const remote = [
+      { id: 'kospi-lab-coin-journal', data: [{ id: 'b' }], updatedAt: 1 },  // 서버도 내용 있음 → 충돌
+      { id: 'kospi-lab-watchlist', data: [{ t: 'x' }], updatedAt: 1 },      // 이 기기가 비었으니 충돌 아님
+      { id: 'kospi-lab-candidates', data: [{ c: 1 }], updatedAt: 1 },       // 이 기기에 없음 → 충돌 아님
+    ];
+    assert.deepEqual(findFirstSyncConflicts(remote, {}), ['kospi-lab-coin-journal']);
+    // 이미 동기화 이력(meta)이 있으면 LWW 로 처리 — 충돌로 보지 않는다
+    assert.deepEqual(findFirstSyncConflicts(remote, { 'kospi-lab-coin-journal': { hash: 'h', updatedAt: 1 } }), []);
+    delete g.localStorage;
   });
 }
 
