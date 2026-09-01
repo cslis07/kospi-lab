@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Header from '@/components/Header';
 import NavTabs from '@/components/NavTabs';
+import PwaRegister from '@/components/PwaRegister';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://kospi-lab.vercel.app'),
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko" className="h-full">
       <body className="min-h-full flex flex-col">
+        <PwaRegister />
         <Header />
         <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 pt-6">
           <NavTabs />
