@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-08-24 (11차) — PWA 설치 지원
+
+manifest 는 이미 완비돼 있었고(standalone·아이콘 192/512 maskable) 서비스워커만 없었다.
+`public/sw.js` + `components/PwaRegister.tsx` 추가로 **설치형 PWA** 완성 — 안드로이드 WebAPK 설치,
+오프라인 실행, 설치 배너가 켜진다. SW 전략은 network-first(온라인이면 항상 최신 → 구버전 갇힘 없음,
+오프라인이면 캐시 폴백). 내부 API·외부 시세는 캐시하지 않는다(낡은 데이터 방지).
+프로덕션 실측: SW `activated`·controller true·scope 루트, 콘솔 에러 0.
+
 ## 2026-08-24 (10차) — "사도 되는가"에 정직하게 답하기 + 브라우저 실측
 
 ### 🎯 실행 가능 판정 (Go / No-Go) — `lib/tradeGate.ts` · `components/TradeGate.tsx`
