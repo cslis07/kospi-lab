@@ -5,6 +5,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { buildModes, type Candle } from '../lib/coinSignalModes.ts';
 import { getEtfFlows, etfBiasFor } from '../lib/etfFlow.ts';
+import { bitgetSignedGet, bitgetKeysConfigured } from '../lib/bitget.ts';
 
 const BITGET = 'https://api.bitget.com';
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT'];
@@ -53,7 +54,24 @@ function fp(sym: string, v: number) {
 
 interface Snap { id: string; sym: string; mode: string; dir: number; dirLabel: string; entry: number; tp: number; sl: number; ts: number; price0: number; ultra: boolean; conf: number; eq: number }
 interface Closed extends Snap { closeTs: number; closePrice: number; outcome: 'WIN' | 'LOSS' | 'EXPIRE'; r: number }
-interface DB { updated: string | null; open: Snap[]; closed: Closed[]; stats: Record<string, { n: number; winRate: number | null; avgR: number | null }> }
+interface DB { updated: string | null; open: Snap[]; closed: Closed[]; stats: Record<string, { n: number; winRate: number | null; avgR: number | null }>; watch?: Record<string, number> }
+
+/** 동기화된 열린 매매일지(계획 손절·목표) — Supabase 있을 때만. 감시 크로스체크용 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchOpenJournal(): Promise<any[]> {
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return [];
+  try {
+    const r = await fetch(`${url}/rest/v1/kl_sync?id=eq.kospi-lab-coin-journal&select=data`, { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows: any = await r.json();
+    const arr = rows?.[0]?.data ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return Array.isArray(arr) ? arr.filter((e: any) => e.result === 'open' && e.direction !== 'wait') : [];
+  } catch { return []; }
+}
+
+const normSym = (x: string) => (x || '').toUpperCase().replace(/_.*$/, '').replace(/[^A-Z0-9]/g, '');
 
 function computeStats(closed: Closed[]) {
   const by: Record<string, { n: number; win: number; rSum: number }> = { scalp: { n: 0, win: 0, rSum: 0 }, swing: { n: 0, win: 0, rSum: 0 }, all: { n: 0, win: 0, rSum: 0 } };
@@ -114,6 +132,38 @@ async function main() {
       const tag = m.ultra ? '🌟 ULTRA' : '📊 TRADE';
       await telegram(`${tag} <b>${sym.replace('USDT', '')} ${mode.toUpperCase()} ${m.dirLabel}</b> (${m.direction})\n진입 ${fp(sym, m.entryZone[0] ?? sig.price)}~${fp(sym, m.entryZone[1] ?? sig.price)}\nTP ${fp(sym, m.tp1)} · SL ${fp(sym, m.invalidation)}\nEntry ${m.entryQuality} · Conf ${m.confidence} · R:R ${m.rr}`);
     }
+  }
+
+  // ── 포지션 감시: 청산 임박·계획 손절/목표 도달 → 텔레그램 (선물 키 있을 때만) ──
+  db.watch ??= {};
+  if (bitgetKeysConfigured()) {
+    try {
+      const posJson = await bitgetSignedGet('/api/v2/mix/position/all-position?productType=USDT-FUTURES&marginCoin=USDT');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const positions = ((posJson.data as any[]) ?? []).filter((r) => Number(r.total) !== 0);
+      const openJournal = await fetchOpenJournal();
+      const REFIRE = 6 * 3600e3;
+      const alerts: string[] = [];
+      const fire = (key: string, msg: string) => { if (!db.watch![key] || now - db.watch![key] > REFIRE) { alerts.push(msg); db.watch![key] = now; } };
+      for (const pp of positions) {
+        const sym = String(pp.symbol), side = pp.holdSide === 'short' ? 'short' : 'long';
+        const mark = Number(pp.markPrice), liq = Number(pp.liquidationPrice);
+        const dist = mark > 0 && liq > 0 ? (Math.abs(mark - liq) / mark) * 100 : null;
+        if (dist != null && dist < 15) fire(`${sym}:liq`, `🛑 <b>${sym.replace('USDT', '')} 청산까지 ${dist.toFixed(1)}%</b>
+마크 ${mark} · 청산 ${liq} — 레버리지/증거금 확인`);
+        for (const e of openJournal) {
+          if (normSym(e.symbol) !== normSym(sym) || e.direction !== side) continue;
+          const long = side === 'long';
+          if (e.stop > 0 && (long ? mark <= e.stop : mark >= e.stop)) fire(`${e.id}:stop`, `⚠ <b>${e.name || sym} 손절선 도달</b> (${e.stop}) · 현재 ${mark}`);
+          if (e.target1 > 0 && (long ? mark >= e.target1 : mark <= e.target1)) fire(`${e.id}:t1`, `🎯 <b>${e.name || sym} 목표1 도달</b> (${e.target1}) · 현재 ${mark}`);
+          if (e.target2 > 0 && (long ? mark >= e.target2 : mark <= e.target2)) fire(`${e.id}:t2`, `🎯 <b>${e.name || sym} 목표2 도달</b> (${e.target2}) · 현재 ${mark}`);
+        }
+      }
+      for (const k of Object.keys(db.watch)) if (now - db.watch[k] > 3 * 24 * 3600e3) delete db.watch[k];   // 오래된 키 정리
+      if (alerts.length) { await telegram(alerts.join('
+
+')); console.log('포지션 알림', alerts.length); }
+    } catch (e) { console.error('position watch fail', (e as Error).message); }
   }
 
   db.closed = db.closed.slice(0, MAX_CLOSED);
