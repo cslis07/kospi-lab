@@ -33,6 +33,8 @@ export interface TradePlan {
   /** 중대 이벤트까지 남은 시간(h). 없으면 null */
   eventHoursUntil?: number | null;
   eventTitle?: string | null;
+  /** 손실 서킷브레이커 상태(선택) — blocked 면 크기와 무관하게 진입 금지 */
+  breaker?: { blocked: boolean; reason: string } | null;
   /** 계좌 맥락(선택) — 없으면 해당 검사는 '확인 불가'로 남긴다 */
   account?: {
     /** 기존 같은 방향 익스포저(USDT 환산) */
@@ -84,6 +86,13 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
 export function evaluateTradeGate(p: TradePlan): GateResult {
   const checks: GateCheck[] = [];
   const suggest: GateResult['suggest'] = {};
+
+  /* 0) 손실 서킷브레이커 — 방향·크기 이전에, 오늘 더 매매하면 안 되는 상태인가 */
+  if (p.breaker?.blocked) {
+    checks.push({ id: 'breaker', label: '서킷브레이커', state: 'fail',
+      detail: p.breaker.reason,
+      fix: '연패·손실 한도에 걸렸습니다. 크기를 줄여도 해결되지 않습니다 — 오늘은 진입을 멈추세요.' });
+  }
 
   const dirOk = p.direction === 'long' ? p.stop < p.entry : p.stop > p.entry;
   const stopDist = p.entry > 0 ? Math.abs(p.entry - p.stop) / p.entry : 0;

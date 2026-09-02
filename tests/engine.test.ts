@@ -22,6 +22,8 @@ import { reconcileClosedPositions, plannedRiskUsdt, normSymbol, type ClosedPosit
 import { aggregateRisk, type FuturesPositionLike } from '../lib/riskDashboard';
 import { isEmptyData, findFirstSyncConflicts } from '../lib/cloudSync';
 import { evaluateTradeGate, LIMITS, type TradePlan } from '../lib/tradeGate';
+import { buildRetro, hasPlan, type RetroEntry } from '../lib/journalRetro';
+import { evaluateBreaker, DEFAULT_LIMITS, type BreakerEntry } from '../lib/circuitBreaker';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -801,6 +803,98 @@ console.log('\n[ journalStats — 성적 실측 (순수 함수) ]');
     assert.equal(LIMITS.maxRiskPctPerTrade, 2);
     assert.equal(LIMITS.minLiqSafety, 2);
     assert.equal(LIMITS.eventBlockHours, 12);
+  });
+
+  ok('판정: 서킷브레이커 blocked 면 다른 게 다 통과해도 NO', () => {
+    const g = evaluateTradeGate(plan({ breaker: { blocked: true, reason: '3연속 손절' } }));
+    assert.equal(g.verdict, 'no');
+    assert.ok(g.checks.find((c) => c.id === 'breaker')!.state === 'fail');
+  });
+}
+
+/* ── 매매 복기 (과거 서술 — 예측 아님) ── */
+{
+  const DAY = 86_400_000;
+  const t = Date.UTC(2026,7,20,3,0,0);   // KST 정오
+  const e = (o: Partial<RetroEntry> = {}): RetroEntry => ({ ts:t, direction:'long', result:'loss', realizedUsdt:-10, entry:100, stop:99, ...o });
+
+  ok('복기: 계획 유무 분리 — stop 없으면 계획 없음', () => {
+    const rows = [ e({stop:99, result:'win', realizedUsdt:20}), e({stop:0, entry:100, result:'loss', realizedUsdt:-30}) ];
+    const r = buildRetro(rows);
+    assert.equal(r.planned.n, 1); assert.equal(r.planned.realizedUsdt, 20);
+    assert.equal(r.unplanned.n, 1); assert.equal(r.unplanned.realizedUsdt, -30);
+    assert.equal(hasPlan(rows[0]), true); assert.equal(hasPlan(rows[1]), false);
+  });
+
+  ok('복기: 승률은 even·open 제외, 방향별 분리', () => {
+    const rows = [ e({direction:'long',result:'win'}), e({direction:'long',result:'loss'}), e({direction:'short',result:'win'}), e({result:'open'}) ];
+    const r = buildRetro(rows);
+    assert.equal(r.totalClosed, 3);
+    assert.equal(r.long.winRate, 50); assert.equal(r.short.winRate, 100);
+  });
+
+  ok('복기: 최대·현재 연속 손절 계산', () => {
+    // 시간순 L L W L L L (최대 3, 현재 3)
+    const seq: RetroEntry['result'][] = ['loss','loss','win','loss','loss','loss'];
+    const rows = seq.map((res,i)=> e({ts:t+i*DAY, result:res}));
+    const r = buildRetro(rows);
+    assert.equal(r.maxLossStreak, 3);
+    assert.equal(r.currentLossStreak, 3);
+  });
+
+  ok('복기: 계획 없는 매매가 다수+손실이면 high 통찰', () => {
+    const rows = Array.from({length:5}, (_,i)=> e({ts:t+i*DAY, stop:0, result:'loss', realizedUsdt:-20}));
+    const r = buildRetro(rows);
+    const hi = r.insights.find(x=>x.level==='high');
+    assert.ok(hi && hi.text.includes('계획'), '계획 없음 통찰 없음');
+  });
+
+  ok('복기: 빈 입력 안전', () => {
+    const r = buildRetro([]);
+    assert.equal(r.totalClosed, 0); assert.equal(r.maxLossStreak, 0); assert.equal(r.insights.length, 0);
+  });
+}
+
+/* ── 서킷브레이커 ── */
+{
+  const DAY = 86_400_000;
+  const now = Date.UTC(2026,7,20,6,0,0);   // KST 오후3시
+  const be = (o: Partial<BreakerEntry> = {}): BreakerEntry => ({ ts:now, result:'loss', realizedUsdt:-10, ...o });
+
+  ok('브레이커: 3연속 손절이면 blocked', () => {
+    const rows = [be({ts:now-3*DAY}),be({ts:now-2*DAY}),be({ts:now-DAY})];
+    const r = evaluateBreaker(rows, DEFAULT_LIMITS, now);
+    assert.equal(r.status, 'blocked'); assert.equal(r.lossStreak, 3);
+  });
+
+  ok('브레이커: 2연속이면 warn(한도 3 기준)', () => {
+    const rows = [be({ts:now-2*DAY}),be({ts:now-DAY})];
+    assert.equal(evaluateBreaker(rows, DEFAULT_LIMITS, now).status, 'warn');
+  });
+
+  ok('브레이커: 승리가 스트릭을 끊는다', () => {
+    const rows = [be({ts:now-3*DAY}),be({ts:now-2*DAY,result:'win',realizedUsdt:30}),be({ts:now-DAY})];
+    const r = evaluateBreaker(rows, DEFAULT_LIMITS, now);
+    assert.equal(r.lossStreak, 1); assert.equal(r.status, 'ok');
+  });
+
+  ok('브레이커: 일일 손실 한도 초과 시 blocked (오늘 KST 기준)', () => {
+    const rows = [be({ts:now, realizedUsdt:-60})];   // 오늘 -60
+    const r = evaluateBreaker(rows, { maxConsecutiveLosses:99, dailyLossLimitUsdt:50, weeklyLossLimitUsdt:null }, now);
+    assert.equal(r.status, 'blocked');
+    assert.equal(r.todayRealized, -60);
+  });
+
+  ok('브레이커: 어제 손실은 오늘 한도에 안 들어간다', () => {
+    const rows = [be({ts:now-DAY, realizedUsdt:-100})];
+    const r = evaluateBreaker(rows, { maxConsecutiveLosses:99, dailyLossLimitUsdt:50, weeklyLossLimitUsdt:null }, now);
+    assert.equal(r.todayRealized, null);       // 오늘 실현 없음
+    assert.equal(r.status, 'ok');
+  });
+
+  ok('브레이커: 한도 미설정이면 스트릭만 본다', () => {
+    const rows = [be({ts:now, realizedUsdt:-9999})];
+    assert.equal(evaluateBreaker(rows, DEFAULT_LIMITS, now).status, 'ok');  // 1연속 손절뿐
   });
 }
 

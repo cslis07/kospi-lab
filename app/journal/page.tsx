@@ -14,6 +14,9 @@ import { useCoinJournal } from '@/hooks/useCoinJournal';
 import { useStockJournal } from '@/hooks/useStockJournal';
 import { scoreboard, type Scoreboard } from '@/lib/journalStats';
 import ExchangeReconcile from '@/components/ExchangeReconcile';
+import CircuitBreakerBar from '@/components/CircuitBreakerBar';
+import RetroReport from '@/components/RetroReport';
+import type { RetroEntry } from '@/lib/journalRetro';
 
 function pct(v: number | null) { return v == null ? '-' : `${v.toFixed(1)}%`; }
 function r(v: number | null) { return v == null ? '-' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}R`; }
@@ -128,8 +131,16 @@ export default function JournalPage() {
         </p>
       </div>
 
+      {/* 손실 서킷브레이커 — 오늘 더 매매하면 안 되는 상태를 산수로 알린다 */}
+      <CircuitBreakerBar />
+
       {/* 거래소 대조 — 성적표의 입력을 손이 아니라 거래소가 채우게 한다(생존 편향 차단) */}
       {coin.mounted && <ExchangeReconcile entries={coin.entries} applyReconcile={coin.applyReconcile} />}
+
+      {/* 매매 복기 — 왜 지고 있는가(과거 서술). 코인·주식 저널 합쳐서 본다 */}
+      {(coin.mounted || stock.mounted) && (
+        <RetroReport entries={[...coin.entries, ...stock.entries] as unknown as RetroEntry[]} />
+      )}
 
       {(coin.mounted || stock.mounted) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

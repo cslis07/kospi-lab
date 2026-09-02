@@ -18,6 +18,9 @@ import { useBriefingModel } from '@/hooks/useBriefingModel';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '@/lib/positionSizing';
 import { jsonFetcher, ApiError } from '@/lib/fetcher';
 import TradeGate from '@/components/TradeGate';
+import CircuitBreakerBar from '@/components/CircuitBreakerBar';
+import { useRiskLimits } from '@/hooks/useRiskLimits';
+import { evaluateBreaker, type BreakerEntry } from '@/lib/circuitBreaker';
 
 // 시세·스캔 등 부수 요청은 조용히 실패해도 무방하지만, 분석 본문은 jsonFetcher(throw)를 쓴다
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -327,7 +330,7 @@ function OrderbookPanel({ ob, price, digits }: {
 
 export interface RiskSizing { lev: number; seed: number; riskPct: number; notion: number; margin: number }
 
-function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr, levMax, fundingRatePct, priceDigits, entryPlan, onSizing, eventHoursUntil, eventTitle, account }: {
+function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr, levMax, fundingRatePct, priceDigits, entryPlan, onSizing, eventHoursUntil, eventTitle, account, breaker }: {
   entry: number; stop: number; stopPct: number; target1: number; target2: number;
   direction: 'long' | 'short' | 'wait';
   levAggr: number; levMax: number; fundingRatePct: number; priceDigits: number;
@@ -336,6 +339,7 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
   // 실행 가능 판정에 쓰는 맥락 — 없으면 해당 검사는 '확인 불가'로 남는다
   eventHoursUntil?: number | null; eventTitle?: string | null;
   account?: { sameSideExposure: number; totalExposure: number } | null;
+  breaker?: { blocked: boolean; reason: string } | null;
 }) {
   const [seed, setSeed] = useState('1000');
   const [riskPct, setRiskPct] = useState('1');
@@ -452,6 +456,7 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
             liqSafety: safety,
             eventHoursUntil: eventHoursUntil ?? null, eventTitle: eventTitle ?? null,
             account: account ?? null,
+            breaker: breaker ?? null,
           }} />
         </div>
       )}
@@ -619,6 +624,10 @@ export default function CoinAnalysisPage() {
     return { sameSideExposure: same, totalExposure: total };
   }, [posData, v]);
 
+  // 손실 서킷브레이커 — blocked 면 실행가능 판정을 NO 로 만든다
+  const { limits } = useRiskLimits();
+  const breaker = useMemo(() => evaluateBreaker(journal.entries as BreakerEntry[], limits), [journal.entries, limits]);
+
   const saveToJournal = () => {
     if (!data || !v) return;
     const sz = sizingRef.current;
@@ -730,6 +739,9 @@ export default function CoinAnalysisPage() {
           </p>
         </div>
       )}
+
+      {/* 손실 서킷브레이커 — 진입 화면 상단에서 '오늘 멈춰야 하는지'부터 보여준다 */}
+      <CircuitBreakerBar />
 
       {/* 3모드 진입 신호 + 실시간 청산·고래 — 코인 선택만으로 즉시 표시(분석 불필요) */}
       {fastSig?.modes && <ModesSection modes={fastSig.modes} symbol={fastSig.symbol} />}
@@ -1398,6 +1410,7 @@ export default function CoinAnalysisPage() {
               eventHoursUntil={data.event?.hoursUntil ?? null}
               eventTitle={data.event?.title ?? null}
               account={accountCtx}
+              breaker={breaker.status === 'blocked' ? { blocked: true, reason: breaker.reasons[0] ?? '서킷브레이커 작동' } : null}
             />
           </div>
 
