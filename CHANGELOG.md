@@ -2,6 +2,33 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-08-24 (12차) — 발굴 기능 4종(복기·서킷브레이커·감시·AI코치)
+
+실제 데이터(-419·계획0건·5연속손절)가 방향을 정해줬다. "다음에 뭘 사라"가 아니라
+"왜 지는지 보여주고 다음 손실을 막는" 쪽 — 예측이 아니라 과거 사실·산수라 정직하다.
+
+### A. 매매 복기 (`lib/journalRetro`·순수함수·테스트 5)
+청산 매매를 계획 유무·방향·시간대·요일·연속손절로 쪼갠다. 자동 유도 통찰(계획 없는 매매가
+손실 주범/틸트/방향 편향/최악 시간대). 브라우저 실측: "21건 중 21건(100%) 계획 없이 침 -419",
+"최대 8연속 손절", 롱 33%/-361·숏 25%/-58 — 손실 기전이 그대로 드러남. `components/RetroReport`→/journal.
+
+### B. 손실 서킷브레이커 (`lib/circuitBreaker`·순수함수·테스트 6)
+연속손절·일/주 실현손실 한도로 ok/warn/blocked. blocked 면 실행가능 판정을 NO 로 만든다.
+한도는 사용자 설정(`useRiskLimits`, 동기화됨). 실측: "5연속 손절 → 오늘 진입 금지" 정상 작동.
+`components/CircuitBreakerBar`→/journal·/coin-analysis 상단.
+
+### C. 포지션 감시 + 텔레그램 (`scripts/coinTrack.mts` 접붙임)
+기존 15분 크론에 통합(별도 크론=data 브랜치 push 경쟁). 선물 키 있을 때만: 청산<15% + 동기화된
+계획 손절/목표 도달 → 텔레그램. 6h 재발화 억제(db.watch). ⚠ GitHub Secrets(TELEGRAM·BITGET·SUPABASE)
+등록해야 실동작 — 미등록이면 조용히 skip.
+
+### D. AI 복기 코치 (`app/api/coach`·게이트)
+통계+브레이커를 Claude 에 넘겨 행동 피드백. **방향·종목 추천 프롬프트에서 강력 금지**(엔진이 방향을
+못 맞히는 게 측정됨). `components/AiCoach`→/journal. ⚠ 코드·게이트 정상이나 프로덕션
+`ANTHROPIC_API_KEY`가 무효(401) — 기존 AI 브리핑도 같은 키라 함께 먹통. **사용자: 유효 키로 교체 필요.**
+
+- 테스트 75 → **87개**. tsc 0·build OK.
+
 ## 2026-08-24 (11차) — PWA 설치 지원
 
 manifest 는 이미 완비돼 있었고(standalone·아이콘 192/512 maskable) 서비스워커만 없었다.

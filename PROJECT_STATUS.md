@@ -1,10 +1,10 @@
 # KOSPI LAB — Project Status
 
-> **마지막 업데이트: 2026-08-24 (10차 — 실행 가능 판정 + 브라우저 실측)**
+> **마지막 업데이트: 2026-08-24 (12차 — 복기·서킷브레이커·감시·AI코치)**
 > **위치:** `C:\Users\GB\Documents\kospi-lab`
 > **GitHub:** `cslis07/kospi-lab` · 기본 브랜치 `main` · ⚠️ **저장소 공개(public)**
 > **배포:** [kospi-lab.vercel.app](https://kospi-lab.vercel.app) · Vercel (git push → 자동 배포)
-> **규모:** API 라우트 44 · 페이지 25 · lib 32 · hooks 11 · components 26 · scripts 12 · tests 1(75케이스)
+> **규모:** API 라우트 44 · 페이지 25 · lib 32 · hooks 11 · components 26 · scripts 12 · tests 1(87케이스)
 
 ---
 
@@ -20,6 +20,7 @@
 - **KRX API 키 재발급** — `data.krx.co.kr`. 하드코딩 폴백이 **public 저장소**에 커밋돼 있었고(`3876676`), 실측으로 **키가 아직 유효함**을 확인했다. 코드에서는 제거(`24ee41c`)했으나 **git 이력에 남아 있어 재발급 외에 방법이 없다.** 재발급 후 `vercel env add KRX_API_KEY production` + `.env.local` 갱신.
 - **분석 페이지 잠금 해제(브라우저 1회)** — `/api/stock-analysis`·`/api/coin-analysis`가 게이트라 `kl_auth` 쿠키 없으면 401. `/bitget`에서 토큰 1회 입력(§6). (코인 3모드 신호·시장환경 등은 공개 라우트라 게이트 무관)
 - ✅ ~~Bitget 선물 읽기 권한~~ **2026-08-24 추가 완료** — `40014` 해소. 프로덕션 실측: `/api/bitget/positions` 정상(현재 열린 포지션 0·선물 equity 0), `/api/bitget/history?days=30` **청산 이력 21건 조회**(순손익 합계 −418.63 USDT). 이제 `/journal` 거래소 대조와 `/risk` 실포지션 합산이 실제로 동작한다.
+- **⚠️ ANTHROPIC_API_KEY 무효(2026-08-24 실측 401)** — Vercel에 키는 있으나 인증 실패. AI 브리핑·AI 복기 코치가 전부 먹통. 유효한 Anthropic 키로 `vercel env` 교체 필요. (크레딧 부족은 400, 이건 401=키 자체 문제)
 - **텔레그램 알림 켜기** — GitHub 저장소 Secrets에 `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` 추가([Secrets 위치](https://github.com/cslis07/kospi-lab/settings/secrets/actions)). CHAT_ID=`8710847228`. 봇 토큰은 BotFather 또는 coin-signal 저장소 Secrets에서 확인(보안상 문서 미기재). 없으면 크론은 스냅샷만 갱신하고 알림은 조용히 건너뛴다.
 
 ### 🆕 2026-08-24 9차 — 대규모 업그레이드 4종 완료
