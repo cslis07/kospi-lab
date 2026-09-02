@@ -16,6 +16,7 @@ import { scoreboard, type Scoreboard } from '@/lib/journalStats';
 import ExchangeReconcile from '@/components/ExchangeReconcile';
 import CircuitBreakerBar from '@/components/CircuitBreakerBar';
 import RetroReport from '@/components/RetroReport';
+import AiCoach from '@/components/AiCoach';
 import type { RetroEntry } from '@/lib/journalRetro';
 
 function pct(v: number | null) { return v == null ? '-' : `${v.toFixed(1)}%`; }
@@ -140,6 +141,11 @@ export default function JournalPage() {
       {/* 매매 복기 — 왜 지고 있는가(과거 서술). 코인·주식 저널 합쳐서 본다 */}
       {(coin.mounted || stock.mounted) && (
         <RetroReport entries={[...coin.entries, ...stock.entries] as unknown as RetroEntry[]} />
+      )}
+
+      {/* AI 복기 코치 — 통계를 넘겨 행동 피드백(방향 추천 아님) */}
+      {(coin.mounted || stock.mounted) && (
+        <AiCoach entries={[...coin.entries, ...stock.entries] as unknown as RetroEntry[]} />
       )}
 
       {(coin.mounted || stock.mounted) && (
