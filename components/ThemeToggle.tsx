@@ -12,15 +12,10 @@ export default function ThemeToggle() {
   }, []);
 
   const toggle = () => {
-    const next = !dark;
-    setDark(next);
-    if (next) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
+    // DOM 클래스를 진실원으로 삼는다 — React 상태 지연으로 연속 클릭이 어긋나지 않게
+    const nowDark = document.documentElement.classList.toggle('dark');
+    setDark(nowDark);
+    try { localStorage.setItem('theme', nowDark ? 'dark' : 'light'); } catch {}
   };
 
   return (
