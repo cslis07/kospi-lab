@@ -111,9 +111,14 @@ export default function Header() {
 
         {/* ── Left: 로고 + 시장 상태 ── */}
         <div className="flex items-center gap-3 shrink-0 min-w-0">
-          <Link href="/" aria-label="홈으로" className="leading-tight block">
-            <h1 className="text-sm font-bold tracking-wider text-[var(--text)]">KOSPI LAB</h1>
-            <p className="text-[9px] text-[var(--text-muted)] leading-none mt-0.5 hidden sm:block">실시간 시세</p>
+          <Link href="/" aria-label="홈으로" className="flex items-center gap-2 leading-tight">
+            <span aria-hidden className="grid place-items-center w-7 h-7 rounded-lg text-[13px] font-black text-white shadow-sm"
+              style={{ background: 'linear-gradient(135deg,#38bdf8,#6366f1)' }}>K</span>
+            <span className="block">
+              <h1 className="text-sm font-extrabold tracking-wide bg-clip-text text-transparent"
+                style={{ backgroundImage: 'linear-gradient(90deg,var(--text),#9db4d8)' }}>KOSPI LAB</h1>
+              <p className="text-[9px] text-[var(--text-muted)] leading-none mt-0.5 hidden sm:block">투자 리스크 관리</p>
+            </span>
           </Link>
           {/* 시장 상태 dot — md+ 에서만 표시 */}
           <div className="hidden md:flex items-center gap-2 text-xs ml-2 pl-3 border-l border-[var(--border)]">
