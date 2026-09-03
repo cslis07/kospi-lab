@@ -146,7 +146,7 @@ function ModesSection({ modes, symbol }: { modes: NonNullable<AnalysisData['mode
   // 엣지 미검증(자체 측정 승률 41.7%)이므로 TRADE를 초록불로 표시하지 않는다 — '사도 된다'로 읽히지 않게 옛 룰엔진 배지와 같은 톤(sky)으로 통일
   const stateCls = m.state === 'TRADE' ? 'bg-sky-500/15 text-sky-400 border border-sky-500/40' : m.state === 'WATCH' ? 'bg-amber-500/25 text-amber-300' : m.state === 'PAUSED' ? 'bg-red-500/25 text-red-300' : 'bg-white/10 text-[var(--text-muted)]';
   const bar = (v: number, cls: string) => (
-    <div className="h-1.5 rounded bg-white/10 overflow-hidden"><div className={`h-full rounded ${cls}`} style={{ width: `${Math.min(100, v)}%` }} /></div>
+    <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className={`h-full rounded-full ${cls}`} style={{ width: `${Math.min(100, v)}%` }} /></div>
   );
   const dirBarStyle = () => { const half = Math.min(Math.abs(m.direction), 100) / 2; return m.direction >= 0 ? { left: '50%', width: `${half}%` } : { left: `${50 - half}%`, width: `${half}%` }; };
   return (
@@ -169,11 +169,11 @@ function ModesSection({ modes, symbol }: { modes: NonNullable<AnalysisData['mode
       </div>
       <div className="grid grid-cols-[80px_1fr_34px] gap-x-2 gap-y-1.5 items-center text-[11px] text-[var(--text)] mb-3">
         <span>방향<span className="block text-[8px] text-[var(--text-muted)]">Direction</span></span>
-        <div className="relative h-1.5 rounded bg-white/10"><div className={`absolute h-full rounded ${m.direction >= 0 ? 'bg-emerald-400' : 'bg-red-400'}`} style={dirBarStyle()} /></div>
+        <div className="relative h-2 rounded-full bg-white/10"><div className={`absolute h-full rounded-full ${m.direction >= 0 ? 'bg-gradient-to-r from-emerald-500 to-emerald-300' : 'bg-gradient-to-l from-red-500 to-red-300'}`} style={dirBarStyle()} /></div>
         <span className="text-right tabular-nums">{m.direction}</span>
-        <span>진입적합<span className="block text-[8px] text-[var(--text-muted)]">Entry</span></span>{bar(m.entryQuality, 'bg-[var(--accent)]')}<span className="text-right tabular-nums">{m.entryQuality}</span>
-        <span>신뢰도<span className="block text-[8px] text-[var(--text-muted)]">Confidence</span></span>{bar(m.confidence, 'bg-violet-400')}<span className="text-right tabular-nums">{m.confidence}</span>
-        <span>이벤트위험<span className="block text-[8px] text-[var(--text-muted)]">Event Risk</span></span>{bar(m.eventRisk, 'bg-red-400')}<span className="text-right tabular-nums">{m.eventRisk}</span>
+        <span>진입적합<span className="block text-[8px] text-[var(--text-muted)]">Entry</span></span>{bar(m.entryQuality, 'bg-gradient-to-r from-sky-400 to-indigo-500')}<span className="text-right tabular-nums">{m.entryQuality}</span>
+        <span>신뢰도<span className="block text-[8px] text-[var(--text-muted)]">Confidence</span></span>{bar(m.confidence, 'bg-gradient-to-r from-violet-400 to-fuchsia-500')}<span className="text-right tabular-nums">{m.confidence}</span>
+        <span>이벤트위험<span className="block text-[8px] text-[var(--text-muted)]">Event Risk</span></span>{bar(m.eventRisk, 'bg-gradient-to-r from-amber-400 to-red-500')}<span className="text-right tabular-nums">{m.eventRisk}</span>
       </div>
       <table className="w-full text-[12px] mb-2">
         <tbody>

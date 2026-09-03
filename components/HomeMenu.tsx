@@ -59,7 +59,7 @@ const GROUPS: Group[] = [
 function TileLink({ t, tint }: { t: Tile; tint: string }) {
   const inner = (
     <>
-      <span className={`w-14 h-14 rounded-2xl grid place-items-center text-2xl border ${tint}`}>{t.icon}</span>
+      <span className={`hover-lift w-14 h-14 rounded-2xl grid place-items-center text-2xl border ${tint}`}>{t.icon}</span>
       <span className="text-[11px] font-semibold text-[var(--text)] text-center leading-tight">{t.label}</span>
     </>
   );

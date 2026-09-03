@@ -133,3 +133,54 @@ header.site-header { box-shadow: var(--shadow-header); }
 .pill-shadow { box-shadow: var(--shadow-pill); }
 .bar-shadow  { box-shadow: var(--shadow-bar); }
 html.light .pill-shadow { background-color: var(--pill-bg); }
+
+/* ── 배경 그레인 — 평평한 다크에 미세 질감(가독성 무해, 클릭 통과) ─── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -1px;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+html.light body::before { opacity: 0.02; }
+
+/* ── 호버 리프트 — 카드·타일에 생동감 ───────────────── */
+.hover-lift { transition: transform .16s cubic-bezier(.2,.7,.3,1), box-shadow .16s, border-color .16s; }
+.hover-lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); border-color: var(--border-hover); }
+.hover-lift:active { transform: translateY(0); }
+
+/* ── 카드 표면 그라디언트 — 상단이 살짝 밝아 입체감 ──── */
+.surface {
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0) 42%);
+}
+html.light .surface {
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0) 60%);
+}
+
+/* ── 섹션 eyebrow — 제목 앞 accent 바 ───────────────── */
+.eyebrow::before {
+  content: '';
+  display: inline-block;
+  width: 3px; height: 0.95em;
+  margin-right: 8px;
+  vertical-align: -0.12em;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--accent), #6366f1);
+}
+
+/* ── 그라디언트 CTA — 주요 액션 버튼 ────────────────── */
+.kl-cta {
+  background-image: linear-gradient(135deg, #38bdf8, #6366f1);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 14px -4px rgba(56,189,248,0.5);
+  transition: filter .15s, transform .1s, box-shadow .15s;
+}
+.kl-cta:hover { filter: brightness(1.08); box-shadow: 0 6px 20px -4px rgba(56,189,248,0.6); }
+.kl-cta:active { transform: translateY(1px); }
+.kl-cta:disabled { filter: grayscale(.4) brightness(.8); box-shadow: none; cursor: default; }
+
+/* 상태 점 은은한 발광 */
+.dot-live { box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }

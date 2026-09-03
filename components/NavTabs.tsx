@@ -113,9 +113,9 @@ function NavTabsInner() {
       {/* ── 데스크탑: 가로 탭 + 드롭다운 (md+) ── */}
       <div className="hidden md:flex">
         <Link href={DASHBOARD.href}
-          style={dashActive ? { borderColor: 'var(--nav-active)' } : undefined}
+          style={dashActive ? { borderColor: 'var(--accent)' } : undefined}
           className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${
-            dashActive ? 'text-[var(--text)] font-semibold' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
+            dashActive ? 'text-[var(--accent)] font-semibold' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}>
           {DASHBOARD.label}
         </Link>
@@ -125,9 +125,9 @@ function NavTabsInner() {
           return (
             <div key={g.label} className="relative">
               <button onClick={() => setOpen(isOpen ? null : g.label)}
-                style={groupActive ? { borderColor: 'var(--nav-active)' } : undefined}
+                style={groupActive ? { borderColor: 'var(--accent)' } : undefined}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap inline-flex items-center gap-1 ${
-                  groupActive ? 'text-[var(--text)] font-semibold' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
+                  groupActive ? 'text-[var(--accent)] font-semibold' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
                 }`}>
                 {g.label}
                 <svg className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -135,7 +135,7 @@ function NavTabsInner() {
                 </svg>
               </button>
               {isOpen && (
-                <div className="absolute z-50 top-full left-0 mt-1 min-w-[240px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl overflow-hidden">
+                <div className="surface absolute z-50 top-full left-0 mt-1.5 min-w-[248px] rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl overflow-hidden p-1">
                   {g.items.map((it) => {
                     const itemHref = it.href.split('?')[0];
                     const itemQ = it.href.includes('?') ? new URLSearchParams(it.href.split('?')[1]) : null;

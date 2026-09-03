@@ -22,7 +22,7 @@ function QuickCard({
   return (
     <Link
       href={href}
-      className={`block p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-white/20 transition-all group ${accent ?? ''}`}
+      className={`surface hover-lift block p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] group ${accent ?? ''}`}
     >
       <div className="text-2xl mb-2">{emoji}</div>
       <p className="text-sm font-semibold text-[var(--text)] group-hover:text-white transition-colors">{title}</p>
@@ -44,7 +44,7 @@ function WatchlistSummary() {
   return (
     <Link
       href="/my-stocks"
-      className="flex items-center justify-between p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-sky-500/40 hover:bg-sky-500/5 transition-all group"
+      className="surface hover-lift flex items-center justify-between p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] hover:bg-sky-500/5 group"
     >
       <div>
         <p className="text-sm font-semibold text-[var(--text)] group-hover:text-sky-400 transition-colors">
@@ -87,7 +87,7 @@ function DashboardInner() {
       {/* ── 주식 ── 지수 4종 (코스피·코스닥·코스피200·나스닥) */}
       <section>
         <div className="flex items-baseline gap-2 mb-3">
-          <h2 className="text-base font-bold text-[var(--text)]">주식</h2>
+          <h2 className="eyebrow text-base font-bold text-[var(--text)]">주식</h2>
           <span className="text-xs text-[var(--text-muted)]">주요 지수</span>
           <Link href="/krx" className="text-xs text-sky-400 hover:underline ml-auto">KRX 시장 →</Link>
         </div>
@@ -97,7 +97,7 @@ function DashboardInner() {
       {/* ── 코인 ── 시장환경 + 현물 ETF (첨부 이미지 구성) */}
       <section>
         <div className="flex items-baseline gap-2 mb-3">
-          <h2 className="text-base font-bold text-[var(--text)]">코인</h2>
+          <h2 className="eyebrow text-base font-bold text-[var(--text)]">코인</h2>
           <span className="text-xs text-[var(--text-muted)]">거시 환경 · 기관 수급</span>
           <Link href="/coin-analysis" className="text-xs text-sky-400 hover:underline ml-auto">코인선물 분석 →</Link>
         </div>

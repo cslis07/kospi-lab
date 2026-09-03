@@ -123,11 +123,11 @@ export default function Header() {
           {/* 시장 상태 dot — md+ 에서만 표시 */}
           <div className="hidden md:flex items-center gap-2 text-xs ml-2 pl-3 border-l border-[var(--border)]">
             <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${isUsOpen ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'}`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${isUsOpen ? 'bg-emerald-400 animate-pulse dot-live' : 'bg-gray-600'}`} />
               <span className="text-[var(--text-muted)] whitespace-nowrap" title={usLabel}>해외</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${isKrOpen ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'}`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${isKrOpen ? 'bg-emerald-400 animate-pulse dot-live' : 'bg-gray-600'}`} />
               <span className="text-[var(--text-muted)] whitespace-nowrap" title={krLabel}>
                 {isKrOpen ? '국내 개장' : '국내 마감'}
               </span>
