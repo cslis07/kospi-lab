@@ -2,6 +2,15 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-08-24 (14차) — 디자인 2차: 표면 크래프트
+
+토큰 기반 위에 고가시성 표면을 다듬음(프로덕션 실측·콘솔 에러 0).
+- **내비**: 활성 탭 accent 언더라인+텍스트, 드롭다운 surface+accent 톤 통일(sky 하드코딩 제거).
+- **홈**: 주식/코인 섹션 제목에 accent eyebrow 바, QuickCard·관심종목·홈메뉴 타일에 표면 광택+호버 리프트.
+- **코인분석 미터**: 방향(초록)·진입적합(하늘→남색)·신뢰도(보라→자홍)·이벤트위험(호박→빨강) rounded-full 그라디언트.
+- **질감·발광**: 배경 미세 그레인(z-index -1·클릭 통과), 개장 상태점 발광(dot-live).
+- 유틸 신설: hover-lift·surface·eyebrow·kl-cta·dot-live(재사용). 라이트/다크 양쪽 정상.
+
 ## 2026-08-24 (13차) — 전역 디자인 정비
 
 - **폰트**: Pretendard(동적 서브셋 CDN) 로드 — 한글 타이포 대폭 개선(프로덕션 실측 `fonts.check`=true).
