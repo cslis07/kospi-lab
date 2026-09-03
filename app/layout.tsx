@@ -21,14 +21,24 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0f172a',
+  // 기본 라이트, 다크 선택 시 다크 크롬
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#eef1f7' },
+    { media: '(prefers-color-scheme: dark)', color: '#090d16' },
+  ],
   width: 'device-width',
   initialScale: 1,
 };
 
+// 페인트 전에 실행 — 사용자가 명시적으로 다크를 골랐을 때만 html.dark 를 붙인다(기본은 라이트).
+const THEME_INIT = `try{if(localStorage.getItem('theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" className="h-full">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <PwaRegister />
         <Header />

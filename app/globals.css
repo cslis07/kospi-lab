@@ -2,35 +2,8 @@
 /* Pretendard(한글 최적화) — 동적 서브셋이라 필요한 글자만 받는다. 오프라인/실패 시 시스템 폰트로 폴백 */
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css');
 
-/* ── 다크 모드 (기본) ─────────────────────────────── */
+/* ── 라이트 모드 (기본) ─────────────────────────────── */
 :root {
-  --bg: #090d16;
-  --bg-elev: #0e1420;          /* 살짝 뜬 표면 */
-  --bg-card: #0f1522;
-  --bg-card-hover: #151d2c;
-  --card: #0f1522;             /* 별칭 — 일부 컴포넌트가 var(--card) 사용 */
-  --text: #eaf0f8;
-  --text-muted: #8b93a7;       /* 기존 #6b7280 은 다크에서 너무 어두웠다 → 대비 상향 */
-  --text-dim: #4b5563;
-  --border: rgba(255,255,255,0.075);
-  --border-hover: rgba(255,255,255,0.16);
-
-  /* 강조색 — 선언이 없어 일부 UI 가 무색이던 버그 수정 */
-  --accent: #38bdf8;
-  --accent-soft: rgba(56,189,248,0.14);
-
-  /* 그림자 — 다크에도 은은한 깊이감을 준다 */
-  --shadow-header: 0 1px 0 rgba(255,255,255,0.05);
-  --shadow-card:   0 1px 2px rgba(0,0,0,0.35), 0 12px 32px -16px rgba(0,0,0,0.75);
-  --shadow-pill:   0 1px 2px rgba(0,0,0,0.4);
-  --shadow-bar:    0 8px 28px -16px rgba(0,0,0,0.75);
-
-  --nav-active: rgba(255,255,255,0.94);
-  --pill-bg: rgba(255,255,255,0.045);
-}
-
-/* ── 라이트 모드 ───────────────────────────────────── */
-html.light {
   --bg: #eef1f7;
   --bg-elev: #ffffff;
   --bg-card: #ffffff;
@@ -54,14 +27,39 @@ html.light {
   --pill-bg: rgba(255,255,255,0.92);
 }
 
+/* ── 다크 모드 (html.dark) ─────────────────────────── */
+html.dark {
+  --bg: #090d16;
+  --bg-elev: #0e1420;
+  --bg-card: #0f1522;
+  --bg-card-hover: #151d2c;
+  --card: #0f1522;
+  --text: #eaf0f8;
+  --text-muted: #8b93a7;
+  --text-dim: #4b5563;
+  --border: rgba(255,255,255,0.075);
+  --border-hover: rgba(255,255,255,0.16);
+
+  --accent: #38bdf8;
+  --accent-soft: rgba(56,189,248,0.14);
+
+  --shadow-header: 0 1px 0 rgba(255,255,255,0.05);
+  --shadow-card:   0 1px 2px rgba(0,0,0,0.35), 0 12px 32px -16px rgba(0,0,0,0.75);
+  --shadow-pill:   0 1px 2px rgba(0,0,0,0.4);
+  --shadow-bar:    0 8px 28px -16px rgba(0,0,0,0.75);
+
+  --nav-active: rgba(255,255,255,0.94);
+  --pill-bg: rgba(255,255,255,0.045);
+}
+
 /* ── Base ─────────────────────────────────────────── */
-html { color-scheme: dark; }
-html.light { color-scheme: light; }
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
 
 body {
   background-color: var(--bg);
-  /* 상단 은은한 광원 — 평평한 다크에 깊이를 준다 */
-  background-image: radial-gradient(1100px 560px at 50% -260px, rgba(56,189,248,0.06), transparent 72%);
+  /* 상단 은은한 광원 */
+  background-image: radial-gradient(1100px 560px at 50% -260px, rgba(2,132,199,0.05), transparent 72%);
   background-repeat: no-repeat;
   color: var(--text);
   font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
@@ -71,8 +69,8 @@ body {
   text-rendering: optimizeLegibility;
   transition: background-color 0.25s, color 0.25s;
 }
-html.light body {
-  background-image: radial-gradient(1100px 560px at 50% -260px, rgba(2,132,199,0.05), transparent 72%);
+html.dark body {
+  background-image: radial-gradient(1100px 560px at 50% -260px, rgba(56,189,248,0.06), transparent 72%);
 }
 
 /* 제목은 살짝 촘촘하게 — 밀도 있는 대시보드 톤 */
@@ -109,15 +107,16 @@ a, button { transition: color .15s, background-color .15s, border-color .15s, op
 /* ── Scrollbar ────────────────────────────────────── */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.10) transparent;
+  scrollbar-color: rgba(15,23,42,0.14) transparent;
 }
 *::-webkit-scrollbar       { width: 6px; height: 6px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 3px; }
-*::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+*::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.14); border-radius: 3px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(15,23,42,0.24); }
 
-html.light * { scrollbar-color: rgba(15,23,42,0.14) transparent; }
-html.light *::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.14); }
+html.dark * { scrollbar-color: rgba(255,255,255,0.10) transparent; }
+html.dark *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); }
+html.dark *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
 
 /* ── Utility ──────────────────────────────────────── */
 .line-clamp-2 {
@@ -127,24 +126,23 @@ html.light *::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.14); }
   overflow: hidden;
 }
 
-/* ── 깊이감 클래스 — 이제 다크·라이트 양쪽에 적용 ─── */
+/* ── 깊이감 클래스 — 다크·라이트 양쪽 적용 ─────────── */
 header.site-header { box-shadow: var(--shadow-header); }
 .card-shadow { box-shadow: var(--shadow-card); }
-.pill-shadow { box-shadow: var(--shadow-pill); }
+.pill-shadow { box-shadow: var(--shadow-pill); background-color: var(--pill-bg); }
 .bar-shadow  { box-shadow: var(--shadow-bar); }
-html.light .pill-shadow { background-color: var(--pill-bg); }
 
-/* ── 배경 그레인 — 평평한 다크에 미세 질감(가독성 무해, 클릭 통과) ─── */
+/* ── 배경 그레인 — 평평함 방지(가독성 무해, 클릭 통과) ─── */
 body::before {
   content: '';
   position: fixed;
   inset: -1px;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.03;
+  opacity: 0.02;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-html.light body::before { opacity: 0.02; }
+html.dark body::before { opacity: 0.03; }
 
 /* ── 호버 리프트 — 카드·타일에 생동감 ───────────────── */
 .hover-lift { transition: transform .16s cubic-bezier(.2,.7,.3,1), box-shadow .16s, border-color .16s; }
@@ -153,10 +151,10 @@ html.light body::before { opacity: 0.02; }
 
 /* ── 카드 표면 그라디언트 — 상단이 살짝 밝아 입체감 ──── */
 .surface {
-  background-image: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0) 42%);
-}
-html.light .surface {
   background-image: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0) 60%);
+}
+html.dark .surface {
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0) 42%);
 }
 
 /* ── 섹션 eyebrow — 제목 앞 accent 바 ───────────────── */
