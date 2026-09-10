@@ -298,20 +298,42 @@ html.dark .hero { background: linear-gradient(135deg, #1e2129 0%, #1a2130 100%);
   .stat-value { font-size: 15px; }
 }
 
-/* ── 홈 런처 타일 (모바일) — 토스 소프트 틴트, 라이트·다크 자동 ── */
-.home-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 6px; }
-.home-tile { display: flex; flex-direction: column; align-items: center; gap: 7px; text-decoration: none; }
-.home-tile .ic {
-  width: 58px; height: 58px; border-radius: 18px;
-  display: grid; place-items: center; font-size: 27px; line-height: 1;
-  transition: transform .12s var(--ease);
+/* ══════════════════════════════════════════════════════════════
+   홈 메뉴 (모바일) — 라인 SVG 아이콘 그리드 (이모지 제거·토스 톤)
+   ══════════════════════════════════════════════════════════════ */
+
+/* 자주 쓰는 기능 — 컬러 칩 카드 4열 */
+.hm-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.hm-quick a {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px 10px; border-radius: 16px;
+  background: var(--bg-card); border: 1px solid var(--line);
+  text-decoration: none; transition: transform .12s var(--ease), box-shadow .15s var(--ease);
 }
-.home-tile:active .ic { transform: scale(.92); }
-.home-tile .tx {
-  font-size: 11.5px; font-weight: 600; color: var(--ink-2);
-  text-align: center; line-height: 1.2; letter-spacing: -0.02em;
+.hm-quick a:active { transform: scale(.96); }
+.hm-quick .qi { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; }
+.hm-quick .qi svg { width: 20px; height: 20px; }
+.hm-quick .qt { font-size: 12px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; line-height: 1.15; }
+
+/* 그룹 그리드 — 중성 타일 + 컬러 아이콘 */
+.hm-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 4px; }
+.hm-item { display: flex; flex-direction: column; align-items: center; gap: 7px; text-decoration: none; }
+.hm-item:active .hm-ic { transform: scale(.9); }
+.hm-ic {
+  width: 54px; height: 54px; border-radius: 16px;
+  display: grid; place-items: center;
+  background: var(--surface-2); transition: transform .12s var(--ease);
 }
-.tint-a { background: var(--accent-soft); }
-.tint-b { background: var(--ok-soft); }
-.tint-c { background: var(--violet-soft); }
-.tint-d { background: var(--amber-soft); }
+.hm-ic svg { width: 24px; height: 24px; }
+.hm-tx { font-size: 11px; font-weight: 600; color: var(--ink-2); text-align: center; line-height: 1.2; letter-spacing: -.02em; }
+
+/* 아이콘 컬러 (그룹별) */
+.c-blue   { color: var(--accent); }
+.c-green  { color: var(--ok); }
+.c-violet { color: var(--violet); }
+.c-amber  { color: var(--amber); }
+/* 자주 쓰는 칩 배경+아이콘 */
+.qc-blue   { background: var(--accent-soft); color: var(--accent); }
+.qc-green  { background: var(--ok-soft);     color: var(--ok); }
+.qc-violet { background: var(--violet-soft); color: var(--violet); }
+.qc-amber  { background: var(--amber-soft);  color: var(--amber); }
