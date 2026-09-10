@@ -1,104 +1,154 @@
 @import "tailwindcss";
-/* Pretendard(한글 최적화) — 동적 서브셋이라 필요한 글자만 받는다. 오프라인/실패 시 시스템 폰트로 폴백 */
+/* Pretendard(한글 최적화) — 동적 서브셋. 오프라인/실패 시 시스템 폰트로 폴백 */
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css');
+
+/* ══════════════════════════════════════════════════════════════
+   디자인 시스템 — 토스(Toss) 계열  (myzipplan.com 이식)
+   :root = 라이트(기본), html.dark = 다크
+   ── KOSPI LAB 컴포넌트가 쓰는 변수명과 토스 원본 변수명을 함께 정의해
+      27개 페이지를 수정하지 않고 전체를 리스킨한다.
+   ══════════════════════════════════════════════════════════════ */
 
 /* ── 라이트 모드 (기본) ─────────────────────────────── */
 :root {
-  --bg: #eef1f7;
+  /* 토스 원본 토큰 */
+  --surface: #ffffff;
+  --surface-2: #f4f6f8;
+  --ink: #191f28;
+  --ink-2: #333d4b;
+  --muted: #6b7684;
+  --faint: #8b95a1;
+  --line: #e8ebee;
+  --line-2: #eef1f4;
+  --accent-ink: #1b64da;
+  --ok: #00b27a;   --ok-soft: #e3f7ef;
+  --warn: #f04452; --warn-soft: #fdedef;
+  --amber: #c2790b; --amber-soft: #fff6e6;
+  --violet: #7c5cff; --violet-soft: #efeaff;
+  --rose: #f4568b;  --rose-soft: #ffe9f1;
+  --r: 22px; --r-md: 16px; --r-sm: 12px;
+  --sh-1: 0 1px 3px rgba(17,24,39,.04);
+  --sh-2: 0 2px 10px rgba(17,24,39,.05);
+  --sh-pop: 0 12px 32px rgba(17,24,39,.12);
+  --maxw: 1180px;
+  --dur: .18s;
+  --ease: cubic-bezier(.4,0,.2,1);
+
+  /* KOSPI LAB 별칭 → 토스 값 매핑 */
+  --bg: #f2f4f6;
   --bg-elev: #ffffff;
   --bg-card: #ffffff;
-  --bg-card-hover: #f7f9fc;
+  --bg-card-hover: #f4f6f8;
   --card: #ffffff;
-  --text: #0f172a;
-  --text-muted: #5b6472;
-  --text-dim: #94a3b8;
-  --border: rgba(15,23,42,0.09);
-  --border-hover: rgba(15,23,42,0.20);
+  --text: #191f28;
+  --text-muted: #6b7684;
+  --text-dim: #8b95a1;
+  --border: #e8ebee;
+  --border-hover: #d7dbe0;
 
-  --accent: #0284c7;
-  --accent-soft: rgba(2,132,199,0.12);
+  --accent: #3182f6;
+  --accent-soft: #e8f1ff;
 
-  --shadow-header: 0 2px 16px rgba(15,23,42,0.10);
-  --shadow-card:   0 1px 3px rgba(15,23,42,0.06), 0 10px 26px -10px rgba(15,23,42,0.14);
-  --shadow-pill:   0 1px 4px rgba(15,23,42,0.12), 0 0 0 1px rgba(15,23,42,0.06);
-  --shadow-bar:    0 2px 12px rgba(15,23,42,0.08);
+  --shadow-header: var(--sh-1);
+  --shadow-card:   var(--sh-2);
+  --shadow-pill:   var(--sh-1);
+  --shadow-bar:    var(--sh-2);
 
-  --nav-active: #0f172a;
-  --pill-bg: rgba(255,255,255,0.92);
+  --nav-active: #191f28;
+  --pill-bg: #ffffff;
 }
 
 /* ── 다크 모드 (html.dark) ─────────────────────────── */
 html.dark {
-  --bg: #090d16;
-  --bg-elev: #0e1420;
-  --bg-card: #0f1522;
-  --bg-card-hover: #151d2c;
-  --card: #0f1522;
-  --text: #eaf0f8;
-  --text-muted: #8b93a7;
-  --text-dim: #4b5563;
-  --border: rgba(255,255,255,0.075);
-  --border-hover: rgba(255,255,255,0.16);
+  --surface: #1e2129;
+  --surface-2: #262a33;
+  --ink: #f2f4f6;
+  --ink-2: #d3d9e0;
+  --muted: #9aa4b2;
+  --faint: #6b7684;
+  --line: rgba(255,255,255,.08);
+  --line-2: rgba(255,255,255,.06);
+  --accent-ink: #4a90ff;
+  --ok: #1fc98e;   --ok-soft: rgba(31,201,142,.14);
+  --warn: #ff5f6d; --warn-soft: rgba(255,95,109,.14);
+  --amber: #e0a23a; --amber-soft: rgba(224,162,58,.14);
+  --violet: #9a80ff; --violet-soft: rgba(154,128,255,.16);
+  --rose: #ff77a9;  --rose-soft: rgba(255,119,169,.16);
+  --sh-1: 0 1px 3px rgba(0,0,0,.4);
+  --sh-2: 0 4px 16px rgba(0,0,0,.5);
+  --sh-pop: 0 12px 32px rgba(0,0,0,.6);
 
-  --accent: #38bdf8;
-  --accent-soft: rgba(56,189,248,0.14);
+  --bg: #16181d;
+  --bg-elev: #1e2129;
+  --bg-card: #1e2129;
+  --bg-card-hover: #262a33;
+  --card: #1e2129;
+  --text: #f2f4f6;
+  --text-muted: #9aa4b2;
+  --text-dim: #6b7684;
+  --border: rgba(255,255,255,.08);
+  --border-hover: rgba(255,255,255,.18);
 
-  --shadow-header: 0 1px 0 rgba(255,255,255,0.05);
-  --shadow-card:   0 1px 2px rgba(0,0,0,0.35), 0 12px 32px -16px rgba(0,0,0,0.75);
-  --shadow-pill:   0 1px 2px rgba(0,0,0,0.4);
-  --shadow-bar:    0 8px 28px -16px rgba(0,0,0,0.75);
+  --accent: #4a90ff;
+  --accent-soft: rgba(74,144,255,.16);
 
-  --nav-active: rgba(255,255,255,0.94);
-  --pill-bg: rgba(255,255,255,0.045);
+  --nav-active: #f2f4f6;
+  --pill-bg: rgba(255,255,255,.05);
 }
 
 /* ── Base ─────────────────────────────────────────── */
-html { color-scheme: light; }
+html { color-scheme: light; scroll-behavior: smooth; }
 html.dark { color-scheme: dark; }
 
 body {
-  background-color: var(--bg);
-  /* 상단 은은한 광원 */
-  background-image: radial-gradient(1100px 560px at 50% -260px, rgba(2,132,199,0.05), transparent 72%);
-  background-repeat: no-repeat;
+  margin: 0;
+  background-color: var(--bg);       /* 토스: 평평한 회색 배경 (글로우 없음) */
   color: var(--text);
-  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-  font-feature-settings: 'tnum' 1;         /* 숫자 폭 고정 — 표·시세 정렬 */
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', Roboto, 'Malgun Gothic', '맑은 고딕', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;           /* 토스 시그니처 — 전체 촘촘하게 */
+  font-feature-settings: 'tnum' 1;   /* 숫자 폭 고정 — 표·시세 정렬 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  overflow-x: clip;
   transition: background-color 0.25s, color 0.25s;
 }
-html.dark body {
-  background-image: radial-gradient(1100px 560px at 50% -260px, rgba(56,189,248,0.06), transparent 72%);
-}
 
-/* 제목은 살짝 촘촘하게 — 밀도 있는 대시보드 톤 */
-h1, h2, h3 { letter-spacing: -0.012em; }
+input, select, button, textarea { font-family: inherit; letter-spacing: inherit; }
+b, strong { font-weight: 700; }
 
-/* 표 정렬 폭 (Tailwind tabular-nums 보강) */
+/* 제목 — 음수 자간 강조(토스 룩) */
+h1, h2, h3, h4 { letter-spacing: -0.02em; }
+
+/* 표 정렬 폭 */
 .tabular-nums { font-variant-numeric: tabular-nums; }
 
 /* 선택 색 */
-::selection { background: var(--accent-soft); color: var(--text); }
+::selection { background: var(--accent-soft); color: var(--accent-ink); }
 
-/* 포커스 링 — 접근성 + 통일감 */
+/* 포커스 링 */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 8px;
 }
 
-/* 부드러운 전이(과하지 않게) */
-a, button { transition: color .15s, background-color .15s, border-color .15s, opacity .15s, transform .1s; }
+/* 부드러운 전이 */
+a, button { transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease), border-color var(--dur) var(--ease), opacity var(--dur) var(--ease), transform .1s var(--ease); }
+
+/* ── 라운드 — 토스 스케일로 상향(카드 22 / 중 16) ──── */
+.rounded-2xl { border-radius: var(--r) !important; }
+.rounded-xl  { border-radius: var(--r-md) !important; }
 
 /* ── Flash animations ─────────────────────────────── */
 @keyframes flash-green-bg {
-  0%, 15% { background-color: rgba(16,185,129,0.15); }
+  0%, 15% { background-color: rgba(0,178,122,0.15); }
   100%     { background-color: var(--bg-card); }
 }
 @keyframes flash-red-bg {
-  0%, 15% { background-color: rgba(239,68,68,0.15); }
+  0%, 15% { background-color: rgba(240,68,82,0.15); }
   100%     { background-color: var(--bg-card); }
 }
 .flash-green { animation: flash-green-bg 1.4s ease-out forwards; }
@@ -107,16 +157,16 @@ a, button { transition: color .15s, background-color .15s, border-color .15s, op
 /* ── Scrollbar ────────────────────────────────────── */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(15,23,42,0.14) transparent;
+  scrollbar-color: rgba(25,31,40,0.16) transparent;
 }
-*::-webkit-scrollbar       { width: 6px; height: 6px; }
+*::-webkit-scrollbar       { width: 8px; height: 8px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.14); border-radius: 3px; }
-*::-webkit-scrollbar-thumb:hover { background: rgba(15,23,42,0.24); }
+*::-webkit-scrollbar-thumb { background: rgba(25,31,40,0.16); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(25,31,40,0.28); }
 
-html.dark * { scrollbar-color: rgba(255,255,255,0.10) transparent; }
-html.dark *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); }
-html.dark *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+html.dark * { scrollbar-color: rgba(255,255,255,0.14) transparent; }
+html.dark *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); }
+html.dark *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
 
 /* ── Utility ──────────────────────────────────────── */
 .line-clamp-2 {
@@ -126,59 +176,47 @@ html.dark *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18);
   overflow: hidden;
 }
 
-/* ── 깊이감 클래스 — 다크·라이트 양쪽 적용 ─────────── */
+/* ── 깊이감 — 토스식 부드러운 확산 섀도우 ──────────── */
 header.site-header { box-shadow: var(--shadow-header); }
-.card-shadow { box-shadow: var(--shadow-card); }
+.card-shadow { box-shadow: var(--shadow-card); border-radius: var(--r); }
 .pill-shadow { box-shadow: var(--shadow-pill); background-color: var(--pill-bg); }
 .bar-shadow  { box-shadow: var(--shadow-bar); }
 
-/* ── 배경 그레인 — 평평함 방지(가독성 무해, 클릭 통과) ─── */
-body::before {
-  content: '';
-  position: fixed;
-  inset: -1px;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.02;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-html.dark body::before { opacity: 0.03; }
-
-/* ── 호버 리프트 — 카드·타일에 생동감 ───────────────── */
-.hover-lift { transition: transform .16s cubic-bezier(.2,.7,.3,1), box-shadow .16s, border-color .16s; }
-.hover-lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); border-color: var(--border-hover); }
-.hover-lift:active { transform: translateY(0); }
-
-/* ── 카드 표면 그라디언트 — 상단이 살짝 밝아 입체감 ──── */
+/* ── 카드 표면 — 토스는 평평한 흰 카드(광택 없음) ───── */
 .surface {
-  background-image: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0) 60%);
-}
-html.dark .surface {
-  background-image: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0) 42%);
+  background-color: var(--surface);
+  box-shadow: var(--sh-1);
 }
 
 /* ── 섹션 eyebrow — 제목 앞 accent 바 ───────────────── */
 .eyebrow::before {
   content: '';
   display: inline-block;
-  width: 3px; height: 0.95em;
+  width: 4px; height: 0.92em;
   margin-right: 8px;
-  vertical-align: -0.12em;
-  border-radius: 2px;
-  background: linear-gradient(180deg, var(--accent), #6366f1);
+  vertical-align: -0.1em;
+  border-radius: 3px;
+  background: var(--accent);
 }
 
-/* ── 그라디언트 CTA — 주요 액션 버튼 ────────────────── */
+/* ── 그라디언트 CTA → 토스 솔리드 프라이머리 버튼 ───── */
 .kl-cta {
-  background-image: linear-gradient(135deg, #38bdf8, #6366f1);
+  background-color: var(--accent);
   color: #fff;
   border: none;
-  box-shadow: 0 4px 14px -4px rgba(56,189,248,0.5);
-  transition: filter .15s, transform .1s, box-shadow .15s;
+  font-weight: 700;
+  border-radius: var(--r-sm);
+  box-shadow: none;
+  transition: background-color var(--dur) var(--ease), transform .1s var(--ease);
 }
-.kl-cta:hover { filter: brightness(1.08); box-shadow: 0 6px 20px -4px rgba(56,189,248,0.6); }
+.kl-cta:hover { background-color: var(--accent-ink); }
 .kl-cta:active { transform: translateY(1px); }
-.kl-cta:disabled { filter: grayscale(.4) brightness(.8); box-shadow: none; cursor: default; }
+.kl-cta:disabled { background-color: var(--line); color: var(--faint); cursor: default; }
+
+/* ── 호버 리프트 — 카드 생동감(토스식 미세 상승) ────── */
+.hover-lift { transition: transform .16s var(--ease), box-shadow .16s var(--ease), border-color .16s var(--ease); }
+.hover-lift:hover { transform: translateY(-2px); box-shadow: var(--sh-2); border-color: var(--border-hover); }
+.hover-lift:active { transform: translateY(0); }
 
 /* 상태 점 은은한 발광 */
-.dot-live { box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+.dot-live { box-shadow: 0 0 0 3px rgba(0,178,122,0.15); }

@@ -144,7 +144,7 @@ function NavTabsInner() {
                     return (
                       <Link key={it.href} href={it.href}
                         className={`block px-4 py-2.5 text-sm border-l-2 transition-colors ${
-                          itemActive ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-transparent text-[var(--text)] hover:bg-white/5'
+                          itemActive ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] font-semibold' : 'border-transparent text-[var(--text)] hover:bg-[var(--bg-card-hover)]'
                         }`}>
                         <div className="font-medium">{it.label}</div>
                         {it.desc && <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{it.desc}</div>}
@@ -188,7 +188,7 @@ function NavTabsInner() {
           <div className="border-t border-[var(--border)] bg-[var(--bg-card)] max-h-[70vh] overflow-y-auto">
             <Link href={DASHBOARD.href}
               className={`block px-4 py-3 text-sm border-l-2 ${
-                dashActive ? 'border-sky-500 bg-sky-500/10 text-sky-400 font-semibold' : 'border-transparent text-[var(--text)]'
+                dashActive ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] font-semibold' : 'border-transparent text-[var(--text)]'
               }`}>
               🏠 대시보드
             </Link>
@@ -205,7 +205,7 @@ function NavTabsInner() {
                   return (
                     <Link key={it.href} href={it.href}
                       className={`flex items-center justify-between px-4 py-2.5 text-sm border-l-2 ${
-                        itemActive ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-transparent text-[var(--text)]'
+                        itemActive ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] font-semibold' : 'border-transparent text-[var(--text)]'
                       }`}>
                       <span className="font-medium">{it.label}</span>
                       {it.desc && <span className="text-[10px] text-[var(--text-muted)] ml-2 truncate">{it.desc}</span>}
