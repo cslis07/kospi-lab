@@ -5,12 +5,12 @@ import Link from 'next/link';
 type Tile = { href: string; icon: string; label: string; external?: boolean };
 type Group = { label: string; tint: keyof typeof TINT; items: Tile[] };
 
-// Tailwind 는 정적 문자열만 스캔하므로 색 조합을 리터럴로 고정해 둔다(동적 `bg-${c}` 금지).
+// 토스 소프트 틴트(globals.css .tint-*) — 라이트·다크 토큰 자동 대응.
 const TINT = {
-  sky:     'bg-sky-500/15 border-sky-500/25',
-  emerald: 'bg-emerald-500/15 border-emerald-500/25',
-  violet:  'bg-violet-500/15 border-violet-500/25',
-  amber:   'bg-amber-500/15 border-amber-500/25',
+  sky:     'tint-a', // 파랑 (시장)
+  emerald: 'tint-b', // 초록 (내 자산)
+  violet:  'tint-c', // 보라 (분석)
+  amber:   'tint-d', // 앰버 (설계)
 } as const;
 
 const GROUPS: Group[] = [
@@ -59,14 +59,13 @@ const GROUPS: Group[] = [
 function TileLink({ t, tint }: { t: Tile; tint: string }) {
   const inner = (
     <>
-      <span className={`hover-lift w-14 h-14 rounded-2xl grid place-items-center text-2xl border ${tint}`}>{t.icon}</span>
-      <span className="text-[11px] font-semibold text-[var(--text)] text-center leading-tight">{t.label}</span>
+      <span className={`ic ${tint}`}>{t.icon}</span>
+      <span className="tx">{t.label}</span>
     </>
   );
-  const cls = 'flex flex-col items-center gap-1.5 active:scale-95 transition-transform';
   return t.external
-    ? <a href={t.href} className={cls}>{inner}</a>
-    : <Link href={t.href} className={cls}>{inner}</Link>;
+    ? <a href={t.href} className="home-tile">{inner}</a>
+    : <Link href={t.href} className="home-tile">{inner}</Link>;
 }
 
 export default function HomeMenu() {
@@ -79,8 +78,8 @@ export default function HomeMenu() {
       <div className="space-y-4">
         {GROUPS.map((g) => (
           <div key={g.label}>
-            <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-2 uppercase tracking-wide">{g.label}</p>
-            <div className="grid grid-cols-4 gap-y-4 gap-x-2">
+            <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-2.5 uppercase tracking-wide">{g.label}</p>
+            <div className="home-grid">
               {g.items.map((t) => <TileLink key={t.href} t={t} tint={TINT[g.tint]} />)}
             </div>
           </div>
