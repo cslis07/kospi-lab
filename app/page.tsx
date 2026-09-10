@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import IndexCards from '@/components/IndexCards';
+import MarketHero from '@/components/MarketHero';
 import CoinDashboard from '@/components/CoinDashboard';
 import HomeMenu from '@/components/HomeMenu';
 import { useWatchlist } from '@/hooks/useWatchlist';
@@ -25,7 +25,7 @@ function QuickCard({
       className={`surface hover-lift block p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] group ${accent ?? ''}`}
     >
       <div className="text-2xl mb-2">{emoji}</div>
-      <p className="text-sm font-semibold text-[var(--text)] group-hover:text-white transition-colors">{title}</p>
+      <p className="text-sm font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">{title}</p>
       <p className="text-xs text-[var(--text-muted)] mt-0.5">{desc}</p>
     </Link>
   );
@@ -44,10 +44,10 @@ function WatchlistSummary() {
   return (
     <Link
       href="/my-stocks"
-      className="surface hover-lift flex items-center justify-between p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] hover:bg-sky-500/5 group"
+      className="surface hover-lift flex items-center justify-between p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] hover:bg-[var(--bg-card-hover)] group"
     >
       <div>
-        <p className="text-sm font-semibold text-[var(--text)] group-hover:text-sky-400 transition-colors">
+        <p className="text-sm font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
           ⭐ 내 관심종목
         </p>
         <p className="text-xs text-[var(--text-muted)] mt-0.5">
@@ -57,7 +57,7 @@ function WatchlistSummary() {
           {cm && cryptos.length > 0 && ` · 코인 ${cryptos.length}`}
         </p>
       </div>
-      <svg className="w-5 h-5 text-[var(--text-muted)] group-hover:text-sky-400 transition-colors"
+      <svg className="w-5 h-5 text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors"
         fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
       </svg>
@@ -89,9 +89,9 @@ function DashboardInner() {
         <div className="flex items-baseline gap-2 mb-3">
           <h2 className="eyebrow text-base font-bold text-[var(--text)]">주식</h2>
           <span className="text-xs text-[var(--text-muted)]">주요 지수</span>
-          <Link href="/krx" className="text-xs text-sky-400 hover:underline ml-auto">KRX 시장 →</Link>
+          <Link href="/krx" className="text-xs text-[var(--accent)] hover:underline ml-auto">KRX 시장 →</Link>
         </div>
-        <IndexCards />
+        <MarketHero />
       </section>
 
       {/* ── 코인 ── 시장환경 + 현물 ETF (첨부 이미지 구성) */}
@@ -99,7 +99,7 @@ function DashboardInner() {
         <div className="flex items-baseline gap-2 mb-3">
           <h2 className="eyebrow text-base font-bold text-[var(--text)]">코인</h2>
           <span className="text-xs text-[var(--text-muted)]">거시 환경 · 기관 수급</span>
-          <Link href="/coin-analysis" className="text-xs text-sky-400 hover:underline ml-auto">코인선물 분석 →</Link>
+          <Link href="/coin-analysis" className="text-xs text-[var(--accent)] hover:underline ml-auto">코인선물 분석 →</Link>
         </div>
         <CoinDashboard />
       </section>

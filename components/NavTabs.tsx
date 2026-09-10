@@ -75,92 +75,82 @@ const GROUPS: NavGroup[] = [
   },
 ];
 
+// href 문자열이 현재 라우트와 일치하는지
+function itemIsActive(href: string, pathname: string, searchParams: URLSearchParams) {
+  const itemHref = href.split('?')[0];
+  const itemQ = href.includes('?') ? new URLSearchParams(href.split('?')[1]) : null;
+  return pathname.startsWith(itemHref) && (!itemQ || itemQ.get('market') === searchParams.get('market'));
+}
+
 function NavTabsInner() {
   const pathname     = usePathname();
   const searchParams = useSearchParams();
-  const [open, setOpen]               = useState<string | null>(null);
   const [mobileOpen, setMobileOpen]   = useState(false);
+  // 데스크탑: 사용자가 알약을 눌러 미리 펼친 그룹(라우트 변경 시 초기화)
+  const [shownGroup, setShownGroup]   = useState<string | null>(null);
   const ref = useRef<HTMLElement>(null);
 
-  // 외부 클릭 / ESC → 닫기
+  // ESC → 닫기
   useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(null);
-    };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setOpen(null); setMobileOpen(false); }
+      if (e.key === 'Escape') { setMobileOpen(false); setShownGroup(null); }
     };
-    document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
+    return () => document.removeEventListener('keydown', onKey);
   }, []);
 
-  // 라우트 변경 시 자동 닫힘
+  // 라우트 변경 시 자동 닫힘 / 펼친 그룹 초기화
   useEffect(() => {
-    setOpen(null);
     setMobileOpen(false);
+    setShownGroup(null);
   }, [pathname, searchParams]);
 
   const dashActive = pathname === '/' && !searchParams.get('market');
   const activeGroupLabel =
     GROUPS.find((g) => g.matchFn(pathname, searchParams))?.label ?? null;
 
+  // 데스크탑에서 서브칩으로 펼쳐 보일 그룹: 사용자가 누른 것 우선, 없으면 현재 활성 그룹
+  const shown = shownGroup ?? activeGroupLabel;
+  const shownItems = GROUPS.find((g) => g.label === shown)?.items ?? null;
+
   return (
-    <nav ref={ref} className="relative mb-6 border-b border-[var(--border)]">
-      {/* ── 데스크탑: 가로 탭 + 드롭다운 (md+) ── */}
-      <div className="hidden md:flex">
-        <Link href={DASHBOARD.href}
-          style={dashActive ? { borderColor: 'var(--accent)' } : undefined}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${
-            dashActive ? 'text-[var(--accent)] font-semibold' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
-          }`}>
-          {DASHBOARD.label}
-        </Link>
-        {GROUPS.map((g) => {
-          const groupActive = g.matchFn(pathname, searchParams);
-          const isOpen = open === g.label;
-          return (
-            <div key={g.label} className="relative">
-              <button onClick={() => setOpen(isOpen ? null : g.label)}
-                style={groupActive ? { borderColor: 'var(--accent)' } : undefined}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap inline-flex items-center gap-1 ${
-                  groupActive ? 'text-[var(--accent)] font-semibold' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
-                }`}>
+    <nav ref={ref} className="relative mb-6">
+      {/* ── 데스크탑: 알약 세그먼트 탭 + 서브칩 (md+) ── */}
+      <div className="hidden md:block space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="topnav">
+            <Link href={DASHBOARD.href}
+              className={`navlink ${dashActive ? 'active' : ''}`}>
+              {DASHBOARD.label}
+            </Link>
+            {GROUPS.map((g) => (
+              <button key={g.label} type="button"
+                onClick={() => setShownGroup(shown === g.label ? null : g.label)}
+                className={`navlink ${shown === g.label ? 'active' : ''}`}>
                 {g.label}
-                <svg className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {isOpen && (
-                <div className="surface absolute z-50 top-full left-0 mt-1.5 min-w-[248px] rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl overflow-hidden p-1">
-                  {g.items.map((it) => {
-                    const itemHref = it.href.split('?')[0];
-                    const itemQ = it.href.includes('?') ? new URLSearchParams(it.href.split('?')[1]) : null;
-                    const itemActive = pathname.startsWith(itemHref) &&
-                      (!itemQ || itemQ.get('market') === searchParams.get('market'));
-                    return (
-                      <Link key={it.href} href={it.href}
-                        className={`block px-4 py-2.5 text-sm border-l-2 transition-colors ${
-                          itemActive ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] font-semibold' : 'border-transparent text-[var(--text)] hover:bg-[var(--bg-card-hover)]'
-                        }`}>
-                        <div className="font-medium">{it.label}</div>
-                        {it.desc && <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{it.desc}</div>}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {/* 이용가이드 (정적 HTML) — 우측 끝 */}
-        <a href="/guide.html"
-          className="ml-auto px-4 py-3 text-sm font-medium border-b-2 border-transparent text-[var(--text-muted)] hover:text-[var(--text)] transition-colors -mb-px whitespace-nowrap">
-          📖 이용가이드
-        </a>
+            ))}
+          </div>
+          <a href="/guide.html" className="navlink ml-auto !bg-transparent">📖 이용가이드</a>
+        </div>
+
+        {/* 서브칩 — 펼친(또는 활성) 그룹의 하위 메뉴 */}
+        {shownItems && (
+          <div className="chip-row">
+            {shownItems.map((it) => {
+              const active = itemIsActive(it.href, pathname, searchParams);
+              return (
+                <Link key={it.href} href={it.href} title={it.desc}
+                  className={`chip ${active ? 'active' : ''}`}>
+                  {it.label}
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── 모바일: 햄버거 트리거 + 펼침 패널 (md 미만) ── */}
