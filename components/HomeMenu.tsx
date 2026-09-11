@@ -98,7 +98,7 @@ const GROUPS: Group[] = [
   },
 ];
 
-function GridItem({ t, color }: { t: Tile; color: string }) {
+function GridItem({ t, color, onNavigate }: { t: Tile; color: string; onNavigate?: () => void }) {
   const inner = (
     <>
       <span className={`hm-ic ${color}`}><Icon name={t.icon} /></span>
@@ -106,11 +106,12 @@ function GridItem({ t, color }: { t: Tile; color: string }) {
     </>
   );
   return t.external
-    ? <a href={t.href} className="hm-item">{inner}</a>
-    : <Link href={t.href} className="hm-item">{inner}</Link>;
+    ? <a href={t.href} className="hm-item" onClick={onNavigate}>{inner}</a>
+    : <Link href={t.href} className="hm-item" onClick={onNavigate}>{inner}</Link>;
 }
 
-export default function HomeMenu() {
+/** 모바일 메뉴 콘텐츠 — 헤더의 메뉴 버튼이 여는 팝업 안에서 렌더링된다. onNavigate: 항목 탭 시 팝업 닫기. */
+export default function HomeMenu({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="space-y-6">
       {/* 자주 쓰는 기능 */}
@@ -118,7 +119,7 @@ export default function HomeMenu() {
         <h2 className="text-[11px] font-semibold text-[var(--text-muted)] mb-2.5 uppercase tracking-wide">자주 쓰는 기능</h2>
         <div className="hm-quick">
           {QUICK.map((q) => (
-            <Link key={q.href} href={q.href} className="surface">
+            <Link key={q.href} href={q.href} className="surface" onClick={onNavigate}>
               <span className={`qi ${q.tint}`}><Icon name={q.icon} /></span>
               <span className="qt">{q.label}</span>
             </Link>
@@ -127,17 +128,14 @@ export default function HomeMenu() {
       </section>
 
       {/* 전체 메뉴 */}
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-        <div className="flex items-baseline gap-2 mb-4">
-          <h2 className="text-base font-bold text-[var(--text)]">전체 메뉴</h2>
-          <span className="text-[11px] text-[var(--text-muted)]">눌러서 바로 이동</span>
-        </div>
+      <section>
+        <h2 className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 uppercase tracking-wide">전체 메뉴</h2>
         <div className="space-y-5">
           {GROUPS.map((g) => (
             <div key={g.label}>
-              <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 uppercase tracking-wide">{g.label}</p>
+              <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 tracking-wide">{g.label}</p>
               <div className="hm-grid">
-                {g.items.map((t) => <GridItem key={t.href} t={t} color={g.color} />)}
+                {g.items.map((t) => <GridItem key={t.href} t={t} color={g.color} onNavigate={onNavigate} />)}
               </div>
             </div>
           ))}

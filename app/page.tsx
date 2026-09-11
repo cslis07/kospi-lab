@@ -4,7 +4,6 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import MarketHero from '@/components/MarketHero';
 import CoinDashboard from '@/components/CoinDashboard';
-import HomeMenu from '@/components/HomeMenu';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
@@ -99,12 +98,7 @@ function DashboardInner() {
         <CoinDashboard />
       </section>
 
-      {/* ── 모바일 홈 메뉴 — 시장 정보(주식·코인·ETF)를 먼저 보여준 뒤 그 아래에 배치. 데스크탑은 상단 탭 내비 사용 */}
-      <div className="md:hidden">
-        <HomeMenu />
-      </div>
-
-      {/* 관심종목 바로가기 */}
+      {/* 관심종목 바로가기 — 전체 메뉴는 상단 '메뉴' 버튼(NavTabs) 팝업으로 이동 */}
       <WatchlistSummary />
 
       {/* 이 앱은 진입 신호를 주는 도구가 아니다 — 대규모 백테스트에서 엣지가 확인되지 않았고(승률 49.7%),

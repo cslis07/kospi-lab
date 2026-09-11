@@ -300,7 +300,14 @@ html.dark .hero { background: linear-gradient(135deg, #1e2129 0%, #1a2130 100%);
 
 /* ══════════════════════════════════════════════════════════════
    홈 메뉴 (모바일) — 라인 SVG 아이콘 그리드 (이모지 제거·토스 톤)
+   메뉴 버튼 → 바텀시트 팝업 안에서 렌더링.
    ══════════════════════════════════════════════════════════════ */
+
+/* 팝업(바텀시트) 애니메이션 */
+@keyframes kl-fade  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kl-sheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.mfade  { animation: kl-fade .18s var(--ease); }
+.msheet { animation: kl-sheet .26s var(--ease); }
 
 /* 자주 쓰는 기능 — 컬러 칩 카드 4열 */
 .hm-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }

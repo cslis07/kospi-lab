@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useState, useRef, useEffect } from 'react';
+import HomeMenu from '@/components/HomeMenu';
 
 interface NavItem  { label: string; href: string; desc?: string }
 interface NavGroup {
@@ -105,6 +106,13 @@ function NavTabsInner() {
     setShownGroup(null);
   }, [pathname, searchParams]);
 
+  // 팝업 열림 동안 배경 스크롤 잠금
+  useEffect(() => {
+    if (!mobileOpen) return;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
+
   const dashActive = pathname === '/' && !searchParams.get('market');
   const activeGroupLabel =
     GROUPS.find((g) => g.matchFn(pathname, searchParams))?.label ?? null;
@@ -153,67 +161,52 @@ function NavTabsInner() {
         )}
       </div>
 
-      {/* ── 모바일: 햄버거 트리거 + 펼침 패널 (md 미만) ── */}
+      {/* ── 모바일: 메뉴 버튼 → 바텀시트 팝업 (md 미만) ── */}
       <div className="md:hidden">
-        <button onClick={() => setMobileOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-4 py-3 text-sm">
-          <span className="font-semibold text-[var(--text)]">
-            {dashActive ? DASHBOARD.label : (activeGroupLabel ?? '메뉴')}
+        <button type="button" onClick={() => setMobileOpen(true)}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] text-sm active:scale-[.99] transition-transform">
+          <span className="flex items-center gap-2 font-semibold text-[var(--text)]">
+            <svg className="w-5 h-5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            메뉴
           </span>
-          <div className="flex items-center gap-2 text-[var(--text-muted)]">
-            <span className="text-xs">{mobileOpen ? '닫기' : '메뉴'}</span>
-            {mobileOpen ? (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
-          </div>
+          <span className="text-xs text-[var(--text-muted)]">
+            {dashActive ? DASHBOARD.label : (activeGroupLabel ?? '전체 메뉴')}
+          </span>
         </button>
+      </div>
 
-        {mobileOpen && (
-          <div className="border-t border-[var(--border)] bg-[var(--bg-card)] max-h-[70vh] overflow-y-auto">
-            <Link href={DASHBOARD.href}
-              className={`block px-4 py-3 text-sm border-l-2 ${
-                dashActive ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] font-semibold' : 'border-transparent text-[var(--text)]'
-              }`}>
-              🏠 대시보드
-            </Link>
-            {GROUPS.map((g) => (
-              <div key={g.label} className="border-t border-[var(--border)]">
-                <p className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                  {g.label}
-                </p>
-                {g.items.map((it) => {
-                  const itemHref = it.href.split('?')[0];
-                  const itemQ = it.href.includes('?') ? new URLSearchParams(it.href.split('?')[1]) : null;
-                  const itemActive = pathname.startsWith(itemHref) &&
-                    (!itemQ || itemQ.get('market') === searchParams.get('market'));
-                  return (
-                    <Link key={it.href} href={it.href}
-                      className={`flex items-center justify-between px-4 py-2.5 text-sm border-l-2 ${
-                        itemActive ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] font-semibold' : 'border-transparent text-[var(--text)]'
-                      }`}>
-                      <span className="font-medium">{it.label}</span>
-                      {it.desc && <span className="text-[10px] text-[var(--text-muted)] ml-2 truncate">{it.desc}</span>}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
-            {/* 이용가이드 (정적) */}
-            <div className="border-t border-[var(--border)]">
-              <a href="/guide.html"
-                className="block px-4 py-3 text-sm border-l-2 border-transparent text-[var(--text)] font-medium">
-                📖 이용가이드
-              </a>
+      {/* 팝업 (바텀시트) */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-[100]" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm mfade" onClick={() => setMobileOpen(false)} />
+          <div className="absolute inset-x-0 bottom-0 flex flex-col max-h-[88vh] rounded-t-3xl bg-[var(--bg-card)] border-t border-[var(--border)] shadow-[var(--shadow-card)] msheet">
+            <div className="shrink-0 flex items-center justify-between px-5 pt-4 pb-3">
+              <div className="mx-auto absolute left-1/2 -translate-x-1/2 top-2 w-10 h-1 rounded-full bg-[var(--border)]" />
+              <span className="text-base font-bold text-[var(--text)]">메뉴</span>
+              <button type="button" onClick={() => setMobileOpen(false)} aria-label="닫기"
+                className="w-8 h-8 grid place-items-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] active:scale-90 transition-transform">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto px-4 pb-8 pt-1">
+              <Link href={DASHBOARD.href} onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-2 mb-5 px-4 py-3 rounded-2xl text-sm font-semibold ${
+                  dashActive ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'bg-[var(--surface-2)] text-[var(--text)]'
+                }`}>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 11l9-8 9 8M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" />
+                </svg>
+                대시보드 홈
+              </Link>
+              <HomeMenu onNavigate={() => setMobileOpen(false)} />
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </nav>
   );
 }
