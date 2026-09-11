@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.kospi_lab.twa",
+      "sha256_cert_fingerprints": [
+        "36:1E:8A:15:91:04:1A:17:54:85:D7:C9:3B:B6:2F:42:FA:34:6D:78:6B:F4:6D:95:53:CC:0A:B5:43:D6:14:14"
+      ]
+    }
+  }
+]

@@ -1,11 +1,11 @@
 {
   "name": "KOSPI LAB",
   "short_name": "KOSPI LAB",
-  "description": "한국 주식 실시간 시세 대시보드",
+  "description": "국내주식·코인선물 손절·사이징·청산가 계산과 매매 기록 — 투자 리스크 관리 대시보드",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#f2f4f6",
+  "theme_color": "#f2f4f6",
   "orientation": "portrait-primary",
   "icons": [
     {
