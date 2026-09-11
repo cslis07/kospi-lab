@@ -79,11 +79,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function DashboardInner() {
   return (
     <div className="space-y-8">
-      {/* ── 모바일 홈 런처 — 앱처럼 아이콘 그리드 홈메뉴(아이쑥쑥·약보듬 방식). 데스크탑은 상단 탭 내비 사용 */}
-      <div className="md:hidden">
-        <HomeMenu />
-      </div>
-
       {/* ── 주식 ── 지수 4종 (코스피·코스닥·코스피200·나스닥) */}
       <section>
         <div className="flex items-baseline gap-2 mb-3">
@@ -103,6 +98,11 @@ function DashboardInner() {
         </div>
         <CoinDashboard />
       </section>
+
+      {/* ── 모바일 홈 메뉴 — 시장 정보(주식·코인·ETF)를 먼저 보여준 뒤 그 아래에 배치. 데스크탑은 상단 탭 내비 사용 */}
+      <div className="md:hidden">
+        <HomeMenu />
+      </div>
 
       {/* 관심종목 바로가기 */}
       <WatchlistSummary />
