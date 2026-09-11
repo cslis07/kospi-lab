@@ -310,33 +310,6 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
             </div>
           )}
 
-          {/* ── 최근 체결 (Fills) ── */}
-          {act?.fills && act.fills.length > 0 && (
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-              <h2 className="text-sm font-semibold text-[var(--text)] mb-3">최근 체결 내역</h2>
-              <div className="space-y-1.5">
-                {act.fills.slice(0, 8).map((f) => {
-                  const buy = f.side.toLowerCase() === 'buy';
-                  return (
-                    <div key={f.tradeId} className="flex items-center justify-between text-xs rounded-lg bg-white/3 px-3 py-2">
-                      <div>
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold mr-1.5 ${buy ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
-                          {buy ? '매수' : '매도'}
-                        </span>
-                        <span className="font-mono text-[var(--text)]">{f.symbol}</span>
-                        <span className="text-[10px] text-[var(--text-muted)] ml-1.5">{fmtTs(f.ts)}</span>
-                      </div>
-                      <div className="text-right tabular-nums">
-                        <p className="text-[var(--text)]">{fmtAmount(f.size)} @ ${fmtUsd(f.priceAvg)}</p>
-                        {f.amount != null && <p className="text-[10px] text-[var(--text-muted)]">≈ ${fmtUsd(f.amount)}</p>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {/* ── 입출금·이체 (Bills) ── */}
           {act?.bills && act.bills.length > 0 && (
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
