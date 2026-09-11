@@ -169,13 +169,47 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
       {/* 잔고 표시 */}
       {data?.configured && !data.error && data.assets && (
         <div className="space-y-4">
-          <div className="rounded-2xl border-2 border-sky-500/40 bg-sky-500/5 p-5">
-            <p className="text-xs text-[var(--text-muted)] mb-1">총 평가금액 (USDT 환산)</p>
-            <p className="text-3xl font-bold text-sky-400 tabular-nums">
-              ${fmtUsd(data.totalUsdt ?? 0)}
-            </p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">{data.assets.length}개 자산 보유 · 현물(spot)</p>
-          </div>
+          {/* ── USDT-M 선물 잔액 — 실제 자금이 있는 곳. 우선(크게) 표시 ── */}
+          {pos?.configured && !pos.error && pos.account && (
+            <div className="rounded-2xl border-2 border-[var(--accent)]/40 bg-[var(--accent-soft)] p-5">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-[var(--text-muted)]">USDT-M 선물 잔액 (계좌 순자산)</p>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] font-bold">USDT-M 선물</span>
+              </div>
+              <p className="text-3xl font-bold text-[var(--accent)] tabular-nums">
+                ${fmtUsd(pos.account.equity)}
+              </p>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs tabular-nums">
+                <span className="text-[var(--text-muted)]">사용가능 <strong className="text-[var(--text)]">${fmtUsd(pos.account.available)}</strong></span>
+                <span className="text-[var(--text-muted)]">
+                  미실현{' '}
+                  <strong className={pos.account.unrealizedPL >= 0 ? 'text-emerald-500' : 'text-red-500'}>
+                    {pos.account.unrealizedPL >= 0 ? '+' : ''}{pos.account.unrealizedPL.toFixed(2)}
+                  </strong>
+                </span>
+                <span className="text-[var(--text-muted)]">증거금코인 {pos.account.marginCoin}</span>
+              </div>
+            </div>
+          )}
+
+          {/* 선물 로딩 중(아직 account 없음)일 때 자리 표시 */}
+          {pos && pos.configured && !pos.error && !pos.account && (
+            <div className="rounded-2xl border-2 border-[var(--accent)]/30 bg-[var(--accent-soft)] p-5">
+              <p className="text-xs text-[var(--text-muted)] mb-1">USDT-M 선물 잔액</p>
+              <p className="text-2xl font-bold text-[var(--text-muted)] tabular-nums animate-pulse">불러오는 중…</p>
+            </div>
+          )}
+
+          {/* ── 현물(spot) — 보조 표시 ── */}
+          {(data.totalUsdt ?? 0) > 0 && (
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-[var(--text-muted)]">현물(spot) 평가금액</p>
+                <p className="text-lg font-bold text-[var(--text)] tabular-nums">${fmtUsd(data.totalUsdt ?? 0)}</p>
+              </div>
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{data.assets.length}개 자산 보유 · USDT 환산</p>
+            </div>
+          )}
 
           {/* 선물 포지션 — 리스크 도구의 핵심: 실제 청산가·레버리지·미실현손익 */}
           {pos?.configured && (
@@ -246,7 +280,7 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
           )}
 
           {data.assets.length === 0 ? (
-            <p className="text-center text-sm text-[var(--text-muted)] py-8">보유 자산이 없습니다</p>
+            <p className="text-center text-sm text-[var(--text-muted)] py-8">현물(spot) 보유 자산이 없습니다</p>
           ) : (
             <div className="space-y-2">
               {data.assets.map((a) => {
