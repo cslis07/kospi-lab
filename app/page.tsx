@@ -132,6 +132,7 @@ function DashboardInner() {
         </Section>
 
         <Section title="📊 분석">
+          <QuickCard href="/planner"        emoji="🎯" title="프리트레이드 플래너" desc="사이징·청산가·1R 계산" />
           <QuickCard href="/stock-analysis" emoji="🔬" title="국내주식 분석" desc="수급·재무 체크리스트" />
           <QuickCard href="/coin-analysis"  emoji="📡" title="코인선물 분석" desc="손절·사이징·청산가" />
           <QuickCard href="/journal"  emoji="📓" title="매매일지 성적" desc="내 실제 승률·기대값" />

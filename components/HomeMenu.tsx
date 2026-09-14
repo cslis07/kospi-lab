@@ -36,6 +36,7 @@ const ICON: Record<string, string> = {
   simulate:   'M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1ZM8 6.5h8M8 11h.01M12 11h.01M16 11h.01M8 14.5h.01M12 14.5h.01M16 14.5v3.5M8 18h4',
   brokerage:  'M3 10l9-6 9 6M4 10h16M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18',
   guide:      'M12 6C10 4.7 7 4.2 4 4.7V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.7C17 4.2 14 4.7 12 6ZM12 6v14.5',
+  planner:    'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8M12 3v3M12 18v3M3 12h3M18 12h3',
 };
 
 function Icon({ name }: { name: string }) {
@@ -70,6 +71,7 @@ const GROUPS: Group[] = [
   },
   {
     label: '분석', color: 'c-violet', items: [
+      { href: '/planner',        icon: 'planner',  label: '플래너' },
       { href: '/stock-analysis', icon: 'analysis', label: '국내분석' },
       { href: '/coin-analysis',  icon: 'signal',   label: '코인분석' },
       { href: '/journal',        icon: 'journal',  label: '매매일지' },
