@@ -17,6 +17,7 @@ import ExchangeReconcile from '@/components/ExchangeReconcile';
 import CircuitBreakerBar from '@/components/CircuitBreakerBar';
 import RetroReport from '@/components/RetroReport';
 import AiCoach from '@/components/AiCoach';
+import WeeklyReview from '@/components/WeeklyReview';
 import type { RetroEntry } from '@/lib/journalRetro';
 
 function pct(v: number | null) { return v == null ? '-' : `${v.toFixed(1)}%`; }
@@ -134,6 +135,11 @@ export default function JournalPage() {
 
       {/* 손실 서킷브레이커 — 오늘 더 매매하면 안 되는 상태를 산수로 알린다 */}
       <CircuitBreakerBar />
+
+      {/* 주간 리뷰 — 이번 주 vs 지난 주, 규율 지표·최다 실수 요약(코인+주식 합산) */}
+      {(coin.mounted || stock.mounted) && (
+        <WeeklyReview rows={[...coin.entries, ...stock.entries]} />
+      )}
 
       {/* 거래소 대조 — 성적표의 입력을 손이 아니라 거래소가 채우게 한다(생존 편향 차단) */}
       {coin.mounted && <ExchangeReconcile entries={coin.entries} applyReconcile={coin.applyReconcile} />}
