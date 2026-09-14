@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 /* ══════════════════════════════════════════════════════════════
    모바일 홈 메뉴 — 세련된 라인 SVG 아이콘 그리드
@@ -98,20 +101,36 @@ const GROUPS: Group[] = [
   },
 ];
 
-function GridItem({ t, color, onNavigate }: { t: Tile; color: string; onNavigate?: () => void }) {
+/** href가 현재 라우트와 일치하는지(쿼리 market까지 정확 대조) */
+function useIsActive() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const curMarket = searchParams.get('market');
+  return (href: string) => {
+    const p = href.split('?')[0];
+    if (p === '/' || p.startsWith('http') || href.endsWith('.html')) return false;
+    const q = href.includes('?') ? new URLSearchParams(href.split('?')[1]) : null;
+    const itemMarket = q?.get('market') ?? null;
+    return pathname.startsWith(p) && itemMarket === curMarket;
+  };
+}
+
+function GridItem({ t, color, active, onNavigate }: { t: Tile; color: string; active: boolean; onNavigate?: () => void }) {
   const inner = (
     <>
       <span className={`hm-ic ${color}`}><Icon name={t.icon} /></span>
       <span className="hm-tx">{t.label}</span>
     </>
   );
+  const cls = `hm-item ${active ? 'on' : ''}`;
   return t.external
-    ? <a href={t.href} className="hm-item" onClick={onNavigate}>{inner}</a>
-    : <Link href={t.href} className="hm-item" onClick={onNavigate}>{inner}</Link>;
+    ? <a href={t.href} className={cls} onClick={onNavigate}>{inner}</a>
+    : <Link href={t.href} className={cls} onClick={onNavigate}>{inner}</Link>;
 }
 
 /** 모바일 메뉴 콘텐츠 — 헤더의 메뉴 버튼이 여는 팝업 안에서 렌더링된다. onNavigate: 항목 탭 시 팝업 닫기. */
 export default function HomeMenu({ onNavigate }: { onNavigate?: () => void }) {
+  const isActive = useIsActive();
   return (
     <div className="space-y-6">
       {/* 자주 쓰는 기능 */}
@@ -119,7 +138,7 @@ export default function HomeMenu({ onNavigate }: { onNavigate?: () => void }) {
         <h2 className="text-[11px] font-semibold text-[var(--text-muted)] mb-2.5 uppercase tracking-wide">자주 쓰는 기능</h2>
         <div className="hm-quick">
           {QUICK.map((q) => (
-            <Link key={q.href} href={q.href} className="surface" onClick={onNavigate}>
+            <Link key={q.href} href={q.href} className={`surface ${isActive(q.href) ? 'on' : ''}`} onClick={onNavigate}>
               <span className={`qi ${q.tint}`}><Icon name={q.icon} /></span>
               <span className="qt">{q.label}</span>
             </Link>
@@ -135,7 +154,7 @@ export default function HomeMenu({ onNavigate }: { onNavigate?: () => void }) {
             <div key={g.label}>
               <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 tracking-wide">{g.label}</p>
               <div className="hm-grid">
-                {g.items.map((t) => <GridItem key={t.href} t={t} color={g.color} onNavigate={onNavigate} />)}
+                {g.items.map((t) => <GridItem key={t.href} t={t} color={g.color} active={isActive(t.href)} onNavigate={onNavigate} />)}
               </div>
             </div>
           ))}

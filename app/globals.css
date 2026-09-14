@@ -344,3 +344,8 @@ html.dark .hero { background: linear-gradient(135deg, #1e2129 0%, #1a2130 100%);
 .qc-green  { background: var(--ok-soft);     color: var(--ok); }
 .qc-violet { background: var(--violet-soft); color: var(--violet); }
 .qc-amber  { background: var(--amber-soft);  color: var(--amber); }
+
+/* 현재 위치 하이라이트 — 팝업에서 지금 보고 있는 메뉴 표시 */
+.hm-item.on .hm-ic { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.hm-item.on .hm-tx { color: var(--accent); }
+.hm-quick a.on { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }

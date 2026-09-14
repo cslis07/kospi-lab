@@ -142,7 +142,12 @@ function NavTabsInner() {
               </button>
             ))}
           </div>
-          <a href="/guide.html" className="navlink ml-auto !bg-transparent">📖 이용가이드</a>
+          <a href="/guide.html" className="navlink ml-auto !bg-transparent">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 6C10 4.7 7 4.2 4 4.7V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.7C17 4.2 14 4.7 12 6ZM12 6v14.5" />
+            </svg>
+            이용가이드
+          </a>
         </div>
 
         {/* 서브칩 — 펼친(또는 활성) 그룹의 하위 메뉴 */}
