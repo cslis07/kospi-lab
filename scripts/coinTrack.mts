@@ -148,21 +148,35 @@ async function main() {
       for (const pp of positions) {
         const sym = String(pp.symbol), side = pp.holdSide === 'short' ? 'short' : 'long';
         const mark = Number(pp.markPrice), liq = Number(pp.liquidationPrice);
+        const base = sym.replace('USDT', '');
         const dist = mark > 0 && liq > 0 ? (Math.abs(mark - liq) / mark) * 100 : null;
-        if (dist != null && dist < 15) fire(`${sym}:liq`, `🛑 <b>${sym.replace('USDT', '')} 청산까지 ${dist.toFixed(1)}%</b>
+        // 청산 위험 2단계 — 임박(<8%)은 별도 키로 다시 울린다
+        if (dist != null) {
+          if (dist < 8) fire(`${sym}:liqCrit`, `🚨 <b>${base} 청산 임박 ${dist.toFixed(1)}%</b>
+마크 ${mark} · 청산 ${liq} — 지금 증거금 추가하거나 줄이세요`);
+          else if (dist < 15) fire(`${sym}:liq`, `🛑 <b>${base} 청산까지 ${dist.toFixed(1)}%</b>
 마크 ${mark} · 청산 ${liq} — 레버리지/증거금 확인`);
+        }
         for (const e of openJournal) {
           if (normSym(e.symbol) !== normSym(sym) || e.direction !== side) continue;
           const long = side === 'long';
-          if (e.stop > 0 && (long ? mark <= e.stop : mark >= e.stop)) fire(`${e.id}:stop`, `⚠ <b>${e.name || sym} 손절선 도달</b> (${e.stop}) · 현재 ${mark}`);
-          if (e.target1 > 0 && (long ? mark >= e.target1 : mark <= e.target1)) fire(`${e.id}:t1`, `🎯 <b>${e.name || sym} 목표1 도달</b> (${e.target1}) · 현재 ${mark}`);
-          if (e.target2 > 0 && (long ? mark >= e.target2 : mark <= e.target2)) fire(`${e.id}:t2`, `🎯 <b>${e.name || sym} 목표2 도달</b> (${e.target2}) · 현재 ${mark}`);
+          const nm = e.name || base;
+          if (e.stop > 0) {
+            const hitStop = long ? mark <= e.stop : mark >= e.stop;
+            if (hitStop) {
+              fire(`${e.id}:stop`, `⚠ <b>${nm} 손절선 도달</b> (${e.stop}) · 현재 ${mark} — 계획대로 정리하세요`);
+            } else {
+              // 손절 근접 사전 경보: 손절선까지 0.7% 이내(아직 미도달)
+              const nearFrac = long ? (mark - e.stop) / e.stop : (e.stop - mark) / e.stop;
+              if (nearFrac > 0 && nearFrac <= 0.007) fire(`${e.id}:near`, `🔔 <b>${nm} 손절선 근접</b> (손절 ${e.stop} · 현재 ${mark}) — 대응 준비`);
+            }
+          }
+          if (e.target1 > 0 && (long ? mark >= e.target1 : mark <= e.target1)) fire(`${e.id}:t1`, `🎯 <b>${nm} 목표1 도달</b> (${e.target1}) · 현재 ${mark}`);
+          if (e.target2 > 0 && (long ? mark >= e.target2 : mark <= e.target2)) fire(`${e.id}:t2`, `🎯 <b>${nm} 목표2 도달</b> (${e.target2}) · 현재 ${mark}`);
         }
       }
       for (const k of Object.keys(db.watch)) if (now - db.watch[k] > 3 * 24 * 3600e3) delete db.watch[k];   // 오래된 키 정리
-      if (alerts.length) { await telegram(alerts.join('
-
-')); console.log('포지션 알림', alerts.length); }
+      if (alerts.length) { await telegram(alerts.join('\n\n')); console.log('포지션 알림', alerts.length); }
     } catch (e) { console.error('position watch fail', (e as Error).message); }
   }
 

@@ -116,7 +116,29 @@ export default function BitgetPage() {
   return (
     <div className="max-w-lg mx-auto pb-12">
       <h1 className="text-xl font-bold text-[var(--text)] mb-1">비트겟 포트폴리오</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-6">내 Bitget 계좌 잔고를 실시간으로 조회합니다 (읽기 전용)</p>
+      <p className="text-sm text-[var(--text-muted)] mb-3">내 Bitget 계좌 잔고를 실시간으로 조회합니다 (읽기 전용)</p>
+
+      {/* 배경 알림 안내 — 앱을 꺼도 텔레그램으로 청산/손절 근접 경보 */}
+      <details className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-[var(--text)] flex items-center gap-2 select-none">
+          🔔 배경 알림 — 앱을 꺼도 텔레그램으로 경보
+          <span className="text-[11px] font-normal text-[var(--text-muted)]">15분마다 점검</span>
+        </summary>
+        <div className="mt-3 text-xs text-[var(--text-muted)] leading-relaxed space-y-2">
+          <p>
+            포지션이 <strong className="text-[var(--text)]">청산가에 근접</strong>(15% → 8% 2단계)하거나,
+            매매일지에 적어 둔 <strong className="text-[var(--text)]">손절선·목표가에 닿거나 근접</strong>하면
+            텔레그램으로 알립니다. 브라우저를 닫아도 서버(크론)가 대신 지켜봅니다.
+          </p>
+          <p className="text-[var(--text)] font-medium">켜는 법 (한 번만)</p>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>텔레그램 <code className="text-[var(--accent)]">@BotFather</code>로 봇 생성 → 토큰 발급, 내 chat_id 확인</li>
+            <li>GitHub 저장소 → Settings → Secrets에 <code className="text-[var(--accent)]">TELEGRAM_BOT_TOKEN</code>·<code className="text-[var(--accent)]">TELEGRAM_CHAT_ID</code> 추가</li>
+            <li>청산 감시는 <code className="text-[var(--accent)]">BITGET_API_*</code> 3종, 손절/목표 알림은 매매일지 클라우드 동기화(<code className="text-[var(--accent)]">SUPABASE_*</code>)가 있어야 동작</li>
+          </ol>
+          <p className="text-[11px] opacity-70">읽기 전용 조회만 하며 주문·출금은 하지 않습니다.</p>
+        </div>
+      </details>
 
       {isLoading && (
         <div className="space-y-3">
