@@ -8,15 +8,27 @@ import HomeMenu from '@/components/HomeMenu';
 interface NavItem  { label: string; href: string; desc?: string }
 interface NavGroup {
   label: string;
+  icon: string;   // 라인 SVG path (viewBox 24)
   items: NavItem[];
   matchFn: (p: string, q: URLSearchParams) => boolean;
 }
 
 const DASHBOARD: NavItem = { label: '대시보드', href: '/' };
+const DASH_ICON = 'M3 11l9-8 9 8M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5';
+
+/* 작은 라인 아이콘 */
+function NavIcon({ d, className = 'w-4 h-4' }: { d: string; className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d={d} />
+    </svg>
+  );
+}
 
 const GROUPS: NavGroup[] = [
   {
     label: '시장',
+    icon: 'M3 20h18M6 20v-5M10.5 20v-9M15 20v-6M19.5 20v-11',
     items: [
       { label: '국내주식', href: '/domestic',                desc: 'KOSPI·KOSDAQ' },
       { label: '해외주식', href: '/overseas',                desc: '미국 등 글로벌' },
@@ -30,6 +42,7 @@ const GROUPS: NavGroup[] = [
   },
   {
     label: '내 자산',
+    icon: 'M3 7a2 2 0 0 1 2-2h12v3M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H5a2 2 0 0 1-2-2M16.5 12.5h.01',
     items: [
       { label: '통합 자산',          href: '/portfolio', desc: '국내·해외·코인 합산' },
       { label: '내 주식',            href: '/my-stocks', desc: '관심·포트폴리오·알림' },
@@ -43,6 +56,7 @@ const GROUPS: NavGroup[] = [
   },
   {
     label: '분석',
+    icon: 'M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5M8 12l2.3-2.3 1.8 1.8L15.5 8.5',
     items: [
       { label: '국내주식 분석', href: '/stock-analysis', desc: '수급·추세·재무 체크리스트' },
       { label: '코인선물 분석', href: '/coin-analysis', desc: '손절·사이징·리스크 점검' },
@@ -64,6 +78,7 @@ const GROUPS: NavGroup[] = [
   },
   {
     label: '설계',
+    icon: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M15.5 8.5l-2.2 4.8L8.5 15.5l2.2-4.8 4.8-2.2Z',
     items: [
       { label: '투자설계',   href: '/invest',    desc: '계좌·자산 추천' },
       { label: '세제혜택',   href: '/tax',       desc: 'ISA·IRP·연금저축' },
@@ -89,6 +104,10 @@ function NavTabsInner() {
   const [mobileOpen, setMobileOpen]   = useState(false);
   // 데스크탑: 사용자가 알약을 눌러 미리 펼친 그룹(라우트 변경 시 초기화)
   const [shownGroup, setShownGroup]   = useState<string | null>(null);
+  // 바텀시트 스와이프-다운 닫기용 오프셋
+  const [dragY, setDragY] = useState(0);
+  const startY = useRef(0);
+  const dragging = useRef(false);
   const ref = useRef<HTMLElement>(null);
 
   // ESC → 닫기
@@ -106,12 +125,26 @@ function NavTabsInner() {
     setShownGroup(null);
   }, [pathname, searchParams]);
 
-  // 팝업 열림 동안 배경 스크롤 잠금
+  // 팝업 열림 동안 배경 스크롤 잠금 + 열 때 드래그 오프셋 초기화
   useEffect(() => {
     if (!mobileOpen) return;
+    setDragY(0);
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, [mobileOpen]);
+
+  // 방문 빈도 기록(자주 쓰는 기능 자동화) — 라우트 바뀔 때 현재 경로 카운트 +1
+  useEffect(() => {
+    try {
+      const market = searchParams.get('market');
+      const key = pathname + (market ? `?market=${market}` : '');
+      if (key === '/') return;                    // 대시보드는 제외
+      const raw = localStorage.getItem('kl:visits');
+      const map: Record<string, number> = raw ? JSON.parse(raw) : {};
+      map[key] = (map[key] ?? 0) + 1;
+      localStorage.setItem('kl:visits', JSON.stringify(map));
+    } catch { /* localStorage 불가 환경 무시 */ }
+  }, [pathname, searchParams]);
 
   const dashActive = pathname === '/' && !searchParams.get('market');
   const activeGroupLabel =
@@ -129,12 +162,14 @@ function NavTabsInner() {
           <div className="topnav">
             <Link href={DASHBOARD.href}
               className={`navlink ${dashActive ? 'active' : ''}`}>
+              <NavIcon d={DASH_ICON} />
               {DASHBOARD.label}
             </Link>
             {GROUPS.map((g) => (
               <button key={g.label} type="button"
                 onClick={() => setShownGroup(shown === g.label ? null : g.label)}
                 className={`navlink ${shown === g.label ? 'active' : ''}`}>
+                <NavIcon d={g.icon} />
                 {g.label}
                 <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
@@ -186,8 +221,17 @@ function NavTabsInner() {
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-[100]" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm mfade" onClick={() => setMobileOpen(false)} />
-          <div className="absolute inset-x-0 bottom-0 flex flex-col max-h-[88vh] rounded-t-3xl bg-[var(--bg-card)] border-t border-[var(--border)] shadow-[var(--shadow-card)] msheet">
-            <div className="shrink-0 flex items-center justify-between px-5 pt-4 pb-3">
+          <div
+            className={`absolute inset-x-0 bottom-0 flex flex-col max-h-[88vh] rounded-t-3xl bg-[var(--bg-card)] border-t border-[var(--border)] shadow-[var(--shadow-card)] ${dragY === 0 ? 'msheet' : ''}`}
+            style={{ transform: dragY ? `translateY(${dragY}px)` : undefined, transition: dragging.current ? 'none' : 'transform .25s cubic-bezier(.4,0,.2,1)' }}
+          >
+            {/* 헤더 = 스와이프 다운 핸들 영역 */}
+            <div
+              className="shrink-0 flex items-center justify-between px-5 pt-4 pb-3 touch-none select-none"
+              onTouchStart={(e) => { startY.current = e.touches[0].clientY; dragging.current = true; }}
+              onTouchMove={(e) => { if (dragging.current) setDragY(Math.max(0, e.touches[0].clientY - startY.current)); }}
+              onTouchEnd={() => { dragging.current = false; if (dragY > 110) setMobileOpen(false); else setDragY(0); }}
+            >
               <div className="mx-auto absolute left-1/2 -translate-x-1/2 top-2 w-10 h-1 rounded-full bg-[var(--border)]" />
               <span className="text-base font-bold text-[var(--text)]">메뉴</span>
               <button type="button" onClick={() => setMobileOpen(false)} aria-label="닫기"

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 
 /* ══════════════════════════════════════════════════════════════
    모바일 홈 메뉴 — 세련된 라인 SVG 아이콘 그리드
@@ -44,15 +45,6 @@ function Icon({ name }: { name: string }) {
     </svg>
   );
 }
-
-/* ── 자주 쓰는 기능 — 이 앱의 본질(손절·사이징·기록) 도구 4종 ── */
-type Quick = { href: string; icon: string; label: string; tint: string };
-const QUICK: Quick[] = [
-  { href: '/my-stocks',     icon: 'star',     label: '내 주식',   tint: 'qc-amber'  },
-  { href: '/risk',          icon: 'risk',     label: '통합 리스크', tint: 'qc-blue'   },
-  { href: '/coin-analysis', icon: 'signal',   label: '코인분석',   tint: 'qc-violet' },
-  { href: '/journal',       icon: 'journal',  label: '매매일지',   tint: 'qc-green'  },
-];
 
 /* ── 그룹 그리드 ── */
 type Tile = { href: string; icon: string; label: string; external?: boolean };
@@ -101,6 +93,36 @@ const GROUPS: Group[] = [
   },
 ];
 
+/* 전체 항목 평탄화(그룹색 유지, href 중복 제거) — 검색·자주쓰는 후보 풀 */
+type FlatItem = Tile & { color: string };
+const FLAT: FlatItem[] = GROUPS
+  .flatMap((g) => g.items.map((it) => ({ ...it, color: g.color })))
+  .filter((it, i, arr) => arr.findIndex((x) => x.href === it.href) === i);
+const BY_HREF = new Map(FLAT.map((f) => [f.href, f]));
+
+const COLOR_TO_QC: Record<string, string> = { 'c-blue': 'qc-blue', 'c-green': 'qc-green', 'c-violet': 'qc-violet', 'c-amber': 'qc-amber' };
+/* 방문 데이터가 없을 때 기본 자주쓰는(이 앱의 본질: 손절·사이징·기록) + 예쁜 틴트 오버라이드 */
+const DEFAULT_QUICK = ['/my-stocks', '/risk', '/coin-analysis', '/journal'];
+const TINT_OVERRIDE: Record<string, string> = { '/my-stocks': 'qc-amber', '/risk': 'qc-blue', '/coin-analysis': 'qc-violet', '/journal': 'qc-green' };
+
+const VISITS_KEY = 'kl:visits';
+function readVisits(): Record<string, number> {
+  try { const r = localStorage.getItem(VISITS_KEY); return r ? JSON.parse(r) : {}; } catch { return {}; }
+}
+/** 방문 빈도 상위 4개(있으면) → 부족분은 기본값으로 채움 */
+function pickQuick(visits: Record<string, number>): string[] {
+  const ranked = FLAT
+    .filter((f) => !f.external && (visits[f.href] ?? 0) > 0)
+    .sort((a, b) => (visits[b.href] ?? 0) - (visits[a.href] ?? 0))
+    .map((f) => f.href);
+  const out: string[] = [];
+  for (const h of [...ranked, ...DEFAULT_QUICK]) {
+    if (!out.includes(h) && BY_HREF.has(h)) out.push(h);
+    if (out.length >= 4) break;
+  }
+  return out;
+}
+
 /** href가 현재 라우트와 일치하는지(쿼리 market까지 정확 대조) */
 function useIsActive() {
   const pathname = usePathname();
@@ -131,35 +153,87 @@ function GridItem({ t, color, active, onNavigate }: { t: Tile; color: string; ac
 /** 모바일 메뉴 콘텐츠 — 헤더의 메뉴 버튼이 여는 팝업 안에서 렌더링된다. onNavigate: 항목 탭 시 팝업 닫기. */
 export default function HomeMenu({ onNavigate }: { onNavigate?: () => void }) {
   const isActive = useIsActive();
+
+  // 자주 쓰는 기능 — 실제 방문 빈도(localStorage) 기반, 없으면 기본값
+  const [visits, setVisits] = useState<Record<string, number>>({});
+  useEffect(() => { setVisits(readVisits()); }, []);
+  const quickItems = useMemo(
+    () => pickQuick(visits).map((h) => {
+      const f = BY_HREF.get(h)!;
+      return { ...f, tint: TINT_OVERRIDE[h] ?? COLOR_TO_QC[f.color] ?? 'qc-blue' };
+    }),
+    [visits],
+  );
+
+  // 검색
+  const [query, setQuery] = useState('');
+  const qq = query.trim().toLowerCase();
+  const results = qq ? FLAT.filter((f) => f.label.toLowerCase().includes(qq)) : null;
+
   return (
     <div className="space-y-6">
-      {/* 자주 쓰는 기능 */}
-      <section>
-        <h2 className="text-[11px] font-semibold text-[var(--text-muted)] mb-2.5 uppercase tracking-wide">자주 쓰는 기능</h2>
-        <div className="hm-quick">
-          {QUICK.map((q) => (
-            <Link key={q.href} href={q.href} className={`surface ${isActive(q.href) ? 'on' : ''}`} onClick={onNavigate}>
-              <span className={`qi ${q.tint}`}><Icon name={q.icon} /></span>
-              <span className="qt">{q.label}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+      {/* 검색 */}
+      <div className="relative">
+        <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5" />
+        </svg>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="메뉴 검색"
+          className="w-full pl-10 pr-9 py-3 rounded-2xl bg-[var(--surface-2)] border border-transparent focus:border-[var(--accent)] focus:bg-[var(--bg-card)] outline-none text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] transition-colors"
+        />
+        {query && (
+          <button type="button" onClick={() => setQuery('')} aria-label="지우기"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 grid place-items-center rounded-full text-[var(--text-muted)] hover:bg-[var(--border)]">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        )}
+      </div>
 
-      {/* 전체 메뉴 */}
-      <section>
-        <h2 className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 uppercase tracking-wide">전체 메뉴</h2>
-        <div className="space-y-5">
-          {GROUPS.map((g) => (
-            <div key={g.label}>
-              <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 tracking-wide">{g.label}</p>
-              <div className="hm-grid">
-                {g.items.map((t) => <GridItem key={t.href} t={t} color={g.color} active={isActive(t.href)} onNavigate={onNavigate} />)}
-              </div>
+      {results ? (
+        /* 검색 결과 */
+        <section>
+          <h2 className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 uppercase tracking-wide">검색 결과 {results.length}</h2>
+          {results.length ? (
+            <div className="hm-grid">
+              {results.map((t) => <GridItem key={t.href} t={t} color={t.color} active={isActive(t.href)} onNavigate={onNavigate} />)}
             </div>
-          ))}
-        </div>
-      </section>
+          ) : (
+            <p className="text-center text-sm text-[var(--text-muted)] py-6">‘{query}’ 검색 결과가 없습니다</p>
+          )}
+        </section>
+      ) : (
+        <>
+          {/* 자주 쓰는 기능 (자동) */}
+          <section>
+            <h2 className="text-[11px] font-semibold text-[var(--text-muted)] mb-2.5 uppercase tracking-wide">자주 쓰는 기능</h2>
+            <div className="hm-quick">
+              {quickItems.map((q) => (
+                <Link key={q.href} href={q.href} className={`surface ${isActive(q.href) ? 'on' : ''}`} onClick={onNavigate}>
+                  <span className={`qi ${q.tint}`}><Icon name={q.icon} /></span>
+                  <span className="qt">{q.label}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* 전체 메뉴 */}
+          <section>
+            <h2 className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 uppercase tracking-wide">전체 메뉴</h2>
+            <div className="space-y-5">
+              {GROUPS.map((g) => (
+                <div key={g.label}>
+                  <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 tracking-wide">{g.label}</p>
+                  <div className="hm-grid">
+                    {g.items.map((t) => <GridItem key={t.href} t={t} color={g.color} active={isActive(t.href)} onNavigate={onNavigate} />)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
