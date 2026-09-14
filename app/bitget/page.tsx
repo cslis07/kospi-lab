@@ -120,8 +120,8 @@ export default function BitgetPage() {
 
       {isLoading && (
         <div className="space-y-3">
-          <div className="h-24 rounded-2xl bg-white/5 animate-pulse" />
-          {[...Array(4)].map((_, i) => <div key={i} className="h-14 rounded-xl bg-white/5 animate-pulse" />)}
+          <div className="h-24 rounded-2xl bg-[var(--surface-2)] animate-pulse" />
+          {[...Array(4)].map((_, i) => <div key={i} className="h-14 rounded-xl bg-[var(--surface-2)] animate-pulse" />)}
         </div>
       )}
 
@@ -132,7 +132,7 @@ export default function BitgetPage() {
       {data && !data.locked && data.configured === false && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
-            <p className="text-sm font-semibold text-amber-400 mb-2">🔑 API 키가 설정되지 않았습니다</p>
+            <p className="text-sm font-semibold text-amber-600 mb-2">🔑 API 키가 설정되지 않았습니다</p>
             <p className="text-xs text-[var(--text-muted)] leading-relaxed">
               Bitget에서 <strong className="text-[var(--text)]">System-generated (HMAC)</strong> 키를{' '}
               <strong className="text-[var(--text)]">읽기 전용</strong>으로 발급한 뒤 환경변수에 등록하세요.
@@ -143,16 +143,16 @@ export default function BitgetPage() {
             <h2 className="text-sm font-semibold text-[var(--text)]">설정 방법</h2>
             <ol className="text-xs text-[var(--text-muted)] space-y-2 list-decimal list-inside">
               <li>Bitget → API 관리 → <strong className="text-[var(--text)]">System-generated</strong> 선택</li>
-              <li>권한: <strong className="text-emerald-400">읽기 전용(Read-only)만</strong> · 거래·출금 ❌</li>
+              <li>권한: <strong className="text-emerald-500">읽기 전용(Read-only)만</strong> · 거래·출금 ❌</li>
               <li>Passphrase 설정 (직접 입력, 기록 필수)</li>
-              <li>발급된 3종 키를 <code className="text-sky-400">.env.local</code> / Vercel env에 추가:</li>
+              <li>발급된 3종 키를 <code className="text-[var(--accent)]">.env.local</code> / Vercel env에 추가:</li>
             </ol>
             <pre className="text-[11px] bg-[var(--bg)] border border-[var(--border)] rounded-xl p-3 overflow-x-auto text-[var(--text-muted)]">
 {`BITGET_API_KEY=발급된_API_Key
 BITGET_API_SECRET=발급된_Secret_Key
 BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
             </pre>
-            <p className="text-[11px] text-amber-400/80">⚠️ 출금 권한 절대 금지 · 키는 git 커밋 금지 (.env.local은 gitignore)</p>
+            <p className="text-[11px] text-amber-600/80">⚠️ 출금 권한 절대 금지 · 키는 git 커밋 금지 (.env.local은 gitignore)</p>
           </div>
         </div>
       )}
@@ -160,7 +160,7 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
       {/* 키 설정됨 + 에러 */}
       {data?.configured && data.error && (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-5">
-          <p className="text-sm font-semibold text-red-400 mb-1">조회 실패</p>
+          <p className="text-sm font-semibold text-red-500 mb-1">조회 실패</p>
           <p className="text-xs text-[var(--text-muted)] break-all">{data.error}</p>
           <p className="text-xs text-[var(--text-muted)] mt-2">키 권한·Passphrase·IP 화이트리스트를 확인하세요.</p>
         </div>
@@ -215,7 +215,7 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
           {pos?.configured && (
             pos.error ? (
               <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.05] p-4">
-                <p className="text-xs font-semibold text-amber-400 mb-1">USDT 선물 — 키 권한 필요</p>
+                <p className="text-xs font-semibold text-amber-600 mb-1">USDT 선물 — 키 권한 필요</p>
                 <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
                   {/permission/i.test(pos.error) || /40014/.test(pos.error)
                     ? <>현재 API 키에 <strong className="text-[var(--text)]">선물 포지션 읽기(Futures / Position - Read)</strong> 권한이 없습니다.
@@ -230,7 +230,7 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
                   {pos.account && (
                     <span className="text-[11px] tabular-nums">
                       <span className="text-[var(--text-muted)]">미실현 </span>
-                      <strong className={pos.account.unrealizedPL >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                      <strong className={pos.account.unrealizedPL >= 0 ? 'text-emerald-500' : 'text-red-500'}>
                         {pos.account.unrealizedPL >= 0 ? '+' : ''}{pos.account.unrealizedPL.toFixed(2)}
                       </strong>
                     </span>
@@ -240,16 +240,16 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
                   {pos.positions.map((p) => {
                     const near = p.liqDistPct != null && p.liqDistPct < 15;
                     return (
-                      <div key={p.symbol + p.side} className={`rounded-xl border p-3 ${near ? 'border-red-500/40 bg-red-500/[0.06]' : 'border-[var(--border)] bg-white/[0.02]'}`}>
+                      <div key={p.symbol + p.side} className={`rounded-xl border p-3 ${near ? 'border-red-500/40 bg-red-500/[0.06]' : 'border-[var(--border)] bg-[var(--surface-2)]'}`}>
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-1.5">
                             <span className="text-sm font-bold text-[var(--text)]">{p.symbol.replace('USDT', '')}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${p.side === 'long' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${p.side === 'long' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500'}`}>
                               {p.side === 'long' ? '롱' : '숏'} {p.leverage}x
                             </span>
                             {p.marginMode && <span className="text-[9px] text-[var(--text-muted)]">{p.marginMode === 'isolated' ? '격리' : '교차'}</span>}
                           </div>
-                          <span className={`text-sm font-bold tabular-nums ${p.unrealizedPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          <span className={`text-sm font-bold tabular-nums ${p.unrealizedPL >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                             {p.unrealizedPL >= 0 ? '+' : ''}{p.unrealizedPL.toFixed(2)}
                           </span>
                         </div>
@@ -257,10 +257,10 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
                           <span>평단 {fmtUsd(p.openAvg)}</span>
                           <span>마크 {fmtUsd(p.markPrice)}</span>
                           <span>증거금 {p.marginSize.toFixed(2)}</span>
-                          <span className={near ? 'text-red-400 font-semibold' : ''}>
+                          <span className={near ? 'text-red-500 font-semibold' : ''}>
                             청산 {p.liquidationPrice > 0 ? fmtUsd(p.liquidationPrice) : '-'}
                           </span>
-                          <span className={near ? 'text-red-400 font-semibold col-span-2' : 'col-span-2'}>
+                          <span className={near ? 'text-red-500 font-semibold col-span-2' : 'col-span-2'}>
                             {p.liqDistPct != null ? `청산까지 ${p.liqDistPct.toFixed(1)}%` : ''}
                             {near ? ' ⚠ 청산 근접' : ''}
                           </span>
@@ -290,7 +290,7 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-[var(--text)]">{a.coin}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/5 text-[var(--text-muted)]">{pct.toFixed(1)}%</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--text-muted)]">{pct.toFixed(1)}%</span>
                       </div>
                       <span className="text-sm font-bold tabular-nums text-[var(--text)]">${fmtUsd(a.usdtValue)}</span>
                     </div>
@@ -299,10 +299,10 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
                       {a.price > 0 && <span className="tabular-nums">@ ${fmtUsd(a.price)}</span>}
                     </div>
                     {a.frozen > 0 && (
-                      <p className="text-[10px] text-amber-400/70 mt-1">잠금 {a.frozen.toLocaleString('en-US', { maximumFractionDigits: 8 })}</p>
+                      <p className="text-[10px] text-amber-600/70 mt-1">잠금 {a.frozen.toLocaleString('en-US', { maximumFractionDigits: 8 })}</p>
                     )}
-                    <div className="mt-2 h-1 rounded-full bg-white/5 overflow-hidden">
-                      <div className="h-full bg-sky-500/60 rounded-full" style={{ width: `${Math.min(100, pct)}%` }} />
+                    <div className="mt-2 h-1 rounded-full bg-[var(--surface-2)] overflow-hidden">
+                      <div className="h-full bg-[var(--accent)] rounded-full" style={{ width: `${Math.min(100, pct)}%` }} />
                     </div>
                   </div>
                 );
@@ -318,15 +318,15 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
                 {act.bills.slice(0, 10).map((b) => {
                   const inflow = b.size > 0;
                   return (
-                    <div key={b.billId} className="flex items-center justify-between text-xs rounded-lg bg-white/3 px-3 py-2">
+                    <div key={b.billId} className="flex items-center justify-between text-xs rounded-lg bg-[var(--surface-2)] px-3 py-2">
                       <div>
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium mr-1.5 ${inflow ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium mr-1.5 ${inflow ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-600'}`}>
                           {bizLabel(b.businessType)}
                         </span>
                         <span className="font-mono text-[var(--text)]">{b.coin}</span>
                         <span className="text-[10px] text-[var(--text-muted)] ml-1.5">{fmtTs(b.ts)}</span>
                       </div>
-                      <span className={`tabular-nums font-semibold ${inflow ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <span className={`tabular-nums font-semibold ${inflow ? 'text-emerald-500' : 'text-red-500'}`}>
                         {inflow ? '+' : ''}{fmtAmount(b.size)}
                       </span>
                     </div>
