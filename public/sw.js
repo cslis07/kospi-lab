@@ -3,7 +3,7 @@
 // ⚠ 전략이 전부다: 온라인이면 항상 네트워크(최신), 오프라인이면 캐시 폴백.
 //   HTML/JS 를 cache-first 로 잡으면 배포해도 구버전에 갇힌다 — 그래서 network-first.
 //   내부 API 와 외부(시세) 요청은 캐시하지 않는다(낡은 데이터로 판단을 흐리면 안 된다).
-const CACHE = 'kl-v1';
+const CACHE = 'kl-v2';   // 아이콘 교체 — 구버전 셸 캐시(옛 아이콘) 강제 폐기
 const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (e) => {
