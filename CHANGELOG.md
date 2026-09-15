@@ -2,6 +2,16 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-09-15 (28차) — APK 새 정체성 재빌드 (app.kospilab.twa) + 웹 탭 아이콘 수정
+
+옛 패키지에 아이콘을 여러 번 갱신해도 폰 런처가 옛 파란 K를 계속 표시(재부팅·재설치 무효) →
+**새 패키지 ID로 처음부터 재빌드**해 런처 캐시 문제를 원천 제거.
+- **packageId `app.kospilab.twa`** v1.0.0(code 1), 같은 서명키. 산출 `Documents\KOSPILAB_v1.0.apk`(옛 파일명과 다르게).
+  옛 `app.vercel.kospi_lab.twa`는 폐기 — assetlinks.json에서 제거, 새 패키지만 등록(전체화면 유지).
+- **어댑티브 아이콘 배경**: bubblewrap 템플릿 흰색 → 네이비 `#05163f`(`values/ic_bg.xml`)로 패치, 흰 테두리 제거.
+- **웹 탭 아이콘 미변경 수정**: `app/favicon.ico`(옛 파일)가 매니페스트보다 우선 → 새 아트워크로 재생성, SW 캐시 `kl-v2`.
+- 빌드 폴더·옛 APK 전부 삭제 후 클린 재생성. APK 내부 아이콘 레이어를 직접 추출해 캔들차트 확인.
+
 ## 2026-09-15 (27차) — 앱 아이콘 교체 (캔들차트+상승화살표)
 
 새 아트워크로 아이콘 교체 + 안드로이드 APK(TWA) v1.2.0 재빌드.
