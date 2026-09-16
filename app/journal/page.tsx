@@ -18,6 +18,7 @@ import CircuitBreakerBar from '@/components/CircuitBreakerBar';
 import RetroReport from '@/components/RetroReport';
 import AiCoach from '@/components/AiCoach';
 import WeeklyReview from '@/components/WeeklyReview';
+import TradeAutopsy from '@/components/TradeAutopsy';
 import type { RetroEntry } from '@/lib/journalRetro';
 
 function pct(v: number | null) { return v == null ? '-' : `${v.toFixed(1)}%`; }
@@ -148,6 +149,9 @@ export default function JournalPage() {
       {(coin.mounted || stock.mounted) && (
         <RetroReport entries={[...coin.entries, ...stock.entries] as unknown as RetroEntry[]} />
       )}
+
+      {/* 매매 심화 복기 — 진입·손절 타이밍 + 이벤트 대조 + 응대(코인 매매) */}
+      {coin.mounted && <TradeAutopsy />}
 
       {/* AI 복기 코치 — 통계를 넘겨 행동 피드백(방향 추천 아님) */}
       {(coin.mounted || stock.mounted) && (
