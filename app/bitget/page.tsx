@@ -2,6 +2,7 @@
 
 import useSWR from 'swr';
 import UnlockGate from '@/components/UnlockGate';
+import ClosedTrades from '@/components/ClosedTrades';
 
 interface Asset {
   coin: string;
@@ -300,6 +301,9 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
               </div>
             )
           )}
+
+          {/* 선물 청산 내역 — 거래소 자동(진입·청산·손절복구·순손익·시간) */}
+          {pos?.configured && <ClosedTrades />}
 
           {data.assets.length === 0 ? (
             <p className="text-center text-sm text-[var(--text-muted)] py-8">현물(spot) 보유 자산이 없습니다</p>

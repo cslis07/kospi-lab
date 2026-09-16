@@ -88,3 +88,53 @@ ok('eventsNear scope: crypto 요청 시 stocks 전용 제외', () => {
 });
 
 console.log(`\n${passed} passed`);
+
+// ── 손절가 자동복구(SL 주문 매칭) + 거래소 R ──
+import { attachStops, exchangeRiskUsdt, reconcileClosedPositions, type SlOrder, type ClosedPositionLike, type JournalLike } from '../lib/bitgetJournal';
+
+const DAY = 24 * H;
+const pos = (over: Partial<ClosedPositionLike> = {}): ClosedPositionLike => ({
+  positionId: 'p1', symbol: 'BTCUSDT', side: 'long', openAvg: 100, closeAvg: 104, netProfit: 40, size: 10, openTs: 10 * DAY, closeTs: 10 * DAY + 3 * H, ...over,
+});
+console.log('bitgetJournal — 손절 복구');
+ok('attachStops: 롱 진입 아래 SL(시간창 내) → stop 채움', () => {
+  const sl: SlOrder[] = [{ symbol: 'BTCUSDT', triggerPrice: 98, ts: 10 * DAY + H }];
+  assert.equal(attachStops([pos()], sl)[0].stop, 98);
+});
+ok('attachStops: TP(진입 위, 롱)는 손절로 안 붙음', () => {
+  const sl: SlOrder[] = [{ symbol: 'BTCUSDT', triggerPrice: 110, ts: 10 * DAY + H }];
+  assert.equal(attachStops([pos()], sl)[0].stop, undefined);
+});
+ok('attachStops: 시간창 밖 주문은 무시', () => {
+  const sl: SlOrder[] = [{ symbol: 'BTCUSDT', triggerPrice: 98, ts: 5 * DAY }];
+  assert.equal(attachStops([pos()], sl)[0].stop, undefined);
+});
+ok('attachStops: 숏은 진입 위 트리거를 손절로', () => {
+  const sl: SlOrder[] = [{ symbol: 'BTCUSDT', triggerPrice: 103, ts: 10 * DAY + H }];
+  assert.equal(attachStops([pos({ side: 'short', openAvg: 100 })], sl)[0].stop, 103);
+});
+ok('exchangeRiskUsdt: |100−98|×10 = 20, 없으면 null', () => {
+  near(exchangeRiskUsdt(pos({ stop: 98 }))!, 20);
+  assert.equal(exchangeRiskUsdt(pos()), null);   // stop 없음
+});
+ok('reconcile: 계획없는 매매+복구손절 → 새 기록에 stop·R 채움', () => {
+  const r = reconcileClosedPositions([pos({ stop: 98, netProfit: 40 })], []);
+  assert.equal(r.additions.length, 1);
+  assert.equal(r.additions[0].stop, 98);
+  near(r.additions[0].resultR!, 2);   // 40 / (|100-98|×10=20) = +2R
+});
+ok('reconcile: 복구손절로 손실도 −R로 환산', () => {
+  const r = reconcileClosedPositions([pos({ stop: 98, netProfit: -20 })], []);
+  near(r.additions[0].resultR!, -1);
+});
+ok('reconcile: 복구손절 없으면 R은 여전히 null(추측 금지)', () => {
+  const r = reconcileClosedPositions([pos({ netProfit: 40 })], []);
+  assert.equal(r.additions[0].resultR, null);
+  assert.equal(r.additions[0].stop, 0);
+});
+ok('reconcile: 계획매칭인데 계획리스크 없으면 거래소손절로 R', () => {
+  const journal: JournalLike[] = [{ id: 'j1', ts: 10 * DAY, symbol: 'BTCUSDT', direction: 'long', entry: 100, stop: 0, result: 'open' }];
+  const r = reconcileClosedPositions([pos({ stop: 98, netProfit: 40 })], journal);
+  assert.equal(r.updates.length, 1);
+  near(r.updates[0].patch.resultR!, 2);
+});

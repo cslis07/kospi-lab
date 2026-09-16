@@ -20,6 +20,35 @@ export interface ClosedPositionLike {
   netProfit: number;
   openTs: number;
   closeTs: number;
+  size?: number;          // 청산 수량 — 거래소 손절로 R 환산할 때 필요
+  stop?: number;          // SL 주문에서 복구한 손절가(있을 때)
+}
+
+export interface SlOrder { symbol: string; triggerPrice: number; ts: number }
+
+/**
+ * SL(스탑로스) 주문 트리거가를 청산 포지션에 매칭해 stop 을 채운다.
+ * 거래소 side/plan 필드가 버전마다 달라 신뢰가 낮으므로 "심볼 + 시간창 + 손절 방향(진입 대비 손해쪽)"으로만 매칭한다.
+ * 롱은 트리거가 < 진입가, 숏은 > 진입가. 진입 시각에 가장 가까운 주문을 채택.
+ */
+export function attachStops<T extends ClosedPositionLike>(positions: T[], sl: SlOrder[]): T[] {
+  const H = 3_600_000;
+  return positions.map((p) => {
+    const cands = sl.filter((o) =>
+      o.triggerPrice > 0 &&
+      normSymbol(o.symbol) === normSymbol(p.symbol) &&
+      o.ts >= p.openTs - 2 * H && o.ts <= p.closeTs + H &&
+      (p.side === 'long' ? o.triggerPrice < p.openAvg : o.triggerPrice > p.openAvg));
+    if (!cands.length) return p;
+    const best = cands.sort((a, b) => Math.abs(a.ts - p.openTs) - Math.abs(b.ts - p.openTs))[0];
+    return { ...p, stop: best.triggerPrice };
+  });
+}
+
+/** 거래소 데이터로 1R(USDT) 역산: |진입−손절| × 수량. 손절가·수량 없으면 null. */
+export function exchangeRiskUsdt(p: ClosedPositionLike): number | null {
+  if (p.stop != null && p.stop > 0 && p.size != null && p.size > 0 && p.openAvg > 0) return Math.abs(p.openAvg - p.stop) * p.size;
+  return null;
 }
 
 export interface JournalLike {
@@ -56,7 +85,7 @@ export interface ReconcileResult {
     direction: 'long' | 'short'; state: string; score: number;
     price: number; entry: number; stop: number; target1: number; target2: number;
     leverage: number; reasonsTop: string[];
-    result: 'win' | 'loss' | 'even'; resultR: null; realizedUsdt: number;
+    result: 'win' | 'loss' | 'even'; resultR: number | null; realizedUsdt: number;
     exchangePositionId: string; memo: string;
   }[];
   /** 이미 반영돼 건너뛴 건수 — UI 가 "새로 반영 0건"을 정직하게 말할 수 있게 */
@@ -124,7 +153,7 @@ export function reconcileClosedPositions(
 
     if (cand) {
       consumed.add(cand.id);
-      const riskUsdt = plannedRiskUsdt(cand);
+      const riskUsdt = plannedRiskUsdt(cand) ?? exchangeRiskUsdt(p);
       updates.push({
         id: cand.id,
         patch: {
@@ -137,6 +166,7 @@ export function reconcileClosedPositions(
         },
       });
     } else {
+      const exRisk = exchangeRiskUsdt(p);
       additions.push({
         id: `bitget-${p.positionId}`,
         ts: p.openTs || p.closeTs,
@@ -147,16 +177,17 @@ export function reconcileClosedPositions(
         score: 0,
         price: p.openAvg,
         entry: p.openAvg,
-        stop: 0,            // 계획이 없었으므로 손절가를 지어내지 않는다
+        stop: p.stop != null && p.stop > 0 ? p.stop : 0,   // 계획 없어도 SL주문에서 복구되면 채운다(지어내진 않음)
         target1: 0,
         target2: 0,
         leverage: 0,
-        reasonsTop: ['계획 기록 없이 체결된 매매 — 거래소 이력에서 자동 수집'],
+        reasonsTop: [p.stop != null && p.stop > 0 ? '계획 없이 체결 · 거래소 SL주문에서 손절가 복구' : '계획 기록 없이 체결된 매매 — 거래소 이력에서 자동 수집'],
         result: outcome(p.netProfit),
-        resultR: null,      // 계획 리스크가 없으니 R 환산 불가
+        // 손절가를 복구했으면 거래소 데이터로 R 환산, 아니면 null(추측 금지)
+        resultR: exRisk != null && exRisk > 0 ? Math.round((p.netProfit / exRisk) * 100) / 100 : null,
         realizedUsdt: p.netProfit,
         exchangePositionId: p.positionId,
-        memo: `계획 없이 진입 · 실현 ${p.netProfit >= 0 ? '+' : ''}${p.netProfit.toFixed(2)} USDT (평단 ${p.openAvg} → ${p.closeAvg})`,
+        memo: `계획 없이 진입 · 실현 ${p.netProfit >= 0 ? '+' : ''}${p.netProfit.toFixed(2)} USDT (평단 ${p.openAvg} → ${p.closeAvg})${p.stop != null && p.stop > 0 ? ` · 손절 ${p.stop}(SL주문 복구)` : ''}`,
       });
     }
     seen.add(p.positionId);

@@ -10,6 +10,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { bitgetKeysConfigured, bitgetSignedGet } from '@/lib/bitget';
+import { attachStops, type SlOrder } from '@/lib/bitgetJournal';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 20;
@@ -31,6 +32,8 @@ export interface ClosedPosition {
   funding: number;
   openTs: number;
   closeTs: number;
+  /** SL 주문에서 복구한 손절가(있을 때만) */
+  stop?: number;
 }
 
 export async function GET(req: NextRequest) {
@@ -67,7 +70,25 @@ export async function GET(req: NextRequest) {
     }).filter((p) => p.symbol && p.closeTs > 0)
       .sort((a, b) => b.closeTs - a.closeTs);
 
-    return NextResponse.json({ configured: true, days, positions });
+    // SL(스탑로스) 주문 트리거가 복구 — best-effort. 없거나 권한/필드 이슈면 조용히 skip.
+    let sl: SlOrder[] = [];
+    try {
+      const pj = await bitgetSignedGet(
+        `/api/v2/mix/order/orders-plan-history?productType=USDT-FUTURES&planType=profit_loss&startTime=${startTime}&endTime=${endTime}&limit=100`,
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = pj.data as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const list: any[] = d?.entrustedList ?? d?.list ?? (Array.isArray(d) ? d : []);
+      sl = list.map((o) => ({
+        symbol: String(o.symbol ?? ''),
+        triggerPrice: num(o.triggerPrice ?? o.stopLossTriggerPrice ?? o.presetStopLossPrice ?? o.executePrice),
+        ts: num(o.cTime ?? o.ctime ?? o.uTime),
+      })).filter((o) => o.symbol && o.triggerPrice > 0 && o.ts > 0);
+    } catch { /* SL 이력 없음/권한 없음 — 손절가 복구만 skip, 나머지는 정상 */ }
+
+    const withStops = attachStops(positions, sl);
+    return NextResponse.json({ configured: true, days, positions: withStops, slRecovered: withStops.filter((p) => p.stop != null).length });
   } catch (e) {
     return NextResponse.json({ configured: true, error: String(e), positions: [] });
   }
