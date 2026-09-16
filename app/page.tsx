@@ -4,30 +4,24 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import MarketHero from '@/components/MarketHero';
 import CoinDashboard from '@/components/CoinDashboard';
+import { MENU, ICON, type MenuItem } from '@/lib/menu';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 
-/* ── 빠른 이동 카드 ─────────────────────────────────────── */
-function QuickCard({
-  href, emoji, title, desc, accent,
-}: {
-  href: string;
-  emoji: string;
-  title: string;
-  desc: string;
-  accent?: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`surface hover-lift block p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] group ${accent ?? ''}`}
-    >
-      <div className="text-2xl mb-2">{emoji}</div>
-      <p className="text-sm font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">{title}</p>
-      <p className="text-xs text-[var(--text-muted)] mt-0.5">{desc}</p>
-    </Link>
+/* ── 빠른 이동 카드 (lib/menu 단일 소스 · SVG 아이콘) ───────── */
+function MenuCard({ item, color }: { item: MenuItem; color: string }) {
+  const inner = (
+    <>
+      <span className={`w-9 h-9 rounded-xl grid place-items-center mb-2 bg-[var(--surface-2)] ${color}`}>
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d={ICON[item.icon]} /></svg>
+      </span>
+      <p className="text-sm font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">{item.label}</p>
+      {item.desc && <p className="text-xs text-[var(--text-muted)] mt-0.5">{item.desc}</p>}
+    </>
   );
+  const cls = 'surface hover-lift block p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] group';
+  return item.external ? <a href={item.href} className={cls}>{inner}</a> : <Link href={item.href} className={cls}>{inner}</Link>;
 }
 
 /* ── 관심종목 요약 카드 ─────────────────────────────────── */
@@ -114,44 +108,13 @@ function DashboardInner() {
         </p>
       </div>
 
-      {/* 카테고리별 바로가기 카드 — 모바일은 위 홈메뉴 아이콘 그리드가 대신하므로 데스크탑에서만 노출 */}
+      {/* 카테고리별 바로가기 — lib/menu 단일 소스(4그룹). 모바일은 상단 메뉴 팝업이 대신하므로 데스크탑만 */}
       <div className="hidden md:block space-y-8">
-        <Section title="📈 시장">
-          <QuickCard href="/domestic"               emoji="🇰🇷" title="국내주식" desc="KOSPI·KOSDAQ" />
-          <QuickCard href="/overseas"               emoji="🌐" title="해외주식" desc="US 등 글로벌" />
-          <QuickCard href="/my-stocks?market=crypto" emoji="₿"  title="코인"     desc="실시간 시세" />
-          <QuickCard href="/futures"                emoji="⚡" title="선물"     desc="USDT 무기한" />
-        </Section>
-
-        <Section title="💼 내 자산">
-          <QuickCard href="/portfolio" emoji="💰" title="통합 자산"         desc="국내·해외·코인 합산" />
-          <QuickCard href="/my-stocks" emoji="⭐" title="내 주식"           desc="관심·포트폴리오" />
-          <QuickCard href="/bitget"    emoji="🪙" title="비트겟 포트폴리오" desc="내 코인 잔고" />
-          <QuickCard href="/risk"      emoji="🛡" title="통합 리스크"       desc="계좌 전체 익스포저·집중도" />
-          <QuickCard href="/virtual"   emoji="🧪" title="가상투자·백업"     desc="모의매매 · 백업/복원" />
-        </Section>
-
-        <Section title="📊 분석">
-          <QuickCard href="/target"         emoji="🏁" title="목표 수익률"       desc="월 목표 역산·누수·규칙" />
-          <QuickCard href="/planner"        emoji="🎯" title="프리트레이드 플래너" desc="사이징·청산가·1R 계산" />
-          <QuickCard href="/stock-analysis" emoji="🔬" title="국내주식 분석" desc="수급·재무 체크리스트" />
-          <QuickCard href="/coin-analysis"  emoji="📡" title="코인선물 분석" desc="손절·사이징·청산가" />
-          <QuickCard href="/journal"  emoji="📓" title="매매일지 성적" desc="내 실제 승률·기대값" />
-          <QuickCard href="/growth"   emoji="🌱" title="성장주 발굴"   desc="PER·PEG·컨센서스" />
-          <QuickCard href="/screener" emoji="🔍" title="버핏 스크리너" desc="ROE·PER 7기준" />
-          <QuickCard href="/krx"      emoji="🏅" title="KRX 시장"     desc="지수·랭킹·ETF·상품" />
-          <QuickCard href="/news"     emoji="📰" title="뉴스"          desc="시장 소식" />
-          <QuickCard href="/dart"     emoji="📋" title="공시"          desc="DART 전자공시" />
-          <QuickCard href="/report"   emoji="📊" title="리포트"        desc="증권사 리포트" />
-          <QuickCard href="/calendar" emoji="📅" title="캘린더"        desc="경제 이벤트" />
-        </Section>
-
-        <Section title="🎯 설계">
-          <QuickCard href="/invest"    emoji="🧭" title="투자설계"   desc="계좌·자산 추천" />
-          <QuickCard href="/tax"       emoji="💸" title="세제혜택"   desc="ISA·IRP·연금 절세" />
-          <QuickCard href="/simulate"  emoji="📈" title="시뮬레이션" desc="복리 FV 계산" />
-          <QuickCard href="/brokerage" emoji="🏦" title="증권사 비교" desc="수수료·CMA" />
-        </Section>
+        {MENU.map((g) => (
+          <Section key={g.key} title={g.label}>
+            {g.items.map((it) => <MenuCard key={it.href} item={it} color={g.color} />)}
+          </Section>
+        ))}
       </div>
     </div>
   );
