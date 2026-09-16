@@ -8,6 +8,10 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useCoinJournal } from '@/hooks/useCoinJournal';
+import { useRiskLimits } from '@/hooks/useRiskLimits';
+import { useTargetPlan } from '@/hooks/useTargetPlan';
+import { evaluateBreaker, type BreakerEntry } from '@/lib/circuitBreaker';
+import { HARD_MAX_RISK_PCT } from '@/lib/targetPlan';
 
 const n = (v: string) => { const x = Number(v.replace(/,/g, '')); return Number.isFinite(x) ? x : 0; };
 const fmt = (x: number, d = 2) => x.toLocaleString('en-US', { maximumFractionDigits: d });
@@ -30,7 +34,10 @@ function Field({ label, value, onChange, suffix, placeholder }: {
 }
 
 export default function PlannerPage() {
-  const { add } = useCoinJournal();
+  const journal = useCoinJournal();
+  const { add } = journal;
+  const { limits } = useRiskLimits();
+  const { settings: target } = useTargetPlan();
 
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [dir, setDir] = useState<'long' | 'short'>('long');
@@ -63,8 +70,20 @@ export default function PlannerPage() {
 
   const ready = c.dirOk && c.notion > 0;
 
+  // 규칙 강제 — 목표 수익률 시스템: 서킷브레이커 작동·회당 리스크 상한 초과면 저장 잠금
+  const lock = useMemo(() => {
+    const reasons: string[] = [];
+    const br = evaluateBreaker(journal.entries as unknown as BreakerEntry[], limits);
+    if (br.status === 'blocked') reasons.push(...br.reasons.map((r) => `서킷브레이커: ${r}`));
+    const rp = n(riskPct);
+    if (rp > HARD_MAX_RISK_PCT) reasons.push(`회당 리스크 ${rp}%는 상한 ${HARD_MAX_RISK_PCT}% 초과 — 목표가 아니라 드로다운을 키웁니다.`);
+    else if (rp > target.riskPct) reasons.push(`목표 계획(회당 ${target.riskPct}%)보다 큰 리스크입니다. 계획을 지키세요.`);
+    const hard = br.status === 'blocked' || rp > HARD_MAX_RISK_PCT;
+    return { blocked: hard, reasons };
+  }, [journal.entries, limits, riskPct, target.riskPct]);
+
   function savePlan() {
-    if (!ready) return;
+    if (!ready || lock.blocked) return;
     add({
       ts: Date.now(),
       symbol: symbol.trim().toUpperCase() || 'BTCUSDT',
@@ -173,9 +192,15 @@ export default function PlannerPage() {
             </div>
           )}
 
-          <button type="button" onClick={savePlan}
-            className="w-full rounded-2xl bg-[var(--accent)] text-white font-semibold py-3.5 text-sm active:scale-[.99] transition-transform">
-            이 계획을 저널에 저장
+          {lock.reasons.length > 0 && (
+            <div className={`rounded-xl p-3 space-y-1 ${lock.blocked ? 'border border-red-500/40 bg-red-500/10' : 'border border-amber-500/40 bg-amber-500/10'}`}>
+              {lock.reasons.map((r, i) => <p key={i} className={`text-xs font-semibold ${lock.blocked ? 'text-red-500' : 'text-amber-600'}`}>{lock.blocked ? '🛑' : '⚠'} {r}</p>)}
+              <p className="text-[10px] text-[var(--text-muted)]">규칙은 <Link href="/target" className="underline">목표 수익률 시스템</Link>·매매일지 서킷브레이커에서 정합니다.</p>
+            </div>
+          )}
+          <button type="button" onClick={savePlan} disabled={lock.blocked}
+            className="w-full rounded-2xl bg-[var(--accent)] text-white font-semibold py-3.5 text-sm active:scale-[.99] transition-transform disabled:opacity-40 disabled:cursor-not-allowed">
+            {lock.blocked ? '규칙 위반 — 저장 잠김' : '이 계획을 저널에 저장'}
           </button>
           {saved && (
             <p className="text-center text-xs text-emerald-500 font-semibold">

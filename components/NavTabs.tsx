@@ -58,6 +58,7 @@ const GROUPS: NavGroup[] = [
     label: '분석',
     icon: 'M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5M8 12l2.3-2.3 1.8 1.8L15.5 8.5',
     items: [
+      { label: '목표 수익률', href: '/target', desc: '월 목표 역산·누수 차단·규칙 강제' },
       { label: '프리트레이드 플래너', href: '/planner', desc: '사이징·청산가·1R 계산 → 저널 저장' },
       { label: '국내주식 분석', href: '/stock-analysis', desc: '수급·추세·재무 체크리스트' },
       { label: '코인선물 분석', href: '/coin-analysis', desc: '손절·사이징·리스크 점검' },
@@ -71,7 +72,7 @@ const GROUPS: NavGroup[] = [
       { label: '캘린더',        href: '/calendar', desc: '경제 이벤트' },
     ],
     matchFn: (p) =>
-      p.startsWith('/planner') ||
+      p.startsWith('/target') || p.startsWith('/planner') ||
       p.startsWith('/stock-analysis') || p.startsWith('/coin-analysis') ||
       p.startsWith('/journal') || p.startsWith('/growth') ||
       p.startsWith('/screener') || p.startsWith('/krx') || p.startsWith('/news') ||
