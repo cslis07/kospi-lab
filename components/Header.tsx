@@ -2,11 +2,30 @@
 
 import useSWR from 'swr';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import ThemeToggle from './ThemeToggle';
 import SyncIndicator from './SyncIndicator';
 import GlobalSearch from './GlobalSearch';
+import { FLAT, MENU } from '@/lib/menu';
 import type { FxRate } from '@/lib/types';
+
+/** 하단 탭의 루트 화면인가(홈·더보기·각 그룹의 첫 항목) — 루트에선 뒤로가기를 숨긴다(네이티브 관례). */
+function isTabRoot(pathname: string): boolean {
+  if (pathname === '/' || pathname === '/more') return true;
+  return MENU.filter((g) => g.key !== 'more').some((g) => pathname === g.items[0].href.split('?')[0]);
+}
+
+/** 모바일 앱바 제목 — 현재 경로에 맞는 메뉴 라벨(쿼리 없는 항목 우선, 없으면 특수 경로). */
+function mobileTitle(pathname: string): string | null {
+  if (pathname === '/') return null;
+  if (pathname.startsWith('/more')) return '더보기';
+  if (pathname.startsWith('/stock/')) return '종목 상세';
+  const base = (h: string) => h.split('?')[0];
+  const exact = FLAT.filter((f) => !f.href.includes('?')).find((f) => pathname.startsWith(base(f.href)));
+  const any = exact ?? FLAT.find((f) => pathname.startsWith(base(f.href)));
+  return any?.label ?? 'KOSPI LAB';
+}
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -92,6 +111,11 @@ export default function Header() {
   const { data } = useSWR('/api/market', fetcher, { refreshInterval: 10000 });
   const { isKrOpen, isUsOpen, krLabel, usLabel } = useMarketStatus();
   const [time, setTime] = useState('');
+  const pathname = usePathname();
+  const router = useRouter();
+  const title = mobileTitle(pathname);
+  const showBack = !isTabRoot(pathname);
+  const goBack = () => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/'); };
 
   useEffect(() => {
     const tick = () =>
@@ -107,7 +131,35 @@ export default function Header() {
 
   return (
     <header className="site-header border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-md sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center gap-3">
+      {/* ── 모바일 앱바 (md 미만): 홈=로고+검색 / 내부 페이지=뒤로가기+제목 ── */}
+      <div className="md:hidden appbar px-2 flex items-center gap-1">
+        {title ? (
+          <>
+            {showBack ? (
+              <button type="button" onClick={goBack} className="appbar-btn" aria-label="뒤로가기">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+              </button>
+            ) : <span className="w-2" aria-hidden />}
+            <h1 className={`flex-1 min-w-0 truncate font-bold tracking-tight text-[var(--text)] ${showBack ? 'text-[17px]' : 'text-[20px] pl-2'}`}>{title}</h1>
+          </>
+        ) : (
+          <>
+            <Link href="/" aria-label="홈" className="flex items-center gap-2 pl-2 shrink-0">
+              <span aria-hidden className="grid place-items-center w-7 h-7 rounded-lg text-[13px] font-black text-white"
+                style={{ background: 'linear-gradient(135deg,#3182f6,#1b64da)', boxShadow: '0 2px 8px rgba(49,130,246,.35)' }}>K</span>
+              <span className="text-[15px] font-extrabold tracking-tight text-[var(--text)]">KOSPI LAB</span>
+            </Link>
+            <div className="flex-1 flex justify-end min-w-0 px-1"><GlobalSearch /></div>
+          </>
+        )}
+        <div className="flex items-center gap-1 shrink-0 pr-1">
+          <SyncIndicator />
+          <ThemeToggle />
+        </div>
+      </div>
+
+      {/* ── 데스크탑 헤더 (md+) ── */}
+      <div className="hidden md:flex max-w-7xl mx-auto px-3 sm:px-6 h-14 items-center gap-3">
 
         {/* ── Left: 로고 + 시장 상태 ── */}
         <div className="flex items-center gap-3 shrink-0 min-w-0">

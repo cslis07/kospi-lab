@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Header from '@/components/Header';
 import NavTabs from '@/components/NavTabs';
+import BottomNav from '@/components/BottomNav';
 import PwaRegister from '@/components/PwaRegister';
 
 export const metadata: Metadata = {
@@ -28,6 +29,8 @@ export const viewport: Viewport = {
   ],
   width: 'device-width',
   initialScale: 1,
+  // 노치·제스처바 안전영역(env(safe-area-inset-*))을 쓰려면 cover 필요 — 하단 탭바 여백에 사용
+  viewportFit: 'cover',
 };
 
 // 페인트 전에 실행 — 사용자가 명시적으로 다크를 골랐을 때만 html.dark 를 붙인다(기본은 라이트).
@@ -42,18 +45,31 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full flex flex-col">
         <PwaRegister />
         <Header />
-        <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 pt-6">
+        <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 pt-4 md:pt-6">
           <NavTabs />
           {children}
         </div>
-        <footer className="border-t border-[var(--border)] py-4 text-center text-[11px] text-[var(--text-muted)] mt-8 px-4 leading-relaxed">
-          데이터 출처: 네이버 금융·KIS·KRX·DART·Bitget · 투자 참고용<br />
-          <span className="opacity-70">
-            본 서비스의 모든 분석·점수는 자동 계산 참고 정보이며 투자 권유가 아닙니다.
-            <strong className="opacity-100"> 자체 대규모 측정에서 코인(727건 49.7% · 81건 41.7%)·주식(362건 54.1%, 진입필터 없는 대조군 54.8%보다 낮음) 모두 예측 우위가 확인되지 않았습니다</strong> —
-            체크리스트로만 사용하세요. 투자 손실의 책임은 본인에게 있으며, 레버리지 상품은 원금 초과 손실이 발생할 수 있습니다.
-          </span>
+        {/* 푸터 — 모바일은 한 줄 + 접기(벽 텍스트가 매 화면 반복되지 않게), 데스크탑은 전문 */}
+        <footer className="app-footer border-t border-[var(--border)] py-4 text-center text-[11px] text-[var(--text-muted)] mt-8 px-4 leading-relaxed">
+          <div className="md:hidden">
+            데이터 출처: 네이버 금융·KIS·KRX·DART·Bitget · 투자 참고용
+            <details className="mt-1.5">
+              <summary className="cursor-pointer text-[var(--accent)] font-semibold list-none">투자 유의 · 측정 결과 보기</summary>
+              <p className="mt-2 opacity-80 text-left">
+                모든 분석·점수는 자동 계산 참고 정보이며 투자 권유가 아닙니다. 자체 대규모 측정에서 코인(727건 49.7% · 81건 41.7%)·주식(362건 54.1%, 진입필터 없는 대조군 54.8%보다 낮음) 모두 예측 우위가 확인되지 않았습니다 — 체크리스트로만 사용하세요. 투자 손실의 책임은 본인에게 있으며, 레버리지 상품은 원금 초과 손실이 발생할 수 있습니다.
+              </p>
+            </details>
+          </div>
+          <div className="hidden md:block">
+            데이터 출처: 네이버 금융·KIS·KRX·DART·Bitget · 투자 참고용<br />
+            <span className="opacity-70">
+              본 서비스의 모든 분석·점수는 자동 계산 참고 정보이며 투자 권유가 아닙니다.
+              <strong className="opacity-100"> 자체 대규모 측정에서 코인(727건 49.7% · 81건 41.7%)·주식(362건 54.1%, 진입필터 없는 대조군 54.8%보다 낮음) 모두 예측 우위가 확인되지 않았습니다</strong> —
+              체크리스트로만 사용하세요. 투자 손실의 책임은 본인에게 있으며, 레버리지 상품은 원금 초과 손실이 발생할 수 있습니다.
+            </span>
+          </div>
         </footer>
+        <BottomNav />
       </body>
     </html>
   );

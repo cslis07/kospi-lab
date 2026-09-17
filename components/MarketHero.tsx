@@ -41,7 +41,7 @@ export default function MarketHero() {
     <div className="hero">
       <div className="min-w-0">
         <div className="hero-label">코스피 (KOSPI)</div>
-        <div className="hero-amount">{kospi ? fmt(kospi.value) : '불러오는 중…'}</div>
+        <div className="hero-amount">{kospi ? fmt(kospi.value) : <span className="skeleton h-9 w-44 rounded-lg" aria-label="불러오는 중" />}</div>
         {kospi && (
           <span className={`hero-pill ${d}`}>
             {arrow(d)} {kospi.change >= 0 ? '+' : ''}{fmt(kospi.change)} ({kospi.changeRate >= 0 ? '+' : ''}{kospi.changeRate.toFixed(2)}%)

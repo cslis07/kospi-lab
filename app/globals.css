@@ -351,6 +351,94 @@ html.dark .hero { background: linear-gradient(135deg, #1e2129 0%, #1a2130 100%);
 .hm-quick a.on { border-color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
 
 /* ══════════════════════════════════════════════════════════════
+   네이티브 앱 셸 (모바일, md 미만) — 하단 탭바 · 앱바 · 서브칩 스크롤 · 스켈레톤 · 리스트 행
+   TWA(APK)는 이 웹을 그대로 띄우므로 여기가 곧 앱 UI다. 안전영역은 env() 로 처리.
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --tabbar-h: 60px;
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sat: env(safe-area-inset-top, 0px);
+}
+html, body { -webkit-tap-highlight-color: transparent; }
+body { overscroll-behavior-y: none; }   /* 앱처럼 — 바운스로 흰 배경 노출 방지 */
+
+/* 하단 탭바 */
+.app-tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  height: calc(var(--tabbar-h) + var(--sab));
+  padding-bottom: var(--sab);
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 20px rgba(17,24,39,.05);
+}
+html.dark .app-tabbar { box-shadow: 0 -4px 20px rgba(0,0,0,.4); }
+.app-tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  text-decoration: none; color: var(--faint);
+  font-size: 10.5px; font-weight: 600; letter-spacing: -.02em; line-height: 1;
+  padding-top: 6px; user-select: none;
+}
+.app-tab .ti {
+  width: 52px; height: 30px; border-radius: 999px;
+  display: grid; place-items: center;
+  transition: background-color .18s var(--ease), transform .12s var(--ease), color .18s var(--ease);
+}
+.app-tab .ti svg { width: 23px; height: 23px; }
+.app-tab:active .ti { transform: scale(.9); }
+.app-tab.on { color: var(--accent-ink); }
+.app-tab.on .ti { background: var(--accent-soft); color: var(--accent); }
+.app-tab.on .ti svg { stroke-width: 2.1; }
+html.dark .app-tab.on { color: var(--accent); }
+
+/* 앱바 */
+.appbar { height: calc(52px + var(--sat)); padding-top: var(--sat); }
+.appbar-btn {
+  width: 40px; height: 40px; border-radius: 999px;
+  display: grid; place-items: center;
+  color: var(--ink); background: transparent; border: none; cursor: pointer;
+}
+.appbar-btn:active { background: var(--surface-2); transform: scale(.94); }
+
+/* 서브칩 가로 스크롤 — 여백을 뚫고 화면 끝까지, 스크롤바 숨김 */
+.chip-scroll {
+  display: flex; gap: 8px; overflow-x: auto;
+  margin: 0 -16px; padding: 2px 16px 8px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+.chip-scroll::-webkit-scrollbar { display: none; }
+.chip-scroll .chip { flex: 0 0 auto; scroll-snap-align: start; padding: 7px 13px; }
+.chip:active { transform: scale(.96); }
+
+/* 스켈레톤 — "불러오는 중…" 텍스트 대신 */
+@keyframes kl-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.skeleton {
+  display: block; border-radius: 10px;
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--line-2) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: kl-shimmer 1.4s ease-in-out infinite;
+}
+html.dark .skeleton { background: linear-gradient(90deg, var(--surface-2) 25%, rgba(255,255,255,.08) 50%, var(--surface-2) 75%); background-size: 200% 100%; }
+
+/* 설정 리스트 행(더보기) */
+.list-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; min-height: 52px;
+  background: var(--surface); color: var(--ink); text-decoration: none;
+}
+.list-row + .list-row { border-top: 1px solid var(--line-2); }
+a.list-row:active { background: var(--surface-2); }
+
+/* 모바일 본문 하단 여백 — 탭바에 가리지 않게 */
+@media (max-width: 767px) {
+  .app-footer { padding-bottom: calc(var(--tabbar-h) + var(--sab) + 12px); margin-top: 24px; }
+  details > summary::-webkit-details-marker { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════
    PC 시인성 — 데스크탑에서 초소형 텍스트를 눈에 맞게 확대.
    앱이 모바일 우선이라 9~11px 텍스트가 많다(text-[10px] 352곳). ≥1024px에서만 키운다.
    unlayered 규칙이라 Tailwind 유틸리티(@layer)보다 우선 → !important 불필요.

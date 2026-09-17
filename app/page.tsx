@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import MarketHero from '@/components/MarketHero';
 import CoinDashboard from '@/components/CoinDashboard';
-import { MENU, ICON, type MenuItem } from '@/lib/menu';
+import { MENU, ICON, DEFAULT_QUICK, BY_HREF, type MenuItem } from '@/lib/menu';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
@@ -70,8 +70,21 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 /* ── 대시보드 내부 ──────────────────────────────────────── */
 function DashboardInner() {
+  // 모바일 퀵액션 — 이 앱의 핵심(매매 규율 4종). 상단 메뉴 팝업을 없앴으므로 홈에서 바로 닿게.
+  const quick = DEFAULT_QUICK.map((h) => BY_HREF.get(h)!).filter(Boolean);
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
+      <div className="hm-quick md:hidden">
+        {quick.map((q) => (
+          <Link key={q.href} href={q.href} className="surface">
+            <span className={`qi ${q.qc}`}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={ICON[q.icon]} /></svg>
+            </span>
+            <span className="qt">{q.label}</span>
+          </Link>
+        ))}
+      </div>
+
       {/* ── 주식 ── 지수 4종 (코스피·코스닥·코스피200·나스닥) */}
       <section>
         <div className="flex items-baseline gap-2 mb-3">
@@ -97,7 +110,20 @@ function DashboardInner() {
 
       {/* 이 앱은 진입 신호를 주는 도구가 아니다 — 대규모 백테스트에서 엣지가 확인되지 않았고(승률 49.7%),
           실제 가치는 손절 강제·사이징·기록에 있다. 첫 화면에서 그 성격을 분명히 한다(모바일·데스크탑 모두 노출). */}
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3">
+      {/* 모바일: 한 줄 요약 + 접기(첫 화면을 벽 텍스트로 채우지 않되 정직성 문구는 유지) */}
+      <details className="md:hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-[11px] leading-relaxed text-[var(--text-muted)]">
+        <summary className="cursor-pointer list-none flex items-center gap-2">
+          <span className="text-xs font-semibold text-[var(--text)]">이 도구의 역할</span>
+          <span>매매 신호 아님 · 손절·사이징·기록 도구</span>
+          <span className="ml-auto text-[var(--accent)] font-semibold">자세히</span>
+        </summary>
+        <p className="mt-2">
+          <strong className="text-[var(--text)]">방향 판단은 사용자 몫</strong>이고, 앱은 <strong className="text-[var(--text)]">손절·사이징·청산가·기록</strong>을 맡습니다.
+          룰 엔진 점수는 체크리스트일 뿐 매수·매도 신호가 아닙니다 — 자체 대규모 측정에서 <strong className="text-[var(--text)]">코인·주식 엔진 모두 예측 우위가 확인되지 않았습니다</strong>
+          (코인 727건 49.7%·81건 41.7% / 주식 362건 54.1%인데 <strong className="text-[var(--text)]">진입 판정을 뺀 대조군이 54.8%로 더 높음</strong> — 상승장 베타).
+        </p>
+      </details>
+      <div className="hidden md:block rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3">
         <p className="text-xs font-semibold text-[var(--text)] mb-1">이 도구의 역할</p>
         <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
           <strong className="text-[var(--text)]">방향 판단은 사용자 몫</strong>이고, 앱은
