@@ -39,17 +39,18 @@ async function fetchBasic(ticker: string) {
   const basic = await basicRes.json();
   const integ = integRes.ok ? await integRes.json() : {};
   const infos: { key: string; value: string }[] = integ.totalInfos ?? [];
-  const get = (k: string) => infos.find((i) => i.key === k)?.value ?? '-';
+  // 네이버 모바일이 키를 축약형(시총·대금)으로 바꿈 → 신규 우선, 구키 폴백(둘 중 먼저 있는 것)
+  const pick = (...ks: string[]) => { for (const k of ks) { const v = infos.find((i) => i.key === k)?.value; if (v != null) return v; } return '-'; };
   return {
     name: basic.stockName ?? ticker,
     price: parseNum(basic.closePrice),
     change: parseNum(basic.compareToPreviousClosePrice),
     changeRate: parseNum(basic.fluctuationsRatio),
     market: basic.stockExchangeType?.name ?? 'KOSPI',
-    volume: get('거래량'), tradingValue: get('거래대금'), marketCap: get('시가총액'),
-    high52w: parseNum(get('52주최고')) || parseNum(get('52주 최고')) || null,
-    low52w: parseNum(get('52주최저')) || parseNum(get('52주 최저')) || null,
-    per: parseNum(get('PER')) || null, pbr: parseNum(get('PBR')) || null,
+    volume: pick('거래량'), tradingValue: pick('대금', '거래대금'), marketCap: pick('시총', '시가총액'),
+    high52w: parseNum(pick('52주 최고', '52주최고')) || null,
+    low52w: parseNum(pick('52주 최저', '52주최저')) || null,
+    per: parseNum(pick('PER')) || null, pbr: parseNum(pick('PBR')) || null,
   };
 }
 
