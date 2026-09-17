@@ -16,7 +16,21 @@ export default function CoinDashboard() {
   if (isLoading && !data) {
     return (
       <div className="space-y-3">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* 모바일: 헤더 + 실제 카드 모양 시머(콜드 로드 때 빈 박스만 덩그러니 보이지 않게) */}
+        <div className="md:hidden">
+          <div className="fin-sec"><h3>시장환경</h3></div>
+          <div className="grid grid-cols-2 gap-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="fin-card fin-mini">
+                <span className="skeleton w-[38px] h-[38px] rounded-xl" />
+                <span className="skeleton h-3 w-16 mt-3" />
+                <span className="skeleton h-5 w-24 mt-2" />
+                <span className="skeleton h-4 w-14 mt-2 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="hidden md:grid grid-cols-4 gap-3">
           {[...Array(4)].map((_, i) => <div key={i} className="h-28 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] animate-pulse" />)}
         </div>
       </div>

@@ -100,6 +100,10 @@ export const MENU: MenuGroup[] = [
   ]),
 ];
 
+/** 모바일 하단 탭에 직접 노출되는 그룹. 나머지(내 자산·정보·도구)는 '더보기' 탭으로 접힌다.
+ *  탭바 = 홈 · 매매 · [+ 플래너 FAB] · 시세 · 더보기. BottomNav·Header(탭 루트 판정)가 함께 쓴다. */
+export const TAB_GROUP_KEYS: readonly string[] = ['trade', 'market'];
+
 /** 전체 항목 평탄화(그룹색 유지, href 중복 제거) — 검색·자주쓰는 후보 풀 */
 export type FlatMenuItem = MenuItem & { color: string; qc: string };
 export const FLAT: FlatMenuItem[] = MENU

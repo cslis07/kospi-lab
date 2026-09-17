@@ -7,13 +7,13 @@ import { useState, useEffect } from 'react';
 import ThemeToggle from './ThemeToggle';
 import SyncIndicator from './SyncIndicator';
 import GlobalSearch from './GlobalSearch';
-import { FLAT, MENU } from '@/lib/menu';
+import { FLAT, MENU, TAB_GROUP_KEYS } from '@/lib/menu';
 import type { FxRate } from '@/lib/types';
 
-/** 하단 탭의 루트 화면인가(홈·더보기·각 그룹의 첫 항목) — 루트에선 뒤로가기를 숨긴다(네이티브 관례). */
+/** 하단 탭의 루트 화면인가(홈·더보기·탭 그룹의 첫 항목) — 루트에선 뒤로가기를 숨긴다(네이티브 관례). */
 function isTabRoot(pathname: string): boolean {
   if (pathname === '/' || pathname === '/more') return true;
-  return MENU.filter((g) => g.key !== 'more').some((g) => pathname === g.items[0].href.split('?')[0]);
+  return MENU.filter((g) => TAB_GROUP_KEYS.includes(g.key)).some((g) => pathname === g.items[0].href.split('?')[0]);
 }
 
 /** 모바일 앱바 제목 — 현재 경로에 맞는 메뉴 라벨(쿼리 없는 항목 우선, 없으면 특수 경로). */
