@@ -12,6 +12,7 @@
  *     financeInfo.rowList[{title, columns: {[key]: {value, cx}}}]
  *     단위: 매출액·영업이익·당기순이익 = 억원 / 비율(%)/PER·PBR(배)/EPS·BPS(원)
  */
+import { TtlCache } from './cache';
 
 export interface NaverData {
   code: string;
@@ -72,12 +73,12 @@ function getRow(rowList: RowList, title: string, key: string): number | null {
 }
 
 // ── 캐시 ────────────────────────────────────────────────────────────────────
-const _cache = new Map<string, { d: NaverData; ts: number }>();
 const CACHE_TTL = 60 * 60 * 1000; // 1h
+const _cache = new TtlCache<NaverData>(CACHE_TTL);
 
 export async function fetchNaverData(code: string): Promise<NaverData | null> {
   const cached = _cache.get(code);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.d;
+  if (cached) return cached.v;
 
   // 1) basic — 이름, 현재가, 시장 구분
   const basic = (await nGet(`${BASE}/${code}/basic`)) as Record<string, unknown> | null;
@@ -139,6 +140,6 @@ export async function fetchNaverData(code: string): Promise<NaverData | null> {
     netIncome:       netIncRaw   != null ? netIncRaw   * UNIT : null,
   };
 
-  _cache.set(code, { d: result, ts: Date.now() });
+  _cache.set(code, result);
   return result;
 }

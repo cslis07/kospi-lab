@@ -10,6 +10,7 @@ import { getEtfFlows, etfBiasFor } from '@/lib/etfFlow';
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 import { BITGET_BASE, fetchBitgetFuturesTickers } from '@/lib/bitget';
 import { claudeBriefing, resolveBriefingModel, BriefingResult } from '@/lib/anthropic';
+import { TtlCache } from '@/lib/cache';
 
 export const maxDuration = 30;
 // Bybit(OI)·업비트가 미국 데이터센터 IP를 차단하므로 이 라우트만 서울 리전에서 실행
@@ -319,17 +320,17 @@ function upcomingEvent(): { title: string; hoursUntil: number; date: string } | 
 }
 
 /* ── 백테스트 (10분 캐시 — CPU 절약) ─────────────────── */
-const _btCache = new Map<string, { result: BacktestResult; ts: number }>();
 const BT_TTL = 10 * 60 * 1000;
+const _btCache = new TtlCache<BacktestResult>(BT_TTL);
 
 function cachedBacktest(
   symbol: string, c5m: Candle[], c15m: Candle[], c1h: Candle[], fundingRate: number,
   htfCandles?: { c4h: Candle[]; c1d: Candle[] },
 ): BacktestResult {
   const hit = _btCache.get(symbol);
-  if (hit && Date.now() - hit.ts < BT_TTL) return hit.result;
+  if (hit) return hit.v;
   const result = backtestEngine(c5m, c15m, c1h, fundingRate, 3, 96, htfCandles);
-  _btCache.set(symbol, { result, ts: Date.now() });
+  _btCache.set(symbol, result);
   return result;
 }
 
@@ -455,8 +456,8 @@ function buildMovement(inp: MovementInput) {
 }
 
 /* ── AI 종합 브리핑 (3분 캐시) ───────────────────────── */
-const _aiCache = new Map<string, { text: string; ts: number }>();
 const AI_TTL = 3 * 60 * 1000;
+const _aiCache = new TtlCache<string>(AI_TTL);
 
 async function aiBriefing(
   symbol: string, name: string, price: number,
@@ -465,7 +466,7 @@ async function aiBriefing(
 ): Promise<BriefingResult> {
   const cacheKey = `${symbol}:${modelId}`;
   const cached = _aiCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < AI_TTL) return { text: cached.text, model: modelId };
+  if (cached) return { text: cached.v, model: modelId };
 
   const prompt = `당신은 코인 선물 단타 교육 자료를 기반으로 차트를 해설하는 분석 도우미입니다.
 방법론: ①1시간봉 방향→15분봉 구조→5분봉 타이밍 순서 ②EMA/VWAP은 방향 필터 ③거래량 미동반 돌파 불신 ④RSI는 추세 내 눌림 확인용(30/70 역매매 금지) ⑤손절은 ATR·구조 기반, 레버리지는 낮게(2~5배) ⑥펀딩 쏠림은 체제 신호.
@@ -497,7 +498,7 @@ ${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(
 - 마지막 줄에 "방향 판단은 투자자 본인의 몫이며, 위 내용은 투자 권유가 아닙니다." 한 문장을 추가.`;
 
   const out = await claudeBriefing(prompt, 1000, 'coin-analysis', modelId);
-  if (out.text) _aiCache.set(cacheKey, { text: out.text, ts: Date.now() });
+  if (out.text) _aiCache.set(cacheKey, out.text);
   return out;
 }
 
@@ -695,9 +696,22 @@ export async function GET(req: NextRequest) {
 
     const ai = await aiBriefing(symbol, coin.name, price, verdictSummary, tfSummary, news.map((n) => n.title), moveSummary, briefingModel);
 
+    // 소스별 수집 성공/실패 — 파생·수급 데이터는 거래소가 데이터센터 IP 를 차단하면
+    // 조용히 빈 값으로 떨어진다(§6). 판정이 어떤 결측 위에서 나왔는지 화면에 공시한다.
+    const sources: { key: string; label: string; ok: boolean; critical: boolean }[] = [
+      { key: 'longShort', label: '롱숏 비율',     ok: longShort.latest != null, critical: false },
+      { key: 'taker',     label: '테이커 매수/매도', ok: takerFlow.length > 0,     critical: false },
+      { key: 'oi',        label: '미결제약정(OI)',  ok: oiHist.length > 0,        critical: false },
+      { key: 'orderbook', label: '오더북',         ok: orderbook != null,        critical: false },
+      { key: 'fearGreed', label: '공포·탐욕',      ok: fearGreed != null,        critical: false },
+      { key: 'kimchi',    label: '김치프리미엄',    ok: kimchi != null,           critical: false },
+      { key: 'news',      label: '뉴스',           ok: news.length > 0,          critical: false },
+    ];
+
     return NextResponse.json({
       symbol,
       name: coin.name,
+      sources,
       updatedAt: Date.now(),
       price,
       change24h: t ? Number(t.change24h) * 100 : null,

@@ -3,6 +3,7 @@
  * 버핏 스크리너(app/api/screener)와 미국 성장주 스캔(growth-scan)이 공유한다.
  * (기존 screener route 에 있던 로직을 그대로 추출 — 동작 동일)
  */
+import { TtlCache } from './cache';
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -11,10 +12,10 @@ let _crumb = '';
 let _cookie = '';
 let _authTs = 0;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const RCACHE = new Map<string, { d: any; ts: number }>();
 const CACHE_TTL = 60 * 60 * 1000; // 1h
 const MAX_KEYS = 2000;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const RCACHE = new TtlCache<any>(CACHE_TTL, MAX_KEYS);
 
 async function ensureCrumb() {
   if (_crumb && Date.now() - _authTs < 20 * 60_000) return;
@@ -74,7 +75,7 @@ const YF_HOSTS = [
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function fetchYahoo(ticker: string): Promise<any | null> {
   const cached = RCACHE.get(ticker);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.d;
+  if (cached) return cached.v;
 
   await ensureCrumb();
   const crumbQ = _crumb ? `&crumb=${encodeURIComponent(_crumb)}` : '';
@@ -98,12 +99,7 @@ export async function fetchYahoo(ticker: string): Promise<any | null> {
         const json = await res.json();
         const result = json?.quoteSummary?.result?.[0];
         if (result) {
-          if (RCACHE.size >= MAX_KEYS) {
-            const now = Date.now();
-            for (const [k, v] of RCACHE) if (now - v.ts >= CACHE_TTL) RCACHE.delete(k);
-            if (RCACHE.size >= MAX_KEYS) RCACHE.delete(RCACHE.keys().next().value as string);
-          }
-          RCACHE.set(ticker, { d: result, ts: Date.now() });
+          RCACHE.set(ticker, result);
           return result;
         }
         break; // null result → try next module list

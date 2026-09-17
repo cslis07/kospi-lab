@@ -1,4 +1,5 @@
 import { kisGet } from '@/lib/kis';
+import { TtlCache } from '@/lib/cache';
 
 /**
  * 한국투자증권 국내주식 재무비율(FHKST66430300) 단건 조회.
@@ -32,12 +33,12 @@ function num(s: string | undefined): number | null {
 /* 재무 데이터는 분기마다 갱신되므로 성공 결과를 1시간 캐시한다.
  * (실패는 캐시하지 않아 일시적 초당제한이 결과를 오염시키지 않음) → 호출량·EGW00201 급감 */
 const FIN_TTL = 60 * 60 * 1000;
-const _finCache = new Map<string, { d: KisFinancials; ts: number }>();
-const _opmCache = new Map<string, { d: number; ts: number }>();
+const _finCache = new TtlCache<KisFinancials>(FIN_TTL);
+const _opmCache = new TtlCache<number>(FIN_TTL);
 
 export async function fetchKisFinancialRatio(code: string): Promise<KisFinancials | null> {
   const c = _finCache.get(code);
-  if (c && Date.now() - c.ts < FIN_TTL) return c.d;
+  if (c) return c.v;
   try {
     const json = await kisGet(
       '/uapi/domestic-stock/v1/finance/financial-ratio',
@@ -63,7 +64,7 @@ export async function fetchKisFinancialRatio(code: string): Promise<KisFinancial
       netIncomePositive: eps != null ? eps > 0 : null,
       stacYymm:          primary.stac_yymm ?? null,
     };
-    _finCache.set(code, { d: result, ts: Date.now() });
+    _finCache.set(code, result);
     return result;
   } catch {
     return null;
@@ -82,7 +83,7 @@ interface IncomeRow {
  */
 export async function fetchKisOpMargin(code: string): Promise<number | null> {
   const c = _opmCache.get(code);
-  if (c && Date.now() - c.ts < FIN_TTL) return c.d;
+  if (c) return c.v;
   try {
     const json = await kisGet(
       '/uapi/domestic-stock/v1/finance/income-statement',
@@ -97,7 +98,7 @@ export async function fetchKisOpMargin(code: string): Promise<number | null> {
     const op = num(row.bsop_prti);
     if (sales == null || op == null || sales === 0) return null;
     const margin = Math.round((op / sales) * 1000) / 10;
-    _opmCache.set(code, { d: margin, ts: Date.now() });
+    _opmCache.set(code, margin);
     return margin;
   } catch {
     return null;

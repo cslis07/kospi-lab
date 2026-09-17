@@ -14,6 +14,7 @@ const WhaleLiquidationPanel = dynamic(() => import('@/components/WhaleLiquidatio
 import { useCoinAlerts } from '@/hooks/useCoinAlerts';
 import BriefingModelPicker from '@/components/BriefingModelPicker';
 import LivePriceTag from '@/components/LivePriceTag';
+import SourceStatus, { type SourceStat } from '@/components/SourceStatus';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '@/lib/positionSizing';
 import { jsonFetcher, ApiError } from '@/lib/fetcher';
@@ -114,6 +115,7 @@ interface AnalysisData {
   modes?: { scalp: ModeSignal; swing: ModeSignal; position: ModeSignal };
   news: { title: string; link: string; source: string; pubDate: string; sentiment: 'pos' | 'neg' | 'neu' }[];
   aiBriefing: string | null; aiError: string | null; aiModel?: string;
+  sources?: SourceStat[];
   error?: string;
 }
 
@@ -839,6 +841,8 @@ export default function CoinAnalysisPage() {
 
       {data && !data.error && v && (
         <div className="space-y-4">
+          {/* 데이터 결측 공시 — 파생·수급 소스가 IP 차단으로 빌 수 있다 */}
+          <SourceStatus sources={data.sources} />
           {/* 임박 경제 이벤트 경고 */}
           {data.event && (
             <div className={`flex items-center gap-2.5 rounded-2xl border px-4 py-3 text-sm font-semibold ${

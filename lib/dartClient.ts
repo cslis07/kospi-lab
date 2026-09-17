@@ -2,20 +2,19 @@
  * DART (금융감독원 전자공시) API Client
  * Base URL: https://opendart.fss.or.kr/api
  */
+import { TtlCache } from './cache';
 
 const DART_BASE = 'https://opendart.fss.or.kr/api';
 const DART_KEY = () => process.env.DART_API_KEY ?? '';
 
-// ── Module-level caches ───────────────────────────────────────────────────────
-interface CacheEntry<T> { value: T; ts: number }
-
-const corpCodeCache = new Map<string, CacheEntry<string | null>>();
-const financialsCache = new Map<string, CacheEntry<DartFinancials | null>>();
-const dividendsCache = new Map<string, CacheEntry<DartDividend | null>>();
-const shareholdersCache = new Map<string, CacheEntry<DartShareholder[]>>();
-
+// ── Module-level caches (공용 TTL+LRU — 부정 결과 null/[] 도 캐시해 재조회 폭주 방지) ──
 const TTL_CORP_CODE   = 24 * 60 * 60 * 1000; // 24h
 const TTL_FINANCIALS  =  1 * 60 * 60 * 1000; // 1h
+
+const corpCodeCache = new TtlCache<string | null>(TTL_CORP_CODE);
+const financialsCache = new TtlCache<DartFinancials | null>(TTL_FINANCIALS);
+const dividendsCache = new TtlCache<DartDividend | null>(TTL_FINANCIALS);
+const shareholdersCache = new TtlCache<DartShareholder[]>(TTL_FINANCIALS);
 
 // ── Type definitions ──────────────────────────────────────────────────────────
 export interface DartCompany {
@@ -87,7 +86,7 @@ async function dartFetch(endpoint: string, params: Record<string, string>): Prom
 export async function getCorpCode(ticker: string): Promise<string | null> {
   const code = ticker.replace(/\.(KS|KQ)$/, '');
   const cached = corpCodeCache.get(code);
-  if (cached && Date.now() - cached.ts < TTL_CORP_CODE) return cached.value;
+  if (cached) return cached.v;
 
   try {
     // list.json은 날짜 범위 없이 stock_code만 주면 최근 하루만 조회돼
@@ -108,12 +107,12 @@ export async function getCorpCode(ticker: string): Promise<string | null> {
     }) as { status: string; list?: Array<{ corp_code: string }> };
 
     if (data.status !== '000' || !data.list?.length) {
-      corpCodeCache.set(code, { value: null, ts: Date.now() });
+      corpCodeCache.set(code, null);
       return null;
     }
 
     const corpCode = data.list[0].corp_code;
-    corpCodeCache.set(code, { value: corpCode, ts: Date.now() });
+    corpCodeCache.set(code, corpCode);
     return corpCode;
   } catch {
     return null;
@@ -184,12 +183,12 @@ export async function fetchDartFinancials(
   const code = ticker.replace(/\.(KS|KQ)$/, '');
   const cacheKey = `${code}:${year}`;
   const cached = financialsCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < TTL_FINANCIALS) return cached.value;
+  if (cached) return cached.v;
 
   try {
     const corpCode = await getCorpCode(ticker);
     if (!corpCode) {
-      financialsCache.set(cacheKey, { value: null, ts: Date.now() });
+      financialsCache.set(cacheKey, null);
       return null;
     }
 
@@ -207,7 +206,7 @@ export async function fetchDartFinancials(
     };
 
     if (data.status !== '000' || !data.list?.length) {
-      financialsCache.set(cacheKey, { value: null, ts: Date.now() });
+      financialsCache.set(cacheKey, null);
       return null;
     }
 
@@ -262,10 +261,10 @@ export async function fetchDartFinancials(
       opMargin,
     };
 
-    financialsCache.set(cacheKey, { value: result, ts: Date.now() });
+    financialsCache.set(cacheKey, result);
     return result;
   } catch {
-    financialsCache.set(cacheKey, { value: null, ts: Date.now() });
+    financialsCache.set(cacheKey, null);
     return null;
   }
 }
@@ -281,12 +280,12 @@ export async function fetchDartDividends(
   const code = ticker.replace(/\.(KS|KQ)$/, '');
   const cacheKey = `${code}:${year}`;
   const cached = dividendsCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < TTL_FINANCIALS) return cached.value;
+  if (cached) return cached.v;
 
   try {
     const corpCode = await getCorpCode(ticker);
     if (!corpCode) {
-      dividendsCache.set(cacheKey, { value: null, ts: Date.now() });
+      dividendsCache.set(cacheKey, null);
       return null;
     }
 
@@ -304,7 +303,7 @@ export async function fetchDartDividends(
     };
 
     if (data.status !== '000' || !data.list?.length) {
-      dividendsCache.set(cacheKey, { value: null, ts: Date.now() });
+      dividendsCache.set(cacheKey, null);
       return null;
     }
 
@@ -330,10 +329,10 @@ export async function fetchDartDividends(
       payoutRatio: payoutRow ? parseNum(payoutRow.thstrm): null,
     };
 
-    dividendsCache.set(cacheKey, { value: result, ts: Date.now() });
+    dividendsCache.set(cacheKey, result);
     return result;
   } catch {
-    dividendsCache.set(cacheKey, { value: null, ts: Date.now() });
+    dividendsCache.set(cacheKey, null);
     return null;
   }
 }
@@ -349,12 +348,12 @@ export async function fetchDartShareholders(
   const code = ticker.replace(/\.(KS|KQ)$/, '');
   const cacheKey = `${code}:${year}`;
   const cached = shareholdersCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < TTL_FINANCIALS) return cached.value;
+  if (cached) return cached.v;
 
   try {
     const corpCode = await getCorpCode(ticker);
     if (!corpCode) {
-      shareholdersCache.set(cacheKey, { value: [], ts: Date.now() });
+      shareholdersCache.set(cacheKey, []);
       return [];
     }
 
@@ -375,7 +374,7 @@ export async function fetchDartShareholders(
     };
 
     if (data.status !== '000' || !data.list?.length) {
-      shareholdersCache.set(cacheKey, { value: [], ts: Date.now() });
+      shareholdersCache.set(cacheKey, []);
       return [];
     }
 
@@ -399,10 +398,10 @@ export async function fetchDartShareholders(
       }
     }
 
-    shareholdersCache.set(cacheKey, { value: result, ts: Date.now() });
+    shareholdersCache.set(cacheKey, result);
     return result;
   } catch {
-    shareholdersCache.set(cacheKey, { value: [], ts: Date.now() });
+    shareholdersCache.set(cacheKey, []);
     return [];
   }
 }

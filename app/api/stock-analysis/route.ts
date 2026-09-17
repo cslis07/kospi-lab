@@ -15,6 +15,7 @@ import { cioViewFor, MUST_WATCH, MERRILL_CIO } from '@/lib/marketReference';
 import { fetchMacroIndicators } from '@/lib/macroIndicators';
 const MERRILL_SRC = `${MERRILL_CIO.source} ${MERRILL_CIO.date}`;
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
+import { TtlCache } from '@/lib/cache';
 
 export const maxDuration = 30;
 export const preferredRegion = 'icn1'; // 네이버·KIS 한국 API → 서울 리전
@@ -210,12 +211,12 @@ async function fetchDisclosures(ticker: string): Promise<Disclosure[]> {
 }
 
 /* ── 백테스트 캐시 ───────────────────────────────────── */
-const _btCache = new Map<string, { r: StockBacktestResult; ts: number }>();
+const _btCache = new TtlCache<StockBacktestResult>(10 * 60 * 1000);
 function cachedBt(ticker: string, candles: Candle[]): StockBacktestResult {
   const hit = _btCache.get(ticker);
-  if (hit && Date.now() - hit.ts < 10 * 60 * 1000) return hit.r;
+  if (hit) return hit.v;
   const r = backtestStock(candles);
-  _btCache.set(ticker, { r, ts: Date.now() });
+  _btCache.set(ticker, r);
   return r;
 }
 
@@ -269,11 +270,11 @@ function buildMovement(name: string, candles: Candle[], supply: SupplyDemand | n
 }
 
 /* ── AI 브리핑 (3분 캐시) ────────────────────────────── */
-const _aiCache = new Map<string, { text: string; ts: number }>();
+const _aiCache = new TtlCache<string>(3 * 60 * 1000);
 async function aiBriefing(name: string, ticker: string, summary: string, newsTitles: string[], modelId: string) {
   const cacheKey = `${ticker}:${modelId}`;
   const hit = _aiCache.get(cacheKey);
-  if (hit && Date.now() - hit.ts < 3 * 60 * 1000) return { text: hit.text, model: modelId };
+  if (hit) return { text: hit.v, model: modelId };
   const prompt = `당신은 한국 주식 분석 도우미입니다. 방법론: ①일봉 추세(EMA 배열) ②투자자 수급(외국인·기관 순매수가 한국 시장의 핵심) ③외국인 보유율 추세 ④거래량 ⑤52주 위치 ⑥밸류에이션은 안전마진 필터 ⑦메릴린치 CIO 업종의견(하향식) ⑧필수 경제지표(미국물가·엔화·원달러·반도체수출·가계부채). 개인은 공매도가 어려워 매수우위/중립/비중축소로 판단.
 
 ## ${name}(${ticker}) 현황
@@ -297,7 +298,7 @@ ${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(
 - "지금 사라", "매수 권장" 같은 표현 금지. 대신 조건과 위험을 서술하세요.
 - 마지막 줄에 "방향 판단은 투자자 본인의 몫이며, 위 내용은 투자 권유가 아닙니다."`;
   const out = await claudeBriefing(prompt, 1100, 'stock-analysis', modelId);
-  if (out.text) _aiCache.set(cacheKey, { text: out.text, ts: Date.now() });
+  if (out.text) _aiCache.set(cacheKey, out.text);
   return out;
 }
 
@@ -379,6 +380,17 @@ export async function GET(req: NextRequest) {
     }
     const backtest = cachedBt(ticker, candles);
 
+    // 소스별 수집 성공/실패 — 판정이 어떤 결측 위에서 계산됐는지 화면에 공시한다.
+    // (fetchX 들이 실패를 삼키고 빈 값을 돌려주므로, 여기서 결과로 상태를 역산한다)
+    const sources: { key: string; label: string; ok: boolean; critical: boolean }[] = [
+      { key: 'supply',      label: '투자자 수급',    ok: investor.length > 0,                                              critical: true },
+      { key: 'financials',  label: '재무(ROE·부채)', ok: fin0.roe != null || fin0.debtRatio != null || fin0.revenueGrowth != null, critical: true },
+      { key: 'market',      label: '코스피·환율',    ok: kospi.kospiChange != null,                                        critical: true },
+      { key: 'macro',       label: '경제지표',       ok: !!(macroInd.usCpi || macroInd.semiconExport || macroInd.householdDebt),   critical: false },
+      { key: 'disclosures', label: 'DART 공시',      ok: !!process.env.DART_API_KEY,                                       critical: false },
+      { key: 'news',        label: '종목 뉴스',      ok: news.length > 0,                                                  critical: false },
+    ];
+
     const summary =
       `가격 ${price.toLocaleString()}원 (${basic.changeRate >= 0 ? '+' : ''}${basic.changeRate}%) · ${basic.market}\n` +
       `추세: 일봉 EMA ${daily.emaAlign}, 구조 ${daily.structure}, RSI ${daily.rsi.toFixed(0)}, 200일선 ${daily.ema200 && price >= daily.ema200 ? '위' : '아래'}\n` +
@@ -404,7 +416,7 @@ export async function GET(req: NextRequest) {
       per: basic.per, pbr: basic.pbr,
       daily, zones, fib, chart, divergence,
       supply, investor, fin, kospi, movement, verdict, backtest, news,
-      disclosures, policy, cio, indicators,
+      disclosures, policy, cio, indicators, sources,
       cioSource: MERRILL_SRC,
       aiBriefing: ai.text ?? null, aiError: ai.error ?? null, aiModel: ai.model ?? briefingModel,
     });

@@ -11,6 +11,7 @@ const CoinCandleChart = dynamic(() => import('@/components/CoinCandleChart'), {
 });
 import BriefingModelPicker from '@/components/BriefingModelPicker';
 import LivePriceTag from '@/components/LivePriceTag';
+import SourceStatus, { type SourceStat } from '@/components/SourceStatus';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 import { useStockJournal } from '@/hooks/useStockJournal';
 
@@ -64,6 +65,7 @@ interface Data {
     realEstate: { value: number; unit: string; label: string; change: number | null; changeLabel: string; source: string } | null;
   }[];
   aiBriefing: string | null; aiError: string | null; aiModel?: string;
+  sources?: SourceStat[];
   error?: string;
 }
 interface SearchHit { code: string; name: string; market: string }
@@ -294,6 +296,8 @@ export default function StockAnalysisPage() {
 
       {data && !data.error && v && (
         <div className="space-y-4">
+          {/* 데이터 결측 공시 — 판정이 어떤 결측 위에서 나왔는지 먼저 알린다 */}
+          <SourceStatus sources={data.sources} />
           {/* 헤더 */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
             <div className="flex flex-wrap items-start gap-x-8 gap-y-3">

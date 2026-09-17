@@ -9,6 +9,7 @@
  *
  * 점수(scoreGrowth)는 순수 함수 — tests/engine.test.ts 에서 고정한다.
  */
+import { TtlCache } from './cache';
 
 export interface GrowthFinance {
   code: string;
@@ -94,7 +95,7 @@ type RowList = Array<{ title: string; columns: Record<string, { value: string }>
 /* 재무는 분기 단위로만 갱신 → 12시간 캐시. 실패는 캐시하지 않는다 */
 const FIN_TTL = 12 * 60 * 60 * 1000;
 const MAX_KEYS = 3000;
-const _cache = new Map<string, { d: GrowthFinance; ts: number }>();
+const _cache = new TtlCache<GrowthFinance>(FIN_TTL, MAX_KEYS);
 
 /**
  * 네이버 연간 재무가 실패했을 때의 폴백 — KIS 재무비율로 최소한만 채운다.
@@ -137,12 +138,12 @@ async function fetchFromKis(code: string): Promise<GrowthFinance | null> {
 
 export async function fetchGrowthFinance(code: string): Promise<GrowthFinance | null> {
   const hit = _cache.get(code);
-  if (hit && Date.now() - hit.ts < FIN_TTL) return hit.d;
+  if (hit) return hit.v;
 
   /** 네이버 실패 → KIS 폴백. 폴백 결과도 캐시해 재시도 폭주를 막는다 */
   const fallback = async () => {
     const d = await fetchFromKis(code);
-    if (d) _cache.set(code, { d, ts: Date.now() });
+    if (d) _cache.set(code, d);
     return d;
   };
 
@@ -198,12 +199,7 @@ export async function fetchGrowthFinance(code: string): Promise<GrowthFinance | 
   d.consensusYear =
     cKeyRaw && (d.cRevenue != null || d.cOpProfit != null || d.cEps != null) ? cKeyRaw : null;
 
-  if (_cache.size >= MAX_KEYS) {
-    const now = Date.now();
-    for (const [k, v] of _cache) if (now - v.ts >= FIN_TTL) _cache.delete(k);
-    if (_cache.size >= MAX_KEYS) _cache.delete(_cache.keys().next().value as string);
-  }
-  _cache.set(code, { d, ts: Date.now() });
+  _cache.set(code, d);
   return d;
 }
 
