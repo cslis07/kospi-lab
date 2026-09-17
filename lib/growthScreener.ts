@@ -247,6 +247,11 @@ export function scoreGrowth(f: GrowthFinance): GrowthScore {
     forwardPer != null && cEpsGrowth != null && cEpsGrowth > 0 && epsBasePositive
       ? Math.round((forwardPer / cEpsGrowth) * 100) / 100
       : null;
+  // growthPct 는 이상치 방지로 ±300% 클램프한다. 컨센 EPS 성장률이 상한에 걸리면 PEG 분모가
+  // 잘려 초저 PEG(예: 0.02) 아티팩트가 생긴다 → 배지·밸류 가점에서 제외(성장 자체는 growth·outlook 에서 이미 반영).
+  const cEpsClamped = cEpsGrowth != null && Math.abs(cEpsGrowth) >= 300;
+  const pegReliable = peg != null && !cEpsClamped;
+  if (peg != null && cEpsClamped) warnings.push('컨센서스 EPS 성장률이 상한(300%)에 걸려 PEG가 비정상적으로 낮게 계산됨 — 밸류 평가·저평가 배지에서 제외');
 
   const roe = f.roe[last];
   const opMarginTrend =
@@ -279,8 +284,8 @@ export function scoreGrowth(f: GrowthFinance): GrowthScore {
 
   /* 4) 밸류에이션·안정 20 — PEG 12 + 포워드<트레일링 4 + 부채비율 4 */
   let valuation = 0;
-  if (peg != null) {
-    valuation += peg < 0.5 ? 12 : peg < 1 ? 9 : peg < 1.5 ? 6 : peg < 2 ? 3 : 0;
+  if (pegReliable) {
+    valuation += peg! < 0.5 ? 12 : peg! < 1 ? 9 : peg! < 1.5 ? 6 : peg! < 2 ? 3 : 0;
   } else if (trailingPer == null && f.eps[last] != null && f.eps[last]! < 0) {
     warnings.push('적자 기업 — PER·PEG 밸류에이션 평가 불가');
   }
@@ -293,7 +298,7 @@ export function scoreGrowth(f: GrowthFinance): GrowthScore {
   if (revYoY != null && opYoY != null && revYoY >= 20 && opYoY >= 20) badges.push('고성장');
   if ((cOpGrowth != null && cOpGrowth >= 30) || (cRevGrowth != null && cRevGrowth >= 20)) badges.push('기대주');
   if (f.opProfit[last] != null && f.opProfit[last]! < 0 && f.cOpProfit != null && f.cOpProfit > 0) badges.push('턴어라운드');
-  if (peg != null && peg < 1 && revYoY != null && revYoY > 0) badges.push('저평가성장');
+  if (pegReliable && peg! < 1 && revYoY != null && revYoY > 0) badges.push('저평가성장');
 
   if (f.opProfit[last] != null && f.opProfit[last]! < 0 && !badges.includes('턴어라운드')) {
     warnings.push('최근 확정 영업이익 적자 — 성장률 수치 해석 주의');
@@ -330,7 +335,7 @@ export function scoreGrowth(f: GrowthFinance): GrowthScore {
   if (cOpGrowth != null && cOpGrowth >= 30) strengths.push(`컨센서스 영업이익 +${cOpGrowth}% — 애널리스트들이 큰 성장을 본다`);
   else if (revYoY != null && revYoY >= 20 && opYoY != null && opYoY >= 20) strengths.push(`매출 +${revYoY}%·영업이익 +${opYoY}% 동반 고성장 확정 실적`);
   else if (badges.includes('턴어라운드')) strengths.push('적자 → 흑자 전환 컨센서스 — 턴어라운드 후보');
-  else if (peg != null && peg < 1) strengths.push(`PEG ${peg} — 이익 성장 대비 가격이 싸다`);
+  else if (pegReliable && peg! < 1) strengths.push(`PEG ${peg} — 이익 성장 대비 가격이 싸다`);
   else if (roe != null && roe >= 15) strengths.push(`ROE ${roe.toFixed(1)}% — 자본 효율이 버핏 기준(15%) 이상`);
   else if (revYoY != null && revYoY > 0) strengths.push(`매출 +${revYoY}% 성장 지속`);
   const cautions: string[] = [];

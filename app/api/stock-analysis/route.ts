@@ -349,6 +349,14 @@ export async function GET(req: NextRequest) {
       cio: cio ? { sector: cio.sector, stance: cio.stance, label: cio.label } : null,
     };
     const verdict = buildStockVerdict(daily, candles, fib, zones, extras);
+    // 표시용: 진입·손절·목표를 호가 틱으로 반올림(주문 참조가라 소수점 원은 무의미) + stopPct 2자리
+    const krwTick = (p: number) => p < 2000 ? 1 : p < 5000 ? 5 : p < 20000 ? 10 : p < 50000 ? 50 : p < 200000 ? 100 : p < 500000 ? 500 : 1000;
+    const toTick = (v: number) => { const t = krwTick(v); return Math.round(v / t) * t; };
+    verdict.entry = toTick(verdict.entry);
+    verdict.stop = toTick(verdict.stop);
+    verdict.target1 = toTick(verdict.target1);
+    verdict.target2 = toTick(verdict.target2);
+    verdict.stopPct = Math.round(verdict.stopPct * 100) / 100;
 
     // 필수 경제 지표 (라이브 환율 + CPI 일정 + 실측 매크로)
     const cpi = nextCpi();

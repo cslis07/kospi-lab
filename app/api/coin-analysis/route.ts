@@ -586,6 +586,14 @@ export async function GET(req: NextRequest) {
       htf: { h4, d1 },
     };
     const verdict = buildVerdict(h1, m15, m5, funding.rate, funding.nextTs, fib, zones, longShort.latest?.ratio ?? null, extras);
+    // 표시용: 진입·손절·목표의 부동소수 잔재 제거(가격 규모별 유효자리) + 비율 2자리
+    const cleanPx = (v: number) => { const p = Math.abs(v); const d = p >= 1000 ? 1 : p >= 10 ? 2 : p >= 1 ? 3 : 5; const f = 10 ** d; return Math.round(v * f) / f; };
+    verdict.entry = cleanPx(verdict.entry);
+    verdict.stop = cleanPx(verdict.stop);
+    verdict.target1 = cleanPx(verdict.target1);
+    verdict.target2 = cleanPx(verdict.target2);
+    verdict.stopPct = Math.round(verdict.stopPct * 100) / 100;
+    verdict.rr = Math.round(verdict.rr * 100) / 100;
 
     // 백테스트 (전체 캔들, 10분 캐시)
     const backtest = cachedBacktest(symbol, c5mFull, c15mFull, c1hFull, funding.rate,

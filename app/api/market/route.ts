@@ -2,12 +2,15 @@ import { NextResponse } from 'next/server';
 import { fetchMarketIndex } from '@/lib/naver';
 import type { MarketIndex, FxRate } from '@/lib/types';
 
+/** 표시 일관성: 변동률·변동폭은 소수 2자리로 통일(지수는 소스가 반올림, 계산값은 full-float이던 불일치 해소) */
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
 function parseIndex(raw: Record<string, string>, name: string): MarketIndex {
   return {
     name,
     value: parseFloat(String(raw.closePrice ?? raw.currentPrice ?? 0).replace(/,/g, '')),
     change: parseFloat(String(raw.compareToPreviousClosePrice ?? 0).replace(/,/g, '')),
-    changeRate: parseFloat(String(raw.fluctuationsRatio ?? 0).replace(/[+%]/g, '')),
+    changeRate: r2(parseFloat(String(raw.fluctuationsRatio ?? 0).replace(/[+%]/g, ''))),
     status: raw.marketStatus ?? 'CLOSE',
   };
 }
@@ -45,8 +48,8 @@ async function fetchFxRates(): Promise<{ usdkrw: FxRate | null; jpykrw: FxRate |
     const jpyChgPct = jpyPrev1 ? (jpyChg1 / jpyPrev1) * 100 : 0;
 
     return {
-      usdkrw: { value: usdVal,        change: usdChg,    changeRate: usdChgPct },
-      jpykrw: { value: jpyVal1 * 100, change: jpyChg1 * 100, changeRate: jpyChgPct },
+      usdkrw: { value: r2(usdVal),        change: r2(usdChg),        changeRate: r2(usdChgPct) },
+      jpykrw: { value: r2(jpyVal1 * 100), change: r2(jpyChg1 * 100), changeRate: r2(jpyChgPct) },
     };
   } catch (e) {
     console.error('[FX] frankfurter failed:', e);
@@ -67,7 +70,7 @@ async function fetchYahooIndex(symbol: string, name: string): Promise<MarketInde
     const value = Number(m.regularMarketPrice);
     const prev = Number(m.chartPreviousClose ?? m.previousClose ?? value);
     const change = value - prev;
-    return { name, value, change, changeRate: prev ? (change / prev) * 100 : 0, status: 'CLOSE' };
+    return { name, value: r2(value), change: r2(change), changeRate: prev ? r2((change / prev) * 100) : 0, status: 'CLOSE' };
   } catch { return null; }
 }
 
@@ -85,7 +88,7 @@ async function fetchUsdtKrw(): Promise<FxRate | null> {
     return {
       value: Number(t.trade_price),
       change: Number(t.signed_change_price),
-      changeRate: Number(t.signed_change_rate) * 100,
+      changeRate: r2(Number(t.signed_change_rate) * 100),
     };
   } catch (e) {
     console.error('[FX] upbit USDT failed:', e);
