@@ -507,6 +507,22 @@ export default function CoinAnalysisPage() {
   const { model: aiModel, setModel: setAiModel, ready: modelReady } = useBriefingModel();
   // symbol·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
   const [run, setRun] = useState<{ symbol: string; model: string } | null>(null);
+  // 관심종목에서 '분석'으로 진입(?symbol=…&run=1)하면 해당 코인으로 자동 실행. 그 외에는 버튼으로만.
+  const [autoRunSym, setAutoRunSym] = useState<string | null>(null);
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const s = p.get('symbol');
+    if (s && /^[A-Z0-9]+USDT$/.test(s)) {
+      setSymbol(s);
+      if (p.get('run') === '1') setAutoRunSym(s);
+    }
+  }, []);
+  useEffect(() => {
+    if (autoRunSym && modelReady && !run) {
+      setRun({ symbol: autoRunSym, model: aiModel });
+      setAutoRunSym(null);
+    }
+  }, [autoRunSym, modelReady, aiModel, run]);
   const { data, error, isLoading, isValidating, mutate } = useSWR<AnalysisData, ApiError>(
     run ? `/api/coin-analysis?symbol=${run.symbol}&model=${run.model}` : null,
     jsonFetcher,

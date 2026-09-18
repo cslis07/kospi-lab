@@ -228,28 +228,30 @@ export default function DomesticPage() {
               const inW   = watchSet.has(stock.ticker);
               return (
                 <div key={stock.ticker} onClick={() => setSelected(stock)}
-                  className="grid grid-cols-[40px_48px_1fr_120px_90px_140px] gap-2 items-center px-4 py-3 cursor-pointer hover:bg-white/3 transition-colors">
+                  className="flex items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-white/3 transition-colors sm:grid sm:grid-cols-[40px_48px_1fr_120px_90px_140px] sm:gap-2">
                   <button onClick={(e) => toggleWatch(e, stock)}
-                    className={`text-base transition-colors ${inW ? 'text-red-400' : 'text-[var(--text-dim)] hover:text-red-400'}`}>
+                    className={`text-base shrink-0 transition-colors ${inW ? 'text-red-400' : 'text-[var(--text-dim)] hover:text-red-400'}`}>
                     {inW ? '♥' : '♡'}
                   </button>
-                  <span className="text-xs text-[var(--text-muted)] text-center tabular-nums">{idx + 1}</span>
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-xs text-[var(--text-muted)] shrink-0 sm:text-center tabular-nums w-4 sm:w-auto">{idx + 1}</span>
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1 sm:flex-none">
                     <CompanyLogo ticker={stock.ticker} name={stock.name} />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[var(--text)] truncate">{d?.name ?? stock.name}</p>
                       <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${stock.market === 'KOSDAQ' ? 'text-purple-400' : 'text-blue-400'}`}>{stock.market}</span>
                     </div>
                   </div>
-                  <p className="text-sm font-bold text-[var(--text)] text-right tabular-nums">
-                    {d ? `${fmtPrice(d.price)}원` : <span className="text-[var(--text-dim)] text-xs">로딩…</span>}
-                  </p>
-                  <div className="flex justify-end">
-                    {d ? (
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded tabular-nums ${
-                        isPos ? 'bg-red-500/90 text-white' : d.changeRate === 0 ? 'bg-white/10 text-[var(--text-muted)]' : 'bg-[#1a2a40] text-blue-400'
-                      }`}>{isPos ? '+' : ''}{d.changeRate.toFixed(2)}%</span>
-                    ) : <span className="text-xs text-[var(--text-dim)]">—</span>}
+                  <div className="flex items-center gap-2 shrink-0 sm:contents">
+                    <p className="text-sm font-bold text-[var(--text)] text-right tabular-nums whitespace-nowrap">
+                      {d ? `${fmtPrice(d.price)}원` : <span className="text-[var(--text-dim)] text-xs">로딩…</span>}
+                    </p>
+                    <div className="flex justify-end">
+                      {d ? (
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded tabular-nums ${
+                          isPos ? 'bg-red-500/90 text-white' : d.changeRate === 0 ? 'bg-white/10 text-[var(--text-muted)]' : 'bg-[#1a2a40] text-blue-400'
+                        }`}>{isPos ? '+' : ''}{d.changeRate.toFixed(2)}%</span>
+                      ) : <span className="text-xs text-[var(--text-dim)]">—</span>}
+                    </div>
                   </div>
                   <p className="text-xs text-[var(--text-muted)] text-right tabular-nums pr-2 hidden sm:block">{d?.tradingValue ?? '—'}</p>
                 </div>

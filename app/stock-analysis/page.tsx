@@ -108,13 +108,26 @@ export default function StockAnalysisPage() {
   const [ticker, setTicker] = useState('005930');
   const [autoRefresh, setAutoRefresh] = useState(false);
   // 성장주 스크리너 등에서 ?ticker= 로 딥링크 — useSearchParams 는 Suspense 요구가 있어 location 으로 읽는다.
-  // 자동 '실행'은 하지 않는다(분석은 버튼으로만 — 비용 원칙 §0).
+  // 기본은 자동 '실행'하지 않는다(분석은 버튼으로만 — 비용 원칙 §0).
+  // 단, 관심종목에서 '분석'으로 들어온 경우(?run=1)는 사용자가 명시적으로 분석을 요청한 것이므로 자동 실행한다.
+  const [autoRunTicker, setAutoRunTicker] = useState<string | null>(null);
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get('ticker');
-    if (q && /^\d{6}$/.test(q)) setTicker(q);
+    const p = new URLSearchParams(window.location.search);
+    const q = p.get('ticker');
+    if (q && /^\d{6}$/.test(q)) {
+      setTicker(q);
+      if (p.get('run') === '1') setAutoRunTicker(q);
+    }
   }, []);
   const { model: aiModel, setModel: setAiModel, ready: modelReady } = useBriefingModel();
   const [run, setRun] = useState<{ ticker: string; model: string } | null>(null);
+  // 모델 설정이 준비되면 자동 실행(관심종목 진입 시 1회)
+  useEffect(() => {
+    if (autoRunTicker && modelReady && !run) {
+      setRun({ ticker: autoRunTicker, model: aiModel });
+      setAutoRunTicker(null);
+    }
+  }, [autoRunTicker, modelReady, aiModel, run]);
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<Data, ApiError>(
     run ? `/api/stock-analysis?ticker=${run.ticker}&model=${run.model}` : null, jsonFetcher,

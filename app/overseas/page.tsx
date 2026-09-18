@@ -305,12 +305,12 @@ export default function OverseasPage() {
                 <div
                   key={item.symbol}
                   onClick={() => router.push(`/overseas/${encodeURIComponent(item.symbol)}`)}
-                  className="grid grid-cols-[40px_48px_1fr_120px_90px_130px] gap-2 items-center px-4 py-3 cursor-pointer hover:bg-white/3 transition-colors"
+                  className="flex items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-white/3 transition-colors sm:grid sm:grid-cols-[40px_48px_1fr_120px_90px_130px] sm:gap-2"
                 >
                   {/* ♡ */}
                   <button
                     onClick={(e) => toggleWatch(e, item)}
-                    className={`text-base transition-colors ${
+                    className={`text-base shrink-0 transition-colors ${
                       inWatch ? 'text-red-400' : 'text-[var(--text-dim)] hover:text-red-400'
                     }`}
                   >
@@ -318,12 +318,12 @@ export default function OverseasPage() {
                   </button>
 
                   {/* 순위 */}
-                  <span className="text-xs text-[var(--text-muted)] text-center tabular-nums">
+                  <span className="text-xs text-[var(--text-muted)] shrink-0 sm:text-center tabular-nums w-4 sm:w-auto">
                     {idx + 1}
                   </span>
 
                   {/* 종목 */}
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1 sm:flex-none">
                     <CompanyLogo symbol={item.symbol} />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[var(--text)] truncate">
@@ -338,26 +338,28 @@ export default function OverseasPage() {
                     </div>
                   </div>
 
-                  {/* 현재가 */}
-                  <p className="text-sm font-bold text-[var(--text)] text-right tabular-nums">
-                    {d ? `$${fmtUsd(d.price)}` : <span className="text-[var(--text-dim)]">-</span>}
-                  </p>
+                  <div className="flex items-center gap-2 shrink-0 sm:contents">
+                    {/* 현재가 */}
+                    <p className="text-sm font-bold text-[var(--text)] text-right tabular-nums whitespace-nowrap">
+                      {d ? `$${fmtUsd(d.price)}` : <span className="text-[var(--text-dim)]">-</span>}
+                    </p>
 
-                  {/* 등락률 */}
-                  <div className="flex justify-end">
-                    {d ? (
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded tabular-nums ${
-                        isPos
-                          ? 'bg-red-500/90 text-white'
-                          : d.changeRate === 0
-                            ? 'bg-white/10 text-[var(--text-muted)]'
-                            : 'bg-[#1a2a40] text-blue-400'
-                      }`}>
-                        {isPos ? '+' : ''}{d.changeRate.toFixed(2)}%
-                      </span>
-                    ) : (
-                      <span className="text-xs text-[var(--text-dim)]">-</span>
-                    )}
+                    {/* 등락률 */}
+                    <div className="flex justify-end">
+                      {d ? (
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded tabular-nums ${
+                          isPos
+                            ? 'bg-red-500/90 text-white'
+                            : d.changeRate === 0
+                              ? 'bg-white/10 text-[var(--text-muted)]'
+                              : 'bg-[#1a2a40] text-blue-400'
+                        }`}>
+                          {isPos ? '+' : ''}{d.changeRate.toFixed(2)}%
+                        </span>
+                      ) : (
+                        <span className="text-xs text-[var(--text-dim)]">-</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* 시가총액 */}

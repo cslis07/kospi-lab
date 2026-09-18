@@ -13,11 +13,15 @@ export interface BarItem {
 
 export default function HBarChart({
   items, mode = 'magnitude', posColor = 'bg-red-400/70', negColor = 'bg-blue-400/70',
+  posText = 'text-red-400', negText = 'text-blue-400',
 }: {
   items: BarItem[];
   mode?: 'magnitude' | 'divergent';
   posColor?: string;
   negColor?: string;
+  /** divergent 모드 값 텍스트 색 — 기본은 한국 주식 관행(상승 빨강·하락 파랑). 코인 페이지는 초록/빨강으로 넘긴다. */
+  posText?: string;
+  negText?: string;
 }) {
   if (!items.length) return <p className="text-xs text-[var(--text-muted)] py-3 text-center">데이터 없음</p>;
   const maxAbs = Math.max(1e-9, ...items.map((i) => Math.abs(i.value)));
@@ -40,7 +44,7 @@ export default function HBarChart({
                   {pos && <div className={`h-3 rounded-r-sm ${posColor}`} style={{ width: `${w}%` }} />}
                 </div>
               </div>
-              <span className={`w-16 shrink-0 text-right tabular-nums ${pos ? 'text-red-400' : 'text-blue-400'}`}>{it.display}</span>
+              <span className={`w-16 shrink-0 text-right tabular-nums ${pos ? posText : negText}`}>{it.display}</span>
             </div>
           );
         }

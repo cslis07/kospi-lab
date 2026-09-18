@@ -82,7 +82,7 @@ function MyStocksInner() {
         return {
           key: w.ticker, href: `/stock/${w.ticker}`, title: w.name, sub: parts.join(' · '), badge: w.name.slice(0, 1),
           price: d ? d.price.toLocaleString('ko-KR') : '—', cr: d?.changeRate, loading: !krData,
-          analysis: `/stock-analysis?ticker=${w.ticker}`,
+          analysis: `/stock-analysis?ticker=${w.ticker}&run=1`,
           trade: d ? { symbol: w.ticker, name: w.name, assetType: 'domestic', price: d.price, currency: 'KRW' } : undefined,
           remove: () => { kr.remove(w.ticker); setToast({ text: `${w.name} 삭제됨`, undo: () => kr.add(w) }); },
         };
@@ -104,7 +104,7 @@ function MyStocksInner() {
         return {
           key: w.symbol, href: `/crypto/${w.symbol}`, title: ko, sub: `${w.base} · USDT`, badge: w.base.slice(0, 3),
           price: fmtCoinPrice(d?.price), cr: d?.changeRate, loading: !crData,
-          analysis: ANALYZABLE.includes(w.base) ? '/coin-analysis' : undefined,
+          analysis: ANALYZABLE.includes(w.base) ? `/coin-analysis?symbol=${w.symbol}&run=1` : undefined,
           trade: d ? { symbol: w.symbol, name: w.name, assetType: 'crypto', price: d.price, currency: 'USD' } : undefined,
           remove: () => { cr.remove(w.symbol); setToast({ text: `${ko} 삭제됨`, undo: () => cr.add(w) }); },
         };

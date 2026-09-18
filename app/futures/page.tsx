@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
+import HBarChart, { type BarItem } from '@/components/HBarChart';
 
 interface FuturesRow {
   symbol: string;
@@ -27,9 +28,12 @@ const fmtVol = (n: number) => {
   if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
   return `$${n.toFixed(0)}`;
 };
+// 심볼에서 USDT 꼬리를 떼어 막대 라벨을 짧게(예: BTCUSDT → BTC)
+const baseOf = (s: string) => s.replace(/USDT$/, '');
 
 type SortKey = 'volume' | 'change' | 'funding';
 type Filter  = 'all' | 'up' | 'down';
+type ChartView = 'gainers' | 'losers' | 'volume';
 
 export default function FuturesPage() {
   const { data, isLoading } = useSWR<FuturesRow[]>('/api/futures/tickers', fetcher, {
@@ -37,15 +41,34 @@ export default function FuturesPage() {
     revalidateOnFocus: false,
   });
 
-  const [query, setQuery]   = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [sortBy, setSortBy] = useState<SortKey>('volume');
+  const [chartView, setChartView] = useState<ChartView>('gainers');
+
+  // ── 한눈에 보는 막대그래프 (상승·하락·거래대금 TOP 12) ──
+  const chart = useMemo(() => {
+    if (!Array.isArray(data) || !data.length) return { items: [] as BarItem[], mode: 'divergent' as const };
+    if (chartView === 'volume') {
+      const items = [...data]
+        .sort((a, b) => b.quoteVolume - a.quoteVolume)
+        .slice(0, 12)
+        .map((r) => ({ label: baseOf(r.symbol), value: r.quoteVolume, display: fmtVol(r.quoteVolume) }));
+      return { items, mode: 'magnitude' as const };
+    }
+    const sorted = [...data].sort((a, b) =>
+      chartView === 'gainers' ? b.changeRate - a.changeRate : a.changeRate - b.changeRate,
+    );
+    const items = sorted.slice(0, 12).map((r) => ({
+      label: baseOf(r.symbol),
+      value: r.changeRate,
+      display: `${r.changeRate >= 0 ? '+' : ''}${r.changeRate.toFixed(2)}%`,
+    }));
+    return { items, mode: 'divergent' as const };
+  }, [data, chartView]);
 
   const rows = useMemo(() => {
     if (!Array.isArray(data)) return [];
-    const q = query.trim().toUpperCase();
     const filtered = data.filter((r) => {
-      if (q && !r.symbol.includes(q)) return false;
       if (filter === 'up'   && r.changeRate <= 0) return false;
       if (filter === 'down' && r.changeRate >= 0) return false;
       return true;
@@ -57,18 +80,40 @@ export default function FuturesPage() {
       return 0;
     });
     return filtered.slice(0, 100);
-  }, [data, query, filter, sortBy]);
+  }, [data, filter, sortBy]);
+
+  const CHART_TABS: [ChartView, string][] = [['gainers', '상승 TOP'], ['losers', '하락 TOP'], ['volume', '거래대금 TOP']];
 
   return (
     <div className="max-w-4xl mx-auto pb-12">
       <h1 className="text-xl font-bold text-[var(--text)] mb-1">선물 시세 (USDT 무기한)</h1>
       <p className="text-sm text-[var(--text-muted)] mb-5">Bitget USDT-Margined Perpetual Futures · 10초마다 갱신</p>
 
-      {/* 컨트롤 바 */}
+      {/* ── 한눈에 보기: 막대그래프 ── */}
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-5">
+        <div className="seg mb-4" role="tablist" aria-label="막대그래프 종류">
+          {CHART_TABS.map(([k, l]) => (
+            <button key={k} type="button" role="tab" aria-selected={chartView === k}
+              onClick={() => setChartView(k)}
+              className={`seg-i ${chartView === k ? 'on' : ''}`}>{l}</button>
+          ))}
+        </div>
+        {isLoading && !data ? (
+          <div className="space-y-2">
+            {[...Array(8)].map((_, i) => <div key={i} className="h-3 rounded bg-white/5 animate-pulse" />)}
+          </div>
+        ) : (
+          <HBarChart items={chart.items} mode={chart.mode}
+            posColor="bg-emerald-400/70" negColor="bg-red-400/70"
+            posText="text-emerald-400" negText="text-red-400" />
+        )}
+        <p className="text-[11px] text-[var(--text-muted)] mt-3 opacity-60">
+          {chartView === 'volume' ? '24시간 거래대금 상위 12종목' : `24시간 ${chartView === 'gainers' ? '상승률' : '하락률'} 상위 12종목`} · 참고용
+        </p>
+      </div>
+
+      {/* 컨트롤 바 (검색 제거 — 표는 필터·정렬만) */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <input type="text" placeholder="심볼 검색 (예: BTC)"
-          value={query} onChange={(e) => setQuery(e.target.value)}
-          className="flex-1 min-w-[160px] bg-white/5 border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50" />
         <div className="flex gap-1">
           {([['all', '전체'], ['up', '상승'], ['down', '하락']] as [Filter, string][]).map(([k, l]) => (
             <button key={k} onClick={() => setFilter(k)}

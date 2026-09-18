@@ -82,7 +82,6 @@ const G = (key: string, label: string, color: string, qc: string, navIcon: strin
 export const MENU: MenuGroup[] = [
   G('home', '홈', 'c-blue', 'qc-blue', 'home', [
     { href: '/',          icon: 'home',     label: '대시보드',    desc: '시장 요약·관심·리스크·이벤트' },
-    { href: '/my-stocks', icon: 'star',     label: '관심종목',    desc: '국내·해외·코인 관심 목록' },
     { href: '/calendar',  icon: 'calendar', label: '경제 캘린더', desc: 'FOMC·금통위·지표·휴장' },
     { href: '/news',      icon: 'news',     label: '뉴스',        desc: '시장 소식' },
   ]),
@@ -98,16 +97,19 @@ export const MENU: MenuGroup[] = [
     { href: '/dart',           icon: 'dart',     label: '공시',      desc: 'DART 전자공시' },
     { href: '/report',         icon: 'report',   label: '리포트',    desc: '증권사 리포트' },
   ]),
-  G('manage', '관리', 'c-rose', 'qc-rose', 'risk', [
-    { href: '/planner', icon: 'planner', label: '플래너',      desc: '사이징·청산가·1R 계산' },
-    { href: '/journal', icon: 'journal', label: '매매일지',    desc: '기록·복기·거래소 대조' },
-    { href: '/risk',    icon: 'risk',    label: '통합 리스크', desc: '계좌 익스포저·집중도' },
-    { href: '/target',  icon: 'target',  label: '목표 수익률', desc: '월 목표 역산·누수·규칙' },
+  // 관심종목 — 홈에서 분리해 독립 탭으로 승격(단일 화면, 내부 국내·해외·코인 세그먼트). 하단 탭에서 바로 진입.
+  G('watch', '관심종목', 'c-rose', 'qc-rose', 'star', [
+    { href: '/my-stocks', icon: 'star', label: '관심종목', desc: '국내·해외·코인 저장 목록' },
   ]),
   G('assets', '자산', 'c-green', 'qc-green', 'portfolio', [
     { href: '/portfolio',   icon: 'portfolio', label: '포트폴리오', desc: '국내·해외·코인 합산' },
     { href: '/bitget',      icon: 'bitget',    label: '계좌',       desc: '거래소 잔고·포지션·청산' },
     { href: '/performance', icon: 'growth',    label: '성과',       desc: '승률·기대값·주간 리뷰' },
+    // 매매 규율 4종 — '관리' 탭을 관심종목으로 교체하면서 자산 탭으로 병합(상단 가로 서브탭 스크롤)
+    { href: '/planner', icon: 'planner', label: '플래너',      desc: '사이징·청산가·1R 계산' },
+    { href: '/journal', icon: 'journal', label: '매매일지',    desc: '기록·복기·거래소 대조' },
+    { href: '/risk',    icon: 'risk',    label: '통합 리스크', desc: '계좌 익스포저·집중도' },
+    { href: '/target',  icon: 'target',  label: '목표 수익률', desc: '월 목표 역산·누수·규칙' },
   ], ['/virtual', '/invest', '/tax', '/simulate', '/brokerage']),
 ];
 
