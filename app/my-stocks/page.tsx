@@ -1,329 +1,238 @@
 'use client';
 
 /**
- * 내 관심종목 페이지
- * 기존 대시보드의 watchlist 섹션을 분리한 독립 페이지
+ * 홈 › 관심종목(전체 목록) — 시장 세그먼트 + 정렬·시장 칩 + 고밀도 행.
+ * 행을 왼쪽으로 밀면 분석/가상·삭제, ⋮ 는 전체 동작(상세·분석·가상투자·매매 계획·삭제).
+ * 삭제는 4초간 되돌리기 가능. 추가는 통합 검색 시트(☆). 현재 탭 시장의 시세만 호출.
  */
-
 import { useState, useMemo, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
-import SearchBar from '@/components/SearchBar';
-import OverseasSearchBar from '@/components/OverseasSearchBar';
-import StockCard from '@/components/StockCard';
-import OverseasStockCard from '@/components/OverseasStockCard';
-import StockFilter, { type SortKey, type FilterMarket } from '@/components/StockFilter';
+import WatchRow from '@/components/WatchRow';
+import SwipeRow, { type RowAction } from '@/components/SwipeRow';
+import ActionSheet, { type SheetAction } from '@/components/ui/ActionSheet';
+import VirtualTradeModal from '@/components/VirtualTradeModal';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useAlerts } from '@/hooks/useAlerts';
-import CryptoCard from '@/components/CryptoCard';
-import type { StockData, OverseasStockData, CryptoData } from '@/lib/types';
+import { COINS, fmtCoinPrice } from '@/lib/coins';
+import type { StockData, OverseasStockData, CryptoData, AssetType, TradeCurrency } from '@/lib/types';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
-
 type MarketTab = 'domestic' | 'overseas' | 'crypto';
+type Sort = 'default' | 'up' | 'down';
+type KrFilter = 'all' | 'KOSPI' | 'KOSDAQ';
+const TAB_KEY = 'kospi-lab-my-stocks-tab';
+const ANALYZABLE = ['BTC', 'ETH', 'XRP', 'SOL'];
+const openSearch = () => window.dispatchEvent(new Event('kl:open-search'));
 
-/* ── 마켓 탭 버튼 ───────────────────────────────────────── */
-function MarketTabBar({
-  active, onChange, domesticCount, overseasCount, cryptoCount,
-}: {
-  active: MarketTab;
-  onChange: (t: MarketTab) => void;
-  domesticCount: number;
-  overseasCount: number;
-  cryptoCount: number;
-}) {
-  const tabs = [
-    { id: 'domestic' as const, label: '🇰🇷 국내',  count: domesticCount, activeClass: 'bg-sky-500 shadow-sky-500/30' },
-    { id: 'overseas' as const, label: '🌐 해외',   count: overseasCount, activeClass: 'bg-sky-500 shadow-sky-500/30' },
-    { id: 'crypto'   as const, label: '₿ 코인',   count: cryptoCount,   activeClass: 'bg-amber-500 shadow-amber-500/30' },
-  ];
-  return (
-    <div className="flex items-center gap-1 p-1 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] w-fit"
-      style={{ boxShadow: 'var(--shadow-pill)' }}>
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onChange(tab.id)}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-            active === tab.id
-              ? `${tab.activeClass} text-white shadow-sm`
-              : 'text-[var(--text-muted)] hover:text-[var(--text)]'
-          }`}
-        >
-          {tab.label}
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
-            active === tab.id ? 'bg-white/20 text-white' : 'bg-[var(--border)] text-[var(--text-muted)]'
-          }`}>{tab.count}</span>
-        </button>
-      ))}
-    </div>
-  );
+interface Trade { symbol: string; name: string; assetType: AssetType; price: number; currency: TradeCurrency }
+interface Row {
+  key: string; href: string; title: string; sub: string; badge: string; price: string;
+  cr: number | null | undefined; loading: boolean;
+  analysis?: string; trade?: Trade; remove: () => void;
 }
 
-/* ── 빈 상태 ─────────────────────────────────────────────── */
-function EmptyState({ hasItems, label }: { hasItems: boolean; label: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-28 text-center">
-      <div className="w-14 h-14 rounded-full bg-[var(--border)] flex items-center justify-center mb-4">
-        <svg className="w-7 h-7 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-      </div>
-      <p className="text-[var(--text-muted)] font-medium">
-        {hasItems ? '해당 조건의 종목이 없습니다' : `관심 ${label}이 없습니다`}
-      </p>
-      <p className="text-[var(--text-muted)] text-sm mt-1 opacity-60">
-        {hasItems ? '필터를 변경해 보세요' : '위 검색창에서 종목을 추가하세요'}
-      </p>
-    </div>
-  );
-}
-
-/* ── 내부 컴포넌트 ──────────────────────────────────────── */
 function MyStocksInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const [tab, setTab] = useState<MarketTab>('domestic');
+  const [sort, setSort] = useState<Sort>('default');
+  const [krFilter, setKrFilter] = useState<KrFilter>('all');
+  const [menu, setMenu] = useState<{ title: string; actions: SheetAction[] } | null>(null);
+  const [trade, setTrade] = useState<Trade | null>(null);
+  const [toast, setToast] = useState<{ text: string; undo: () => void } | null>(null);
 
-  const [marketTab, setMarketTab] = useState<MarketTab>('domestic');
   useEffect(() => {
-    const urlMarket = searchParams.get('market') as MarketTab | null;
-    if (urlMarket && ['domestic', 'overseas', 'crypto'].includes(urlMarket)) {
-      setMarketTab(urlMarket);
-      return;
-    }
-    const stored = localStorage.getItem('kospi-lab-my-stocks-tab') as MarketTab | null;
-    if (stored) setMarketTab(stored);
+    const url = searchParams.get('market') as MarketTab | null;
+    if (url && ['domestic', 'overseas', 'crypto'].includes(url)) { setTab(url); return; }
+    try { const s = localStorage.getItem(TAB_KEY) as MarketTab | null; if (s && ['domestic', 'overseas', 'crypto'].includes(s)) setTab(s); } catch { /* 무시 */ }
   }, [searchParams]);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
+  const switchTab = (t: MarketTab) => { setTab(t); try { localStorage.setItem(TAB_KEY, t); } catch { /* 무시 */ } };
 
-  const switchTab = (t: MarketTab) => {
-    setMarketTab(t);
-    localStorage.setItem('kospi-lab-my-stocks-tab', t);
-  };
+  const kr = useWatchlist();
+  const ov = useOverseasWatchlist();
+  const cr = useCryptoWatchlist();
+  const { portfolio } = usePortfolio();
+  const { alerts } = useAlerts();
 
-  // 국내
-  const { watchlist, add, remove, mounted }  = useWatchlist();
-  const { portfolio }                         = usePortfolio();
-  const { alerts }                            = useAlerts();
-  const [sort, setSort]   = useState<SortKey>('default');
-  const [filter, setFilter] = useState<FilterMarket>('all');
+  const { data: krData } = useSWR<Record<string, StockData>>(
+    tab === 'domestic' && kr.watchlist.length ? `/api/stock/batch?tickers=${kr.watchlist.map((w) => w.ticker).join(',')}` : null, fetcher, { refreshInterval: 5000 });
+  const { data: ovData } = useSWR<Record<string, OverseasStockData>>(
+    tab === 'overseas' && ov.watchlist.length ? `/api/overseas/batch?symbols=${ov.watchlist.map((w) => w.symbol).join(',')}` : null, fetcher, { refreshInterval: 15000 });
+  const { data: crData } = useSWR<Record<string, CryptoData>>(
+    tab === 'crypto' && cr.watchlist.length ? `/api/crypto/batch?symbols=${cr.watchlist.map((w) => w.symbol).join(',')}` : null, fetcher, { refreshInterval: 5000 });
 
-  // 해외
-  const { watchlist: overseas, add: addOverseas, remove: removeOverseas, mounted: oMounted } =
-    useOverseasWatchlist();
-
-  // 코인
-  const { watchlist: cryptos, remove: removeCrypto, mounted: cMounted } = useCryptoWatchlist();
-
-  // 시장 데이터 (환율)
-  const { data: market } = useSWR('/api/market', fetcher, { refreshInterval: 10000 });
-  const usdRate = market?.usdkrw?.value as number | undefined;
-
-  // 국내 배치 조회
-  const tickers = watchlist.map((w) => w.ticker).join(',');
-  const { data: allStocks } = useSWR<Record<string, StockData>>(
-    tickers ? `/api/stock/batch?tickers=${tickers}` : null,
-    fetcher,
-    { refreshInterval: 5000 }
-  );
-
-  // 해외 배치 조회
-  const symbols = overseas.map((o) => o.symbol).join(',');
-  const { data: allOverseas } = useSWR<Record<string, OverseasStockData>>(
-    symbols ? `/api/overseas/batch?symbols=${symbols}` : null,
-    fetcher,
-    { refreshInterval: 15000 }
-  );
-
-  // 코인 배치 조회
-  const cryptoSymbols = cryptos.map((c) => c.symbol).join(',');
-  const { data: allCryptos } = useSWR<Record<string, CryptoData>>(
-    cryptoSymbols ? `/api/crypto/batch?symbols=${cryptoSymbols}` : null,
-    fetcher,
-    { refreshInterval: 5000 }
-  );
-
-  // 국내 필터/정렬
-  const filtered = useMemo(() => {
-    const items = watchlist.filter((w) => filter === 'all' || w.market === filter);
-    if (sort === 'default') return items;
-    return [...items].sort((a, b) => {
-      const da = allStocks?.[a.ticker];
-      const db = allStocks?.[b.ticker];
-      if (!da || !db) return 0;
-      if (sort === 'changeRate')    return db.changeRate - da.changeRate;
-      if (sort === 'changeRateAsc') return da.changeRate - db.changeRate;
-      return 0;
+  const rows: Row[] = useMemo(() => {
+    let list: Row[] = [];
+    if (tab === 'domestic') {
+      list = kr.watchlist.filter((w) => krFilter === 'all' || w.market === krFilter).map((w) => {
+        const d = krData?.[w.ticker];
+        const p = portfolio[w.ticker];
+        const parts = [w.ticker, w.market];
+        if (p && d) parts.push(`보유 ${p.quantity.toLocaleString()}주 ${d.price >= p.avgPrice ? '+' : ''}${(((d.price - p.avgPrice) / p.avgPrice) * 100).toFixed(1)}%`);
+        if (alerts[w.ticker]) parts.push('알림');
+        return {
+          key: w.ticker, href: `/stock/${w.ticker}`, title: w.name, sub: parts.join(' · '), badge: w.name.slice(0, 1),
+          price: d ? d.price.toLocaleString('ko-KR') : '—', cr: d?.changeRate, loading: !krData,
+          analysis: `/stock-analysis?ticker=${w.ticker}`,
+          trade: d ? { symbol: w.ticker, name: w.name, assetType: 'domestic', price: d.price, currency: 'KRW' } : undefined,
+          remove: () => { kr.remove(w.ticker); setToast({ text: `${w.name} 삭제됨`, undo: () => kr.add(w) }); },
+        };
+      });
+    } else if (tab === 'overseas') {
+      list = ov.watchlist.map((w) => {
+        const d = ovData?.[w.symbol];
+        return {
+          key: w.symbol, href: `/overseas/${encodeURIComponent(w.symbol)}`, title: w.name, sub: `${w.symbol} · ${w.exchange}`, badge: w.symbol.slice(0, 2),
+          price: d ? `$${d.price.toFixed(2)}` : '—', cr: d?.changeRate, loading: !ovData,
+          trade: d ? { symbol: w.symbol, name: w.name, assetType: 'overseas', price: d.price, currency: 'USD' } : undefined,
+          remove: () => { ov.remove(w.symbol); setToast({ text: `${w.name} 삭제됨`, undo: () => ov.add(w) }); },
+        };
+      });
+    } else {
+      list = cr.watchlist.map((w) => {
+        const d = crData?.[w.symbol];
+        const ko = COINS.find((c) => c.symbol === w.symbol)?.ko ?? w.name;
+        return {
+          key: w.symbol, href: `/crypto/${w.symbol}`, title: ko, sub: `${w.base} · USDT`, badge: w.base.slice(0, 3),
+          price: fmtCoinPrice(d?.price), cr: d?.changeRate, loading: !crData,
+          analysis: ANALYZABLE.includes(w.base) ? '/coin-analysis' : undefined,
+          trade: d ? { symbol: w.symbol, name: w.name, assetType: 'crypto', price: d.price, currency: 'USD' } : undefined,
+          remove: () => { cr.remove(w.symbol); setToast({ text: `${ko} 삭제됨`, undo: () => cr.add(w) }); },
+        };
+      });
+    }
+    if (sort === 'default') return list;
+    // 등락률 정렬 — 시세 없는 행은 뒤로
+    return [...list].sort((a, b) => {
+      if (a.cr == null) return 1;
+      if (b.cr == null) return -1;
+      return sort === 'up' ? b.cr - a.cr : a.cr - b.cr;
     });
-  }, [watchlist, filter, sort, allStocks]);
+  }, [tab, sort, krFilter, kr, ov, cr, krData, ovData, crData, portfolio, alerts]);
 
-  // 포트폴리오 총손익
+  // 국내 보유 평가손익 합계(관심종목에 있는 보유분)
   const totalPnl = useMemo(() => {
-    if (!allStocks) return null;
-    let total = 0; let hasAny = false;
-    Object.entries(portfolio).forEach(([ticker, entry]) => {
-      const s = allStocks[ticker];
-      if (!s) return;
-      total += (s.price - entry.avgPrice) * entry.quantity;
-      hasAny = true;
-    });
-    return hasAny ? total : null;
-  }, [allStocks, portfolio]);
+    if (tab !== 'domestic' || !krData) return null;
+    let total = 0, any = false;
+    for (const [t, e] of Object.entries(portfolio)) {
+      const s = krData[t];
+      if (!s) continue;
+      total += (s.price - e.avgPrice) * e.quantity;
+      any = true;
+    }
+    return any ? total : null;
+  }, [tab, krData, portfolio]);
 
-  // 해외 정렬
-  const filteredOverseas = useMemo(() => {
-    if (sort === 'changeRate')
-      return [...overseas].sort((a, b) =>
-        (allOverseas?.[b.symbol]?.changeRate ?? 0) - (allOverseas?.[a.symbol]?.changeRate ?? 0));
-    if (sort === 'changeRateAsc')
-      return [...overseas].sort((a, b) =>
-        (allOverseas?.[a.symbol]?.changeRate ?? 0) - (allOverseas?.[b.symbol]?.changeRate ?? 0));
-    return overseas;
-  }, [overseas, sort, allOverseas]);
+  const mounted = tab === 'domestic' ? kr.mounted : tab === 'overseas' ? ov.mounted : cr.mounted;
+  const counts = { domestic: kr.watchlist.length, overseas: ov.watchlist.length, crypto: cr.watchlist.length };
+  const TABS: { key: MarketTab; label: string }[] = [{ key: 'domestic', label: '국내' }, { key: 'overseas', label: '해외' }, { key: 'crypto', label: '코인' }];
+
+  const openMenu = (r: Row) => setMenu({
+    title: r.title,
+    actions: [
+      { label: '상세 보기', sub: '차트·정보', icon: 'domestic', href: r.href },
+      ...(r.analysis ? [{ label: tab === 'crypto' ? '코인선물 분석' : '종목 분석', sub: '체크리스트', icon: 'analysis', href: r.analysis }] : []),
+      ...(r.trade ? [{ label: '가상투자', sub: '모의 매수·매도', icon: 'virtual', onClick: () => setTrade(r.trade!) }] : []),
+      { label: '매매 계획 세우기', sub: '손절·사이징 먼저', icon: 'planner', href: '/planner' },
+      { label: '관심종목에서 삭제', icon: 'star', danger: true, onClick: r.remove },
+    ],
+  });
+  const swipeActions = (r: Row): RowAction[] => [
+    ...(r.analysis ? [{ label: '분석', icon: 'analysis', tone: 'accent' as const, onClick: () => router.push(r.analysis!) }]
+      : r.trade ? [{ label: '가상', icon: 'virtual', tone: 'muted' as const, onClick: () => setTrade(r.trade!) }] : []),
+    { label: '삭제', icon: 'star', tone: 'danger' as const, onClick: r.remove },
+  ];
 
   return (
-    <div>
-      {/* ── 헤더 ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-base font-semibold text-[var(--text)]">내 관심종목</h2>
-          <MarketTabBar
-            active={marketTab}
-            onChange={switchTab}
-            domesticCount={watchlist.length}
-            overseasCount={overseas.length}
-            cryptoCount={cryptos.length}
-          />
-          {/* 포트폴리오 손익 */}
-          {marketTab === 'domestic' && totalPnl !== null && (
-            <div className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-              totalPnl >= 0
-                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                : 'border-red-500/30 bg-red-500/10 text-red-400'
-            }`}>
-              포트폴리오 {totalPnl >= 0 ? '+' : ''}
-              {new Intl.NumberFormat('ko-KR').format(Math.round(totalPnl))}원
-            </div>
-          )}
-        </div>
-        {/* 검색창 */}
-        {marketTab === 'domestic'
-          ? <SearchBar onAdd={add} />
-          : <OverseasSearchBar onAdd={addOverseas} />
-        }
-      </div>
-
-      {/* 국내 필터 */}
-      {marketTab === 'domestic' && mounted && watchlist.length > 0 && (
-        <div className="mb-5">
-          <StockFilter sort={sort} filter={filter} onSort={setSort} onFilter={setFilter} count={filtered.length} />
-        </div>
-      )}
-
-      {/* 해외 정렬 */}
-      {marketTab === 'overseas' && oMounted && overseas.length > 0 && (
-        <div className="mb-5 flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <span>정렬</span>
-          {([
-            { key: 'default'       as SortKey, label: '기본' },
-            { key: 'changeRate'    as SortKey, label: '▲ 등락률' },
-            { key: 'changeRateAsc' as SortKey, label: '▼ 등락률' },
-          ] as const).map((s) => (
-            <button key={s.key} onClick={() => setSort(s.key)}
-              className={`px-3 py-1 rounded-lg border transition-colors ${
-                sort === s.key
-                  ? 'border-sky-500/50 bg-sky-500/10 text-sky-400'
-                  : 'border-[var(--border)] hover:text-[var(--text)]'
-              }`}>{s.label}</button>
-          ))}
-        </div>
-      )}
-
-      {/* ── 국내 카드 ── */}
-      {marketTab === 'domestic' && (
-        !mounted
-          ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(3)].map((_, i) => <div key={i} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] h-[420px] animate-pulse" />)}
-            </div>
-          : filtered.length === 0
-            ? <EmptyState hasItems={watchlist.length > 0} label="종목" />
-            : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
-                {filtered.map((item) => (
-                  <StockCard
-                    key={item.ticker}
-                    ticker={item.ticker}
-                    name={item.name}
-                    market={item.market}
-                    usdRate={usdRate}
-                    portfolio={portfolio[item.ticker]}
-                    alert={alerts[item.ticker]}
-                    onRemove={remove}
-                  />
-                ))}
-              </div>
-      )}
-
-      {/* ── 해외 카드 ── */}
-      {marketTab === 'overseas' && (
-        !oMounted
-          ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(5)].map((_, i) => <div key={i} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] h-[360px] animate-pulse" />)}
-            </div>
-          : filteredOverseas.length === 0
-            ? <EmptyState hasItems={false} label="해외 종목" />
-            : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
-                {filteredOverseas.map((item) => (
-                  <OverseasStockCard
-                    key={item.symbol}
-                    symbol={item.symbol}
-                    name={item.name}
-                    exchange={item.exchange}
-                    data={allOverseas?.[item.symbol]}
-                    usdRate={usdRate}
-                    onRemove={removeOverseas}
-                  />
-                ))}
-              </div>
-      )}
-
-      {/* ── 코인 카드 ── */}
-      {marketTab === 'crypto' && (
-        !cMounted
-          ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(3)].map((_, i) => <div key={i} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] h-[360px] animate-pulse" />)}
-            </div>
-          : cryptos.length === 0
-            ? <EmptyState hasItems={false} label="코인" />
-            : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
-                {cryptos.map((item) => (
-                  <CryptoCard
-                    key={item.symbol}
-                    symbol={item.symbol}
-                    base={item.base}
-                    name={item.name}
-                    data={allCryptos?.[item.symbol]}
-                    usdRate={usdRate}
-                    onRemove={removeCrypto}
-                  />
-                ))}
-              </div>
-      )}
-    </div>
-  );
-}
-
-/* ── export ──────────────────────────────────────────────── */
-export default function MyStocksPage() {
-  return (
-    <Suspense fallback={
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] h-[360px] animate-pulse" />
+    <div className="max-w-3xl mx-auto pb-6">
+      <div className="seg w-full mb-3" role="tablist" aria-label="관심종목 시장">
+        {TABS.map((t) => (
+          <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => switchTab(t.key)} className={`seg-i flex-1 ${tab === t.key ? 'on' : ''}`}>
+            {t.label} <span className="text-[11px] font-semibold opacity-60 ml-0.5">{counts[t.key]}</span>
+          </button>
         ))}
       </div>
-    }>
+
+      <button type="button" onClick={openSearch} className="srch-in w-full mb-3 text-left" aria-label="종목 검색해서 관심종목 추가">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden><path d="M21 21l-4.35-4.35M11 19a8 8 0 110-16 8 8 0 010 16z" /></svg>
+        <span className="text-[15px] text-[var(--faint)]">종목 검색해서 추가</span>
+      </button>
+
+      <div className="chip-scroll mb-3">
+        {([['default', '기본순'], ['up', '상승률순'], ['down', '하락률순']] as [Sort, string][]).map(([k, l]) => (
+          <button key={k} type="button" className={`chip ${sort === k ? 'active' : ''}`} aria-pressed={sort === k} onClick={() => setSort(k)}>{l}</button>
+        ))}
+        {tab === 'domestic' && (
+          <>
+            <span className="w-px bg-[var(--line)] mx-1 shrink-0" aria-hidden />
+            {([['all', '전체'], ['KOSPI', 'KOSPI'], ['KOSDAQ', 'KOSDAQ']] as [KrFilter, string][]).map(([k, l]) => (
+              <button key={k} type="button" className={`chip ${krFilter === k ? 'active' : ''}`} aria-pressed={krFilter === k} onClick={() => setKrFilter(k)}>{l}</button>
+            ))}
+          </>
+        )}
+      </div>
+
+      {totalPnl !== null && (
+        <div className="fin-card px-4 py-3 mb-3 flex items-center">
+          <span className="text-[13px] font-bold text-[var(--ink-2)]">보유 평가손익</span>
+          <span className="ml-auto text-[16px] font-extrabold tabular-nums" style={{ color: totalPnl === 0 ? 'var(--ink)' : totalPnl > 0 ? 'var(--warn)' : 'var(--accent)' }}>
+            {totalPnl > 0 ? '+' : ''}{Math.round(totalPnl).toLocaleString('ko-KR')}원
+          </span>
+        </div>
+      )}
+
+      <div className="fin-card overflow-hidden">
+        {!mounted ? (
+          [0, 1, 2, 3].map((i) => (
+            <div key={i} className="wl-row"><div className="wl-main">
+              <span className="skeleton w-9 h-9 rounded-full shrink-0" />
+              <span className="flex-1 space-y-1.5"><span className="skeleton h-3.5 w-24" /><span className="skeleton h-2.5 w-16" /></span>
+            </div></div>
+          ))
+        ) : rows.length === 0 ? (
+          <div className="px-5 py-14 text-center">
+            <p className="text-sm font-semibold text-[var(--text)]">{counts[tab] ? '조건에 맞는 종목이 없어요' : '아직 관심종목이 없어요'}</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">{counts[tab] ? '시장 필터를 바꿔 보세요' : '검색에서 ☆를 누르면 여기 모입니다'}</p>
+            {!counts[tab] && <button type="button" onClick={openSearch} className="kl-cta mt-4 px-4 py-2 text-sm">종목 검색</button>}
+          </div>
+        ) : (
+          rows.map((r) => (
+            <SwipeRow key={r.key} actions={swipeActions(r)}>
+              <WatchRow href={r.href} title={r.title} sub={r.sub} badge={r.badge} price={r.price} changeRate={r.cr} loading={r.loading} onMore={() => openMenu(r)} />
+            </SwipeRow>
+          ))
+        )}
+      </div>
+      {mounted && rows.length > 0 && (
+        <p className="text-[11.5px] text-[var(--faint)] mt-2.5 px-1">행을 왼쪽으로 밀면 {tab === 'overseas' ? '가상투자' : '분석'}·삭제, ⋮ 는 전체 메뉴</p>
+      )}
+
+      <ActionSheet open={!!menu} onClose={() => setMenu(null)} title={menu?.title} actions={menu?.actions ?? []} />
+      {trade && (
+        <VirtualTradeModal symbol={trade.symbol} name={trade.name} assetType={trade.assetType} price={trade.price} currency={trade.currency} onClose={() => setTrade(null)} />
+      )}
+      {toast && (
+        <div className="toast" role="status">
+          {toast.text}
+          <button type="button" onClick={() => { toast.undo(); setToast(null); }}>되돌리기</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function MyStocksPage() {
+  return (
+    <Suspense fallback={<div className="max-w-3xl mx-auto space-y-3"><div className="skeleton h-11" /><div className="skeleton h-72" /></div>}>
       <MyStocksInner />
     </Suspense>
   );

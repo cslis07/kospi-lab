@@ -2,10 +2,10 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
+import { useRouter } from 'next/navigation';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import { OVERSEAS_LIST } from '@/lib/overseasList';
 import type { OverseasStockData } from '@/lib/types';
-import VirtualTradeModal from '@/components/VirtualTradeModal';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -74,128 +74,6 @@ type ExchangeFilter = 'all' | 'NASDAQ' | 'NYSE';
 // 목록(정적+실시간 검색) 공용 아이템 타입
 type MarketItem = { symbol: string; name: string; exchange: string };
 
-// ── 해외 종목 상세 모달 ────────────────────────────────────────
-function OverseasDetailModal({
-  symbol, name, exchange, data, usdRate, onClose,
-}: {
-  symbol: string;
-  name: string;
-  exchange: string;
-  data?: OverseasStockData;
-  usdRate?: number;
-  onClose: () => void;
-}) {
-  const [showTrade, setShowTrade] = useState(false);
-  const isPos  = (data?.changeRate ?? 0) >= 0;
-  const krwPrice = data && usdRate ? Math.round(data.price * usdRate) : null;
-
-  return (
-    <>
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ backgroundColor: 'rgba(0,0,0,0.72)' }}
-        onClick={onClose}
-      >
-        <div
-          className="relative w-full max-w-[440px] rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* 헤더 */}
-          <div className="flex items-center justify-between px-5 pt-5 pb-3">
-            <div className="flex items-center gap-3">
-              <CompanyLogo symbol={symbol} />
-              <div>
-                <p className="font-bold text-[var(--text)] text-base">{data?.name ?? name}</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400">{exchange}</span>
-                  <span className="text-[10px] font-mono text-[var(--text-muted)]">{symbol}</span>
-                </div>
-              </div>
-            </div>
-            <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] p-1">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* 현재가 */}
-          <div className="px-5 pb-5">
-            {data ? (
-              <>
-                <p className="text-4xl font-bold tabular-nums text-[var(--text)]">
-                  ${fmtUsd(data.price)}
-                </p>
-                <p className={`text-sm font-semibold mt-1 ${isPos ? 'text-red-400' : 'text-blue-400'}`}>
-                  {isPos ? '▲' : '▼'} {isPos ? '+' : ''}${Math.abs(data.change).toFixed(2)}
-                  {' '}({isPos ? '+' : ''}{data.changeRate.toFixed(2)}%)
-                </p>
-                {krwPrice !== null && (
-                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                    ≈ ₩{krwPrice.toLocaleString('ko-KR')}
-                  </p>
-                )}
-
-                {/* 주요 지표 */}
-                <div className="grid grid-cols-2 gap-3 mt-5">
-                  {[
-                    { label: '시가총액',    value: fmtCap(data.marketCap) },
-                    { label: '거래량',      value: fmtVol(data.volume) },
-                    { label: '전일 종가',   value: data.prevClose ? `$${fmtUsd(data.prevClose)}` : '-' },
-                    { label: '52주 최고',   value: data.high52w   ? `$${fmtUsd(data.high52w)}`   : '-' },
-                    { label: '52주 최저',   value: data.low52w    ? `$${fmtUsd(data.low52w)}`    : '-' },
-                    { label: '통화',        value: data.currency ?? 'USD' },
-                  ].map(({ label, value }) => (
-                    <div key={label} className="rounded-xl border border-[var(--border)] p-3 bg-white/3">
-                      <p className="text-[10px] text-[var(--text-muted)] mb-0.5">{label}</p>
-                      <p className="text-sm font-bold text-[var(--text)] tabular-nums">{value}</p>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="h-24 animate-pulse rounded-lg bg-white/10" />
-            )}
-          </div>
-
-          {/* 푸터 */}
-          <div className="px-5 py-4 border-t border-[var(--border)] flex items-center justify-between">
-            <button
-              onClick={() => setShowTrade(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs hover:bg-emerald-500/20 transition-colors"
-            >
-              💹 가상투자
-            </button>
-            <a
-              href={`https://finance.yahoo.com/quote/${symbol}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs text-[var(--text)] hover:border-[var(--border-hover)] transition-colors"
-            >
-              Yahoo Finance에서 보기
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </a>
-          </div>
-        </div>
-      </div>
-
-      {showTrade && data && (
-        <VirtualTradeModal
-          symbol={symbol}
-          name={data.name}
-          assetType="overseas"
-          price={data.price}
-          currency="USD"
-          onClose={() => setShowTrade(false)}
-        />
-      )}
-    </>
-  );
-}
-
 // ── 메인 페이지 ────────────────────────────────────────────────
 export default function OverseasPage() {
   const { watchlist: ovWatchlist, add, remove, mounted } = useOverseasWatchlist();
@@ -224,15 +102,14 @@ export default function OverseasPage() {
   const [sort,           setSort]           = useState<SortKey>('marketCap');
   const [exchFilter,     setExchFilter]     = useState<ExchangeFilter>('all');
   const [watchOnly,      setWatchOnly]      = useState(false);
-  const [selected,       setSelected]       = useState<MarketItem | null>(null);
   const [updatedAt,      setUpdatedAt]      = useState('');
 
-  // 검색 시트·관심종목에서 ?symbol=&name=&ex= 로 들어오면 상세 모달을 바로 연다
+  // 예전 ?symbol= 링크(북마크·공유)는 전용 상세 화면으로 넘긴다
+  const router = useRouter();
   useEffect(() => {
-    const sp = new URLSearchParams(window.location.search);
-    const sym = sp.get('symbol');
-    if (sym) setSelected({ symbol: sym.toUpperCase(), name: sp.get('name') || sym.toUpperCase(), exchange: sp.get('ex') || '' });
-  }, []);
+    const sym = new URLSearchParams(window.location.search).get('symbol');
+    if (sym) router.replace(`/overseas/${encodeURIComponent(sym.toUpperCase())}`);
+  }, [router]);
 
   // 검색어 디바운스 (실시간 검색 API 과호출 방지)
   useEffect(() => {
@@ -290,9 +167,6 @@ export default function OverseasPage() {
     [watchSet, add, remove]
   );
 
-  // 목록 밖 종목(검색 딥링크)은 목록 배치에 없으므로 따로 조회
-  const { data: selData } = useSWR<Record<string, OverseasStockData>>(
-    selected && !allData[selected.symbol] ? `/api/overseas/batch?symbols=${encodeURIComponent(selected.symbol)}` : null, fetcher, { refreshInterval: 15000 });
   const isLoading = Object.keys(allData).length === 0;
 
   const filtered = useMemo(() => {
@@ -430,7 +304,7 @@ export default function OverseasPage() {
               return (
                 <div
                   key={item.symbol}
-                  onClick={() => setSelected(item)}
+                  onClick={() => router.push(`/overseas/${encodeURIComponent(item.symbol)}`)}
                   className="grid grid-cols-[40px_48px_1fr_120px_90px_130px] gap-2 items-center px-4 py-3 cursor-pointer hover:bg-white/3 transition-colors"
                 >
                   {/* ♡ */}
@@ -501,17 +375,6 @@ export default function OverseasPage() {
         Yahoo Finance 데이터 · 15초 갱신 · 투자 참고용
       </p>
 
-      {/* 종목 상세 모달 */}
-      {selected && (
-        <OverseasDetailModal
-          symbol={selected.symbol}
-          name={selected.name}
-          exchange={selected.exchange}
-          data={allData[selected.symbol] ?? selData?.[selected.symbol]}
-          usdRate={usdRate}
-          onClose={() => setSelected(null)}
-        />
-      )}
     </div>
   );
 }

@@ -19,6 +19,7 @@ import Collapsible from '@/components/ui/Collapsible';
 import BottomSheet from '@/components/ui/BottomSheet';
 import ActionSheet, { KebabButton, type SheetAction } from '@/components/ui/ActionSheet';
 import { useWatchlist } from '@/hooks/useWatchlist';
+import SwipeNav from '@/components/detail/SwipeNav';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 // 한국 관행: 상승=빨강, 하락=파랑 (앱 전체와 통일 — 이 화면만 초록/빨강이던 불일치 수정)
@@ -528,7 +529,8 @@ export default function StockDetailPage() {
         대시보드로 돌아가기
       </Link>
 
-      {/* ── 종목 헤더 ── */}
+      {/* ── 종목 헤더 ── (관심목록 안에선 옆으로 밀어 이전/다음 종목) */}
+      <SwipeNav items={wl.watchlist.map((w) => ({ key: w.ticker, href: `/stock/${w.ticker}`, label: w.name }))} current={ticker}>
       <div className="fin-card p-5 mb-3">
         <div className="flex items-start gap-1">
           <div className="min-w-0 flex-1">
@@ -561,6 +563,7 @@ export default function StockDetailPage() {
           {stock.low52w  && <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">52주 최저</p><p className="font-bold tabular-nums" style={{ color: DOWN }}>{fmt(stock.low52w)}</p></div>}
         </div>
       </div>
+      </SwipeNav>
       <ActionSheet open={menuOpen} onClose={() => setMenuOpen(false)} title={stock.name} actions={actions} />
 
       {/* ── 차트 ── 기간은 세그먼트, 지표·비교는 시트로 숨기고 켜진 것만 범례로 */}

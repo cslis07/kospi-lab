@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import type { CryptoWatchlistItem } from '@/lib/types';
+import { useSyncedList } from './useSyncedList';
 
 const DEFAULT: CryptoWatchlistItem[] = [
   { symbol: 'BTCUSDT', base: 'BTC', name: 'Bitcoin' },
@@ -12,29 +12,16 @@ const DEFAULT: CryptoWatchlistItem[] = [
 const KEY = 'kospi-lab-crypto-watchlist';
 
 export function useCryptoWatchlist() {
-  const [watchlist, setWatchlist] = useState<CryptoWatchlistItem[]>(DEFAULT);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    try {
-      const stored = localStorage.getItem(KEY);
-      if (stored) setWatchlist(JSON.parse(stored));
-    } catch {}
-  }, []);
-
-  const save = (items: CryptoWatchlistItem[]) => {
-    setWatchlist(items);
-    try { localStorage.setItem(KEY, JSON.stringify(items)); } catch {}
-  };
+  const { list: watchlist, mounted, save, current } = useSyncedList<CryptoWatchlistItem>(KEY, DEFAULT);
 
   const add = (item: CryptoWatchlistItem) => {
-    if (watchlist.some((w) => w.symbol === item.symbol)) return;
-    save([...watchlist, item]);
+    const cur = current();
+    if (cur.some((w) => w.symbol === item.symbol)) return;
+    save([...cur, item]);
   };
 
   const remove = (symbol: string) => {
-    save(watchlist.filter((w) => w.symbol !== symbol));
+    save(current().filter((w) => w.symbol !== symbol));
   };
 
   return { watchlist, add, remove, mounted };

@@ -32,7 +32,7 @@ const krRow = (h: { ticker: string; name: string; market?: string }): Row => {
 };
 const usRow = (h: { symbol: string; name: string; exchange?: string }): Row => ({
   mkt: 'us', code: h.symbol, title: h.name, sub: `${h.symbol} · ${h.exchange ?? ''}`,
-  href: `/overseas?symbol=${encodeURIComponent(h.symbol)}&name=${encodeURIComponent(h.name)}&ex=${encodeURIComponent(h.exchange ?? '')}`,
+  href: `/overseas/${encodeURIComponent(h.symbol)}`,
   meta: { exchange: h.exchange ?? '' },
 });
 const coinRow = (c: CoinMeta): Row => ({

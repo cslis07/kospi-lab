@@ -66,7 +66,7 @@ export default function WatchlistPreview({ limit = 6 }: { limit?: number }) {
   } else if (tab === 'us') {
     rows = usList.map((w) => {
       const d = usData?.[w.symbol];
-      const href = `/overseas?symbol=${encodeURIComponent(w.symbol)}&name=${encodeURIComponent(w.name)}&ex=${encodeURIComponent(w.exchange)}`;
+      const href = `/overseas/${encodeURIComponent(w.symbol)}`;
       return (
         <WatchRow key={w.symbol} href={href} title={w.name} sub={`${w.symbol} · ${w.exchange}`} badge={w.symbol.slice(0, 2)}
           price={d ? `$${d.price.toFixed(2)}` : '—'} changeRate={d?.changeRate} loading={!usData}

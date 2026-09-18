@@ -122,8 +122,12 @@ export const EXTRAS: MenuItem[] = [
   { href: '/brokerage', icon: 'brokerage', label: '증권사 비교', desc: '수수료·CMA' },
 ];
 
+/** 종목·코인 상세 — 섹션 항목 하위 경로여도 드릴다운(뒤로가기)으로 취급 */
+const DETAIL_PREFIXES = ['/stock/', '/crypto/', '/overseas/'];
+
 /** 현재 경로가 속한 섹션 항목(상단 탭·앱바 루트 판정용). 드릴다운 상세면 null */
 export function activeItem(pathname: string, q: URLSearchParams): { group: MenuGroup; item: MenuItem } | null {
+  if (DETAIL_PREFIXES.some((p) => pathname.startsWith(p))) return null;
   for (const group of MENU) {
     const item = group.items.find((it) => itemIsActive(it, pathname, q));
     if (item) return { group, item };
@@ -134,6 +138,7 @@ export function activeItem(pathname: string, q: URLSearchParams): { group: MenuG
 export function drillTitle(pathname: string): string {
   if (pathname.startsWith('/stock/')) return '종목 상세';
   if (pathname.startsWith('/crypto/')) return '코인 상세';
+  if (pathname.startsWith('/overseas/')) return '해외 상세';
   if (under(pathname, '/more')) return '전체 메뉴';
   return EXTRAS.find((e) => under(pathname, e.href))?.label ?? 'KOSPI LAB';
 }
