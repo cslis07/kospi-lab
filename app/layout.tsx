@@ -25,7 +25,7 @@ export const viewport: Viewport = {
   // 기본 라이트, 다크 선택 시 다크 크롬
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#f2f4f6' },
-    { media: '(prefers-color-scheme: dark)', color: '#16181d' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f1115' },
   ],
   width: 'device-width',
   initialScale: 1,

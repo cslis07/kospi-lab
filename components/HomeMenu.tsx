@@ -3,12 +3,12 @@
 /**
  * 모바일 메뉴 콘텐츠 — 헤더의 '메뉴' 버튼이 여는 팝업 안에서 렌더링된다.
  * 그룹·항목·아이콘은 전부 lib/menu.ts(단일 소스)에서 가져온다.
- * ① 검색 ② 자주 쓰는 기능(실제 방문 빈도) ③ 전체 메뉴(4그룹).
+ * ① 검색 ② 자주 쓰는 기능(실제 방문 빈도) ③ 전체 메뉴(5섹션) ④ 더보기 도구.
  */
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { ICON, MENU, FLAT, BY_HREF, DEFAULT_QUICK, hrefIsActive, type MenuItem } from '@/lib/menu';
+import { ICON, MENU, EXTRAS, FLAT, BY_HREF, DEFAULT_QUICK, itemIsActive, type MenuItem } from '@/lib/menu';
 
 function Icon({ name }: { name: string }) {
   return (
@@ -52,7 +52,7 @@ function GridItem({ t, color, active, onNavigate }: { t: MenuItem; color: string
 export default function HomeMenu({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const isActive = (href: string) => hrefIsActive(href, pathname, searchParams);
+  const isActive = (href: string) => { const it = BY_HREF.get(href); return it ? itemIsActive(it, pathname, searchParams) : false; };
 
   // 자주 쓰는 기능 — 실제 방문 빈도(localStorage) 기반, 없으면 기본값
   const [visits, setVisits] = useState<Record<string, number>>({});
@@ -107,7 +107,7 @@ export default function HomeMenu({ onNavigate }: { onNavigate?: () => void }) {
             </div>
           </section>
 
-          {/* 전체 메뉴 — 4그룹 */}
+          {/* 전체 메뉴 — 5섹션 */}
           <section>
             <h2 className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 uppercase tracking-wide">전체 메뉴</h2>
             <div className="space-y-5">
@@ -119,6 +119,13 @@ export default function HomeMenu({ onNavigate }: { onNavigate?: () => void }) {
                   </div>
                 </div>
               ))}
+              {/* 5섹션 밖 보조 도구 */}
+              <div>
+                <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 tracking-wide">더보기 도구</p>
+                <div className="hm-grid">
+                  {EXTRAS.map((t) => <GridItem key={t.href} t={t} color="c-violet" active={isActive(t.href)} onNavigate={onNavigate} />)}
+                </div>
+              </div>
             </div>
           </section>
         </>

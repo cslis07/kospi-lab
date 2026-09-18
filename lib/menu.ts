@@ -1,16 +1,25 @@
 /**
  * 앱 전체 메뉴의 단일 소스(single source of truth).
- * 데스크탑 내비(NavTabs)·모바일 팝업(HomeMenu)·홈 바로가기(page)가 전부 이 정의를 쓴다.
- * ⚠ 그룹/항목을 바꾸려면 여기만 고친다 — 여러 곳에 흩어진 정의가 "메뉴가 여기저기" 혼란의 원인이었다.
+ * 모바일 하단 탭(BottomNav)·상단 밑줄 탭/데스크탑 내비(NavTabs)·앱바 제목(Header)·메뉴 시트(HomeMenu)가 전부 이 정의를 쓴다.
+ * ⚠ 그룹/항목을 바꾸려면 여기만 고친다.
  *
- * IA(2026-09-16 재편): 의도(할 일) 기준 4그룹. 이 앱의 정체성인 "매매 규율"을 맨 앞에.
- *   매매(핵심) → 시세 → 내 자산 → 정보·도구(자주 안 쓰는 참고/발굴/설계는 여기 모음)
+ * IA(2026-09-18 재편, 사용자 지정 5섹션 = 하단 5탭):
+ *   홈(대시보드·관심종목·캘린더·뉴스) · 시장(국내·해외·코인·선물) · 분석(종목 분석·스크리너·공시·리포트)
+ *   · 관리(플래너·매매일지·통합 리스크·목표 수익률) · 자산(포트폴리오·계좌·성과)
+ * 탭 안의 항목 이동은 상단 밑줄 탭(가로), 탭 밖으로 들어가는 상세(종목·코인 상세·기타 도구)는 드릴다운(뒤로가기).
  */
 
-export interface MenuItem { href: string; label: string; icon: string; desc?: string; external?: boolean }
+export interface MenuItem {
+  href: string; label: string; icon: string; desc?: string; external?: boolean;
+  /** 같은 항목으로 취급할 다른 경로(예: 종목 분석 = 국내주식·코인선물 두 화면) */
+  alias?: string[];
+}
 export interface MenuGroup {
   key: string; label: string; color: string; qc: string; navIcon: string;
   items: MenuItem[];
+  /** 하단 탭 강조에만 쓰는 추가 경로 접두어(드릴다운 상세·기타 도구). 상단 탭·앱바 루트 판정엔 쓰지 않는다 */
+  tabExtra?: string[];
+  /** 하단 탭 강조 여부 */
   matchFn: (pathname: string, q: URLSearchParams) => boolean;
 }
 
@@ -49,66 +58,92 @@ export const ICON: Record<string, string> = {
 export const DASHBOARD: MenuItem = { href: '/', label: '대시보드', icon: 'home' };
 export const GUIDE: MenuItem = { href: '/guide.html', label: '이용가이드', icon: 'guide', external: true };
 
-/** href가 현재 라우트와 일치하는지(쿼리 market까지 정확 대조). '/'·외부·정적은 제외. */
+/** 경로가 base 와 같거나 그 하위인가('/stock' 이 '/stock-analysis' 에 걸리는 접두어 오탐 방지) */
+const under = (pathname: string, base: string) => pathname === base || pathname.startsWith(base + '/');
+
+/** href가 현재 라우트와 일치하는지(쿼리 market까지 정확 대조). '/'는 정확히 홈일 때만, 외부·정적은 제외. */
 export function hrefIsActive(href: string, pathname: string, searchParams: URLSearchParams): boolean {
+  if (href.startsWith('http') || href.endsWith('.html')) return false;
   const base = href.split('?')[0];
-  if (base === '/' || base.startsWith('http') || href.endsWith('.html')) return false;
+  if (base === '/') return pathname === '/';
   const iq = href.includes('?') ? new URLSearchParams(href.split('?')[1]) : null;
-  return pathname.startsWith(base) && (!iq || iq.get('market') === searchParams.get('market'));
+  return under(pathname, base) && (!iq || iq.get('market') === searchParams.get('market'));
 }
-/** 그룹 매칭 = 그룹 안 아무 항목이나 현재 라우트와 일치. 항목 href로 자동 생성(손수 매칭 제거). */
-function makeMatch(items: MenuItem[]) {
-  return (pathname: string, q: URLSearchParams) => items.some((it) => hrefIsActive(it.href, pathname, q));
+/** 항목 일치 = href 또는 alias 경로 */
+export function itemIsActive(it: MenuItem, pathname: string, q: URLSearchParams): boolean {
+  return hrefIsActive(it.href, pathname, q) || !!it.alias?.some((a) => under(pathname, a));
 }
 
-const G = (key: string, label: string, color: string, qc: string, navIcon: string, items: MenuItem[]): MenuGroup =>
-  ({ key, label, color, qc, navIcon, items, matchFn: makeMatch(items) });
+const G = (key: string, label: string, color: string, qc: string, navIcon: string, items: MenuItem[], tabExtra?: string[]): MenuGroup => ({
+  key, label, color, qc, navIcon, items, tabExtra,
+  matchFn: (pathname, q) => items.some((it) => itemIsActive(it, pathname, q)) || !!tabExtra?.some((p) => pathname.startsWith(p)),
+});
 
 export const MENU: MenuGroup[] = [
-  G('trade', '매매', 'c-blue', 'qc-blue', 'target', [
-    { href: '/target',         icon: 'target',   label: '목표 수익률',   desc: '월 목표 역산·누수·규칙' },
-    { href: '/planner',        icon: 'planner',  label: '플래너',        desc: '사이징·청산가·1R 계산' },
-    { href: '/journal',        icon: 'journal',  label: '매매일지',      desc: '승률·기대값·심화 복기' },
-    { href: '/risk',           icon: 'risk',     label: '통합 리스크',   desc: '계좌 익스포저·집중도' },
-    { href: '/stock-analysis', icon: 'analysis', label: '국내주식 분석', desc: '수급·추세·재무 체크' },
-    { href: '/coin-analysis',  icon: 'signal',   label: '코인선물 분석', desc: '손절·사이징 점검' },
+  G('home', '홈', 'c-blue', 'qc-blue', 'home', [
+    { href: '/',          icon: 'home',     label: '대시보드',    desc: '시장 요약·관심·리스크·이벤트' },
+    { href: '/my-stocks', icon: 'star',     label: '관심종목',    desc: '국내·해외·코인 관심 목록' },
+    { href: '/calendar',  icon: 'calendar', label: '경제 캘린더', desc: 'FOMC·금통위·지표·휴장' },
+    { href: '/news',      icon: 'news',     label: '뉴스',        desc: '시장 소식' },
   ]),
-  G('market', '시세', 'c-violet', 'qc-violet', 'domestic', [
-    { href: '/domestic',                icon: 'domestic', label: '국내주식', desc: 'KOSPI·KOSDAQ' },
-    { href: '/overseas',                icon: 'overseas', label: '해외주식', desc: '미국 등 글로벌' },
-    { href: '/my-stocks?market=crypto', icon: 'crypto',   label: '코인',     desc: '실시간 시세' },
-    { href: '/futures',                 icon: 'futures',  label: '선물',     desc: 'USDT 무기한·펀딩' },
-    { href: '/krx',                     icon: 'krx',      label: 'KRX 시장', desc: '지수·랭킹·ETF' },
+  G('market', '시장', 'c-violet', 'qc-violet', 'domestic', [
+    { href: '/domestic', icon: 'domestic', label: '국내', desc: 'KOSPI·KOSDAQ·등락 랭킹', alias: ['/krx'] },
+    { href: '/overseas', icon: 'overseas', label: '해외', desc: '미국 등 글로벌' },
+    { href: '/coins',    icon: 'crypto',   label: '코인', desc: '시세·거시 환경·ETF' },
+    { href: '/futures',  icon: 'futures',  label: '선물', desc: 'USDT 무기한·펀딩' },
+  ], ['/stock/', '/crypto/']),
+  G('analysis', '분석', 'c-amber', 'qc-amber', 'analysis', [
+    { href: '/stock-analysis', icon: 'analysis', label: '종목 분석', desc: '국내주식·코인선물 체크리스트', alias: ['/coin-analysis'] },
+    { href: '/screener',       icon: 'screener', label: '스크리너',  desc: 'ROE·PER·성장주',            alias: ['/growth'] },
+    { href: '/dart',           icon: 'dart',     label: '공시',      desc: 'DART 전자공시' },
+    { href: '/report',         icon: 'report',   label: '리포트',    desc: '증권사 리포트' },
   ]),
-  G('assets', '내 자산', 'c-green', 'qc-green', 'portfolio', [
-    { href: '/portfolio', icon: 'portfolio', label: '통합 자산', desc: '국내·해외·코인 합산' },
-    { href: '/my-stocks', icon: 'star',      label: '내 주식',   desc: '관심·포트폴리오' },
-    { href: '/bitget',    icon: 'bitget',    label: '비트겟',    desc: '잔고·청산 내역' },
-    { href: '/virtual',   icon: 'virtual',   label: '가상투자',  desc: '모의매매·백업' },
+  G('manage', '관리', 'c-rose', 'qc-rose', 'risk', [
+    { href: '/planner', icon: 'planner', label: '플래너',      desc: '사이징·청산가·1R 계산' },
+    { href: '/journal', icon: 'journal', label: '매매일지',    desc: '기록·복기·거래소 대조' },
+    { href: '/risk',    icon: 'risk',    label: '통합 리스크', desc: '계좌 익스포저·집중도' },
+    { href: '/target',  icon: 'target',  label: '목표 수익률', desc: '월 목표 역산·누수·규칙' },
   ]),
-  G('more', '정보·도구', 'c-amber', 'qc-amber', 'tools', [
-    { href: '/news',      icon: 'news',      label: '뉴스',    desc: '시장 소식' },
-    { href: '/dart',      icon: 'dart',      label: '공시',    desc: 'DART 전자공시' },
-    { href: '/report',    icon: 'report',    label: '리포트',  desc: '증권사 리포트' },
-    { href: '/calendar',  icon: 'calendar',  label: '캘린더',  desc: '경제 이벤트' },
-    { href: '/growth',    icon: 'growth',    label: '성장주',  desc: 'PER·PEG 스캔' },
-    { href: '/screener',  icon: 'screener',  label: '스크리너', desc: 'ROE·PER 재무' },
-    { href: '/invest',    icon: 'invest',    label: '투자설계', desc: '계좌·자산 추천' },
-    { href: '/tax',       icon: 'tax',       label: '세제혜택', desc: 'ISA·IRP·연금' },
-    { href: '/simulate',  icon: 'simulate',  label: '시뮬레이션', desc: '복리 FV 계산' },
-    { href: '/brokerage', icon: 'brokerage', label: '증권사',  desc: '수수료·CMA' },
-  ]),
+  G('assets', '자산', 'c-green', 'qc-green', 'portfolio', [
+    { href: '/portfolio',   icon: 'portfolio', label: '포트폴리오', desc: '국내·해외·코인 합산' },
+    { href: '/bitget',      icon: 'bitget',    label: '계좌',       desc: '거래소 잔고·포지션·청산' },
+    { href: '/performance', icon: 'growth',    label: '성과',       desc: '승률·기대값·주간 리뷰' },
+  ], ['/virtual', '/invest', '/tax', '/simulate', '/brokerage']),
 ];
 
-/** 모바일 하단 탭에 직접 노출되는 그룹. 나머지(내 자산·정보·도구)는 '더보기' 탭으로 접힌다.
- *  탭바 = 홈 · 매매 · [+ 플래너 FAB] · 시세 · 더보기. BottomNav·Header(탭 루트 판정)가 함께 쓴다. */
-export const TAB_GROUP_KEYS: readonly string[] = ['trade', 'market'];
+/** 5섹션 밖의 보조 도구 — 메뉴 시트 '더보기'에서만 노출(드릴다운, 뒤로가기) */
+export const EXTRAS: MenuItem[] = [
+  { href: '/krx',       icon: 'krx',       label: 'KRX 시장',    desc: '지수·랭킹·ETF' },
+  { href: '/growth',    icon: 'growth',    label: '성장주 발굴', desc: 'PER·PEG 스캔' },
+  { href: '/virtual',   icon: 'virtual',   label: '가상투자',    desc: '모의매매·백업' },
+  { href: '/invest',    icon: 'invest',    label: '투자설계',    desc: '계좌·자산 추천' },
+  { href: '/tax',       icon: 'tax',       label: '세제혜택',    desc: 'ISA·IRP·연금' },
+  { href: '/simulate',  icon: 'simulate',  label: '시뮬레이션',  desc: '복리 FV 계산' },
+  { href: '/brokerage', icon: 'brokerage', label: '증권사 비교', desc: '수수료·CMA' },
+];
 
-/** 전체 항목 평탄화(그룹색 유지, href 중복 제거) — 검색·자주쓰는 후보 풀 */
+/** 현재 경로가 속한 섹션 항목(상단 탭·앱바 루트 판정용). 드릴다운 상세면 null */
+export function activeItem(pathname: string, q: URLSearchParams): { group: MenuGroup; item: MenuItem } | null {
+  for (const group of MENU) {
+    const item = group.items.find((it) => itemIsActive(it, pathname, q));
+    if (item) return { group, item };
+  }
+  return null;
+}
+/** 드릴다운 화면 제목(섹션 밖 경로) */
+export function drillTitle(pathname: string): string {
+  if (pathname.startsWith('/stock/')) return '종목 상세';
+  if (pathname.startsWith('/crypto/')) return '코인 상세';
+  if (under(pathname, '/more')) return '전체 메뉴';
+  return EXTRAS.find((e) => under(pathname, e.href))?.label ?? 'KOSPI LAB';
+}
+
+/** 전체 항목 평탄화(그룹색 유지, href 중복 제거) — 메뉴 검색·자주쓰는 후보 풀 */
 export type FlatMenuItem = MenuItem & { color: string; qc: string };
-export const FLAT: FlatMenuItem[] = MENU
-  .flatMap((g) => g.items.map((it) => ({ ...it, color: g.color, qc: g.qc })))
-  .filter((it, i, arr) => arr.findIndex((x) => x.href === it.href) === i);
+export const FLAT: FlatMenuItem[] = [
+  ...MENU.flatMap((g) => g.items.map((it) => ({ ...it, color: g.color, qc: g.qc }))),
+  ...EXTRAS.map((it) => ({ ...it, color: 'c-violet', qc: 'qc-violet' })),
+].filter((it, i, arr) => arr.findIndex((x) => x.href === it.href) === i);
 export const BY_HREF = new Map(FLAT.map((f) => [f.href, f]));
 
 /** 방문 데이터 없을 때 기본 '자주 쓰는' — 이 앱의 핵심(매매 규율 4종) */

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import AnalysisSwitch from '@/components/AnalysisSwitch';
 import useSWR from 'swr';
 import dynamic from 'next/dynamic';
 import type { ChartCandle } from '@/components/CoinCandleChart';
@@ -658,6 +659,7 @@ export default function CoinAnalysisPage() {
 
   return (
     <div className="pb-12">
+      <AnalysisSwitch />
       {/* 도구의 성격 — 점수를 진입 신호로 읽지 않게 화면 최상단에 고정 */}
       <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3.5 py-2.5">
         <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">

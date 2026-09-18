@@ -1,5 +1,6 @@
 'use client';
 
+import RankList from '@/components/fin/RankList';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
 import StockDetailModal from '@/components/StockDetailModal';
@@ -137,6 +138,12 @@ export default function DomesticPage() {
 
   return (
     <div className="pb-12">
+      {/* 등락 랭킹 — KRX 공식 일별(기준일 표기) */}
+      <div className="grid gap-6 md:grid-cols-2 mb-7">
+        <RankList kind="gainers" />
+        <RankList kind="losers" />
+      </div>
+
       {/* 안내 배너 */}
       <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] mb-4 px-1">
         <span className="text-red-400">ℹ</span>

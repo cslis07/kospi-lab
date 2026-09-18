@@ -1,11 +1,16 @@
 'use client';
 
+/**
+ * 섹션 안 내비게이션.
+ * - 모바일: 앱바 바로 아래 붙는 밑줄 탭(현재 섹션의 항목들). 스크롤해도 따라온다(sticky).
+ *   ⚠ sticky 는 부모 박스 안에서만 붙으므로 래퍼 없이 콘텐츠 컨테이너의 직계 자식으로 렌더한다.
+ * - 데스크탑: 섹션 알약 + 하위 칩(기존 방식).
+ */
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect } from 'react';
-import { MENU, ICON, DASHBOARD, GUIDE, hrefIsActive } from '@/lib/menu';
+import { MENU, ICON, GUIDE, activeItem, itemIsActive } from '@/lib/menu';
 
-/* 작은 라인 아이콘 */
 function NavIcon({ name, className = 'w-4 h-4' }: { name: string; className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -17,7 +22,7 @@ function NavIcon({ name, className = 'w-4 h-4' }: { name: string; className?: st
 function NavTabsInner() {
   const pathname     = usePathname();
   const searchParams = useSearchParams();
-  // 데스크탑: 사용자가 알약을 눌러 미리 펼친 그룹(라우트 변경 시 초기화)
+  // 데스크탑: 사용자가 알약을 눌러 미리 펼친 섹션(라우트 변경 시 초기화)
   const [shownGroup, setShownGroup] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,7 +32,7 @@ function NavTabsInner() {
   }, []);
   useEffect(() => { setShownGroup(null); }, [pathname, searchParams]);
 
-  // 방문 빈도 기록(자주 쓰는 기능 자동화) — 라우트 바뀔 때 현재 경로 카운트 +1
+  // 방문 빈도 기록(자주 쓰는 기능 자동화)
   useEffect(() => {
     try {
       const market = searchParams.get('market');
@@ -40,27 +45,33 @@ function NavTabsInner() {
     } catch { /* localStorage 불가 환경 무시 */ }
   }, [pathname, searchParams]);
 
-  const dashActive = pathname === '/' && !searchParams.get('market');
-  const activeGroup = MENU.find((g) => g.matchFn(pathname, searchParams)) ?? null;
-
-  // 데스크탑에서 서브칩으로 펼쳐 보일 그룹: 사용자가 누른 것 우선, 없으면 현재 활성 그룹
-  const shown = shownGroup ?? activeGroup?.key ?? null;
+  const hit = activeItem(pathname, searchParams);
+  const tabGroup = MENU.find((g) => g.matchFn(pathname, searchParams)) ?? null;
+  const shown = shownGroup ?? hit?.group.key ?? tabGroup?.key ?? null;
   const shownItems = MENU.find((g) => g.key === shown)?.items ?? null;
 
-  // 모바일: 하단 탭바가 그룹 이동을 맡으므로 여기선 활성 그룹의 하위 항목만 가로 칩으로.
-  // '정보·도구'는 항목이 많아 더보기 탭이 대신하므로 칩을 내지 않는다.
-  const mobileItems = activeGroup && activeGroup.key !== 'more' ? activeGroup.items : null;
-
   return (
-    <nav className={`relative ${mobileItems ? 'mb-3' : 'mb-0'} md:mb-6`}>
-      {/* ── 데스크탑: 알약 세그먼트 탭 + 서브칩 (md+) ── */}
-      <div className="hidden md:block space-y-3">
+    <>
+      {/* ── 모바일: 섹션 밑줄 탭 ── */}
+      {hit && hit.group.items.length > 1 && (
+        <div className="u-tabs-wrap md:hidden">
+          <div className="u-tabs" role="tablist" aria-label={`${hit.group.label} 메뉴`}>
+            {hit.group.items.map((it) => {
+              const on = itemIsActive(it, pathname, searchParams);
+              return (
+                <Link key={it.href} href={it.href} role="tab" aria-selected={on} className={`u-tab ${on ? 'on' : ''}`}>
+                  {it.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── 데스크탑: 섹션 알약 + 하위 칩 (md+) ── */}
+      <nav className="hidden md:block relative mb-6 space-y-3">
         <div className="flex items-center gap-3">
           <div className="topnav">
-            <Link href={DASHBOARD.href} className={`navlink ${dashActive ? 'active' : ''}`}>
-              <NavIcon name={DASHBOARD.icon} />
-              {DASHBOARD.label}
-            </Link>
             {MENU.map((g) => (
               <button key={g.key} type="button"
                 onClick={() => setShownGroup(shown === g.key ? null : g.key)}
@@ -83,27 +94,14 @@ function NavTabsInner() {
           <div className="chip-row">
             {shownItems.map((it) => (
               <Link key={it.href} href={it.href} title={it.desc}
-                className={`chip ${hrefIsActive(it.href, pathname, searchParams) ? 'active' : ''}`}>
+                className={`chip ${itemIsActive(it, pathname, searchParams) ? 'active' : ''}`}>
                 {it.label}
               </Link>
             ))}
           </div>
         )}
-      </div>
-
-      {/* ── 모바일: 활성 그룹 서브칩 가로 스크롤 (md 미만) ── */}
-      {mobileItems && (
-        <div className="md:hidden chip-scroll" role="tablist" aria-label={`${activeGroup!.label} 하위 메뉴`}>
-          {mobileItems.map((it) => (
-            <Link key={it.href} href={it.href} role="tab"
-              aria-selected={hrefIsActive(it.href, pathname, searchParams)}
-              className={`chip ${hrefIsActive(it.href, pathname, searchParams) ? 'active' : ''}`}>
-              {it.label}
-            </Link>
-          ))}
-        </div>
-      )}
-    </nav>
+      </nav>
+    </>
   );
 }
 

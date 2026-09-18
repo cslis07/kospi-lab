@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import AnalysisSwitch from '@/components/AnalysisSwitch';
 import useSWR from 'swr';
 import dynamic from 'next/dynamic';
 import type { ChartCandle } from '@/components/CoinCandleChart';
@@ -194,6 +195,7 @@ export default function StockAnalysisPage() {
 
   return (
     <div className="pb-12">
+      <AnalysisSwitch />
       {/* 검색 + 프리셋 */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="flex items-center gap-1.5 relative">

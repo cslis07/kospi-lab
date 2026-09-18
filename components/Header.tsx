@@ -7,25 +7,13 @@ import { useState, useEffect } from 'react';
 import ThemeToggle from './ThemeToggle';
 import SyncIndicator from './SyncIndicator';
 import GlobalSearch from './GlobalSearch';
-import { FLAT, MENU, TAB_GROUP_KEYS } from '@/lib/menu';
+import SearchSheet from './SearchSheet';
+import MenuSheet from './MenuSheet';
+import { activeItem, drillTitle } from '@/lib/menu';
 import type { FxRate } from '@/lib/types';
 
-/** 하단 탭의 루트 화면인가(홈·더보기·탭 그룹의 첫 항목) — 루트에선 뒤로가기를 숨긴다(네이티브 관례). */
-function isTabRoot(pathname: string): boolean {
-  if (pathname === '/' || pathname === '/more') return true;
-  return MENU.filter((g) => TAB_GROUP_KEYS.includes(g.key)).some((g) => pathname === g.items[0].href.split('?')[0]);
-}
-
-/** 모바일 앱바 제목 — 현재 경로에 맞는 메뉴 라벨(쿼리 없는 항목 우선, 없으면 특수 경로). */
-function mobileTitle(pathname: string): string | null {
-  if (pathname === '/') return null;
-  if (pathname.startsWith('/more')) return '더보기';
-  if (pathname.startsWith('/stock/')) return '종목 상세';
-  const base = (h: string) => h.split('?')[0];
-  const exact = FLAT.filter((f) => !f.href.includes('?')).find((f) => pathname.startsWith(base(f.href)));
-  const any = exact ?? FLAT.find((f) => pathname.startsWith(base(f.href)));
-  return any?.label ?? 'KOSPI LAB';
-}
+// 앱바는 쿼리 없는 메뉴 항목만 판정하므로 빈 파라미터로 충분(useSearchParams 를 쓰면 레이아웃 전체에 Suspense 가 필요해진다)
+const NO_QUERY = new URLSearchParams();
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -113,9 +101,20 @@ export default function Header() {
   const [time, setTime] = useState('');
   const pathname = usePathname();
   const router = useRouter();
-  const title = mobileTitle(pathname);
-  const showBack = !isTabRoot(pathname);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  // 앱바 3모드: 홈 섹션=로고 / 다른 섹션=섹션 큰 제목(탭 이동이라 뒤로가기 없음) / 섹션 밖 상세=뒤로가기+제목
+  const hit = activeItem(pathname, NO_QUERY);
+  const mode: 'home' | 'section' | 'drill' = !hit ? 'drill' : hit.group.key === 'home' ? 'home' : 'section';
   const goBack = () => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/'); };
+
+  // 화면 이동 시 시트 닫기 + 다른 컴포넌트(빈 관심목록 등)가 검색을 열 수 있게 전역 이벤트 수신
+  useEffect(() => { setSearchOpen(false); setMenuOpen(false); }, [pathname]);
+  useEffect(() => {
+    const open = () => setSearchOpen(true);
+    window.addEventListener('kl:open-search', open);
+    return () => window.removeEventListener('kl:open-search', open);
+  }, []);
 
   useEffect(() => {
     const tick = () =>
@@ -131,32 +130,33 @@ export default function Header() {
 
   return (
     <header className="site-header border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-md sticky top-0 z-40">
-      {/* ── 모바일 앱바 (md 미만): 홈=로고+검색 / 내부 페이지=뒤로가기+제목 ── */}
-      <div className="md:hidden appbar px-2 flex items-center gap-1">
-        {title ? (
-          <>
-            {showBack ? (
-              <button type="button" onClick={goBack} className="appbar-btn" aria-label="뒤로가기">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
-              </button>
-            ) : <span className="w-2" aria-hidden />}
-            <h1 className={`flex-1 min-w-0 truncate font-bold tracking-tight text-[var(--text)] ${showBack ? 'text-[17px]' : 'text-[20px] pl-2'}`}>{title}</h1>
-          </>
+      {/* ── 모바일 앱바 (md 미만) ── */}
+      <div className="md:hidden appbar px-1.5 flex items-center gap-0.5">
+        {mode === 'home' ? (
+          <Link href="/" aria-label="홈" className="flex items-center gap-2 pl-2.5 min-w-0 flex-1">
+            <span aria-hidden className="grid place-items-center w-7 h-7 rounded-lg text-[13px] font-black text-white shrink-0"
+              style={{ background: 'linear-gradient(135deg,#3182f6,#1b64da)', boxShadow: '0 2px 8px rgba(49,130,246,.35)' }}>K</span>
+            <span className="text-[17px] font-extrabold tracking-tight text-[var(--text)] truncate">KOSPI LAB</span>
+          </Link>
+        ) : mode === 'section' ? (
+          <h1 className="flex-1 min-w-0 truncate pl-3 text-[21px] font-extrabold tracking-tight text-[var(--text)]">{hit!.group.label}</h1>
         ) : (
           <>
-            <Link href="/" aria-label="홈" className="flex items-center gap-2 pl-2 shrink-0">
-              <span aria-hidden className="grid place-items-center w-7 h-7 rounded-lg text-[13px] font-black text-white"
-                style={{ background: 'linear-gradient(135deg,#3182f6,#1b64da)', boxShadow: '0 2px 8px rgba(49,130,246,.35)' }}>K</span>
-              <span className="text-[15px] font-extrabold tracking-tight text-[var(--text)]">KOSPI LAB</span>
-            </Link>
-            <div className="flex-1 flex justify-end min-w-0 px-1"><GlobalSearch /></div>
+            <button type="button" onClick={goBack} className="appbar-ic" aria-label="뒤로가기">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg>
+            </button>
+            <h1 className="flex-1 min-w-0 truncate text-[17px] font-bold tracking-tight text-[var(--text)]">{drillTitle(pathname)}</h1>
           </>
         )}
-        <div className="flex items-center gap-1 shrink-0 pr-1">
-          <SyncIndicator />
-          <ThemeToggle />
-        </div>
+        <button type="button" className="appbar-ic" onClick={() => setSearchOpen(true)} aria-label="종목 검색">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden><path d="M21 21l-4.35-4.35M11 19a8 8 0 110-16 8 8 0 010 16z" /></svg>
+        </button>
+        <button type="button" className="appbar-ic" onClick={() => setMenuOpen(true)} aria-label="전체 메뉴">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden><path d="M4 6.5h16M4 12h16M4 17.5h16" /></svg>
+        </button>
       </div>
+      <SearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} />
 
       {/* ── 데스크탑 헤더 (md+) ── */}
       <div className="hidden md:flex max-w-7xl mx-auto px-3 sm:px-6 h-14 items-center gap-3">

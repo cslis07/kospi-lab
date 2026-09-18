@@ -15,8 +15,15 @@ import { useAlerts } from '@/hooks/useAlerts';
 import { calcMA, calcRSI, calcBB } from '@/lib/indicators';
 import type { StockData, ChartPoint } from '@/lib/types';
 import type { DartCompany, DartFinancials, DartDividend } from '@/lib/dartClient';
+import Collapsible from '@/components/ui/Collapsible';
+import BottomSheet from '@/components/ui/BottomSheet';
+import ActionSheet, { KebabButton, type SheetAction } from '@/components/ui/ActionSheet';
+import { useWatchlist } from '@/hooks/useWatchlist';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 한국 관행: 상승=빨강, 하락=파랑 (앱 전체와 통일 — 이 화면만 초록/빨강이던 불일치 수정)
+const UP = '#f04452';
+const DOWN = '#3182f6';
 
 function fmt(n: number) { return new Intl.NumberFormat('ko-KR').format(Math.round(n)); }
 function fmtVol(n: number) {
@@ -49,22 +56,21 @@ function InvestorSection({ ticker }: { ticker: string }) {
   ];
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-4">
-      <h2 className="text-sm font-semibold text-[var(--text)] mb-3">투자자별 수급 동향 (당일)</h2>
+    <Collapsible title="투자자별 수급" sub="당일 순매수" defaultOpen>
       <div className="grid grid-cols-3 gap-3">
         {items.map(({ label, value, color }) => {
           const pos = value >= 0;
           return (
-            <div key={label} className="text-center p-3 rounded-xl bg-white/5">
+            <div key={label} className="text-center p-3 rounded-xl bg-[var(--surface-2)]">
               <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>
-              <p className={`font-bold text-sm tabular-nums ${pos ? 'text-emerald-400' : 'text-red-400'}`}>
-                {pos ? '+' : ''}{fmtVol(Math.abs(value))}
+              <p className="font-bold text-sm tabular-nums" style={{ color: pos ? UP : DOWN }}>
+                {pos ? '+' : '−'}{fmtVol(Math.abs(value))}
               </p>
             </div>
           );
         })}
       </div>
-    </div>
+    </Collapsible>
   );
 }
 
@@ -88,8 +94,7 @@ function KrxListingSection({ code }: { code: string }) {
     ['영문명', i.engName || '-'],
   ];
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-4">
-      <h2 className="text-sm font-semibold text-[var(--text)] mb-3">상장 정보 (KRX)</h2>
+    <Collapsible title="상장 정보" sub="KRX">
       <div className="grid grid-cols-2 gap-x-6 gap-y-2">
         {rows.map(([k, v]) => (
           <div key={k} className="flex gap-3 text-xs">
@@ -98,7 +103,7 @@ function KrxListingSection({ code }: { code: string }) {
           </div>
         ))}
       </div>
-    </div>
+    </Collapsible>
   );
 }
 
@@ -126,8 +131,7 @@ function DartCompanySection({ code }: { code: string }) {
   ];
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-4">
-      <h2 className="text-sm font-semibold text-[var(--text)] mb-3">기업 개요 (DART)</h2>
+    <Collapsible title="기업 개요" sub="DART">
       <div className="space-y-2">
         {rows.map(({ label, value }) => (
           <div key={label} className="flex gap-3 text-xs">
@@ -142,7 +146,7 @@ function DartCompanySection({ code }: { code: string }) {
           </div>
         ))}
       </div>
-    </div>
+    </Collapsible>
   );
 }
 
@@ -187,8 +191,7 @@ function DartFinancialSection({ code }: { code: string }) {
   ];
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-4">
-      <h2 className="text-sm font-semibold text-[var(--text)] mb-3">재무 요약 (DART)</h2>
+    <Collapsible title="재무 요약" sub="DART · 최근 2개년" defaultOpen>
       <table className="w-full text-xs">
         <thead>
           <tr className="text-[var(--text-muted)]">
@@ -210,7 +213,7 @@ function DartFinancialSection({ code }: { code: string }) {
       <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-60">
         출처: DART 전자공시 (금융감독원) · {fin1?.fsDiv === 'CFS' ? '연결재무제표' : '개별재무제표'}
       </p>
-    </div>
+    </Collapsible>
   );
 }
 
@@ -232,17 +235,16 @@ function DartDividendSection({ code }: { code: string }) {
   ];
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-4">
-      <h2 className="text-sm font-semibold text-[var(--text)] mb-3">배당 정보 (DART · {year}년)</h2>
+    <Collapsible title="배당" sub={`DART · ${year}년`}>
       <div className="grid grid-cols-3 gap-3">
         {items.map(({ label, value }) => (
-          <div key={label} className="text-center p-3 rounded-xl bg-white/5">
+          <div key={label} className="text-center p-3 rounded-xl bg-[var(--surface-2)]">
             <p className="text-[10px] text-[var(--text-muted)] mb-1 leading-snug">{label}</p>
             <p className="font-bold text-sm text-[var(--text)] tabular-nums">{value}</p>
           </div>
         ))}
       </div>
-    </div>
+    </Collapsible>
   );
 }
 
@@ -277,9 +279,8 @@ function AiAnalysis({ stock }: { stock: StockData }) {
   };
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-[var(--text)]">🤖 AI 종목 분석</h2>
+    <Collapsible title="AI 종목 분석" sub="버튼을 눌러야 호출">
+      <div className="flex items-center justify-end mb-3">
         <button onClick={analyze} disabled={loading}
           className="px-3 py-1.5 text-xs rounded-lg bg-violet-500/20 text-violet-400 hover:bg-violet-500/30 transition-colors disabled:opacity-50 font-medium">
           {loading ? '분석 중...' : '분석 시작'}
@@ -293,14 +294,14 @@ function AiAnalysis({ stock }: { stock: StockData }) {
         </div>
       )}
       {result && (
-        <div className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap bg-white/5 rounded-xl p-4">
+        <div className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap bg-[var(--surface-2)] rounded-xl p-4">
           {result}
         </div>
       )}
       {!result && !err && !loading && (
         <p className="text-xs text-[var(--text-muted)] text-center py-4">버튼을 눌러 Claude AI로 종목을 분석하세요</p>
       )}
-    </div>
+    </Collapsible>
   );
 }
 
@@ -395,6 +396,9 @@ export default function StockDetailPage() {
 
   const { portfolio, setEntry, removeEntry } = usePortfolio();
   const { alerts, setAlert, removeAlert }     = useAlerts();
+  const wl = useWatchlist();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [indOpen, setIndOpen]   = useState(false);
   const myPortfolio = portfolio[ticker];
   const myAlert     = alerts[ticker];
 
@@ -471,14 +475,14 @@ export default function StockDetailPage() {
   if (!ticker) return null;
   if (isLoading) return (
     <div className="max-w-4xl mx-auto animate-pulse space-y-4">
-      <div className="h-6 w-32 bg-white/10 rounded" />
-      <div className="h-48 bg-white/5 rounded-2xl" />
-      <div className="h-64 bg-white/5 rounded-2xl" />
+      <div className="h-6 w-32 bg-[var(--surface-2)] rounded" />
+      <div className="h-48 bg-[var(--surface-2)] rounded-2xl" />
+      <div className="h-64 bg-[var(--surface-2)] rounded-2xl" />
     </div>
   );
   if (stockError || !stock || 'error' in stock) return (
     <div className="max-w-4xl mx-auto">
-      <Link href="/" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text)] mb-6 transition-colors">
+      <Link href="/" className="hidden md:inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text)] mb-6 transition-colors">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         대시보드로 돌아가기
       </Link>
@@ -489,110 +493,98 @@ export default function StockDetailPage() {
     </div>
   );
 
+  const INDS = [
+    { key: 'ma5',  label: 'MA5',   desc: '5일 이동평균',         active: showMA5,  set: setShowMA5,  hex: '#eab308' },
+    { key: 'ma20', label: 'MA20',  desc: '20일 이동평균',        active: showMA20, set: setShowMA20, hex: '#3b82f6' },
+    { key: 'ma60', label: 'MA60',  desc: '60일 이동평균',        active: showMA60, set: setShowMA60, hex: '#f97316' },
+    { key: 'bb',   label: 'BB',    desc: '볼린저 밴드 (20, 2σ)', active: showBB,   set: setShowBB,   hex: '#8b5cf6' },
+    { key: 'rsi',  label: 'RSI',   desc: 'RSI(14) 보조 차트',    active: showRSI,  set: setShowRSI,  hex: '#10b981' },
+    { key: 'vol',  label: '거래량', desc: '거래량 보조 차트',     active: showVol,  set: setShowVol,  hex: '#0ea5e9' },
+  ];
+  const activeInd = INDS.filter((i) => i.active);
+
+  const watched = wl.watchlist.some((w) => w.ticker === ticker);
+  const toggleWatch = () => (watched ? wl.remove(ticker) : wl.add({ ticker, name: stock.name, market: stock.market }));
+  const share = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title: `${stock.name} (${ticker})`, url });
+      else await navigator.clipboard.writeText(url);
+    } catch { /* 사용자가 공유를 취소함 */ }
+  };
+  const actions: SheetAction[] = [
+    { label: watched ? '관심종목에서 삭제' : '관심종목에 추가', icon: 'star', onClick: toggleWatch, danger: watched },
+    { label: '종목 분석', sub: '추세·수급·재무 체크리스트', icon: 'analysis', href: `/stock-analysis?ticker=${ticker}` },
+    { label: '매매 계획 세우기', sub: '손절·사이징 먼저', icon: 'planner', href: '/planner' },
+    { label: '지표 · 비교 설정', sub: 'MA·BB·RSI·거래량·비교 종목', icon: 'screener', onClick: () => setIndOpen(true) },
+    { label: '네이버 금융에서 열기', icon: 'news', href: `https://m.stock.naver.com/domestic/stock/${ticker}/total`, external: true },
+    { label: '공유 · 링크 복사', icon: 'report', onClick: share },
+  ];
+
   return (
     <div className="max-w-4xl mx-auto">
-      <Link href="/" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text)] mb-6 transition-colors">
+      <Link href="/" className="hidden md:inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text)] mb-6 transition-colors">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         대시보드로 돌아가기
       </Link>
 
       {/* ── 종목 헤더 ── */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-6 mb-4">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl font-bold text-[var(--text)]">{stock.name}</h1>
-              <span className={`text-xs px-2 py-0.5 rounded font-medium ${stock.market === 'KOSDAQ' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
+      <div className="fin-card p-5 mb-3">
+        <div className="flex items-start gap-1">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-[22px] font-extrabold tracking-tight text-[var(--text)] truncate">{stock.name}</h1>
+              <span className={`text-[11px] px-2 py-0.5 rounded-md font-bold ${stock.market === 'KOSDAQ' ? 'bg-[var(--violet-soft)] text-[var(--violet)]' : 'bg-[var(--accent-soft)] text-[var(--accent)]'}`}>
                 {stock.market}
               </span>
             </div>
-            <span className="text-sm text-[var(--text-muted)] font-mono">{ticker}</span>
+            <span className="text-[12px] text-[var(--text-muted)] tabular-nums">{ticker}</span>
           </div>
-          <div className="text-right">
-            <p className="text-3xl font-bold tabular-nums text-[var(--text)]">₩{fmt(stock.price)}</p>
-            <p className={`text-base font-semibold mt-1 ${isPos ? 'text-emerald-400' : 'text-red-400'}`}>
-              {isPos ? '+' : ''}{fmt(stock.change)}원 ({isPos ? '+' : ''}{stock.changeRate.toFixed(2)}%)
-            </p>
-          </div>
+          <button type="button" onClick={toggleWatch} className={`srch-star ${watched ? 'on' : ''}`} aria-pressed={watched}
+            aria-label={watched ? '관심종목 해제' : '관심종목 추가'}>
+            <svg viewBox="0 0 24 24" fill={watched ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.8} strokeLinejoin="round" aria-hidden>
+              <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 17l-5.2 2.6 1-5.8-4.3-4.1 5.9-.9L12 3.5Z" />
+            </svg>
+          </button>
+          <KebabButton onClick={() => setMenuOpen(true)} label={`${stock.name} 메뉴`} />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-4 border-t border-[var(--border)] text-sm">
-          <div><p className="text-[var(--text-muted)] text-xs mb-0.5">거래량</p><p className="font-medium text-[var(--text)]">{stock.volume}</p></div>
-          <div><p className="text-[var(--text-muted)] text-xs mb-0.5">시가총액</p><p className="font-medium text-[var(--text)]">{stock.marketCap}</p></div>
-          {stock.high52w && <div><p className="text-[var(--text-muted)] text-xs mb-0.5">52주 최고</p><p className="font-medium text-emerald-400">₩{fmt(stock.high52w)}</p></div>}
-          {stock.low52w  && <div><p className="text-[var(--text-muted)] text-xs mb-0.5">52주 최저</p><p className="font-medium text-red-400">₩{fmt(stock.low52w)}</p></div>}
+        <p className="text-[32px] font-extrabold tabular-nums tracking-tight text-[var(--text)] mt-2 leading-none">
+          {fmt(stock.price)}<span className="text-lg font-bold ml-0.5">원</span>
+        </p>
+        <p className="text-[15px] font-bold tabular-nums mt-1.5" style={{ color: stock.change === 0 ? 'var(--faint)' : isPos ? UP : DOWN }}>
+          {stock.change === 0 ? '' : isPos ? '▲ ' : '▼ '}{fmt(Math.abs(stock.change))}원 ({isPos ? '+' : ''}{stock.changeRate.toFixed(2)}%)
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 mt-4 pt-4 border-t border-[var(--line-2)] text-sm">
+          <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">거래량</p><p className="font-bold text-[var(--text)] tabular-nums">{stock.volume}</p></div>
+          <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">시가총액</p><p className="font-bold text-[var(--text)] tabular-nums">{stock.marketCap}</p></div>
+          {stock.high52w && <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">52주 최고</p><p className="font-bold tabular-nums" style={{ color: UP }}>{fmt(stock.high52w)}</p></div>}
+          {stock.low52w  && <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">52주 최저</p><p className="font-bold tabular-nums" style={{ color: DOWN }}>{fmt(stock.low52w)}</p></div>}
         </div>
       </div>
+      <ActionSheet open={menuOpen} onClose={() => setMenuOpen(false)} title={stock.name} actions={actions} />
 
-      {/* ── 차트 ── */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-6 mb-4">
-        {/* 상단 컨트롤 */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h2 className="text-sm font-semibold text-[var(--text)]">가격 차트</h2>
-          <div className="flex gap-1">
+      {/* ── 차트 ── 기간은 세그먼트, 지표·비교는 시트로 숨기고 켜진 것만 범례로 */}
+      <div className="fin-card p-4 sm:p-5 mb-3">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="seg" role="tablist" aria-label="차트 기간">
             {TIMEFRAMES.map((t, i) => (
-              <button key={t.label} onClick={() => setTfIdx(i)}
-                className={`px-3 py-1 text-xs rounded-lg transition-colors ${tfIdx === i ? 'bg-sky-500/20 text-sky-400' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>
-                {t.label}
-              </button>
+              <button key={t.label} type="button" role="tab" aria-selected={tfIdx === i} onClick={() => setTfIdx(i)}
+                className={`seg-i !px-3 ${tfIdx === i ? 'on' : ''}`}>{t.label}</button>
             ))}
           </div>
-        </div>
-
-        {/* 지표 토글 */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {[
-            { key: 'ma5',  label: 'MA5',  active: showMA5,  set: setShowMA5,  color: 'text-yellow-400' },
-            { key: 'ma20', label: 'MA20', active: showMA20, set: setShowMA20, color: 'text-blue-400' },
-            { key: 'ma60', label: 'MA60', active: showMA60, set: setShowMA60, color: 'text-red-400' },
-            { key: 'bb',   label: 'BB',   active: showBB,   set: setShowBB,   color: 'text-purple-400' },
-            { key: 'rsi',  label: 'RSI',  active: showRSI,  set: setShowRSI,  color: 'text-emerald-400' },
-            { key: 'vol',  label: '거래량', active: showVol, set: setShowVol,  color: 'text-sky-400' },
-          ].map(({ key, label, active, set, color }) => (
-            <button key={key} onClick={() => set((v) => !v)}
-              className={`px-2.5 py-1 text-[10px] rounded-lg border font-medium transition-colors ${
-                active
-                  ? `border-current bg-white/10 ${color}`
-                  : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
-              }`}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* 비교 차트 입력 (이름/코드 검색) */}
-        <div className="flex items-center gap-2 mb-4">
-          <div className="relative flex-1 max-w-[240px]" ref={compareDropRef}>
-            <input
-              type="text" placeholder="비교 종목 (이름·코드, 예: 삼성전자)"
-              value={compareInput}
-              onChange={(e) => handleCompareInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') submitCompare();
-                if (e.key === 'Escape') setShowCompareDrop(false);
-              }}
-              className="w-full bg-white/5 border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50"
-            />
-            {showCompareDrop && compareHits.length > 0 && (
-              <div className="absolute z-50 left-0 right-0 mt-1 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl overflow-hidden">
-                {compareHits.map((h) => (
-                  <button key={h.ticker} onClick={() => pickCompare(h)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/5 transition-colors border-b border-[var(--border)] last:border-0">
-                    <span className="text-xs text-[var(--text)]">{h.name}</span>
-                    <span className="text-[10px] font-mono text-[var(--text-muted)]">{h.ticker.replace(/\.(KS|KQ)$/, '')}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <button onClick={submitCompare}
-            className="px-3 py-1.5 text-xs rounded-lg bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 transition-colors">
-            비교
+          <button type="button" onClick={() => setIndOpen(true)} className="chip ml-auto">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
+            지표{activeInd.length ? ` ${activeInd.length}` : ''}
           </button>
-          {compareTicker && (
-            <button onClick={clearCompare}
-              className="text-xs text-[var(--text-muted)] hover:text-red-400">✕ 해제</button>
-          )}
         </div>
+        {(activeInd.length > 0 || compareTicker) && (
+          <button type="button" onClick={() => setIndOpen(true)} className="flex flex-wrap gap-1.5 mb-3 text-left" aria-label="켜진 지표 편집">
+            {activeInd.map((i) => (
+              <span key={i.key} className="text-[10.5px] font-bold px-2 py-0.5 rounded-md bg-[var(--surface-2)]" style={{ color: i.hex }}>{i.label}</span>
+            ))}
+            {compareTicker && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-amber-500">vs {compareName || compareTicker}</span>}
+          </button>
+        )}
 
         {/* 메인 차트 */}
         {enhancedData.length > 0 ? (
@@ -601,7 +593,7 @@ export default function StockDetailPage() {
               {compareTicker ? (
                 // 비교 모드: 수익률 정규화 차트
                 <ComposedChart data={enhancedData} margin={{ top: 5, right: 5, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
                   <XAxis dataKey="date" tickFormatter={(v) => `${String(v).slice(4,6)}/${String(v).slice(6,8)}`}
                     tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                   <YAxis tickFormatter={(v) => `${v.toFixed(1)}%`}
@@ -617,7 +609,7 @@ export default function StockDetailPage() {
                     );
                   }} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Line type="monotone" dataKey="mainRet" name={stock.name} stroke={isPos ? '#10b981' : '#ef4444'}
+                  <Line type="monotone" dataKey="mainRet" name={stock.name} stroke={isPos ? UP : DOWN}
                     strokeWidth={1.5} dot={false} />
                   <Line type="monotone" dataKey="compareRet" name={compareName || compareTicker} stroke="#f59e0b"
                     strokeWidth={1.5} dot={false} connectNulls />
@@ -628,11 +620,11 @@ export default function StockDetailPage() {
                 <ComposedChart data={enhancedData} margin={{ top: 5, right: 5, left: 10, bottom: 5 }}>
                   <defs>
                     <linearGradient id="stockGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor={isPos ? '#10b981' : '#ef4444'} stopOpacity={0.25} />
-                      <stop offset="95%" stopColor={isPos ? '#10b981' : '#ef4444'} stopOpacity={0} />
+                      <stop offset="5%"  stopColor={isPos ? UP : DOWN} stopOpacity={0.25} />
+                      <stop offset="95%" stopColor={isPos ? UP : DOWN} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
                   <XAxis dataKey="date" tickFormatter={(v) => `${String(v).slice(4,6)}/${String(v).slice(6,8)}`}
                     tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                   <YAxis domain={[chartMin, chartMax]} tickFormatter={(v) => `${Math.round(v / 1000)}k`}
@@ -646,11 +638,11 @@ export default function StockDetailPage() {
                         <p className="text-white font-semibold">₩{fmt(d.price)}</p>
                         {showMA5  && d.ma5  && <p className="text-yellow-400">MA5: ₩{fmt(d.ma5)}</p>}
                         {showMA20 && d.ma20 && <p className="text-blue-400">MA20: ₩{fmt(d.ma20)}</p>}
-                        {showMA60 && d.ma60 && <p className="text-red-400">MA60: ₩{fmt(d.ma60)}</p>}
+                        {showMA60 && d.ma60 && <p className="text-orange-400">MA60: ₩{fmt(d.ma60)}</p>}
                       </div>
                     );
                   }} />
-                  <Area type="monotone" dataKey="price" stroke={isPos ? '#10b981' : '#ef4444'}
+                  <Area type="monotone" dataKey="price" stroke={isPos ? UP : DOWN}
                     strokeWidth={1.5} fill="url(#stockGrad)" dot={false} />
                   {showBB && <>
                     <Line type="monotone" dataKey="bbUpper"  stroke="#8b5cf6" strokeWidth={1} dot={false} strokeDasharray="4 2" />
@@ -659,7 +651,7 @@ export default function StockDetailPage() {
                   </>}
                   {showMA5  && <Line type="monotone" dataKey="ma5"  stroke="#facc15" strokeWidth={1.2} dot={false} />}
                   {showMA20 && <Line type="monotone" dataKey="ma20" stroke="#60a5fa" strokeWidth={1.2} dot={false} />}
-                  {showMA60 && <Line type="monotone" dataKey="ma60" stroke="#f87171" strokeWidth={1.2} dot={false} />}
+                  {showMA60 && <Line type="monotone" dataKey="ma60" stroke="#f97316" strokeWidth={1.2} dot={false} />}
                 </ComposedChart>
               )}
             </ResponsiveContainer>
@@ -706,11 +698,60 @@ export default function StockDetailPage() {
         )}
       </div>
 
+      <BottomSheet open={indOpen} onClose={() => setIndOpen(false)} title="지표 · 비교">
+        <div className="act-list">
+          {INDS.map((i) => (
+            <button key={i.key} type="button" className="act-item" onClick={() => i.set((v) => !v)} aria-pressed={i.active}>
+              <span className="act-ic" style={{ color: i.hex }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden><path d="M3 16c3-6 6-6 9-2s6 4 9-4" /></svg>
+              </span>
+              <span className="act-tx"><b>{i.label}</b><small>{i.desc}</small></span>
+              <span className={`tgl ${i.active ? 'on' : ''}`} aria-hidden />
+            </button>
+          ))}
+        </div>
+        <p className="text-[12.5px] font-extrabold text-[var(--muted)] mt-5 mb-2">비교 종목 <span className="font-semibold text-[var(--faint)]">· 같은 기간 수익률로 정규화</span></p>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="relative flex-1 max-w-[240px]" ref={compareDropRef}>
+            <input
+              type="text" placeholder="비교 종목 (이름·코드, 예: 삼성전자)"
+              value={compareInput}
+              onChange={(e) => handleCompareInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitCompare();
+                if (e.key === 'Escape') setShowCompareDrop(false);
+              }}
+              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50"
+            />
+            {showCompareDrop && compareHits.length > 0 && (
+              <div className="absolute z-50 left-0 right-0 mt-1 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] shadow-xl overflow-hidden">
+                {compareHits.map((h) => (
+                  <button key={h.ticker} onClick={() => pickCompare(h)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-[var(--surface-2)] transition-colors border-b border-[var(--border)] last:border-0">
+                    <span className="text-xs text-[var(--text)]">{h.name}</span>
+                    <span className="text-[10px] font-mono text-[var(--text-muted)]">{h.ticker.replace(/\.(KS|KQ)$/, '')}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button onClick={submitCompare}
+            className="px-3 py-1.5 text-xs rounded-lg bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 transition-colors">
+            비교
+          </button>
+          {compareTicker && (
+            <button onClick={clearCompare}
+              className="text-xs text-[var(--text-muted)] hover:text-red-400">✕ 해제</button>
+          )}
+        </div>
+
+      </BottomSheet>
+
       {/* ── 수급 동향 ── */}
       <InvestorSection ticker={ticker} />
 
       {/* ── DART 섹션 (KR 주식만) ── */}
-      {(ticker.endsWith('.KS') || ticker.endsWith('.KQ')) && (() => {
+      {/^\d{6}(\.(KS|KQ))?$/.test(ticker) && (() => {
         const code = ticker.replace(/\.(KS|KQ)$/, '');
         return (
           <>
@@ -725,31 +766,32 @@ export default function StockDetailPage() {
       {/* ── AI 분석 ── */}
       <AiAnalysis stock={stock} />
 
-      {/* ── 포트폴리오 & 알림 ── */}
+      {/* ── 보유·가격 알림 ── */}
+      <Collapsible title="보유 · 가격 알림" sub={myPortfolio ? '보유 중' : myAlert ? '알림 설정됨' : '수량·평단 입력 시 손익 계산'}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+        <div className="rounded-xl bg-[var(--surface-2)] p-4">
           <h2 className="text-sm font-semibold text-[var(--text)] mb-4">포트폴리오</h2>
           {myPortfolio && pnl !== null && pnlRate !== null && (
-            <div className="mb-4 p-3 rounded-lg bg-white/5 text-xs space-y-1.5">
+            <div className="mb-4 p-3 rounded-lg bg-[var(--surface-2)] text-xs space-y-1.5">
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">보유 수량</span><span>{fmt(myPortfolio.quantity)}주</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">평균 단가</span><span>₩{fmt(myPortfolio.avgPrice)}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">평가 금액</span><span>₩{fmt(Math.round(stock.price * myPortfolio.quantity))}</span></div>
-              <div className={`flex justify-between font-semibold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              <div className="flex justify-between font-semibold" style={{ color: pnl >= 0 ? UP : DOWN }}>
                 <span>손익</span><span>{pnl >= 0 ? '+' : ''}{fmt(Math.round(pnl))}원 ({pnlRate.toFixed(2)}%)</span>
               </div>
             </div>
           )}
           <div className="space-y-2">
             <input type="number" placeholder="보유 수량 (주)" value={qty} onChange={(e) => setQty(e.target.value)}
-              className="w-full bg-white/5 border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50" />
+              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50" />
             <input type="number" placeholder="평균 매입가 (원)" value={avg} onChange={(e) => setAvg(e.target.value)}
-              className="w-full bg-white/5 border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50" />
+              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50" />
             <button onClick={savePortfolio}
               className="w-full py-2 rounded-lg bg-sky-500/20 text-sky-400 text-sm font-medium hover:bg-sky-500/30 transition-colors">저장</button>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+        <div className="rounded-xl bg-[var(--surface-2)] p-4">
           <h2 className="text-sm font-semibold text-[var(--text)] mb-4">가격 알림 🔔</h2>
           {myAlert && (
             <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-xs space-y-1">
@@ -759,9 +801,9 @@ export default function StockDetailPage() {
           )}
           <div className="space-y-2">
             <input type="number" placeholder="목표가 (이상 시 알림)" value={alertAbove} onChange={(e) => setAlertAbove(e.target.value)}
-              className="w-full bg-white/5 border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-yellow-500/50" />
+              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-yellow-500/50" />
             <input type="number" placeholder="하한가 (이하 시 알림)" value={alertBelow} onChange={(e) => setAlertBelow(e.target.value)}
-              className="w-full bg-white/5 border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-yellow-500/50" />
+              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-yellow-500/50" />
             <button onClick={saveAlert}
               className="w-full py-2 rounded-lg bg-yellow-500/20 text-yellow-400 text-sm font-medium hover:bg-yellow-500/30 transition-colors">알림 설정</button>
             {myAlert && (
@@ -772,6 +814,7 @@ export default function StockDetailPage() {
           <p className="mt-3 text-xs text-[var(--text-muted)] opacity-70">브라우저 알림 권한이 필요합니다</p>
         </div>
       </div>
+      </Collapsible>
     </div>
   );
 }

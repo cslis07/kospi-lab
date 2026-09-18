@@ -227,6 +227,13 @@ export default function OverseasPage() {
   const [selected,       setSelected]       = useState<MarketItem | null>(null);
   const [updatedAt,      setUpdatedAt]      = useState('');
 
+  // 검색 시트·관심종목에서 ?symbol=&name=&ex= 로 들어오면 상세 모달을 바로 연다
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const sym = sp.get('symbol');
+    if (sym) setSelected({ symbol: sym.toUpperCase(), name: sp.get('name') || sym.toUpperCase(), exchange: sp.get('ex') || '' });
+  }, []);
+
   // 검색어 디바운스 (실시간 검색 API 과호출 방지)
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query.trim()), 300);
@@ -283,6 +290,9 @@ export default function OverseasPage() {
     [watchSet, add, remove]
   );
 
+  // 목록 밖 종목(검색 딥링크)은 목록 배치에 없으므로 따로 조회
+  const { data: selData } = useSWR<Record<string, OverseasStockData>>(
+    selected && !allData[selected.symbol] ? `/api/overseas/batch?symbols=${encodeURIComponent(selected.symbol)}` : null, fetcher, { refreshInterval: 15000 });
   const isLoading = Object.keys(allData).length === 0;
 
   const filtered = useMemo(() => {
@@ -497,7 +507,7 @@ export default function OverseasPage() {
           symbol={selected.symbol}
           name={selected.name}
           exchange={selected.exchange}
-          data={allData[selected.symbol]}
+          data={allData[selected.symbol] ?? selData?.[selected.symbol]}
           usdRate={usdRate}
           onClose={() => setSelected(null)}
         />
