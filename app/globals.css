@@ -376,6 +376,8 @@ body { overscroll-behavior-y: none; }   /* 앱처럼 — 바운스로 흰 배경
   box-shadow: 0 -4px 20px rgba(17,24,39,.05);
 }
 html.dark .app-tabbar { box-shadow: 0 -4px 20px rgba(0,0,0,.4); }
+/* 데스크탑(md+)에서는 하단 탭바 숨김 — Tailwind md:hidden 은 @layer utilities 라 이 무레이어 display:grid 에 져서 여기서 직접 끈다 */
+@media (min-width: 768px) { .app-tabbar { display: none; } }
 .app-tab {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   text-decoration: none; color: var(--faint);

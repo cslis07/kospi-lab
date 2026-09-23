@@ -2,6 +2,15 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-09-23 (45차) — 🐛 데스크탑에서 하단 탭바가 계속 보이던 버그
+
+- **원인**: `.app-tabbar`가 전역 CSS(무레이어)에서 `display: grid`를 지정 — Tailwind v4의 `md:hidden`은
+  `@layer utilities` 안에 있어 cascade layer 규칙상 무레이어 선언에 항상 진다. 그래서 `md:hidden`이 무시되고
+  PC에서도 탭바가 떠 있었다(44차 이전 첫 스크린샷에 데스크탑 카드+탭바가 동시에 보인 것도 같은 원인).
+- **수정**: `globals.css`에 `@media (min-width:768px){ .app-tabbar{ display:none } }` 직접 추가.
+  같은 패턴 점검 — `.appbar`(display 미지정, Tailwind flex 사용)·`.u-tabs-wrap`(UA 기본 block)은 해당 없음.
+- build 0.
+
 ## 2026-09-23 (44차) — 데스크탑 메뉴 재편: 홈 바로가기 카드 → 헤더 '전체메뉴' 팝업
 
 PC에서 홈 하단의 섹션 바로가기 카드 그리드가 길어 화면을 차지하는 문제. 사용자 요청.
