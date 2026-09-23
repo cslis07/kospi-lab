@@ -94,9 +94,9 @@ export const MENU: MenuGroup[] = [
   ], ['/stock/', '/crypto/']),
   // 종목 분석(/stock-analysis·/coin-analysis)은 메뉴에서 숨김 — 시장 목록의 행별 '분석' 버튼으로 진입(자동 실행).
   // 라우트·AnalysisSwitch는 유지하고, tabExtra로 분석 탭 강조·drillTitle로 앱바 제목만 보존한다.
+  // 공시(/dart)는 제거 — 종목별 공시는 종목 분석 결과·종목 상세에 이미 있어 독립 전체 피드는 중복.
   G('analysis', '분석', 'c-amber', 'qc-amber', 'analysis', [
     { href: '/screener',       icon: 'screener', label: '스크리너',  desc: 'ROE·PER·성장주',            alias: ['/growth'] },
-    { href: '/dart',           icon: 'dart',     label: '공시',      desc: 'DART 전자공시' },
     { href: '/report',         icon: 'report',   label: '리포트',    desc: '증권사 리포트' },
   ], ['/stock-analysis', '/coin-analysis']),
   // 관심종목 — 홈에서 분리해 독립 탭으로 승격(단일 화면, 내부 국내·해외·코인 세그먼트). 하단 탭에서 바로 진입.
