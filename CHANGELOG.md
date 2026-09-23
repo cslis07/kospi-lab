@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-09-23 (51차) — 종목 분석 '재무(ROE·부채) 핵심 결측' 경고 자주 뜨던 문제
+
+- 원인: 종목 분석의 재무 수집이 **KIS 단일 소스**라 KIS가 한 번 실패(초당제한·토큰·미커버)하면 ROE·부채가 통째로 비어
+  '재무(핵심) 결측' 빨강 배너가 떴다.
+- 수정: `fetchFinancials`를 **네이버 연간 재무(`fetchGrowthFinance`, 내부 KIS 폴백 포함) → KIS 단건** 폴백 체인으로 교체.
+  네이버 다개년에서 최신 확정연도의 ROE·부채비율·매출성장(YoY)·흑자여부를 뽑고, 통째 실패 시에만 KIS로 방어. 커버리지↑ → 결측 배너 급감.
+  병렬 수집(`Promise.all`) 안이라 응답 지연 없음. tsc 0 · build 0.
+
 ## 2026-09-23 (50차) — 분석 진입점을 메뉴 탭 → 시세 목록 행별 '분석' 버튼으로
 
 - **분석 메뉴에서 '종목 분석' 숨김** — 라우트(`/stock-analysis`·`/coin-analysis`)·AnalysisSwitch는 유지, `tabExtra`+`drillTitle`로 탭 강조·앱바 제목만 보존.

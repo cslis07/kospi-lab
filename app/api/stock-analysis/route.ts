@@ -10,6 +10,7 @@ import {
 } from '@/lib/stockAnalysis';
 import { backtestStock, StockBacktestResult } from '@/lib/stockBacktest';
 import { fetchKisFinancialRatio } from '@/lib/kisFinance';
+import { fetchGrowthFinance, growthPct } from '@/lib/growthScreener';
 import { claudeBriefing, resolveBriefingModel } from '@/lib/anthropic';
 import { cioViewFor, MUST_WATCH, MERRILL_CIO } from '@/lib/marketReference';
 import { fetchMacroIndicators } from '@/lib/macroIndicators';
@@ -118,14 +119,38 @@ async function fetchInvestor(ticker: string): Promise<InvestorDay[]> {
   } catch { return []; }
 }
 
-/* ── KIS 재무 (ROE·부채·성장) — 서울 리전에서 안정 ───── */
+/* ── 재무 (ROE·부채·성장) ──────────────────────────────
+ * 1차: 네이버 연간 재무(fetchGrowthFinance, 내부에 KIS 폴백 포함) — 커버리지가 넓고 다개년.
+ * 2차: KIS 재무비율 단건 — 네이버가 통째로 실패한 종목 방어.
+ * 예전엔 KIS 단일이라 KIS 한 번 실패하면 '재무(핵심) 결측' 배너가 떴다 → 폴백 체인으로 결측을 줄인다. */
 async function fetchFinancials(ticker: string): Promise<{ roe: number|null; debtRatio: number|null; revenueGrowth: number|null; netIncomePositive: boolean|null }> {
   const empty = { roe: null, debtRatio: null, revenueGrowth: null, netIncomePositive: null };
+  // 배열에서 확정연도 인덱스 중 값이 있는 가장 최근 것을 고른다(미확정 최근연도가 null이면 직전연도)
+  const latest = (arr: (number | null)[], idxs: number[]): number | null => {
+    for (let i = idxs.length - 1; i >= 0; i--) { const v = arr[idxs[i]]; if (v != null) return v; }
+    return null;
+  };
+  try {
+    const gf = await fetchGrowthFinance(ticker);
+    if (gf) {
+      const confirmed = gf.years.map((y, i) => ({ y, i })).filter((x) => x.y !== gf.consensusYear).map((x) => x.i);
+      const idxs = confirmed.length ? confirmed : gf.years.map((_, i) => i);
+      const last = idxs[idxs.length - 1] ?? -1;
+      const prev = idxs[idxs.length - 2] ?? -1;
+      const roe = latest(gf.roe, idxs);
+      const debtRatio = latest(gf.debtRatio, idxs);
+      const revenueGrowth = last >= 0 && prev >= 0 ? growthPct(gf.revenue[last], gf.revenue[prev]) : null;
+      const ni = last >= 0 ? gf.netIncome[last] : null;
+      const eps = last >= 0 ? gf.eps[last] : null;
+      const netIncomePositive = ni != null ? ni > 0 : eps != null ? eps > 0 : null;
+      if (roe != null || debtRatio != null || revenueGrowth != null) return { roe, debtRatio, revenueGrowth, netIncomePositive };
+    }
+  } catch { /* 네이버 실패 → KIS 폴백 */ }
   try {
     const r = await fetchKisFinancialRatio(ticker);
-    if (!r) return empty;
-    return { roe: r.roe, debtRatio: r.debtRatio, revenueGrowth: r.revenueGrowth, netIncomePositive: r.netIncomePositive };
-  } catch { return empty; }
+    if (r) return { roe: r.roe, debtRatio: r.debtRatio, revenueGrowth: r.revenueGrowth, netIncomePositive: r.netIncomePositive };
+  } catch { /* 무시 */ }
+  return empty;
 }
 
 /* ── 코스피 + 매크로(환율) 컨텍스트 ──────────────────── */
