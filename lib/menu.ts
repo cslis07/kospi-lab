@@ -53,6 +53,7 @@ export const ICON: Record<string, string> = {
   brokerage:  'M3 10l9-6 9 6M4 10h16M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18',
   tools:      'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   guide:      'M12 6C10 4.7 7 4.2 4 4.7V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.7C17 4.2 14 4.7 12 6ZM12 6v14.5',
+  principles: 'M7 3h8l3 3v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1M15 3v3h3M8.5 11.5l1.5 1.5 3-3M8.5 16.5l1.5 1.5 3-3',
 };
 
 export const DASHBOARD: MenuItem = { href: '/', label: '대시보드', icon: 'home' };
@@ -117,6 +118,7 @@ export const MENU: MenuGroup[] = [
  *  ※ KRX 시장(/krx)·성장주 발굴(/growth)은 중복이라 제거: KRX는 시장›국내 "전체보기"로,
  *    성장주 스크리닝은 분석›스크리너로 대체된다. */
 export const EXTRAS: MenuItem[] = [
+  { href: '/principles', icon: 'principles', label: '매매 대원칙', desc: '지킬 3·피할 3' },
   { href: '/virtual',   icon: 'virtual',   label: '가상투자',    desc: '모의매매·백업' },
   { href: '/invest',    icon: 'invest',    label: '투자설계',    desc: '계좌·자산 추천' },
   { href: '/tax',       icon: 'tax',       label: '세제혜택',    desc: 'ISA·IRP·연금' },

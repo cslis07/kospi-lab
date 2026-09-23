@@ -70,6 +70,20 @@ function DashboardInner() {
         <EventList />
       </div>
 
+      {/* ── 매매 대원칙 바로가기 ── */}
+      <Link href="/principles" className="block rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 hover-lift group">
+        <div className="flex items-center gap-3">
+          <span className="shrink-0 w-10 h-10 rounded-xl grid place-items-center bg-[var(--surface-2)] text-[var(--accent)]">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d={ICON.principles} /></svg>
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">매매 대원칙</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">잃을 돈 먼저 정하기 · 번 돈 빼기 · 잃어도 하던 대로 — 지킬 3·피할 3</p>
+          </div>
+          <svg className="w-4 h-4 shrink-0 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+        </div>
+      </Link>
+
       {/* ── 코인 거시 환경 (데스크탑 — 모바일은 시장 › 코인) ── */}
       <section className="hidden md:block">
         <div className="flex items-baseline gap-2 mb-3">
