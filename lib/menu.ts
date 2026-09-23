@@ -102,13 +102,11 @@ export const MENU: MenuGroup[] = [
   G('watch', '관심종목', 'c-rose', 'qc-rose', 'star', [
     { href: '/my-stocks', icon: 'star', label: '관심종목', desc: '국내·해외·코인 저장 목록' },
   ]),
-  // 자산 — 전부 자동 데이터(수동 입력이 필요 없는 것만 남김). 2026-09-23 정리:
-  // 포트폴리오(계좌·관심종목과 중복)·플래너·통합 리스크·목표 수익률(수동/1회성이라 손이 안 감)은 제거.
+  // 자산 — 단일 허브 한 화면(계좌 잔액 + 성과 7일 대표 노출, 청산·이체·일지는 팝업). 2026-09-23 재구성.
+  // 상세 페이지(계좌/성과/매매일지)는 허브에서 진입하는 드릴다운이라 tabExtra로 탭 강조만 유지.
   G('assets', '자산', 'c-green', 'qc-green', 'portfolio', [
-    { href: '/bitget',      icon: 'bitget',  label: '계좌',    desc: '거래소 잔고·포지션·청산' },
-    { href: '/performance', icon: 'growth',  label: '성과',    desc: '승률·기대값·주간 리뷰' },
-    { href: '/journal',     icon: 'journal', label: '매매일지', desc: '기록·복기·거래소 대조' },
-  ], ['/virtual', '/invest', '/tax', '/simulate', '/brokerage']),
+    { href: '/assets', icon: 'portfolio', label: '자산', desc: '계좌·성과 + 청산·이체·일지' },
+  ], ['/bitget', '/performance', '/journal', '/virtual', '/invest', '/tax', '/simulate', '/brokerage']),
 ];
 
 /** 5섹션 밖의 보조 도구 — 메뉴 시트 '더보기'에서만 노출(드릴다운, 뒤로가기)
@@ -141,6 +139,10 @@ export function drillTitle(pathname: string): string {
   if (pathname.startsWith('/crypto/')) return '코인 상세';
   if (pathname.startsWith('/overseas/')) return '해외 상세';
   if (under(pathname, '/more')) return '전체 메뉴';
+  // 자산 허브에서 진입하는 상세 페이지
+  if (under(pathname, '/bitget')) return '계좌 상세';
+  if (under(pathname, '/performance')) return '성과';
+  if (under(pathname, '/journal')) return '매매일지';
   return EXTRAS.find((e) => under(pathname, e.href))?.label ?? 'KOSPI LAB';
 }
 
@@ -153,4 +155,4 @@ export const FLAT: FlatMenuItem[] = [
 export const BY_HREF = new Map(FLAT.map((f) => [f.href, f]));
 
 /** 방문 데이터 없을 때 기본 '자주 쓰는' — 손이 가는 자동 데이터 위주 */
-export const DEFAULT_QUICK = ['/journal', '/performance', '/bitget', '/my-stocks'];
+export const DEFAULT_QUICK = ['/assets', '/my-stocks', '/journal', '/coin-analysis'];
