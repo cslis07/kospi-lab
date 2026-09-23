@@ -117,12 +117,12 @@ export default function EventCalendar() {
                     </div>
                     <div className="flex flex-col gap-0.5">
                       {shown.map((e, i) => (
-                        <span key={i} title={`${e.title} · ${CATEGORY_LABEL[e.category]}${e.desc ? ` · ${e.desc}` : ''}`}
-                          className={`text-[10px] leading-tight font-semibold truncate rounded border px-1 py-0.5 ${chipCls(e)}`}>
+                        <Link key={i} href="/calendar" title={`${e.title} · ${CATEGORY_LABEL[e.category]}${e.desc ? ` · ${e.desc}` : ''}`}
+                          className={`block text-[10px] leading-tight font-semibold truncate rounded border px-1 py-0.5 hover:brightness-105 ${chipCls(e)}`}>
                           {e.title}
-                        </span>
+                        </Link>
                       ))}
-                      {more > 0 && <span className="text-[9.5px] text-[var(--text-muted)] font-semibold pl-0.5">+{more}건</span>}
+                      {more > 0 && <Link href="/calendar" className="text-[9.5px] text-[var(--text-muted)] font-semibold pl-0.5 hover:text-[var(--accent)]">+{more}건</Link>}
                     </div>
                   </div>
                 );

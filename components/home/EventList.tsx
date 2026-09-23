@@ -32,7 +32,12 @@ export default function EventList({ limit = 5 }: { limit?: number }) {
         {!today ? (
           [0, 1, 2].map((i) => <div key={i} className="ev-row"><span className="skeleton h-9 w-full" /></div>)
         ) : list.length ? (
-          list.map((e) => <EventRow key={`${e.date}-${e.title}`} e={e} today={today} />)
+          // 항목을 누르면 경제 캘린더로 진입(메뉴에서 캘린더를 뺀 대신)
+          list.map((e) => (
+            <Link key={`${e.date}-${e.title}`} href="/calendar" className="block active:bg-[var(--surface-2)]">
+              <EventRow e={e} today={today} />
+            </Link>
+          ))
         ) : (
           <p className="px-4 py-8 text-center text-xs text-[var(--text-muted)]">예정된 주요 이벤트가 없습니다</p>
         )}

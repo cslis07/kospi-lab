@@ -81,11 +81,11 @@ const G = (key: string, label: string, color: string, qc: string, navIcon: strin
 });
 
 export const MENU: MenuGroup[] = [
+  // 경제 캘린더(/calendar)는 메뉴에서 숨김 — 홈 '주요 이벤트'의 이벤트를 클릭하면 진입(tabExtra로 홈 탭 강조).
   G('home', '홈', 'c-blue', 'qc-blue', 'home', [
     { href: '/',          icon: 'home',     label: '대시보드',    desc: '시장 요약·관심·리스크·이벤트' },
-    { href: '/calendar',  icon: 'calendar', label: '경제 캘린더', desc: 'FOMC·금통위·지표·휴장' },
     { href: '/news',      icon: 'news',     label: '뉴스',        desc: '시장 소식' },
-  ]),
+  ], ['/calendar']),
   G('market', '시장', 'c-violet', 'qc-violet', 'domestic', [
     { href: '/domestic', icon: 'domestic', label: '국내', desc: 'KOSPI·KOSDAQ·등락 랭킹', alias: ['/krx'] },
     { href: '/overseas', icon: 'overseas', label: '해외', desc: '미국 등 글로벌' },
@@ -147,6 +147,8 @@ export function drillTitle(pathname: string): string {
   // 시장 목록의 '분석' 버튼으로 진입(메뉴에서 숨김)
   if (under(pathname, '/stock-analysis')) return '종목 분석';
   if (under(pathname, '/coin-analysis')) return '코인선물 분석';
+  // 홈 '주요 이벤트' 클릭으로 진입(메뉴에서 숨김)
+  if (under(pathname, '/calendar')) return '경제 캘린더';
   return EXTRAS.find((e) => under(pathname, e.href))?.label ?? 'KOSPI LAB';
 }
 
