@@ -53,7 +53,7 @@ export default function PerformancePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
         <LinkRow href="/journal" icon="journal" title="매매일지" sub="기록·결과 입력·거래소 대조·복기" />
-        <LinkRow href="/target" icon="target" title="목표 수익률" sub="이달 목표 대비 진행·수익 누수" />
+        <LinkRow href="/bitget" icon="bitget" title="계좌" sub="거래소 잔고·포지션·청산" />
       </div>
     </div>
   );

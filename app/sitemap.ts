@@ -4,7 +4,7 @@ const BASE = 'https://kospi-lab.vercel.app';
 const ROUTES = [
   '', '/stock-analysis', '/coin-analysis', '/journal', '/growth', '/screener', '/krx', '/news', '/dart',
   '/report', '/calendar', '/domestic', '/overseas', '/futures', '/my-stocks',
-  '/portfolio', '/invest', '/tax', '/simulate', '/brokerage', '/principles',
+  '/invest', '/tax', '/simulate', '/brokerage', '/principles',
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

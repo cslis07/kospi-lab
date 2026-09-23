@@ -70,7 +70,6 @@ export default function OverseasDetailPage() {
   const actions: SheetAction[] = [
     { label: watched ? '관심종목에서 삭제' : '관심종목에 추가', icon: 'star', onClick: toggleWatch, danger: watched },
     ...(d ? [{ label: '가상투자', sub: '모의 매수·매도', icon: 'virtual', onClick: () => setTrade(true) }] : []),
-    { label: '매매 계획 세우기', sub: '손절·사이징 먼저', icon: 'planner', href: '/planner' },
     { label: 'Yahoo Finance에서 열기', icon: 'news', href: `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`, external: true },
     { label: '공유 · 링크 복사', icon: 'report', onClick: share },
   ];

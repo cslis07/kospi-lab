@@ -142,7 +142,6 @@ function MyStocksInner() {
       { label: '상세 보기', sub: '차트·정보', icon: 'domestic', href: r.href },
       ...(r.analysis ? [{ label: tab === 'crypto' ? '코인선물 분석' : '종목 분석', sub: '체크리스트', icon: 'analysis', href: r.analysis }] : []),
       ...(r.trade ? [{ label: '가상투자', sub: '모의 매수·매도', icon: 'virtual', onClick: () => setTrade(r.trade!) }] : []),
-      { label: '매매 계획 세우기', sub: '손절·사이징 먼저', icon: 'planner', href: '/planner' },
       { label: '관심종목에서 삭제', icon: 'star', danger: true, onClick: r.remove },
     ],
   });

@@ -58,7 +58,6 @@ export default function WatchlistPreview({ limit = 6 }: { limit?: number }) {
           onMore={() => setMenu({ title: w.name, actions: [
             { label: '종목 상세', sub: '차트·수급·재무·공시', icon: 'domestic', href: `/stock/${w.ticker}` },
             { label: '종목 분석', sub: '추세·수급·재무 체크리스트', icon: 'analysis', href: `/stock-analysis?ticker=${w.ticker}` },
-            { label: '매매 계획 세우기', sub: '손절·사이징 먼저', icon: 'planner', href: '/planner' },
             { label: '관심종목에서 삭제', icon: 'star', danger: true, onClick: () => kr.remove(w.ticker) },
           ] })} />
       );
@@ -72,7 +71,6 @@ export default function WatchlistPreview({ limit = 6 }: { limit?: number }) {
           price={d ? `$${d.price.toFixed(2)}` : '—'} changeRate={d?.changeRate} loading={!usData}
           onMore={() => setMenu({ title: w.name, actions: [
             { label: '종목 상세', icon: 'overseas', href },
-            { label: '매매 계획 세우기', sub: '손절·사이징 먼저', icon: 'planner', href: '/planner' },
             { label: '관심종목에서 삭제', icon: 'star', danger: true, onClick: () => us.remove(w.symbol) },
           ] })} />
       );
@@ -87,7 +85,6 @@ export default function WatchlistPreview({ limit = 6 }: { limit?: number }) {
           onMore={() => setMenu({ title: ko, actions: [
             { label: '코인 상세', sub: '차트·24시간 시세', icon: 'crypto', href: `/crypto/${w.symbol}` },
             { label: '코인선물 분석', sub: '손절·사이징 점검', icon: 'signal', href: '/coin-analysis' },
-            { label: '매매 계획 세우기', sub: '손절·사이징 먼저', icon: 'planner', href: '/planner' },
             { label: '관심종목에서 삭제', icon: 'star', danger: true, onClick: () => coin.remove(w.symbol) },
           ] })} />
       );

@@ -516,7 +516,6 @@ export default function StockDetailPage() {
   const actions: SheetAction[] = [
     { label: watched ? '관심종목에서 삭제' : '관심종목에 추가', icon: 'star', onClick: toggleWatch, danger: watched },
     { label: '종목 분석', sub: '추세·수급·재무 체크리스트', icon: 'analysis', href: `/stock-analysis?ticker=${ticker}` },
-    { label: '매매 계획 세우기', sub: '손절·사이징 먼저', icon: 'planner', href: '/planner' },
     { label: '지표 · 비교 설정', sub: 'MA·BB·RSI·거래량·비교 종목', icon: 'screener', onClick: () => setIndOpen(true) },
     { label: '네이버 금융에서 열기', icon: 'news', href: `https://m.stock.naver.com/domestic/stock/${ticker}/total`, external: true },
     { label: '공유 · 링크 복사', icon: 'report', onClick: share },

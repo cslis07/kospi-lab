@@ -47,7 +47,7 @@ export default function TodayRisk() {
     <section>
       <div className="fin-sec">
         <h3>오늘의 리스크</h3>
-        <Link href="/risk" className="fin-more">통합 리스크</Link>
+        <Link href="/journal" className="fin-more">매매일지</Link>
       </div>
       <div className="fin-card p-4">
         {!ready ? (
@@ -96,8 +96,8 @@ export default function TodayRisk() {
             )}
 
             <div className="grid grid-cols-2 gap-2 mt-4">
-              <Link href="/planner" className="kl-cta text-center text-[13px] py-2.5">새 매매 계획</Link>
-              <Link href="/journal" className="text-center text-[13px] font-bold py-2.5 rounded-[var(--r-sm)] bg-[var(--surface-2)] text-[var(--ink)]">매매일지</Link>
+              <Link href="/journal" className="kl-cta text-center text-[13px] py-2.5">매매일지 쓰기</Link>
+              <Link href="/performance" className="text-center text-[13px] font-bold py-2.5 rounded-[var(--r-sm)] bg-[var(--surface-2)] text-[var(--ink)]">성과 보기</Link>
             </div>
           </>
         )}

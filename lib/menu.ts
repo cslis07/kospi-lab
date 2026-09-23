@@ -102,15 +102,12 @@ export const MENU: MenuGroup[] = [
   G('watch', '관심종목', 'c-rose', 'qc-rose', 'star', [
     { href: '/my-stocks', icon: 'star', label: '관심종목', desc: '국내·해외·코인 저장 목록' },
   ]),
+  // 자산 — 전부 자동 데이터(수동 입력이 필요 없는 것만 남김). 2026-09-23 정리:
+  // 포트폴리오(계좌·관심종목과 중복)·플래너·통합 리스크·목표 수익률(수동/1회성이라 손이 안 감)은 제거.
   G('assets', '자산', 'c-green', 'qc-green', 'portfolio', [
-    { href: '/portfolio',   icon: 'portfolio', label: '포트폴리오', desc: '국내·해외·코인 합산' },
-    { href: '/bitget',      icon: 'bitget',    label: '계좌',       desc: '거래소 잔고·포지션·청산' },
-    { href: '/performance', icon: 'growth',    label: '성과',       desc: '승률·기대값·주간 리뷰' },
-    // 매매 규율 4종 — '관리' 탭을 관심종목으로 교체하면서 자산 탭으로 병합(상단 가로 서브탭 스크롤)
-    { href: '/planner', icon: 'planner', label: '플래너',      desc: '사이징·청산가·1R 계산' },
-    { href: '/journal', icon: 'journal', label: '매매일지',    desc: '기록·복기·거래소 대조' },
-    { href: '/risk',    icon: 'risk',    label: '통합 리스크', desc: '계좌 익스포저·집중도' },
-    { href: '/target',  icon: 'target',  label: '목표 수익률', desc: '월 목표 역산·누수·규칙' },
+    { href: '/bitget',      icon: 'bitget',  label: '계좌',    desc: '거래소 잔고·포지션·청산' },
+    { href: '/performance', icon: 'growth',  label: '성과',    desc: '승률·기대값·주간 리뷰' },
+    { href: '/journal',     icon: 'journal', label: '매매일지', desc: '기록·복기·거래소 대조' },
   ], ['/virtual', '/invest', '/tax', '/simulate', '/brokerage']),
 ];
 
@@ -155,5 +152,5 @@ export const FLAT: FlatMenuItem[] = [
 ].filter((it, i, arr) => arr.findIndex((x) => x.href === it.href) === i);
 export const BY_HREF = new Map(FLAT.map((f) => [f.href, f]));
 
-/** 방문 데이터 없을 때 기본 '자주 쓰는' — 이 앱의 핵심(매매 규율 4종) */
-export const DEFAULT_QUICK = ['/target', '/planner', '/journal', '/risk'];
+/** 방문 데이터 없을 때 기본 '자주 쓰는' — 손이 가는 자동 데이터 위주 */
+export const DEFAULT_QUICK = ['/journal', '/performance', '/bitget', '/my-stocks'];

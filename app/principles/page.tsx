@@ -18,8 +18,8 @@ const DO: Principle[] = [
     body: '얼마를 벌지는 시장이 정하지만, 얼마까지 잃을지는 내가 정할 수 있다. 한 번의 매매에서 잃어도 되는 금액을 계좌의 작은 비율(예: 0.5~1%)로 미리 묶고, 레버리지는 낮게 둔다. 진입가가 아니라 손절가에서 사이즈가 나온다.',
     toolNote: '이 앱이 돕는 방법',
     tools: [
-      { href: '/planner', label: '플래너 — 회당 리스크·1R 사이징·청산가' },
-      { href: '/risk', label: '통합 리스크 — 레버리지·총 익스포저' },
+      { href: '/journal', label: '매매일지 — 손실·사이즈 기록' },
+      { href: '/', label: '홈 오늘의 리스크 — 서킷브레이커 상태' },
     ],
   },
   {
@@ -28,7 +28,7 @@ const DO: Principle[] = [
     body: '계좌 잔액은 성적표가 아니라 다음 판의 판돈이다. 실현이익의 일부를 주기적으로 빼두면, 큰 낙폭이 와도 이미 빠져나간 돈은 지킬 수 있다. 불어난 잔액에 사이즈를 자동으로 키우지 않는다.',
     toolNote: '이 앱이 돕는 방법',
     tools: [
-      { href: '/target', label: '목표 수익률 — 실현손익·인출 대비 누수 계량' },
+      { href: '/performance', label: '성과 — 실현손익·기대값' },
       { href: '/journal', label: '매매일지 — 실현손익 누적 기록' },
     ],
   },
@@ -39,7 +39,7 @@ const DO: Principle[] = [
     toolNote: '이 앱이 돕는 방법',
     tools: [
       { href: '/journal', label: '매매일지 — 손절 후 사이즈 급증·복기' },
-      { href: '/target', label: '목표/누수 — 손실 복구 시도 누수 확인' },
+      { href: '/', label: '홈 오늘의 리스크 — 서킷브레이커 상태' },
     ],
   },
 ];
@@ -55,7 +55,7 @@ const DONT: Principle[] = [
     n: 2,
     title: '손실 포지션을 오래 들고 물타기',
     body: '손절 라인을 지키지 않고 버티며 계속 물을 타는 습관은, 실력으로 버틴 사람을 흉내 내는 순간 계좌를 날리는 가장 빠른 길이 된다. 손절은 지는 게 아니라 다음 판을 살리는 비용이다.',
-    tools: [{ href: '/planner', label: '플래너에서 손절가를 먼저 정하기' }],
+    tools: [{ href: '/journal', label: '매매일지에 손절 계획을 먼저 기록하기' }],
   },
   {
     n: 3,
@@ -88,7 +88,7 @@ export default function PrinciplesPage() {
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">매매 대원칙</h1>
       <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
         오래 살아남은 매매에는 공통점이 있습니다 — 방향을 잘 맞혀서가 아니라, <strong className="text-[var(--text)]">잃는 쪽을 통제</strong>했기 때문입니다.
-        이 앱의 도구(플래너·서킷브레이커·목표/누수·매매일지)는 아래 원칙을 <strong className="text-[var(--text)]">실행 가능하게</strong> 만들기 위한 것입니다.
+        이 앱의 도구(매매일지·성과·서킷브레이커·오늘의 리스크)는 아래 원칙을 <strong className="text-[var(--text)]">실행 가능하게</strong> 만들기 위한 것입니다.
       </p>
 
       {/* 지킬 3 */}
