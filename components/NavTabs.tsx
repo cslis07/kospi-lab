@@ -72,17 +72,30 @@ function NavTabsInner() {
       <nav className="hidden md:block relative mb-6 space-y-3">
         <div className="flex items-center gap-3">
           <div className="topnav">
-            {MENU.map((g) => (
-              <button key={g.key} type="button"
-                onClick={() => setShownGroup(shown === g.key ? null : g.key)}
-                className={`navlink ${shown === g.key ? 'active' : ''}`}>
-                <NavIcon name={g.navIcon} />
-                {g.label}
-                <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            ))}
+            {MENU.map((g) => {
+              // 항목이 하나뿐인 섹션(관심종목·자산)은 서브칩 단계 없이 알약을 바로 링크로 → 한 번에 진입
+              if (g.items.length === 1) {
+                const it = g.items[0];
+                const on = itemIsActive(it, pathname, searchParams);
+                return (
+                  <Link key={g.key} href={it.href} className={`navlink ${on ? 'active' : ''}`}>
+                    <NavIcon name={g.navIcon} />
+                    {g.label}
+                  </Link>
+                );
+              }
+              return (
+                <button key={g.key} type="button"
+                  onClick={() => setShownGroup(shown === g.key ? null : g.key)}
+                  className={`navlink ${shown === g.key ? 'active' : ''}`}>
+                  <NavIcon name={g.navIcon} />
+                  {g.label}
+                  <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              );
+            })}
           </div>
           <a href={GUIDE.href} className="navlink ml-auto !bg-transparent">
             <NavIcon name={GUIDE.icon} />
@@ -90,7 +103,7 @@ function NavTabsInner() {
           </a>
         </div>
 
-        {shownItems && (
+        {shownItems && shownItems.length > 1 && (
           <div className="chip-row">
             {shownItems.map((it) => (
               <Link key={it.href} href={it.href} title={it.desc}
