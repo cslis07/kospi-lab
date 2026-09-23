@@ -219,6 +219,13 @@ export default function Header() {
 
           <SyncIndicator />
           <ThemeToggle />
+
+          {/* 전체 메뉴 팝업 버튼 — 홈 하단 바로가기 카드를 대신한다(모바일 ☰ 시트와 동일 내용) */}
+          <button type="button" onClick={() => setMenuOpen(true)} aria-label="전체 메뉴"
+            className="pill-shadow flex items-center gap-1.5 text-xs font-semibold border border-[var(--border)] rounded-full px-3 py-1.5 bg-[var(--pill-bg)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden><path d="M4 6.5h16M4 12h16M4 17.5h16" /></svg>
+            전체메뉴
+          </button>
         </div>
 
       </div>

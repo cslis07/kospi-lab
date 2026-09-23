@@ -3,7 +3,7 @@
 /**
  * 홈 — 시장 요약 · 관심종목 · 오늘의 리스크 · 주요 이벤트 (IA 2026-09-18).
  * 모바일: 인사 → 코스피 히어로 → 주요 지표 스트립 → 관심종목 → 오늘의 리스크 → 주요 이벤트.
- * 데스크탑: 지수 히어로 → 3열(관심·리스크·이벤트) → 코인 시장환경 → 섹션 바로가기.
+ * 데스크탑: 지수 히어로 → 3열(관심·리스크·이벤트) → 코인 시장환경. 섹션 이동은 헤더 우측 '전체메뉴' 팝업.
  * 상승/하락 TOP 은 시장 › 국내로, 코인 시장환경·ETF 전체는 시장 › 코인으로 옮겼다.
  */
 import { Suspense } from 'react';
@@ -16,22 +16,7 @@ import MarketStrip from '@/components/home/MarketStrip';
 import WatchlistPreview from '@/components/home/WatchlistPreview';
 import TodayRisk from '@/components/home/TodayRisk';
 import EventList from '@/components/home/EventList';
-import { MENU, ICON, type MenuItem } from '@/lib/menu';
-
-/* ── 데스크탑 섹션 바로가기 카드 ───────── */
-function MenuCard({ item, color }: { item: MenuItem; color: string }) {
-  const inner = (
-    <>
-      <span className={`w-9 h-9 rounded-xl grid place-items-center mb-2 bg-[var(--surface-2)] ${color}`}>
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d={ICON[item.icon]} /></svg>
-      </span>
-      <p className="text-sm font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">{item.label}</p>
-      {item.desc && <p className="text-xs text-[var(--text-muted)] mt-0.5">{item.desc}</p>}
-    </>
-  );
-  const cls = 'surface hover-lift block p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] group';
-  return item.external ? <a href={item.href} className={cls}>{inner}</a> : <Link href={item.href} className={cls}>{inner}</Link>;
-}
+import { ICON } from '@/lib/menu';
 
 const ROLE_TEXT = (
   <>
@@ -108,17 +93,7 @@ function DashboardInner() {
         <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">{ROLE_TEXT}</p>
       </div>
 
-      {/* 데스크탑 섹션 바로가기 — 모바일은 하단 탭·전체 메뉴 시트가 대신 */}
-      <div className="hidden md:block space-y-8">
-        {MENU.filter((g) => g.key !== 'home').map((g) => (
-          <div key={g.key}>
-            <h2 className="text-xs font-semibold text-[var(--text-muted)] mb-2 uppercase tracking-wide">{g.label}</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {g.items.map((it) => <MenuCard key={it.href} item={it} color={g.color} />)}
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* 섹션 바로가기 카드는 제거 — 데스크탑은 헤더 우측 '전체메뉴' 팝업, 모바일은 하단 탭·전체 메뉴 시트가 대신 */}
     </div>
   );
 }
