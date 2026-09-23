@@ -49,7 +49,15 @@ export default function CalendarPage() {
   const [showPast, setShowPast] = useState(false);
   const [sheet, setSheet] = useState(false);
   const [today, setToday] = useState<string | null>(null);
-  useEffect(() => setToday(kstToday()), []);
+  // 홈 '주요 이벤트'에서 ?date= 로 들어오면 그 날짜로 스크롤 + 잠시 강조
+  const [target, setTarget] = useState<string | null>(null);
+  useEffect(() => {
+    setToday(kstToday());
+    const p = new URLSearchParams(window.location.search).get('date');
+    if (p && /^\d{4}-\d{2}-\d{2}$/.test(p)) setTarget(p);
+  }, []);
+  // 지난 날짜로 들어오면 '지난 일정 포함'을 켜서 보이게 한다
+  useEffect(() => { if (target && today && target < today) setShowPast(true); }, [target, today]);
 
   const grouped = useMemo(() => {
     if (!today) return [];
@@ -70,6 +78,16 @@ export default function CalendarPage() {
   }, [today, cat, country, imp, showPast]);
 
   const nFilters = (country !== 'all' ? 1 : 0) + (imp !== 'all' ? 1 : 0) + (showPast ? 1 : 0);
+
+  // 대상 날짜 섹션으로 스크롤 + 2.6초 후 강조 해제
+  useEffect(() => {
+    if (!target || !grouped.some(([d]) => d === target)) return;
+    const el = document.getElementById(`cal-${target}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setTarget(null), 2600);
+    return () => clearTimeout(t);
+  }, [target, grouped]);
 
   return (
     <div className="max-w-3xl mx-auto pb-8">
@@ -92,7 +110,8 @@ export default function CalendarPage() {
         <p className="text-center py-20 text-[var(--text-muted)] text-sm">해당 조건의 일정이 없습니다</p>
       ) : (
         grouped.map(([date, evts]) => (
-          <section key={date} className={`fin-card overflow-hidden mb-3 ${date < today ? 'opacity-60' : ''}`}>
+          <section key={date} id={`cal-${date}`}
+            className={`fin-card overflow-hidden mb-3 transition-shadow ${date < today ? 'opacity-60' : ''} ${date === target ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]' : ''}`}>
             <div className="cal-date">
               {dateLabel(date)}
               {date === today && <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-[var(--warn)] text-white font-extrabold">오늘</span>}

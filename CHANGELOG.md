@@ -2,6 +2,12 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-09-23 (55차) — 주요 이벤트 클릭 시 해당 날짜로 이동·강조
+
+- 이벤트 링크에 날짜를 실어(`/calendar?date=YYYY-MM-DD`) 캘린더에서 **그 날짜 섹션으로 스크롤 + 2.6초 강조 링**.
+  과거 날짜면 '지난 일정 포함'을 자동으로 켜서 보이게. (데스크탑 칩·모바일 행 모두)
+- `app/calendar/page.tsx`(date 파라미터·스크롤·강조)·`EventCalendar`·`EventList`만 수정. tsc 0 · build 0.
+
 ## 2026-09-23 (54차) — 경제 캘린더 메뉴에서 숨김 → 홈 '주요 이벤트' 클릭으로 진입
 
 - 홈 메뉴(홈 섹션)에서 **경제 캘린더 항목 제거** → 홈 서브탭 = 대시보드·뉴스. 라우트·`/calendar`는 유지(tabExtra로 홈 탭 강조·drillTitle '경제 캘린더').

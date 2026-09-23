@@ -34,7 +34,7 @@ export default function EventList({ limit = 5 }: { limit?: number }) {
         ) : list.length ? (
           // 항목을 누르면 경제 캘린더로 진입(메뉴에서 캘린더를 뺀 대신)
           list.map((e) => (
-            <Link key={`${e.date}-${e.title}`} href="/calendar" className="block active:bg-[var(--surface-2)]">
+            <Link key={`${e.date}-${e.title}`} href={`/calendar?date=${e.date}`} className="block active:bg-[var(--surface-2)]">
               <EventRow e={e} today={today} />
             </Link>
           ))
