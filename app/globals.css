@@ -235,30 +235,52 @@ header.site-header { box-shadow: var(--shadow-header); }
   scrollbar-width: none;
 }
 .topnav::-webkit-scrollbar { display: none; }
+/* 입체 버튼 — 트레이 위로 도드라지게(위쪽 하이라이트 + 아래 그림자), 활성은 파란 글로우 */
 .navlink {
   display: inline-flex; align-items: center; gap: 6px;
-  text-decoration: none; color: var(--muted);
-  font-weight: 600; font-size: 14px;
+  text-decoration: none; color: var(--ink-2);
+  font-weight: 700; font-size: 14px;
   padding: 8px 16px; border-radius: 999px;
   white-space: nowrap; cursor: pointer;
-  border: none; background: transparent;
-  transition: color .15s var(--ease), background-color .15s var(--ease), box-shadow .15s var(--ease);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(255,255,255,.55) inset, 0 2px 5px rgba(17,24,39,.10);
+  transition: color .15s var(--ease), background-color .15s var(--ease), box-shadow .15s var(--ease), transform .12s var(--ease);
 }
-.navlink:hover { color: var(--ink); }
-.navlink.active { background: var(--surface); color: var(--accent-ink); box-shadow: var(--sh-1); }
+.navlink:hover { color: var(--ink); transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,.55) inset, 0 5px 12px rgba(17,24,39,.16); }
+.navlink:active { transform: translateY(0); box-shadow: 0 1px 2px rgba(17,24,39,.14) inset; }
+.navlink.active {
+  color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
+  border-color: color-mix(in srgb, var(--accent) 70%, #000);
+  box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 6px 16px color-mix(in srgb, var(--accent) 45%, transparent);
+  transform: translateY(-1px);
+}
+html.dark .navlink { box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 2px 6px rgba(0,0,0,.5); }
+html.dark .navlink:hover { box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 6px 14px rgba(0,0,0,.6); }
 
 /* ── 서브 칩 행 ── */
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: 13px; font-weight: 600; color: var(--ink-2);
-  background: var(--surface-2);
-  border: 1.5px solid transparent; border-radius: 999px;
+  font-size: 13px; font-weight: 700; color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px;
   padding: 8px 14px; cursor: pointer; text-decoration: none;
-  white-space: nowrap; transition: .12s var(--ease);
+  white-space: nowrap;
+  box-shadow: 0 1px 0 rgba(255,255,255,.55) inset, 0 2px 5px rgba(17,24,39,.09);
+  transition: color .12s var(--ease), background-color .12s var(--ease), box-shadow .12s var(--ease), transform .12s var(--ease);
 }
-.chip:hover { background: var(--line-2); }
-.chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+.chip:hover { color: var(--ink); transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,.55) inset, 0 5px 12px rgba(17,24,39,.15); }
+.chip.active {
+  color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
+  border-color: color-mix(in srgb, var(--accent) 70%, #000);
+  box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 6px 16px color-mix(in srgb, var(--accent) 42%, transparent);
+  transform: translateY(-1px);
+}
+html.dark .chip { box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 2px 6px rgba(0,0,0,.5); }
+html.dark .chip:hover { box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 6px 14px rgba(0,0,0,.6); }
 
 /* ── 히어로 카드 (거대 수치 + 상태 배지 + 스탯 타일) ── */
 .hero {
