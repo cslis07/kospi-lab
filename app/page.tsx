@@ -16,6 +16,7 @@ import MarketStrip from '@/components/home/MarketStrip';
 import WatchlistPreview from '@/components/home/WatchlistPreview';
 import TodayRisk from '@/components/home/TodayRisk';
 import EventList from '@/components/home/EventList';
+import EventCalendar from '@/components/home/EventCalendar';
 import { ICON } from '@/lib/menu';
 
 const ROLE_TEXT = (
@@ -48,11 +49,15 @@ function DashboardInner() {
         <MarketHero />
       </section>
 
-      {/* ── 관심종목 · 오늘의 리스크 · 주요 이벤트 ── */}
-      <div className="grid gap-7 md:gap-6 md:grid-cols-2 xl:grid-cols-3 items-start">
+      {/* ── 관심종목 · 오늘의 리스크 · 주요 이벤트 ──
+           주요 이벤트: 모바일=리스트(EventList) 그대로, 데스크탑(PC)=풀폭 월간 캘린더(EventCalendar) */}
+      <div className="grid gap-7 md:gap-6 md:grid-cols-2 items-start">
         <WatchlistPreview />
         <TodayRisk />
-        <EventList />
+        <div className="md:col-span-2">
+          <div className="md:hidden"><EventList /></div>
+          <EventCalendar />
+        </div>
       </div>
 
       {/* ── 매매 대원칙 바로가기 ── */}
