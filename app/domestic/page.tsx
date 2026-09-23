@@ -2,6 +2,7 @@
 
 import RankList from '@/components/fin/RankList';
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import StockDetailModal from '@/components/StockDetailModal';
 import { useWatchlist } from '@/hooks/useWatchlist';
@@ -77,6 +78,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 type MarketFilter = 'all' | 'KOSPI' | 'KOSDAQ';
 
 export default function DomesticPage() {
+  const router = useRouter();
   // 6청크 × 20종목을 5초마다 갱신하면 5초당 최대 240건이 네이버로 나간다.
   const OPT = { refreshInterval: 15000, dedupingInterval: 5000, revalidateOnFocus: false };
   const { data: d0 } = useSWR<Record<string, StockData>>(C0 ? `/api/stock/batch?tickers=${C0}` : null, fetcher, OPT);
@@ -238,7 +240,16 @@ export default function DomesticPage() {
                     <CompanyLogo ticker={stock.ticker} name={stock.name} />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[var(--text)] truncate">{d?.name ?? stock.name}</p>
-                      <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${stock.market === 'KOSDAQ' ? 'text-purple-400' : 'text-blue-400'}`}>{stock.market}</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${stock.market === 'KOSDAQ' ? 'text-purple-400' : 'text-blue-400'}`}>{stock.market}</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); router.push(`/stock-analysis?ticker=${stock.ticker}&run=1`); }}
+                          className="inline-flex items-center gap-0.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md text-[var(--accent)] bg-[var(--accent-soft)] border border-[var(--accent)]/25 hover:brightness-105"
+                          aria-label={`${stock.name} 분석`}>
+                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5" /></svg>
+                          분석
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 sm:contents">

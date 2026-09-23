@@ -2,6 +2,16 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-09-23 (50차) — 분석 진입점을 메뉴 탭 → 시세 목록 행별 '분석' 버튼으로
+
+- **분석 메뉴에서 '종목 분석' 숨김** — 라우트(`/stock-analysis`·`/coin-analysis`)·AnalysisSwitch는 유지, `tabExtra`+`drillTitle`로 탭 강조·앱바 제목만 보존.
+  분석 탭 서브탭은 스크리너·공시·리포트만 남음.
+- **시세 목록 행에 인라인 '분석' 버튼**(누르면 자동 실행 `?...&run=1`):
+  - 국내 — 전 종목(종목명 밑 시장 배지 옆) → `/stock-analysis?ticker=…&run=1`
+  - 코인/선물 — 분석 엔진 지원 4종(BTC·ETH·XRP·SOL)만 → `/coin-analysis?symbol=…&run=1` (그 외 종목은 버튼 없음)
+  - 해외 — 전용 분석 엔진이 없어 **버튼 없음**(사용자 결정, 정직성 원칙)
+- `WatchRow`에 `analyzeHref` 옵션(코인 목록 등 공용) + `.wl-analyze` 입체 버튼 스타일. tsc 0 · 테스트 142 · build 0.
+
 ## 2026-09-23 (49차) — 홈 '주요 이벤트' PC 전용 가로 월간 캘린더
 
 - **PC(데스크탑)에서만** 홈 주요 이벤트를 리스트 → **풀폭 월간 캘린더 그리드**로 교체(`components/home/EventCalendar.tsx`).

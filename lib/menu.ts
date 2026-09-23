@@ -92,12 +92,13 @@ export const MENU: MenuGroup[] = [
     { href: '/coins',    icon: 'crypto',   label: '코인', desc: '시세·거시 환경·ETF' },
     { href: '/futures',  icon: 'futures',  label: '선물', desc: 'USDT 무기한·펀딩' },
   ], ['/stock/', '/crypto/']),
+  // 종목 분석(/stock-analysis·/coin-analysis)은 메뉴에서 숨김 — 시장 목록의 행별 '분석' 버튼으로 진입(자동 실행).
+  // 라우트·AnalysisSwitch는 유지하고, tabExtra로 분석 탭 강조·drillTitle로 앱바 제목만 보존한다.
   G('analysis', '분석', 'c-amber', 'qc-amber', 'analysis', [
-    { href: '/stock-analysis', icon: 'analysis', label: '종목 분석', desc: '국내주식·코인선물 체크리스트', alias: ['/coin-analysis'] },
     { href: '/screener',       icon: 'screener', label: '스크리너',  desc: 'ROE·PER·성장주',            alias: ['/growth'] },
     { href: '/dart',           icon: 'dart',     label: '공시',      desc: 'DART 전자공시' },
     { href: '/report',         icon: 'report',   label: '리포트',    desc: '증권사 리포트' },
-  ]),
+  ], ['/stock-analysis', '/coin-analysis']),
   // 관심종목 — 홈에서 분리해 독립 탭으로 승격(단일 화면, 내부 국내·해외·코인 세그먼트). 하단 탭에서 바로 진입.
   G('watch', '관심종목', 'c-rose', 'qc-rose', 'star', [
     { href: '/my-stocks', icon: 'star', label: '관심종목', desc: '국내·해외·코인 저장 목록' },
@@ -143,6 +144,9 @@ export function drillTitle(pathname: string): string {
   if (under(pathname, '/bitget')) return '계좌 상세';
   if (under(pathname, '/performance')) return '성과';
   if (under(pathname, '/journal')) return '매매일지';
+  // 시장 목록의 '분석' 버튼으로 진입(메뉴에서 숨김)
+  if (under(pathname, '/stock-analysis')) return '종목 분석';
+  if (under(pathname, '/coin-analysis')) return '코인선물 분석';
   return EXTRAS.find((e) => under(pathname, e.href))?.label ?? 'KOSPI LAB';
 }
 

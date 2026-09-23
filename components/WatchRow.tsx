@@ -14,7 +14,7 @@ export function badgeTint(seed: string): string {
 }
 
 export default function WatchRow({
-  href, title, sub, badge, price, changeRate, onMore, loading = false,
+  href, title, sub, badge, price, changeRate, onMore, loading = false, analyzeHref,
 }: {
   href: string;
   title: string;
@@ -24,6 +24,8 @@ export default function WatchRow({
   changeRate: number | null | undefined;
   onMore?: () => void;
   loading?: boolean;
+  /** 있으면 행 오른쪽에 '분석' 버튼(자동 실행 링크) */
+  analyzeHref?: string;
 }) {
   const cr = changeRate ?? null;
   const dir = cr == null || cr === 0 ? 'flat' : cr > 0 ? 'up' : 'down';
@@ -46,6 +48,12 @@ export default function WatchRow({
           </span>
         )}
       </Link>
+      {analyzeHref && (
+        <Link href={analyzeHref} className="wl-analyze" aria-label={`${title} 분석`}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5" /></svg>
+          분석
+        </Link>
+      )}
       {onMore && <KebabButton onClick={onMore} label={`${title} 메뉴`} />}
     </div>
   );

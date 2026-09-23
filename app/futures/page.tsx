@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import useSWR from 'swr';
 import HBarChart, { type BarItem } from '@/components/HBarChart';
+
+// 코인선물 분석 엔진 지원 종목(그 외는 분석 버튼 없음)
+const ANALYZABLE = new Set(['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT']);
 
 interface FuturesRow {
   symbol: string;
@@ -159,7 +163,19 @@ export default function FuturesPage() {
                 const up = r.changeRate >= 0;
                 return (
                   <tr key={r.symbol} className={`border-t border-[var(--border)] hover:bg-white/3 ${i % 2 === 0 ? '' : 'bg-[var(--bg)]/20'}`}>
-                    <td className="px-3 py-2.5 font-mono font-semibold text-[var(--text)]">{r.symbol}</td>
+                    <td className="px-3 py-2.5 font-mono font-semibold text-[var(--text)]">
+                      <span className="inline-flex items-center gap-1.5">
+                        {r.symbol}
+                        {ANALYZABLE.has(r.symbol) && (
+                          <Link href={`/coin-analysis?symbol=${r.symbol}&run=1`} onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-0.5 text-[10.5px] font-sans font-bold px-1.5 py-0.5 rounded-md text-[var(--accent)] bg-[var(--accent-soft)] border border-[var(--accent)]/25 hover:brightness-105"
+                            aria-label={`${r.symbol} 분석`}>
+                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5" /></svg>
+                            분석
+                          </Link>
+                        )}
+                      </span>
+                    </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text)]">${fmtPrice(r.price)}</td>
                     <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${up ? 'text-emerald-400' : 'text-red-400'}`}>
                       {up ? '+' : ''}{r.changeRate.toFixed(2)}%

@@ -584,6 +584,20 @@ html.dark .clp { border-color: var(--line); box-shadow: none; }
 .wl-chg.up   { background: var(--warn); }
 .wl-chg.down { background: var(--accent); }
 .wl-chg.flat { background: var(--surface-2); color: var(--muted); }
+/* 행 인라인 '분석' 버튼 — 시세 목록에서 바로 자동 분석 진입 */
+.wl-analyze {
+  display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;
+  margin-left: 6px; padding: 5px 9px; border-radius: 8px;
+  font-size: 12px; font-weight: 800; letter-spacing: -.02em; text-decoration: none;
+  color: var(--accent); background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 1px 3px rgba(17,24,39,.08);
+  transition: transform .12s var(--ease), box-shadow .12s var(--ease), background-color .12s var(--ease);
+}
+.wl-analyze svg { width: 14px; height: 14px; }
+.wl-analyze:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 4px 10px color-mix(in srgb, var(--accent) 28%, transparent); }
+.wl-analyze:active { transform: translateY(0); }
+html.dark .wl-analyze { box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 1px 3px rgba(0,0,0,.4); }
 
 .ev-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
 .ev-row + .ev-row { border-top: 1px solid var(--line-2); }

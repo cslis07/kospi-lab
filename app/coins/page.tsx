@@ -13,6 +13,8 @@ import type { CryptoData } from '@/lib/types';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const SYMBOLS = COINS.map((c) => c.symbol).join(',');
+// 코인선물 분석 엔진 지원 종목(그 외는 분석 버튼 없음)
+const ANALYZABLE = ['BTC', 'ETH', 'XRP', 'SOL'];
 
 export default function CoinsPage() {
   const { data, error } = useSWR<Record<string, CryptoData>>(`/api/crypto/batch?symbols=${SYMBOLS}`, fetcher, { refreshInterval: 15000 });
@@ -29,7 +31,8 @@ export default function CoinsPage() {
             const d = data?.[c.symbol];
             return (
               <WatchRow key={c.symbol} href={`/crypto/${c.symbol}`} title={c.ko} sub={`${c.base} · ${c.name}`} badge={c.base.slice(0, 3)}
-                price={fmtCoinPrice(d?.price)} changeRate={d?.changeRate} loading={!data && !error} />
+                price={fmtCoinPrice(d?.price)} changeRate={d?.changeRate} loading={!data && !error}
+                analyzeHref={ANALYZABLE.includes(c.base) ? `/coin-analysis?symbol=${c.symbol}&run=1` : undefined} />
             );
           })}
         </div>
