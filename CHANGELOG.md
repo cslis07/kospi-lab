@@ -2,6 +2,13 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-09-28 (65차) — 홈 대시보드 관심종목 미리보기도 시장별 액션 버튼으로 통일
+
+- 홈 `WatchlistPreview`의 ⋮ 액션시트 → `/my-stocks`와 동일한 **버튼형(pill) 액션**으로 교체:
+  국내=종목 상세·종목 분석·삭제 / 해외=종목 상세·삭제 / 코인=코인 상세·(코인선물 분석)·삭제.
+  분석은 자동 실행(`?run=1`), 코인 분석은 BTC·ETH·XRP·SOL만. ActionSheet 제거.
+- `components/home/WatchlistPreview.tsx`. tsc 0 · build 0.
+
 ## 2026-09-28 (64차) — 관심종목 행에 시장별 액션 버튼(버튼형) 직접 노출
 
 - `/my-stocks` 각 종목 아래에 **버튼형(pill) 액션**을 직접 표시(⋮ 모달·스와이프 대신):
