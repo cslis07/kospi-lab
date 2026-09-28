@@ -27,7 +27,12 @@ const fmtUsd = (n: number) => {
 
 /* ── 타입(필요 최소) ─────────────────────────────── */
 interface AccountResp { configured?: boolean; totalUsdt?: number; assets?: unknown[]; error?: string; locked?: boolean }
-interface PositionsResp { configured?: boolean; account?: { equity: number; available: number; unrealizedPL: number; marginCoin: string } | null; error?: string }
+interface Position {
+  symbol: string; side: 'long' | 'short'; size: number; openAvg: number; markPrice: number;
+  leverage: number; marginMode: string | null; marginSize: number; unrealizedPL: number;
+  liquidationPrice: number; liqDistPct: number | null;
+}
+interface PositionsResp { configured?: boolean; account?: { equity: number; available: number; unrealizedPL: number; marginCoin: string } | null; positions?: Position[]; error?: string }
 interface Bill { billId: string; ts: number; coin: string; businessType: string; size: number }
 interface ActivityResp { configured: boolean; bills?: Bill[]; error?: string }
 
@@ -169,7 +174,11 @@ type Modal = 'closed' | 'transfers' | 'journal' | null;
 
 export default function AssetsPage() {
   const { data: acc, isLoading } = useSWR<AccountResp>('/api/bitget/account', fetcher, { refreshInterval: 30000, revalidateOnFocus: false });
-  const { data: pos } = useSWR<PositionsResp>(acc?.configured ? '/api/bitget/positions' : null, fetcher, { refreshInterval: 30000, revalidateOnFocus: false });
+  const { data: pos } = useSWR<PositionsResp>(acc?.configured ? '/api/bitget/positions' : null, fetcher, { refreshInterval: 15000, revalidateOnFocus: false });
+  // 원화 환산 — USDT/KRW(업비트) 우선, 없으면 USD/KRW
+  const { data: market } = useSWR<{ usdkrw?: { value: number }; usdtkrw?: { value: number } }>('/api/market', fetcher, { refreshInterval: 30000, revalidateOnFocus: false });
+  const krwRate = market?.usdtkrw?.value ?? market?.usdkrw?.value ?? null;
+  const toKrw = (usd: number) => (krwRate == null ? null : Math.round(usd * krwRate));
 
   const coin = useCoinJournal();
   const stock = useStockJournal();
@@ -211,7 +220,12 @@ export default function AssetsPage() {
               </div>
               {pos?.account ? (
                 <>
-                  <p className="text-3xl font-bold text-[var(--accent)] tabular-nums">${fmtUsd(pos.account.equity)}</p>
+                  <p className="text-3xl font-bold text-[var(--accent)] tabular-nums">${fmtUsd(pos.account.equity)} <span className="text-sm font-semibold text-[var(--text-muted)]">USDT</span></p>
+                  {toKrw(pos.account.equity) != null && (
+                    <p className="text-sm font-bold text-[var(--text)] tabular-nums mt-0.5">≈ ₩{toKrw(pos.account.equity)!.toLocaleString('ko-KR')}
+                      {krwRate != null && <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1">(1 USDT ≈ ₩{Math.round(krwRate).toLocaleString('ko-KR')})</span>}
+                    </p>
+                  )}
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs tabular-nums">
                     <span className="text-[var(--text-muted)]">사용가능 <strong className="text-[var(--text)]">${fmtUsd(pos.account.available)}</strong></span>
                     <span className="text-[var(--text-muted)]">미실현 <strong className={pos.account.unrealizedPL >= 0 ? 'text-emerald-500' : 'text-red-500'}>{pos.account.unrealizedPL >= 0 ? '+' : ''}{pos.account.unrealizedPL.toFixed(2)}</strong></span>
@@ -230,8 +244,52 @@ export default function AssetsPage() {
                 <p className="text-xs text-[var(--text-muted)]">현물(spot) 평가금액</p>
                 <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{(acc.assets?.length ?? 0)}개 자산 · USDT 환산</p>
               </div>
-              <p className="text-lg font-bold text-[var(--text)] tabular-nums">${fmtUsd(acc.totalUsdt ?? 0)}</p>
+              <div className="text-right">
+                <p className="text-lg font-bold text-[var(--text)] tabular-nums">${fmtUsd(acc.totalUsdt ?? 0)}</p>
+                {toKrw(acc.totalUsdt ?? 0) != null && <p className="text-[11px] font-semibold text-[var(--text-muted)] tabular-nums">≈ ₩{toKrw(acc.totalUsdt ?? 0)!.toLocaleString('ko-KR')}</p>}
+              </div>
             </div>
+
+            {/* USDT 선물 포지션 — 자산 화면에서 바로 확인 */}
+            {pos?.positions && pos.positions.length > 0 && (
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-bold text-[var(--text)]">USDT 선물 포지션 <span className="text-[10px] font-normal text-[var(--text-muted)]">{pos.positions.length}건</span></h4>
+                  {pos.account && (
+                    <span className="text-[11px] tabular-nums"><span className="text-[var(--text-muted)]">미실현 </span>
+                      <strong className={pos.account.unrealizedPL >= 0 ? 'text-emerald-500' : 'text-red-500'}>{pos.account.unrealizedPL >= 0 ? '+' : ''}{pos.account.unrealizedPL.toFixed(2)}</strong>
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {pos.positions.map((p) => {
+                    const near = p.liqDistPct != null && p.liqDistPct < 15;
+                    return (
+                      <div key={p.symbol + p.side} className={`rounded-xl border p-3 ${near ? 'border-red-500/40 bg-red-500/[0.06]' : 'border-[var(--border)] bg-[var(--surface-2)]'}`}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-bold text-[var(--text)]">{p.symbol.replace('USDT', '')}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${p.side === 'long' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500'}`}>{p.side === 'long' ? '롱' : '숏'} {p.leverage}x</span>
+                            {p.marginMode && <span className="text-[9px] text-[var(--text-muted)]">{p.marginMode === 'isolated' ? '격리' : '교차'}</span>}
+                          </div>
+                          <span className={`text-sm font-bold tabular-nums ${p.unrealizedPL >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{p.unrealizedPL >= 0 ? '+' : ''}{p.unrealizedPL.toFixed(2)}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 text-[10px] text-[var(--text-muted)] tabular-nums">
+                          <span>평단 {fmtUsd(p.openAvg)}</span>
+                          <span>마크 {fmtUsd(p.markPrice)}</span>
+                          <span>증거금 {p.marginSize.toFixed(2)}</span>
+                          <span className={near ? 'text-red-500 font-semibold' : ''}>청산 {p.liquidationPrice > 0 ? fmtUsd(p.liquidationPrice) : '-'}</span>
+                          <span className={near ? 'text-red-500 font-semibold col-span-2' : 'col-span-2'}>
+                            {p.liqDistPct != null ? `청산까지 ${p.liqDistPct.toFixed(1)}%` : ''}{near ? ' ⚠ 청산 근접' : ''}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[9px] text-[var(--text-muted)] mt-2 opacity-70">읽기 전용 · 15초 갱신 · 청산가는 거래소 계산값</p>
+              </div>
+            )}
           </div>
         )}
       </section>
