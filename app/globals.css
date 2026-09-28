@@ -390,7 +390,8 @@ body { overscroll-behavior-y: none; }   /* 앱처럼 — 바운스로 흰 배경
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
   height: calc(var(--tabbar-h) + var(--sab));
   padding-bottom: var(--sab);
-  display: grid; grid-template-columns: repeat(5, 1fr);
+  /* 탭 개수에 맞춰 균등 분할(5개→6개 등 가변) */
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
   background: var(--surface);
   background: color-mix(in srgb, var(--surface) 90%, transparent);
   -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);

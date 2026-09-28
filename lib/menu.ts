@@ -54,6 +54,7 @@ export const ICON: Record<string, string> = {
   tools:      'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   guide:      'M12 6C10 4.7 7 4.2 4 4.7V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.7C17 4.2 14 4.7 12 6ZM12 6v14.5',
   principles: 'M7 3h8l3 3v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1M15 3v3h3M8.5 11.5l1.5 1.5 3-3M8.5 16.5l1.5 1.5 3-3',
+  insight:    'M9 18h6M10 21h4M8.5 14a5.5 5.5 0 1 1 7 0c-.8.7-1.5 1.4-1.5 2.5h-4c0-1.1-.7-1.8-1.5-2.5Z',
 };
 
 export const DASHBOARD: MenuItem = { href: '/', label: '대시보드', icon: 'home' };
@@ -81,11 +82,16 @@ const G = (key: string, label: string, color: string, qc: string, navIcon: strin
 });
 
 export const MENU: MenuGroup[] = [
-  // 경제 캘린더(/calendar)는 메뉴에서 숨김 — 홈 '주요 이벤트'의 이벤트를 클릭하면 진입(tabExtra로 홈 탭 강조).
+  // 홈 = 대시보드 단독(항목 1개 → 서브탭 없이 바로 진입). 뉴스·오늘의 리스크·매매 대원칙은 '인사이트' 탭으로 이동.
+  // 경제 캘린더(/calendar)는 홈 '주요 이벤트' 클릭으로 진입(tabExtra로 홈 탭 강조).
   G('home', '홈', 'c-blue', 'qc-blue', 'home', [
-    { href: '/',          icon: 'home',     label: '대시보드',    desc: '시장 요약·관심·리스크·이벤트' },
-    { href: '/news',      icon: 'news',     label: '뉴스',        desc: '시장 소식' },
+    { href: '/', icon: 'home', label: '대시보드', desc: '시장 요약·관심·이벤트' },
   ], ['/calendar']),
+  G('insight', '인사이트', 'c-amber', 'qc-amber', 'insight', [
+    { href: '/today',      icon: 'risk',       label: '오늘의 리스크', desc: '서킷브레이커·오늘 실현·이벤트' },
+    { href: '/news',       icon: 'news',       label: '뉴스',          desc: '시장 소식' },
+    { href: '/principles', icon: 'principles', label: '매매 대원칙',   desc: '지킬 3·피할 3' },
+  ]),
   G('market', '시장', 'c-violet', 'qc-violet', 'domestic', [
     { href: '/domestic', icon: 'domestic', label: '국내', desc: 'KOSPI·KOSDAQ·등락 랭킹', alias: ['/krx'] },
     { href: '/overseas', icon: 'overseas', label: '해외', desc: '미국 등 글로벌' },
@@ -114,7 +120,6 @@ export const MENU: MenuGroup[] = [
  *  ※ KRX 시장(/krx)·성장주 발굴(/growth)은 중복이라 제거: KRX는 시장›국내 "전체보기"로,
  *    성장주 스크리닝은 분석›스크리너로 대체된다. */
 export const EXTRAS: MenuItem[] = [
-  { href: '/principles', icon: 'principles', label: '매매 대원칙', desc: '지킬 3·피할 3' },
   { href: '/virtual',   icon: 'virtual',   label: '가상투자',    desc: '모의매매·백업' },
   { href: '/invest',    icon: 'invest',    label: '투자설계',    desc: '계좌·자산 추천' },
   { href: '/tax',       icon: 'tax',       label: '세제혜택',    desc: 'ISA·IRP·연금' },
