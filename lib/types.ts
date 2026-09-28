@@ -58,6 +58,8 @@ export interface CalendarEvent {
   country: 'US' | 'KR' | 'global';
   importance: 'high' | 'medium' | 'low';
   desc?: string;
+  /** 한국시간(KST) 시작/발표 시각 표기 override. 없으면 카테고리 기본값으로 계산(EventRow) */
+  timeKst?: string;
 }
 
 export interface PortfolioEntry {

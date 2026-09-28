@@ -565,15 +565,27 @@ html.dark .clp { border-color: var(--line); box-shadow: none; }
 /* ══════════════════════════════════════════════════════════════
    관심종목·시세 행(고밀도) · 경제 이벤트 행
    ══════════════════════════════════════════════════════════════ */
-.wl-row { display: flex; align-items: center; padding-right: 4px; }
+.wl-row { display: flex; align-items: center; gap: 11px; padding: 11px 14px 11px 16px; cursor: pointer; }
 .wl-row + .wl-row { border-top: 1px solid var(--line-2); }
+.wl-row:active { background: var(--surface-2); }
+.wl-tail { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+/* 종목명 옆 ⋮ 메뉴 박스 버튼 */
+.wl-menu {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 9px;
+  display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+  box-shadow: 0 1px 2px rgba(17,24,39,.06);
+}
+.wl-menu svg { width: 18px; height: 18px; }
+.wl-menu:active { background: var(--surface-2); transform: scale(.94); }
+html.dark .wl-menu { box-shadow: 0 1px 2px rgba(0,0,0,.35); }
 .wl-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 11px 6px 11px 16px; text-decoration: none; color: inherit; }
 .wl-main:active { background: var(--surface-2); }
 .wl-badge {
   width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
   display: grid; place-items: center; font-size: 12px; font-weight: 800; letter-spacing: -.03em;
 }
-.wl-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wl-name { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .wl-name b { font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; }
 .wl-name small { font-size: 11.5px; color: var(--faint); margin-top: 1px; }
 .wl-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }

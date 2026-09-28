@@ -1,10 +1,13 @@
+'use client';
+
 /**
  * 관심종목·시세 목록의 밀도 높은 한 줄(모바일 우선).
- * [종목 배지] 이름·코드 ········ 가격 [등락률 알약] [⋮]
+ * [종목 배지] 이름·코드 [⋮ 박스] ······ 가격 [등락률] [분석]
+ * 행 전체 탭 = 상세로 이동(router). ⋮·분석 버튼은 이벤트 전파를 막아 각자 동작.
  * 등락 알약은 한국 관행 채움색(상승=빨강·하락=파랑·보합=회색). 배지 색은 종목 문자열 해시로 고정.
  */
 import Link from 'next/link';
-import { KebabButton } from './ui/ActionSheet';
+import { useRouter } from 'next/navigation';
 
 const TINTS = ['tint-blue', 'tint-violet', 'tint-green', 'tint-amber', 'tint-rose', 'tint-teal', 'tint-indigo'];
 export function badgeTint(seed: string): string {
@@ -27,18 +30,27 @@ export default function WatchRow({
   /** 있으면 행 오른쪽에 '분석' 버튼(자동 실행 링크) */
   analyzeHref?: string;
 }) {
+  const router = useRouter();
   const cr = changeRate ?? null;
   const dir = cr == null || cr === 0 ? 'flat' : cr > 0 ? 'up' : 'down';
+  const go = () => router.push(href);
   return (
-    <div className="wl-row">
-      <Link href={href} className="wl-main">
-        <span className={`wl-badge ${badgeTint(title + sub)}`} aria-hidden>{badge}</span>
-        <span className="wl-name">
-          <b className="truncate">{title}</b>
-          <small className="truncate">{sub}</small>
-        </span>
+    <div className="wl-row" role="link" tabIndex={0} onClick={go}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }}>
+      <span className={`wl-badge ${badgeTint(title + sub)}`} aria-hidden>{badge}</span>
+      <span className="wl-name">
+        <b className="truncate">{title}</b>
+        <small className="truncate">{sub}</small>
+      </span>
+      {onMore && (
+        <button type="button" className="wl-menu" aria-label={`${title} 메뉴`}
+          onClick={(e) => { e.stopPropagation(); onMore(); }}>
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
+        </button>
+      )}
+      <span className="wl-tail">
         {loading ? (
-          <span className="flex flex-col items-end gap-1.5 shrink-0">
+          <span className="flex flex-col items-end gap-1.5">
             <span className="skeleton h-3.5 w-16" /><span className="skeleton h-5 w-[64px] rounded-md" />
           </span>
         ) : (
@@ -47,14 +59,13 @@ export default function WatchRow({
             <span className={`wl-chg ${dir} tabular-nums`}>{cr == null ? '—' : `${cr > 0 ? '+' : ''}${cr.toFixed(2)}%`}</span>
           </span>
         )}
-      </Link>
-      {analyzeHref && (
-        <Link href={analyzeHref} className="wl-analyze" aria-label={`${title} 분석`}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5" /></svg>
-          분석
-        </Link>
-      )}
-      {onMore && <KebabButton onClick={onMore} label={`${title} 메뉴`} />}
+        {analyzeHref && (
+          <Link href={analyzeHref} className="wl-analyze" aria-label={`${title} 분석`} onClick={(e) => e.stopPropagation()}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5" /></svg>
+            분석
+          </Link>
+        )}
+      </span>
     </div>
   );
 }

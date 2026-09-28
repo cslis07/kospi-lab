@@ -102,7 +102,7 @@ export default function CalendarPage() {
           </button>
         ))}
       </div>
-      <p className="text-[11px] text-[var(--text-muted)] mb-4 px-1">중요도 막대 3칸 = 높음 · 날짜는 한국 시간 · 일정은 변경될 수 있습니다</p>
+      <p className="text-[11px] text-[var(--text-muted)] mb-4 px-1">중요도 막대 3칸 = 높음 · 날짜·시각은 한국시간(KST) 기준 대략치(서머타임 반영) · 휴장/실적시즌은 종일·기간 · 일정은 변경될 수 있습니다</p>
 
       {!today ? (
         <div className="space-y-3"><div className="skeleton h-28" /><div className="skeleton h-28" /></div>

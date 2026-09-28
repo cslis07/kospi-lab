@@ -15,6 +15,29 @@ const IMP_LEVEL: Record<CalendarEvent['importance'], number> = { high: 3, medium
 export function kstToday(): string {
   return new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10);
 }
+
+/** 미국 동부 서머타임 여부(대략: 3월 둘째주~11월 첫주). 발표시각의 KST 환산에 쓴다. */
+function isUsDst(dateStr: string): boolean {
+  const [, m, d] = dateStr.split('-').map(Number);
+  if (m > 3 && m < 11) return true;   // 4~10월
+  if (m === 3) return d >= 8;          // 3월 둘째 일요일 무렵부터
+  return false;                        // 11~2월(11월 첫주 이후 EST)
+}
+
+/**
+ * 이벤트의 한국시간(KST) 시작/발표 시각. override(timeKst) 우선, 없으면 카테고리 기본값.
+ * 미 지표(08:30 ET)·FOMC(14:00 ET)는 서머타임에 따라 1시간 이동. 휴장·실적시즌은 시각 없음(종일/기간).
+ */
+export function eventTimeKst(e: CalendarEvent): string | null {
+  if (e.timeKst) return e.timeKst;
+  const dst = isUsDst(e.date);
+  switch (e.category) {
+    case 'indicator': return dst ? '21:30' : '22:30';        // 미 08:30 ET (고용·CPI)
+    case 'fomc':      return dst ? '익일 03:00' : '익일 04:00'; // 미 14:00 ET 결과 발표
+    case 'bok':       return '09:00';                          // 한국은행 발표(오전)
+    default:          return null;                             // earnings·holiday
+  }
+}
 /** 두 'YYYY-MM-DD' 사이 일수(b - a) */
 export function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
@@ -38,7 +61,12 @@ export default function EventRow({ e, today, showDate = true }: { e: CalendarEve
       </span>
       <div className="ev-main">
         <div className="t">{e.title}</div>
-        <div className="s">{CATEGORY_LABEL[e.category]} · {COUNTRY[e.country] ?? e.country}{e.desc ? ` · ${e.desc}` : ''}</div>
+        <div className="s">
+          {(() => { const tm = eventTimeKst(e); return tm
+            ? <b className="text-[var(--accent-ink)] font-bold">{tm} </b>
+            : e.category === 'holiday' ? <span>종일 · </span> : null; })()}
+          {CATEGORY_LABEL[e.category]} · {COUNTRY[e.country] ?? e.country}{e.desc ? ` · ${e.desc}` : ''}
+        </div>
       </div>
       <span className={`ev-dday ${dd === 0 ? 'on' : ''}`}>{past ? '지남' : dd === 0 ? '오늘' : `D-${dd}`}</span>
     </div>
