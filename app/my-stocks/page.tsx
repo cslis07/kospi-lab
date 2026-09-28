@@ -196,12 +196,14 @@ function MyStocksInner() {
         ) : (
           rows.map((r, i) => (
             <div key={r.key} className={i > 0 ? 'border-t border-[var(--line-2)]' : ''}>
-              <WatchRow href={r.href} title={r.title} sub={r.sub} badge={r.badge} price={r.price} changeRate={r.cr} loading={r.loading} />
-              <div className="flex flex-wrap gap-1.5 px-4 pb-3">
-                <Pill href={r.href} tone="muted">{r.detailLabel}</Pill>
-                {r.analysis && <Pill href={r.analysis} tone="accent">{r.analysisLabel ?? '분석'}</Pill>}
-                <Pill onClick={r.remove} tone="danger">삭제</Pill>
-              </div>
+              <WatchRow href={r.href} title={r.title} sub={r.sub} badge={r.badge} price={r.price} changeRate={r.cr} loading={r.loading}
+                actions={
+                  <>
+                    <Pill href={r.href} tone="muted">{r.detailLabel}</Pill>
+                    {r.analysis && <Pill href={r.analysis} tone="accent">{r.analysisLabel ?? '분석'}</Pill>}
+                    <Pill onClick={r.remove} tone="danger">삭제</Pill>
+                  </>
+                } />
             </div>
           ))
         )}

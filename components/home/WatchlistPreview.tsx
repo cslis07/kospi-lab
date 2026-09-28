@@ -47,12 +47,14 @@ interface ItemProps {
 function renderItem(p: ItemProps) {
   return (
     <div key={p.key} className="border-t border-[var(--line-2)]">
-      <WatchRow href={p.href} title={p.title} sub={p.sub} badge={p.badge} price={p.price} changeRate={p.cr} loading={p.loading} />
-      <div className="flex flex-wrap gap-1.5 px-4 pb-3">
-        <Pill href={p.href} tone="muted">{p.detailLabel}</Pill>
-        {p.analysis && <Pill href={p.analysis} tone="accent">{p.analysisLabel ?? '분석'}</Pill>}
-        <Pill onClick={p.remove} tone="danger">삭제</Pill>
-      </div>
+      <WatchRow href={p.href} title={p.title} sub={p.sub} badge={p.badge} price={p.price} changeRate={p.cr} loading={p.loading}
+        actions={
+          <>
+            <Pill href={p.href} tone="muted">{p.detailLabel}</Pill>
+            {p.analysis && <Pill href={p.analysis} tone="accent">{p.analysisLabel ?? '분석'}</Pill>}
+            <Pill onClick={p.remove} tone="danger">삭제</Pill>
+          </>
+        } />
     </div>
   );
 }

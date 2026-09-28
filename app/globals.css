@@ -588,6 +588,8 @@ html.dark .wl-menu { box-shadow: 0 1px 2px rgba(0,0,0,.35); }
 .wl-name { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .wl-name b { font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; }
 .wl-name small { font-size: 11.5px; color: var(--faint); margin-top: 1px; }
+/* 종목명 바로 옆 액션 버튼들(상세·분석·삭제) */
+.wl-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: 8px; }
 .wl-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
 .wl-right b { font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; }
 .wl-chg {

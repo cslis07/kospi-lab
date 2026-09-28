@@ -6,6 +6,7 @@
  * 행 전체 탭 = 상세로 이동(router). ⋮·분석 버튼은 이벤트 전파를 막아 각자 동작.
  * 등락 알약은 한국 관행 채움색(상승=빨강·하락=파랑·보합=회색). 배지 색은 종목 문자열 해시로 고정.
  */
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -17,7 +18,7 @@ export function badgeTint(seed: string): string {
 }
 
 export default function WatchRow({
-  href, title, sub, badge, price, changeRate, onMore, loading = false, analyzeHref,
+  href, title, sub, badge, price, changeRate, onMore, loading = false, analyzeHref, actions,
 }: {
   href: string;
   title: string;
@@ -29,6 +30,8 @@ export default function WatchRow({
   loading?: boolean;
   /** 있으면 행 오른쪽에 '분석' 버튼(자동 실행 링크) */
   analyzeHref?: string;
+  /** 있으면 종목명 바로 옆에 붙는 액션 버튼들(상세·분석·삭제 등) */
+  actions?: ReactNode;
 }) {
   const router = useRouter();
   const cr = changeRate ?? null;
@@ -47,6 +50,9 @@ export default function WatchRow({
           onClick={(e) => { e.stopPropagation(); onMore(); }}>
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
         </button>
+      )}
+      {actions && (
+        <span className="wl-actions" onClick={(e) => e.stopPropagation()}>{actions}</span>
       )}
       <span className="wl-tail">
         {loading ? (
