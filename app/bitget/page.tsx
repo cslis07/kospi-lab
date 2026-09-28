@@ -305,36 +305,7 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
           {/* 선물 청산 내역 — 거래소 자동(진입·청산·손절복구·순손익·시간) */}
           {pos?.configured && <ClosedTrades />}
 
-          {data.assets.length === 0 ? (
-            <p className="text-center text-sm text-[var(--text-muted)] py-8">현물(spot) 보유 자산이 없습니다</p>
-          ) : (
-            <div className="space-y-2">
-              {data.assets.map((a) => {
-                const pct = data.totalUsdt ? (a.usdtValue / data.totalUsdt) * 100 : 0;
-                return (
-                  <div key={a.coin} className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-[var(--text)]">{a.coin}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--text-muted)]">{pct.toFixed(1)}%</span>
-                      </div>
-                      <span className="text-sm font-bold tabular-nums text-[var(--text)]">${fmtUsd(a.usdtValue)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
-                      <span className="tabular-nums">{a.amount.toLocaleString('en-US', { maximumFractionDigits: 8 })} {a.coin}</span>
-                      {a.price > 0 && <span className="tabular-nums">@ ${fmtUsd(a.price)}</span>}
-                    </div>
-                    {a.frozen > 0 && (
-                      <p className="text-[10px] text-amber-600/70 mt-1">잠금 {a.frozen.toLocaleString('en-US', { maximumFractionDigits: 8 })}</p>
-                    )}
-                    <div className="mt-2 h-1 rounded-full bg-[var(--surface-2)] overflow-hidden">
-                      <div className="h-full bg-[var(--accent)] rounded-full" style={{ width: `${Math.min(100, pct)}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {/* 현물(spot) 종목별 상세는 제거 — 먼지 잔고(BGB·USDT 등)만 남아 노이즈. 합계는 위 요약 박스로 충분 */}
 
           {/* ── 입출금·이체 (Bills) ── */}
           {act?.bills && act.bills.length > 0 && (
