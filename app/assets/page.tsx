@@ -3,7 +3,7 @@
 /**
  * 자산 — 한 화면 허브. 계좌 잔액(선물/현물)과 최근 7일 성과를 대표로 크게 보여주고,
  * 청산내역·이체내역·매매일지는 작은 박스 버튼 → 팝업(바텀시트)으로 확인한다.
- * (기존 7개 서브탭이 정신없다는 피드백 → 계좌·성과만 노출, 나머지는 모달)
+ * 성과 7일은 거래소 실현손익(/api/bitget/history)으로 계산 — 통화 혼합 없이 USDT 실적.
  */
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -13,7 +13,6 @@ import ClosedTrades from '@/components/ClosedTrades';
 import UnlockGate from '@/components/UnlockGate';
 import { useCoinJournal } from '@/hooks/useCoinJournal';
 import { useStockJournal } from '@/hooks/useStockJournal';
-import { scoreboard } from '@/lib/journalStats';
 import { ICON } from '@/lib/menu';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
@@ -24,6 +23,8 @@ const fmtUsd = (n: number) => {
   if (n < 1) return n.toFixed(4);
   return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 };
+// 그래프 라벨용 짧은 표기(부호 포함)
+const fmtShort = (n: number) => (Math.abs(n) >= 1 ? `${n >= 0 ? '+' : ''}${Math.round(n)}` : `${n >= 0 ? '+' : ''}${n.toFixed(1)}`);
 
 /* ── 타입(필요 최소) ─────────────────────────────── */
 interface AccountResp { configured?: boolean; totalUsdt?: number; assets?: unknown[]; error?: string; locked?: boolean }
@@ -35,6 +36,9 @@ interface Position {
 interface PositionsResp { configured?: boolean; account?: { equity: number; available: number; unrealizedPL: number; marginCoin: string } | null; positions?: Position[]; error?: string }
 interface Bill { billId: string; ts: number; coin: string; businessType: string; size: number }
 interface ActivityResp { configured: boolean; bills?: Bill[]; error?: string }
+interface HistResp { configured?: boolean; positions?: { netProfit: number; closeTs: number }[]; error?: string }
+
+const DAY = 86_400_000;
 
 const fmtTs = (ts: number) => {
   if (!ts) return '-';
@@ -52,46 +56,27 @@ const BIZ_LABEL: Record<string, string> = {
 };
 const bizLabel = (b: string) => BIZ_LABEL[b] ?? b.toLowerCase().replace(/_/g, ' ');
 
-/* ── 최근 7일 일별 R 합계 그래프 ────────────────── */
-const DAY = 86_400_000;
-interface JRow { ts: number; result: 'open' | 'win' | 'loss' | 'even'; resultR: number | null; name?: string }
-function last7Days(rows: JRow[]) {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const t0 = start.getTime();
-  const buckets = Array.from({ length: 7 }, (_, i) => {
-    const dayStart = t0 - (6 - i) * DAY;
-    return { dayStart, r: 0, has: false, label: new Date(dayStart).toLocaleDateString('ko-KR', { weekday: 'short' }) };
-  });
-  for (const row of rows) {
-    if (row.result === 'open' || row.resultR == null) continue;
-    if (row.ts < t0 - 6 * DAY || row.ts >= t0 + DAY) continue;
-    const idx = Math.floor((row.ts - (t0 - 6 * DAY)) / DAY);
-    if (idx >= 0 && idx < 7) { buckets[idx].r += row.resultR; buckets[idx].has = true; }
-  }
-  return buckets;
-}
-
-function SevenDayGraph({ rows }: { rows: JRow[] }) {
-  const bars = useMemo(() => last7Days(rows), [rows]);
-  const maxAbs = Math.max(0.5, ...bars.map((b) => Math.abs(b.r)));
-  const any = bars.some((b) => b.has);
-  if (!any) return <p className="text-xs text-[var(--text-muted)] py-6 text-center">최근 7일 청산(결과 입력) 기록이 없습니다</p>;
+/* ── 최근 7일 일별 실현손익(USDT) 막대 그래프 (값 라벨 표시) ─── */
+interface Bar { label: string; v: number; has: boolean }
+function PerfGraph({ bars }: { bars: Bar[] }) {
+  const maxAbs = Math.max(1, ...bars.map((b) => Math.abs(b.v)));
   return (
-    <div className="flex items-end justify-between gap-1.5 h-28 px-1">
+    <div className="flex items-end justify-between gap-1.5 h-32 px-1">
       {bars.map((b, i) => {
-        const h = Math.round((Math.abs(b.r) / maxAbs) * 44);
-        const up = b.r >= 0;
+        const h = Math.round((Math.abs(b.v) / maxAbs) * 40);
+        const up = b.v >= 0;
         return (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+          <div key={i} className="flex-1 flex flex-col items-center h-full">
             <div className="flex-1 w-full flex flex-col justify-end items-center">
-              {up && b.has && <div className="w-full max-w-[26px] rounded-t bg-emerald-400/80" style={{ height: `${Math.max(3, h)}px` }} title={`+${b.r.toFixed(2)}R`} />}
+              {b.has && up && <span className="text-[8.5px] font-bold text-emerald-500 tabular-nums mb-0.5">{fmtShort(b.v)}</span>}
+              {b.has && up && <div className="w-full max-w-[26px] rounded-t bg-emerald-400/80" style={{ height: `${Math.max(3, h)}px` }} />}
             </div>
             <div className="w-full h-px bg-[var(--border)]" />
             <div className="flex-1 w-full flex flex-col justify-start items-center">
-              {!up && b.has && <div className="w-full max-w-[26px] rounded-b bg-red-400/80" style={{ height: `${Math.max(3, h)}px` }} title={`${b.r.toFixed(2)}R`} />}
+              {b.has && !up && <div className="w-full max-w-[26px] rounded-b bg-red-400/80" style={{ height: `${Math.max(3, h)}px` }} />}
+              {b.has && !up && <span className="text-[8.5px] font-bold text-red-500 tabular-nums mt-0.5">{fmtShort(b.v)}</span>}
             </div>
-            <span className="text-[9px] text-[var(--text-muted)]">{b.label}</span>
+            <span className="text-[9px] text-[var(--text-muted)] mt-0.5">{b.label}</span>
           </div>
         );
       })}
@@ -174,7 +159,9 @@ type Modal = 'closed' | 'transfers' | 'journal' | null;
 
 export default function AssetsPage() {
   const { data: acc, isLoading } = useSWR<AccountResp>('/api/bitget/account', fetcher, { refreshInterval: 30000, revalidateOnFocus: false });
-  const { data: pos } = useSWR<PositionsResp>(acc?.configured ? '/api/bitget/positions' : null, fetcher, { refreshInterval: 15000, revalidateOnFocus: false });
+  const configured = !!acc?.configured;
+  const { data: pos } = useSWR<PositionsResp>(configured ? '/api/bitget/positions' : null, fetcher, { refreshInterval: 15000, revalidateOnFocus: false });
+  const { data: hist } = useSWR<HistResp>(configured ? '/api/bitget/history?days=7' : null, fetcher, { revalidateOnFocus: false });
   // 원화 환산 — USDT/KRW(업비트) 우선, 없으면 USD/KRW
   const { data: market } = useSWR<{ usdkrw?: { value: number }; usdtkrw?: { value: number } }>('/api/market', fetcher, { refreshInterval: 30000, revalidateOnFocus: false });
   const krwRate = market?.usdtkrw?.value ?? market?.usdkrw?.value ?? null;
@@ -184,18 +171,34 @@ export default function AssetsPage() {
   const stock = useStockJournal();
   const ready = coin.mounted || stock.mounted;
 
-  const allJ = useMemo<JRow[]>(() => [...coin.entries, ...stock.entries], [coin.entries, stock.entries]);
-  const sb = useMemo(() => scoreboard(allJ), [allJ]);
-  const w7 = sb.windows[0]; // 최근 7일
-
   const journalRows = useMemo(() => {
     const c = coin.entries.map((e) => ({ key: `c${e.id}`, name: e.name, tag: '코인', result: e.result, resultR: e.resultR, ts: e.ts }));
     const s = stock.entries.map((e) => ({ key: `s${e.id}`, name: e.name, tag: '주식', result: e.result, resultR: e.resultR, ts: e.ts }));
     return [...c, ...s].sort((a, b) => b.ts - a.ts);
   }, [coin.entries, stock.entries]);
 
+  // 최근 7일 거래소 실현손익
+  const perf = useMemo(() => {
+    const ps = hist?.positions ?? [];
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const t0 = start.getTime();
+    const bars: Bar[] = Array.from({ length: 7 }, (_, i) => {
+      const dayStart = t0 - (6 - i) * DAY;
+      return { label: new Date(dayStart).toLocaleDateString('ko-KR', { weekday: 'short' }), v: 0, has: false };
+    });
+    let net = 0, win = 0, loss = 0;
+    for (const p of ps) {
+      net += p.netProfit;
+      if (p.netProfit > 0) win++; else if (p.netProfit < 0) loss++;
+      if (p.closeTs >= t0 - 6 * DAY && p.closeTs < t0 + DAY) {
+        const idx = Math.floor((p.closeTs - (t0 - 6 * DAY)) / DAY);
+        if (idx >= 0 && idx < 7) { bars[idx].v += p.netProfit; bars[idx].has = true; }
+      }
+    }
+    return { bars, net, closed: ps.length, win, loss };
+  }, [hist]);
+
   const [modal, setModal] = useState<Modal>(null);
-  const configured = !!acc?.configured;
 
   return (
     <div className="max-w-lg mx-auto pb-12 space-y-4">
@@ -210,27 +213,39 @@ export default function AssetsPage() {
             🔑 API 키가 연결되지 않았습니다 — <span className="underline">계좌 상세에서 설정하기</span>
           </Link>
         )}
-        {acc?.configured && (
+        {configured && (
           <div className="space-y-3">
             {/* USDT-M 선물 잔액(큰 박스) */}
             <div className="rounded-2xl border-2 border-[var(--accent)]/40 bg-[var(--accent-soft)] p-5">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs text-[var(--text-muted)]">USDT-M 선물 잔액 (계좌 순자산)</p>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] font-bold">선물</span>
-              </div>
-              {pos?.account ? (
-                <>
-                  <p className="text-3xl font-bold text-[var(--accent)] tabular-nums">${fmtUsd(pos.account.equity)} <span className="text-sm font-semibold text-[var(--text-muted)]">USDT</span></p>
-                  {toKrw(pos.account.equity) != null && (
-                    <p className="text-sm font-bold text-[var(--text)] tabular-nums mt-0.5">≈ ₩{toKrw(pos.account.equity)!.toLocaleString('ko-KR')}
-                      {krwRate != null && <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1">(1 USDT ≈ ₩{Math.round(krwRate).toLocaleString('ko-KR')})</span>}
-                    </p>
+              {/* 제목 + 사용가능·미실현 포인트 + 선물 배지 */}
+              <div className="flex items-start justify-between gap-2 mb-2.5">
+                <div className="min-w-0">
+                  <p className="text-xs text-[var(--text-muted)]">USDT-M 선물 잔액 <span className="text-[10px]">(계좌 순자산)</span></p>
+                  {pos?.account && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text-muted)]">
+                        사용가능 <b className="text-[var(--text)] tabular-nums">${fmtUsd(pos.account.available)}</b>
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text-muted)]">
+                        미실현 <b className={`tabular-nums ${pos.account.unrealizedPL >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{pos.account.unrealizedPL >= 0 ? '+' : ''}{pos.account.unrealizedPL.toFixed(2)}</b>
+                      </span>
+                    </div>
                   )}
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs tabular-nums">
-                    <span className="text-[var(--text-muted)]">사용가능 <strong className="text-[var(--text)]">${fmtUsd(pos.account.available)}</strong></span>
-                    <span className="text-[var(--text-muted)]">미실현 <strong className={pos.account.unrealizedPL >= 0 ? 'text-emerald-500' : 'text-red-500'}>{pos.account.unrealizedPL >= 0 ? '+' : ''}{pos.account.unrealizedPL.toFixed(2)}</strong></span>
-                  </div>
-                </>
+                </div>
+                <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] font-bold">선물</span>
+              </div>
+
+              {pos?.account ? (
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                  {/* USDT — 크고 파랑 */}
+                  <span className="text-3xl font-extrabold text-[var(--accent)] tabular-nums leading-none">${fmtUsd(pos.account.equity)}</span>
+                  <span className="text-xs font-bold text-[var(--accent)]/70">USDT</span>
+                  {/* KRW — 색·크기 다르게(검정·중간) */}
+                  {toKrw(pos.account.equity) != null && (
+                    <span className="text-lg font-bold text-[var(--text)] tabular-nums">≈ ₩{toKrw(pos.account.equity)!.toLocaleString('ko-KR')}</span>
+                  )}
+                  {krwRate != null && <span className="w-full text-[10px] text-[var(--text-muted)]">1 USDT ≈ ₩{Math.round(krwRate).toLocaleString('ko-KR')}</span>}
+                </div>
               ) : pos?.error ? (
                 <p className="text-sm text-amber-600 mt-1">선물 잔액 조회 실패 — API 키에 선물 읽기 권한이 필요합니다.</p>
               ) : (
@@ -238,19 +253,7 @@ export default function AssetsPage() {
               )}
             </div>
 
-            {/* 현물(spot) 평가금액 박스 */}
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[var(--text-muted)]">현물(spot) 평가금액</p>
-                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{(acc.assets?.length ?? 0)}개 자산 · USDT 환산</p>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-[var(--text)] tabular-nums">${fmtUsd(acc.totalUsdt ?? 0)}</p>
-                {toKrw(acc.totalUsdt ?? 0) != null && <p className="text-[11px] font-semibold text-[var(--text-muted)] tabular-nums">≈ ₩{toKrw(acc.totalUsdt ?? 0)!.toLocaleString('ko-KR')}</p>}
-              </div>
-            </div>
-
-            {/* USDT 선물 포지션 — 자산 화면에서 바로 확인 */}
+            {/* USDT 선물 포지션 — 현물보다 먼저 */}
             {pos?.positions && pos.positions.length > 0 && (
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
                 <div className="flex items-center justify-between mb-2">
@@ -290,34 +293,53 @@ export default function AssetsPage() {
                 <p className="text-[9px] text-[var(--text-muted)] mt-2 opacity-70">읽기 전용 · 15초 갱신 · 청산가는 거래소 계산값</p>
               </div>
             )}
+
+            {/* 현물(spot) 평가금액 박스 — 포지션 아래로 */}
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-[var(--text-muted)]">현물(spot) 평가금액</p>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{(acc?.assets?.length ?? 0)}개 자산 · USDT 환산</p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-[var(--text)] tabular-nums">${fmtUsd(acc?.totalUsdt ?? 0)}</p>
+                {toKrw(acc?.totalUsdt ?? 0) != null && <p className="text-[11px] font-semibold text-[var(--text-muted)] tabular-nums">≈ ₩{toKrw(acc?.totalUsdt ?? 0)!.toLocaleString('ko-KR')}</p>}
+              </div>
+            </div>
           </div>
         )}
       </section>
 
-      {/* ── 성과(최근 7일) ── */}
+      {/* ── 성과(최근 7일) — 거래소 실현손익 ── */}
       <section>
         <div className="fin-sec"><h3>성과 <span className="text-[11px] font-semibold text-[var(--faint)] align-middle">최근 7일</span></h3><Link href="/performance" className="fin-more">전체 성과</Link></div>
         <div className="fin-card p-4">
-          {!ready ? (
+          {!configured ? (
+            <p className="text-xs text-[var(--text-muted)] py-6 text-center">거래소(API 키) 연결 후 표시됩니다.</p>
+          ) : !hist ? (
             <div className="skeleton h-28" />
+          ) : hist.error ? (
+            <p className="text-xs text-amber-600 py-6 text-center">청산 이력 조회 실패 — API 키에 선물 읽기 권한이 필요합니다.</p>
+          ) : perf.closed === 0 ? (
+            <p className="text-xs text-[var(--text-muted)] py-6 text-center">최근 7일 청산된 선물 포지션이 없습니다.</p>
           ) : (
             <>
               <div className="grid grid-cols-3 gap-2 mb-3 text-center">
                 <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+                  <p className="text-[10px] text-[var(--text-muted)]">순손익</p>
+                  <p className={`text-base font-bold tabular-nums ${perf.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{perf.net >= 0 ? '+' : ''}{fmtUsd(perf.net)}</p>
+                  <p className="text-[9px] text-[var(--text-muted)]">USDT</p>
+                </div>
+                <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
                   <p className="text-[10px] text-[var(--text-muted)]">청산</p>
-                  <p className="text-base font-bold tabular-nums text-[var(--text)]">{w7.closed}건</p>
+                  <p className="text-base font-bold tabular-nums text-[var(--text)]">{perf.closed}건</p>
                 </div>
                 <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-                  <p className="text-[10px] text-[var(--text-muted)]">승률</p>
-                  <p className="text-base font-bold tabular-nums text-[var(--text)]">{w7.winRate == null ? '—' : `${w7.winRate.toFixed(0)}%`}</p>
-                </div>
-                <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-                  <p className="text-[10px] text-[var(--text-muted)]">기대값</p>
-                  <p className={`text-base font-bold tabular-nums ${w7.avgR == null ? 'text-[var(--text)]' : w7.avgR >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{w7.avgR == null ? '—' : `${w7.avgR >= 0 ? '+' : ''}${w7.avgR.toFixed(2)}R`}</p>
+                  <p className="text-[10px] text-[var(--text-muted)]">이익·손실</p>
+                  <p className="text-base font-bold tabular-nums"><span className="text-emerald-500">{perf.win}</span><span className="text-[var(--text-muted)]"> · </span><span className="text-red-500">{perf.loss}</span></p>
                 </div>
               </div>
-              <SevenDayGraph rows={allJ} />
-              <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-70">막대 = 일별 순 R 합계(초록 이익·빨강 손실). 기대값은 손절·사이징을 계획한 매매에서만 환산.</p>
+              <PerfGraph bars={perf.bars} />
+              <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-70">막대 = 일별 실현손익(USDT, 초록 이익·빨강 손실) · 거래소 자동 집계</p>
             </>
           )}
         </div>
