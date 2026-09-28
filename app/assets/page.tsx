@@ -1,18 +1,15 @@
 'use client';
 
 /**
- * 자산 — 한 화면 허브. 계좌 잔액(선물/현물)과 최근 7일 성과를 대표로 크게 보여주고,
- * 청산내역·이체내역·매매일지는 작은 박스 버튼 → 팝업(바텀시트)으로 확인한다.
- * 성과 7일은 거래소 실현손익(/api/bitget/history)으로 계산 — 통화 혼합 없이 USDT 실적.
+ * 자산 — 한 화면 허브.
+ * 계좌(선물 잔액 + 현물 평가금액 합침 + 포지션) · 실적(거래소 청산 요약, 7/30/90 토글) · 전체보기(3개 상세 링크).
+ * 실적/요약은 거래소 실현손익(/api/bitget/history)으로 계산 — 통화 혼합 없이 USDT 기준.
  */
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import BottomSheet from '@/components/ui/BottomSheet';
-import ClosedTrades from '@/components/ClosedTrades';
 import UnlockGate from '@/components/UnlockGate';
-import { useCoinJournal } from '@/hooks/useCoinJournal';
-import { useStockJournal } from '@/hooks/useStockJournal';
 import { ICON } from '@/lib/menu';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
@@ -23,8 +20,12 @@ const fmtUsd = (n: number) => {
   if (n < 1) return n.toFixed(4);
   return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 };
-// 부호 있는 손익 표기(음수도 정상 표시) — fmtUsd는 양수 전용이라 절대값에 부호를 붙인다
+// 부호 있는 손익(음수도 정상 표시)
 const fmtPnl = (n: number) => `${n >= 0 ? '+' : '-'}${fmtUsd(Math.abs(n))}`;
+const fmtDate = (ts: number) => { const d = new Date(ts); return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; };
+
+const DAY = 86_400_000;
+
 /* ── 타입(필요 최소) ─────────────────────────────── */
 interface AccountResp { configured?: boolean; totalUsdt?: number; assets?: unknown[]; error?: string; locked?: boolean }
 interface Position {
@@ -33,31 +34,11 @@ interface Position {
   liquidationPrice: number; liqDistPct: number | null;
 }
 interface PositionsResp { configured?: boolean; account?: { equity: number; available: number; unrealizedPL: number; marginCoin: string } | null; positions?: Position[]; error?: string }
-interface Bill { billId: string; ts: number; coin: string; businessType: string; size: number }
-interface ActivityResp { configured: boolean; bills?: Bill[]; error?: string }
-interface HistResp { configured?: boolean; positions?: { netProfit: number; closeTs: number }[]; error?: string }
+interface HistResp { configured?: boolean; positions?: { netProfit: number; closeTs: number }[]; slRecovered?: number; error?: string }
 
-const DAY = 86_400_000;
+type Period = 7 | 30 | 90;
 
-const fmtTs = (ts: number) => {
-  if (!ts) return '-';
-  const d = new Date(ts);
-  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-};
-const fmtAmount = (n: number) => {
-  const abs = Math.abs(n);
-  if (abs >= 1) return n.toLocaleString('en-US', { maximumFractionDigits: 4 });
-  return n.toFixed(8).replace(/\.?0+$/, '');
-};
-const BIZ_LABEL: Record<string, string> = {
-  TRANSFER_IN: '내부 입금', TRANSFER_OUT: '내부 출금', DEPOSIT: '입금', WITHDRAW: '출금',
-  BUY: '매수', SELL: '매도', TRADE: '거래', CONVERT: '환전', REWARD: '보상',
-};
-const bizLabel = (b: string) => BIZ_LABEL[b] ?? b.toLowerCase().replace(/_/g, ' ');
-
-/* ── 최근 7일 일별 이익/손실 분리 막대 그래프 ────────────
- * 하루에 이익(초록·위)과 손실(빨강·아래)을 따로 쌓는다. 그래야 순손익이 마이너스인 날에도
- * 그날의 이익이 보인다(예전엔 일별 순손익이라 이익 매매가 손실에 묻혀 초록이 안 보였음). */
+/* ── 최근 7일 일별 이익/손실 분리 막대 그래프 ──────── */
 interface Bar { label: string; plus: number; minus: number; has: boolean }
 function PerfGraph({ bars }: { bars: Bar[] }) {
   const maxAbs = Math.max(1, ...bars.flatMap((b) => [b.plus, Math.abs(b.minus)]));
@@ -85,100 +66,36 @@ function PerfGraph({ bars }: { bars: Bar[] }) {
   );
 }
 
-/* ── 이체내역(입출금·Bills) 팝업 내용 ───────────── */
-function TransfersBody({ configured }: { configured: boolean }) {
-  const { data } = useSWR<ActivityResp>(configured ? '/api/bitget/activity' : null, fetcher, { revalidateOnFocus: false });
-  if (!configured) return <p className="text-xs text-[var(--text-muted)] py-6 text-center">계좌(API 키)가 연결되지 않았습니다.</p>;
-  if (!data) return <p className="text-xs text-[var(--text-muted)] py-6 text-center animate-pulse">불러오는 중…</p>;
-  const bills = data.bills ?? [];
-  if (!bills.length) return <p className="text-xs text-[var(--text-muted)] py-6 text-center">최근 입출금·이체 내역이 없습니다.</p>;
+/* ── 전체보기 시트의 상세 링크 카드 ──────────────── */
+function NavCard({ href, icon, title, sub, onNavigate }: { href: string; icon: string; title: string; sub: string; onNavigate: () => void }) {
   return (
-    <div className="space-y-1.5">
-      {bills.slice(0, 30).map((b) => {
-        const inflow = b.size > 0;
-        return (
-          <div key={b.billId} className="flex items-center justify-between text-xs rounded-lg bg-[var(--surface-2)] px-3 py-2">
-            <div>
-              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium mr-1.5 ${inflow ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-600'}`}>{bizLabel(b.businessType)}</span>
-              <span className="font-mono text-[var(--text)]">{b.coin}</span>
-              <span className="text-[10px] text-[var(--text-muted)] ml-1.5">{fmtTs(b.ts)}</span>
-            </div>
-            <span className={`tabular-nums font-semibold ${inflow ? 'text-emerald-500' : 'text-red-500'}`}>{inflow ? '+' : ''}{fmtAmount(b.size)}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ── 매매일지 팝업 내용(최근 기록 확인 + 전체 열기) ─ */
-function JournalBody({ rows }: { rows: { key: string; name: string; tag: string; result: string; resultR: number | null; ts: number }[] }) {
-  if (!rows.length) return (
-    <div className="py-8 text-center">
-      <p className="text-sm text-[var(--text)] font-semibold">아직 매매일지 기록이 없습니다</p>
-      <p className="text-xs text-[var(--text-muted)] mt-1">종목·코인 분석에서 판정을 기록하면 여기 모입니다.</p>
-    </div>
-  );
-  const R = (v: number | null) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}R`);
-  const RES: Record<string, { l: string; c: string }> = {
-    win: { l: '승', c: 'text-emerald-500' }, loss: { l: '패', c: 'text-red-500' },
-    even: { l: '본전', c: 'text-[var(--text-muted)]' }, open: { l: '미청산', c: 'text-amber-600' },
-  };
-  return (
-    <div className="space-y-1.5">
-      {rows.slice(0, 30).map((r) => {
-        const res = RES[r.result] ?? RES.open;
-        return (
-          <div key={r.key} className="flex items-center gap-2 text-xs rounded-lg bg-[var(--surface-2)] px-3 py-2">
-            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-card)] text-[var(--text-muted)] shrink-0">{r.tag}</span>
-            <span className="font-semibold text-[var(--text)] truncate flex-1">{r.name}</span>
-            <span className={`font-bold tabular-nums ${r.resultR != null && r.resultR >= 0 ? 'text-emerald-500' : r.resultR != null ? 'text-red-500' : 'text-[var(--text-muted)]'}`}>{R(r.resultR)}</span>
-            <span className={`font-bold shrink-0 ${res.c}`}>{res.l}</span>
-            <span className="text-[10px] text-[var(--text-muted)] shrink-0">{new Date(r.ts).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ── 작은 박스 모달 버튼 ─────────────────────────── */
-function BoxButton({ icon, label, sub, onClick }: { icon: string; label: string; sub: string; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick}
-      className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-3 text-center hover-lift flex flex-col items-center gap-1.5">
-      <span className="w-9 h-9 rounded-xl grid place-items-center bg-[var(--surface-2)] text-[var(--accent)]">
+    <Link href={href} onClick={onNavigate} className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 hover-lift">
+      <span className="w-10 h-10 rounded-xl grid place-items-center bg-[var(--surface-2)] text-[var(--accent)] shrink-0">
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d={ICON[icon]} /></svg>
       </span>
-      <span className="text-[13px] font-bold text-[var(--text)] leading-tight">{label}</span>
-      <span className="text-[10px] text-[var(--text-muted)] leading-tight">{sub}</span>
-    </button>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-[var(--text)]">{title}</p>
+        <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">{sub}</p>
+      </div>
+      <svg className="w-4 h-4 shrink-0 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+    </Link>
   );
 }
 
-type Modal = 'closed' | 'transfers' | 'journal' | null;
-
 export default function AssetsPage() {
+  const [period, setPeriod] = useState<Period>(7);
   const { data: acc, isLoading } = useSWR<AccountResp>('/api/bitget/account', fetcher, { refreshInterval: 30000, revalidateOnFocus: false });
   const configured = !!acc?.configured;
   const { data: pos } = useSWR<PositionsResp>(configured ? '/api/bitget/positions' : null, fetcher, { refreshInterval: 15000, revalidateOnFocus: false });
-  const { data: hist } = useSWR<HistResp>(configured ? '/api/bitget/history?days=7' : null, fetcher, { revalidateOnFocus: false });
+  const { data: hist } = useSWR<HistResp>(configured ? `/api/bitget/history?days=${period}` : null, fetcher, { revalidateOnFocus: false });
   // 원화 환산 — USDT/KRW(업비트) 우선, 없으면 USD/KRW
   const { data: market } = useSWR<{ usdkrw?: { value: number }; usdtkrw?: { value: number } }>('/api/market', fetcher, { refreshInterval: 30000, revalidateOnFocus: false });
   const krwRate = market?.usdtkrw?.value ?? market?.usdkrw?.value ?? null;
   const toKrw = (usd: number) => (krwRate == null ? null : Math.round(usd * krwRate));
 
-  const coin = useCoinJournal();
-  const stock = useStockJournal();
-  const ready = coin.mounted || stock.mounted;
+  const [sheet, setSheet] = useState(false);
 
-  const journalRows = useMemo(() => {
-    const c = coin.entries.map((e) => ({ key: `c${e.id}`, name: e.name, tag: '코인', result: e.result, resultR: e.resultR, ts: e.ts }));
-    const s = stock.entries.map((e) => ({ key: `s${e.id}`, name: e.name, tag: '주식', result: e.result, resultR: e.resultR, ts: e.ts }));
-    return [...c, ...s].sort((a, b) => b.ts - a.ts);
-  }, [coin.entries, stock.entries]);
-
-  // 최근 7일 거래소 실현손익
+  // 선택 기간 거래소 청산 요약 + 최근 7일 일별 막대
   const perf = useMemo(() => {
     const ps = hist?.positions ?? [];
     const start = new Date(); start.setHours(0, 0, 0, 0);
@@ -187,10 +104,11 @@ export default function AssetsPage() {
       const dayStart = t0 - (6 - i) * DAY;
       return { label: new Date(dayStart).toLocaleDateString('ko-KR', { weekday: 'short' }), plus: 0, minus: 0, has: false };
     });
-    let net = 0, win = 0, loss = 0, grossPlus = 0, grossMinus = 0;
+    let net = 0, plus = 0, minus = 0, winN = 0, lossN = 0, minTs = Infinity, maxTs = 0;
     for (const p of ps) {
       net += p.netProfit;
-      if (p.netProfit > 0) { win++; grossPlus += p.netProfit; } else if (p.netProfit < 0) { loss++; grossMinus += p.netProfit; }
+      if (p.netProfit > 0) { plus += p.netProfit; winN++; } else if (p.netProfit < 0) { minus += p.netProfit; lossN++; }
+      if (p.closeTs) { if (p.closeTs < minTs) minTs = p.closeTs; if (p.closeTs > maxTs) maxTs = p.closeTs; }
       if (p.closeTs >= t0 - 6 * DAY && p.closeTs < t0 + DAY) {
         const idx = Math.floor((p.closeTs - (t0 - 6 * DAY)) / DAY);
         if (idx >= 0 && idx < 7) {
@@ -199,18 +117,23 @@ export default function AssetsPage() {
         }
       }
     }
-    return { bars, net, closed: ps.length, win, loss, grossPlus, grossMinus };
+    const decided = winN + lossN;
+    return {
+      closed: ps.length, net, plus, minus, winN, lossN,
+      winRate: decided ? Math.round((winN / decided) * 100) : null,
+      slRecovered: hist?.slRecovered ?? 0,
+      range: ps.length ? `${fmtDate(minTs)} ~ ${fmtDate(maxTs)}` : '',
+      bars,
+    };
   }, [hist]);
-
-  const [modal, setModal] = useState<Modal>(null);
 
   return (
     <div className="max-w-lg mx-auto pb-12 space-y-4">
       {/* ── 계좌 ── */}
       <section>
-        <div className="fin-sec"><h3>계좌</h3><Link href="/bitget" className="fin-more">계좌 상세</Link></div>
+        <div className="fin-sec"><h3>계좌</h3></div>
 
-        {isLoading && <div className="h-28 rounded-2xl bg-[var(--surface-2)] animate-pulse" />}
+        {isLoading && <div className="h-32 rounded-2xl bg-[var(--surface-2)] animate-pulse" />}
         {acc?.locked && <UnlockGate />}
         {acc && !acc.locked && acc.configured === false && (
           <Link href="/bitget" className="block rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-600">
@@ -219,9 +142,8 @@ export default function AssetsPage() {
         )}
         {configured && (
           <div className="space-y-3">
-            {/* USDT-M 선물 잔액(큰 박스) */}
+            {/* USDT-M 선물 잔액 + 현물(spot) 합침 */}
             <div className="rounded-2xl border-2 border-[var(--accent)]/40 bg-[var(--accent-soft)] p-5">
-              {/* 제목 + 사용가능·미실현 포인트 + 선물 배지 */}
               <div className="flex items-start justify-between gap-2 mb-2.5">
                 <div className="min-w-0">
                   <p className="text-xs text-[var(--text-muted)]">USDT-M 선물 잔액 <span className="text-[10px]">(계좌 순자산)</span></p>
@@ -241,10 +163,8 @@ export default function AssetsPage() {
 
               {pos?.account ? (
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                  {/* USDT — 크고 파랑 */}
                   <span className="text-3xl font-extrabold text-[var(--accent)] tabular-nums leading-none">${fmtUsd(pos.account.equity)}</span>
                   <span className="text-xs font-bold text-[var(--accent)]/70">USDT</span>
-                  {/* KRW — 색·크기 다르게(검정·중간) */}
                   {toKrw(pos.account.equity) != null && (
                     <span className="text-lg font-bold text-[var(--text)] tabular-nums">≈ ₩{toKrw(pos.account.equity)!.toLocaleString('ko-KR')}</span>
                   )}
@@ -255,9 +175,18 @@ export default function AssetsPage() {
               ) : (
                 <p className="text-2xl font-bold text-[var(--text-muted)] tabular-nums animate-pulse">불러오는 중…</p>
               )}
+
+              {/* 현물(spot) 평가금액 — 잔액 박스 안으로 합침 */}
+              <div className="mt-3 pt-3 border-t border-[var(--border)]/60 flex items-center justify-between">
+                <p className="text-xs text-[var(--text-muted)]">현물(spot) 평가금액 <span className="text-[10px]">· {(acc?.assets?.length ?? 0)}개 자산</span></p>
+                <p className="text-sm font-bold text-[var(--text)] tabular-nums">
+                  ${fmtUsd(acc?.totalUsdt ?? 0)}
+                  {toKrw(acc?.totalUsdt ?? 0) != null && <span className="text-[11px] font-semibold text-[var(--text-muted)] ml-1.5">≈ ₩{toKrw(acc?.totalUsdt ?? 0)!.toLocaleString('ko-KR')}</span>}
+                </p>
+              </div>
             </div>
 
-            {/* USDT 선물 포지션 — 현물보다 먼저 */}
+            {/* USDT 선물 포지션 */}
             {pos?.positions && pos.positions.length > 0 && (
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
                 <div className="flex items-center justify-between mb-2">
@@ -297,25 +226,21 @@ export default function AssetsPage() {
                 <p className="text-[9px] text-[var(--text-muted)] mt-2 opacity-70">읽기 전용 · 15초 갱신 · 청산가는 거래소 계산값</p>
               </div>
             )}
-
-            {/* 현물(spot) 평가금액 박스 — 포지션 아래로 */}
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[var(--text-muted)]">현물(spot) 평가금액</p>
-                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{(acc?.assets?.length ?? 0)}개 자산 · USDT 환산</p>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-[var(--text)] tabular-nums">${fmtUsd(acc?.totalUsdt ?? 0)}</p>
-                {toKrw(acc?.totalUsdt ?? 0) != null && <p className="text-[11px] font-semibold text-[var(--text-muted)] tabular-nums">≈ ₩{toKrw(acc?.totalUsdt ?? 0)!.toLocaleString('ko-KR')}</p>}
-              </div>
-            </div>
           </div>
         )}
       </section>
 
-      {/* ── 성과(최근 7일) — 거래소 실현손익 ── */}
+      {/* ── 실적 (거래소 청산 요약) ── */}
       <section>
-        <div className="fin-sec"><h3>성과 <span className="text-[11px] font-semibold text-[var(--faint)] align-middle">최근 7일</span></h3><Link href="/performance" className="fin-more">전체 성과</Link></div>
+        <div className="fin-sec">
+          <h3>실적</h3>
+          <div className="flex gap-1">
+            {([7, 30, 90] as Period[]).map((d) => (
+              <button key={d} type="button" onClick={() => setPeriod(d)}
+                className={`text-[11px] px-2 py-1 rounded-lg font-semibold ${period === d ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'bg-[var(--surface-2)] text-[var(--text-muted)]'}`}>{d}일</button>
+            ))}
+          </div>
+        </div>
         <div className="fin-card p-4">
           {!configured ? (
             <p className="text-xs text-[var(--text-muted)] py-6 text-center">거래소(API 키) 연결 후 표시됩니다.</p>
@@ -324,52 +249,60 @@ export default function AssetsPage() {
           ) : hist.error ? (
             <p className="text-xs text-amber-600 py-6 text-center">청산 이력 조회 실패 — API 키에 선물 읽기 권한이 필요합니다.</p>
           ) : perf.closed === 0 ? (
-            <p className="text-xs text-[var(--text-muted)] py-6 text-center">최근 7일 청산된 선물 포지션이 없습니다.</p>
+            <p className="text-xs text-[var(--text-muted)] py-6 text-center">최근 {period}일 청산된 선물 포지션이 없습니다.</p>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-2 mb-3 text-center">
+              <p className="text-[11px] text-[var(--text-muted)] mb-2">{perf.range} <span className="opacity-60">· 거래소 자동 집계(USDT)</span></p>
+              <div className="grid grid-cols-3 gap-2 mb-2 text-center">
                 <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-                  <p className="text-[10px] text-[var(--text-muted)]">순손익</p>
+                  <p className="text-[10px] text-[var(--text-muted)]">순손익 합계</p>
                   <p className={`text-base font-bold tabular-nums ${perf.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{fmtPnl(perf.net)}</p>
-                  <p className="text-[9px] text-[var(--text-muted)]">USDT</p>
                 </div>
                 <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-                  <p className="text-[10px] text-[var(--text-muted)]">청산</p>
-                  <p className="text-base font-bold tabular-nums text-[var(--text)]">{perf.closed}건</p>
+                  <p className="text-[10px] text-[var(--text-muted)]">건수 · 승률</p>
+                  <p className="text-base font-bold tabular-nums text-[var(--text)]">{perf.closed}건 · {perf.winRate ?? 0}%</p>
                 </div>
                 <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-                  <p className="text-[10px] text-[var(--text-muted)]">이익 · 손실</p>
-                  <p className="text-sm font-bold tabular-nums leading-tight"><span className="text-emerald-500">{fmtPnl(perf.grossPlus)}</span><span className="text-[var(--text-muted)]"> · </span><span className="text-red-500">{fmtPnl(perf.grossMinus)}</span></p>
-                  <p className="text-[9px] text-[var(--text-muted)]">{perf.win}승 {perf.loss}패</p>
+                  <p className="text-[10px] text-[var(--text-muted)]">손절가 복구</p>
+                  <p className="text-base font-bold tabular-nums text-[var(--text)]">{perf.slRecovered}건</p>
                 </div>
               </div>
-              <PerfGraph bars={perf.bars} />
-              <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-70">막대 = 하루의 이익(초록·위)·손실(빨강·아래)을 따로 표시 · 거래소 자동 집계(USDT)</p>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.05] p-2.5 text-center">
+                  <p className="text-[10px] text-[var(--text-muted)]">플러스 합계 <span className="text-emerald-600">{perf.winN}건</span></p>
+                  <p className="text-base font-bold tabular-nums text-emerald-500">{fmtPnl(perf.plus)}</p>
+                </div>
+                <div className="rounded-xl border border-red-500/25 bg-red-500/[0.05] p-2.5 text-center">
+                  <p className="text-[10px] text-[var(--text-muted)]">마이너스 합계 <span className="text-red-600">{perf.lossN}건</span></p>
+                  <p className="text-base font-bold tabular-nums text-red-500">{fmtPnl(perf.minus)}</p>
+                </div>
+              </div>
+              {period === 7 ? (
+                <>
+                  <PerfGraph bars={perf.bars} />
+                  <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-70">막대 = 하루의 이익(초록·위)·손실(빨강·아래) · 거래소 자동 집계</p>
+                </>
+              ) : (
+                <p className="text-[10px] text-[var(--text-muted)] opacity-70">일별 막대는 7일에서만 표시됩니다. 상세 내역은 전체보기 → 계좌 상세.</p>
+              )}
             </>
           )}
         </div>
       </section>
 
-      {/* ── 작은 박스 버튼 → 팝업 ── */}
-      <div className="grid grid-cols-3 gap-2.5">
-        <BoxButton icon="signal"    label="청산내역"  sub="USDT 선물" onClick={() => setModal('closed')} />
-        <BoxButton icon="portfolio" label="이체내역"  sub="입출금"     onClick={() => setModal('transfers')} />
-        <BoxButton icon="journal"   label="매매일지"  sub="기록·복기"  onClick={() => setModal('journal')} />
-      </div>
+      {/* ── 전체보기 ── */}
+      <button type="button" onClick={() => setSheet(true)}
+        className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 flex items-center justify-center gap-2 font-bold text-[var(--text)] hover-lift">
+        <svg className="w-5 h-5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+        전체보기
+      </button>
 
-      {/* ── 팝업들 ── */}
-      <BottomSheet open={modal === 'closed'} onClose={() => setModal(null)} title="선물 청산 내역" full>
-        {configured ? <ClosedTrades /> : <p className="text-xs text-[var(--text-muted)] py-6 text-center">계좌(API 키)가 연결되지 않았습니다.</p>}
-      </BottomSheet>
-
-      <BottomSheet open={modal === 'transfers'} onClose={() => setModal(null)} title="입출금·이체 내역">
-        <TransfersBody configured={configured} />
-      </BottomSheet>
-
-      <BottomSheet open={modal === 'journal'} onClose={() => setModal(null)} title="매매일지"
-        full
-        footer={<Link href="/journal" className="kl-cta block text-center py-2.5 text-sm" onClick={() => setModal(null)}>전체 매매일지 열기 (결과 입력·복기)</Link>}>
-        {ready ? <JournalBody rows={journalRows} /> : <div className="skeleton h-40" />}
+      <BottomSheet open={sheet} onClose={() => setSheet(false)} title="전체보기">
+        <div className="space-y-2">
+          <NavCard href="/bitget" icon="bitget" title="계좌 상세" sub="잔고·포지션·청산 내역·입출금" onNavigate={() => setSheet(false)} />
+          <NavCard href="/performance" icon="growth" title="전체 성과" sub="승률·기대값·주간 리뷰" onNavigate={() => setSheet(false)} />
+          <NavCard href="/journal" icon="journal" title="매매일지" sub="기록·결과 입력·복기" onNavigate={() => setSheet(false)} />
+        </div>
       </BottomSheet>
     </div>
   );

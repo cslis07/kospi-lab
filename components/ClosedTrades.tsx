@@ -20,6 +20,7 @@ interface Resp { configured?: boolean; error?: string; positions?: ClosedPositio
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const fnum = (n: number, d = 2) => n.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: 0 });
 const fdt = (ts: number) => { const d = new Date(ts); return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+const fdate = (ts: number) => { const d = new Date(ts); return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; };
 
 type SortKey = 'time' | 'symbol' | 'pnl';
 
@@ -55,6 +56,8 @@ export default function ClosedTrades() {
   const total = pos.reduce((a, p) => a + p.netProfit, 0);
   const wins = pos.filter((p) => p.netProfit > 0).length;
   const decided = pos.filter((p) => p.netProfit !== 0).length;
+  const closeTimes = pos.map((p) => p.closeTs).filter(Boolean);
+  const rangeStr = closeTimes.length ? `${fdate(Math.min(...closeTimes))} ~ ${fdate(Math.max(...closeTimes))}` : '';
 
   const toggle = (k: SortKey) => { if (sortKey === k) setAsc((v) => !v); else { setSortKey(k); setAsc(k === 'symbol'); } };
   const arrow = (k: SortKey) => (sortKey === k ? (asc ? ' ▲' : ' ▼') : '');
@@ -82,6 +85,7 @@ export default function ClosedTrades() {
 
       {pos.length > 0 && (
         <>
+          {rangeStr && <p className="text-[11px] text-[var(--text-muted)] mb-2">{rangeStr} <span className="opacity-60">· 최근 {days}일</span></p>}
           <div className="grid grid-cols-3 gap-2 mb-2 text-center">
             <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
               <p className="text-[10px] text-[var(--text-muted)]">순손익 합계</p>
