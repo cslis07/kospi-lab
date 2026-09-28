@@ -4,8 +4,9 @@
  * 비트겟 USDT 선물 청산 내역 — 거래소가 아는 사실을 그대로 표로.
  * 진입가·청산가·순손익(수수료·펀딩 반영)·진입/청산 시각 + SL 주문에서 복구한 손절가.
  * 읽기 전용 조회. /api/bitget/history (게이트 뒤, 선물 읽기 권한 필요).
+ * 정렬: 종목·순손익·청산시각(헤더 클릭 토글). 요약에 플러스 합계·마이너스 합계 분리 표시.
  */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import useSWR from 'swr';
 
 interface ClosedPosition {
@@ -20,15 +21,44 @@ const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const fnum = (n: number, d = 2) => n.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: 0 });
 const fdt = (ts: number) => { const d = new Date(ts); return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
+type SortKey = 'time' | 'symbol' | 'pnl';
+
 export default function ClosedTrades() {
   const [days, setDays] = useState(30);
+  const [sortKey, setSortKey] = useState<SortKey>('time');
+  const [asc, setAsc] = useState(false);
   const { data, isLoading } = useSWR<Resp>(`/api/bitget/history?days=${days}`, fetcher, { revalidateOnFocus: false });
 
+  const pos = useMemo(() => data?.positions ?? [], [data]);
+  const sorted = useMemo(() => {
+    const arr = [...pos];
+    arr.sort((a, b) => {
+      let d: number;
+      if (sortKey === 'symbol') d = a.symbol.localeCompare(b.symbol) || a.closeTs - b.closeTs;
+      else if (sortKey === 'pnl') d = a.netProfit - b.netProfit;
+      else d = a.closeTs - b.closeTs;
+      return asc ? d : -d;
+    });
+    return arr;
+  }, [pos, sortKey, asc]);
+  // 순손익 플러스/마이너스 각각의 합계·건수
+  const tot = useMemo(() => {
+    let plus = 0, minus = 0, winN = 0, lossN = 0;
+    for (const p of pos) {
+      if (p.netProfit > 0) { plus += p.netProfit; winN++; }
+      else if (p.netProfit < 0) { minus += p.netProfit; lossN++; }
+    }
+    return { plus, minus, winN, lossN };
+  }, [pos]);
+
   if (data && data.configured === false) return null;         // 키 미설정은 상위 안내로 충분
-  const pos = data?.positions ?? [];
   const total = pos.reduce((a, p) => a + p.netProfit, 0);
   const wins = pos.filter((p) => p.netProfit > 0).length;
   const decided = pos.filter((p) => p.netProfit !== 0).length;
+
+  const toggle = (k: SortKey) => { if (sortKey === k) setAsc((v) => !v); else { setSortKey(k); setAsc(k === 'symbol'); } };
+  const arrow = (k: SortKey) => (sortKey === k ? (asc ? ' ▲' : ' ▼') : '');
+  const thSort = 'cursor-pointer select-none hover:text-[var(--text)]';
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
@@ -52,7 +82,7 @@ export default function ClosedTrades() {
 
       {pos.length > 0 && (
         <>
-          <div className="grid grid-cols-3 gap-2 mb-3 text-center">
+          <div className="grid grid-cols-3 gap-2 mb-2 text-center">
             <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
               <p className="text-[10px] text-[var(--text-muted)]">순손익 합계</p>
               <p className={`text-base font-bold tabular-nums ${total >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{total >= 0 ? '+' : ''}{fnum(total)}</p>
@@ -67,21 +97,33 @@ export default function ClosedTrades() {
             </div>
           </div>
 
+          {/* 플러스·마이너스 합계 분리 */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.05] p-2.5 text-center">
+              <p className="text-[10px] text-[var(--text-muted)]">플러스 합계 <span className="text-emerald-600">{tot.winN}건</span></p>
+              <p className="text-base font-bold tabular-nums text-emerald-500">+{fnum(tot.plus)}</p>
+            </div>
+            <div className="rounded-xl border border-red-500/25 bg-red-500/[0.05] p-2.5 text-center">
+              <p className="text-[10px] text-[var(--text-muted)]">마이너스 합계 <span className="text-red-600">{tot.lossN}건</span></p>
+              <p className="text-base font-bold tabular-nums text-red-500">{fnum(tot.minus)}</p>
+            </div>
+          </div>
+
           <div className="overflow-x-auto -mx-1 px-1">
             <table className="w-full text-[11px] min-w-[560px]">
               <thead>
                 <tr className="text-[var(--text-muted)] text-left border-b border-[var(--border)]">
-                  <th className="font-normal py-1.5">종목</th>
+                  <th className={`font-normal py-1.5 ${thSort}`} onClick={() => toggle('symbol')}>종목{arrow('symbol')}</th>
                   <th className="font-normal text-right">진입가</th>
                   <th className="font-normal text-right">청산가</th>
                   <th className="font-normal text-right">손절가</th>
-                  <th className="font-normal text-right">순손익</th>
+                  <th className={`font-normal text-right ${thSort}`} onClick={() => toggle('pnl')}>순손익{arrow('pnl')}</th>
                   <th className="font-normal text-right">진입</th>
-                  <th className="font-normal text-right">청산</th>
+                  <th className={`font-normal text-right ${thSort}`} onClick={() => toggle('time')}>청산{arrow('time')}</th>
                 </tr>
               </thead>
               <tbody className="tabular-nums">
-                {pos.map((p) => (
+                {sorted.map((p) => (
                   <tr key={p.positionId} className="border-b border-[var(--border)]/50">
                     <td className="py-1.5">
                       <span className="font-semibold text-[var(--text)]">{p.symbol.replace('USDT', '')}</span>
@@ -100,7 +142,7 @@ export default function ClosedTrades() {
           </div>
           <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
             순손익 = 실현손익 − 수수료 + 펀딩. 손절가는 거래소에 <strong>SL 주문을 걸어둔 매매</strong>에서만 복구됩니다(계획 손절은 지어내지 않음).
-            이 데이터는 <strong>매매일지 → 거래소 대조</strong>로 성적표에 자동 반영됩니다.
+            헤더의 <strong>종목·순손익·청산</strong>을 눌러 정렬할 수 있습니다.
           </p>
         </>
       )}
