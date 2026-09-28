@@ -2,23 +2,21 @@
 
 /**
  * 홈 › 관심종목(전체 목록) — 시장 세그먼트 + 정렬·시장 칩 + 고밀도 행.
- * 행을 왼쪽으로 밀면 분석/가상·삭제, ⋮ 는 전체 동작(상세·분석·가상투자·매매 계획·삭제).
+ * 각 종목 아래에 시장별 액션 버튼(버튼형): 국내=상세·분석·삭제 / 해외=상세·삭제 / 코인=상세·(분석)·삭제.
  * 삭제는 4초간 되돌리기 가능. 추가는 통합 검색 시트(☆). 현재 탭 시장의 시세만 호출.
  */
-import { useState, useMemo, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useMemo, useEffect, Suspense, type ReactNode } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import useSWR from 'swr';
 import WatchRow from '@/components/WatchRow';
-import SwipeRow, { type RowAction } from '@/components/SwipeRow';
-import ActionSheet, { type SheetAction } from '@/components/ui/ActionSheet';
-import VirtualTradeModal from '@/components/VirtualTradeModal';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useAlerts } from '@/hooks/useAlerts';
 import { COINS, fmtCoinPrice } from '@/lib/coins';
-import type { StockData, OverseasStockData, CryptoData, AssetType, TradeCurrency } from '@/lib/types';
+import type { StockData, OverseasStockData, CryptoData } from '@/lib/types';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 type MarketTab = 'domestic' | 'overseas' | 'crypto';
@@ -28,21 +26,30 @@ const TAB_KEY = 'kospi-lab-my-stocks-tab';
 const ANALYZABLE = ['BTC', 'ETH', 'XRP', 'SOL'];
 const openSearch = () => window.dispatchEvent(new Event('kl:open-search'));
 
-interface Trade { symbol: string; name: string; assetType: AssetType; price: number; currency: TradeCurrency }
 interface Row {
   key: string; href: string; title: string; sub: string; badge: string; price: string;
   cr: number | null | undefined; loading: boolean;
-  analysis?: string; trade?: Trade; remove: () => void;
+  detailLabel: string; analysis?: string; analysisLabel?: string; remove: () => void;
+}
+
+/* 종목 행 아래 액션 버튼(버튼형 pill) */
+function Pill({ href, onClick, tone, children }: { href?: string; onClick?: () => void; tone: 'muted' | 'accent' | 'danger'; children: ReactNode }) {
+  const t = tone === 'danger'
+    ? 'text-red-500 bg-red-500/10 border-red-500/30'
+    : tone === 'accent'
+      ? 'text-white bg-[var(--accent)] border-transparent shadow-sm'
+      : 'text-[var(--text)] bg-[var(--surface-2)] border-[var(--border)]';
+  const cls = `inline-flex items-center gap-1 text-[12px] font-bold px-3 py-1.5 rounded-full border transition-colors ${t}`;
+  return href
+    ? <Link href={href} className={cls} onClick={(e) => e.stopPropagation()}>{children}</Link>
+    : <button type="button" className={cls} onClick={onClick}>{children}</button>;
 }
 
 function MyStocksInner() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<MarketTab>('domestic');
   const [sort, setSort] = useState<Sort>('default');
   const [krFilter, setKrFilter] = useState<KrFilter>('all');
-  const [menu, setMenu] = useState<{ title: string; actions: SheetAction[] } | null>(null);
-  const [trade, setTrade] = useState<Trade | null>(null);
   const [toast, setToast] = useState<{ text: string; undo: () => void } | null>(null);
 
   useEffect(() => {
@@ -82,8 +89,7 @@ function MyStocksInner() {
         return {
           key: w.ticker, href: `/stock/${w.ticker}`, title: w.name, sub: parts.join(' · '), badge: w.name.slice(0, 1),
           price: d ? d.price.toLocaleString('ko-KR') : '—', cr: d?.changeRate, loading: !krData,
-          analysis: `/stock-analysis?ticker=${w.ticker}&run=1`,
-          trade: d ? { symbol: w.ticker, name: w.name, assetType: 'domestic', price: d.price, currency: 'KRW' } : undefined,
+          detailLabel: '종목 상세', analysis: `/stock-analysis?ticker=${w.ticker}&run=1`, analysisLabel: '종목 분석',
           remove: () => { kr.remove(w.ticker); setToast({ text: `${w.name} 삭제됨`, undo: () => kr.add(w) }); },
         };
       });
@@ -93,7 +99,7 @@ function MyStocksInner() {
         return {
           key: w.symbol, href: `/overseas/${encodeURIComponent(w.symbol)}`, title: w.name, sub: `${w.symbol} · ${w.exchange}`, badge: w.symbol.slice(0, 2),
           price: d ? `$${d.price.toFixed(2)}` : '—', cr: d?.changeRate, loading: !ovData,
-          trade: d ? { symbol: w.symbol, name: w.name, assetType: 'overseas', price: d.price, currency: 'USD' } : undefined,
+          detailLabel: '종목 상세',
           remove: () => { ov.remove(w.symbol); setToast({ text: `${w.name} 삭제됨`, undo: () => ov.add(w) }); },
         };
       });
@@ -104,14 +110,13 @@ function MyStocksInner() {
         return {
           key: w.symbol, href: `/crypto/${w.symbol}`, title: ko, sub: `${w.base} · USDT`, badge: w.base.slice(0, 3),
           price: fmtCoinPrice(d?.price), cr: d?.changeRate, loading: !crData,
-          analysis: ANALYZABLE.includes(w.base) ? `/coin-analysis?symbol=${w.symbol}&run=1` : undefined,
-          trade: d ? { symbol: w.symbol, name: w.name, assetType: 'crypto', price: d.price, currency: 'USD' } : undefined,
+          detailLabel: '코인 상세',
+          analysis: ANALYZABLE.includes(w.base) ? `/coin-analysis?symbol=${w.symbol}&run=1` : undefined, analysisLabel: '코인선물 분석',
           remove: () => { cr.remove(w.symbol); setToast({ text: `${ko} 삭제됨`, undo: () => cr.add(w) }); },
         };
       });
     }
     if (sort === 'default') return list;
-    // 등락률 정렬 — 시세 없는 행은 뒤로
     return [...list].sort((a, b) => {
       if (a.cr == null) return 1;
       if (b.cr == null) return -1;
@@ -135,21 +140,6 @@ function MyStocksInner() {
   const mounted = tab === 'domestic' ? kr.mounted : tab === 'overseas' ? ov.mounted : cr.mounted;
   const counts = { domestic: kr.watchlist.length, overseas: ov.watchlist.length, crypto: cr.watchlist.length };
   const TABS: { key: MarketTab; label: string }[] = [{ key: 'domestic', label: '국내' }, { key: 'overseas', label: '해외' }, { key: 'crypto', label: '코인' }];
-
-  const openMenu = (r: Row) => setMenu({
-    title: r.title,
-    actions: [
-      { label: '상세 보기', sub: '차트·정보', icon: 'domestic', href: r.href },
-      ...(r.analysis ? [{ label: tab === 'crypto' ? '코인선물 분석' : '종목 분석', sub: '체크리스트', icon: 'analysis', href: r.analysis }] : []),
-      ...(r.trade ? [{ label: '가상투자', sub: '모의 매수·매도', icon: 'virtual', onClick: () => setTrade(r.trade!) }] : []),
-      { label: '관심종목에서 삭제', icon: 'star', danger: true, onClick: r.remove },
-    ],
-  });
-  const swipeActions = (r: Row): RowAction[] => [
-    ...(r.analysis ? [{ label: '분석', icon: 'analysis', tone: 'accent' as const, onClick: () => router.push(r.analysis!) }]
-      : r.trade ? [{ label: '가상', icon: 'virtual', tone: 'muted' as const, onClick: () => setTrade(r.trade!) }] : []),
-    { label: '삭제', icon: 'star', tone: 'danger' as const, onClick: r.remove },
-  ];
 
   return (
     <div className="max-w-3xl mx-auto pb-6">
@@ -192,10 +182,10 @@ function MyStocksInner() {
       <div className="fin-card overflow-hidden">
         {!mounted ? (
           [0, 1, 2, 3].map((i) => (
-            <div key={i} className="wl-row"><div className="wl-main">
+            <div key={i} className="wl-row">
               <span className="skeleton w-9 h-9 rounded-full shrink-0" />
               <span className="flex-1 space-y-1.5"><span className="skeleton h-3.5 w-24" /><span className="skeleton h-2.5 w-16" /></span>
-            </div></div>
+            </div>
           ))
         ) : rows.length === 0 ? (
           <div className="px-5 py-14 text-center">
@@ -204,21 +194,19 @@ function MyStocksInner() {
             {!counts[tab] && <button type="button" onClick={openSearch} className="kl-cta mt-4 px-4 py-2 text-sm">종목 검색</button>}
           </div>
         ) : (
-          rows.map((r) => (
-            <SwipeRow key={r.key} actions={swipeActions(r)}>
-              <WatchRow href={r.href} title={r.title} sub={r.sub} badge={r.badge} price={r.price} changeRate={r.cr} loading={r.loading} onMore={() => openMenu(r)} />
-            </SwipeRow>
+          rows.map((r, i) => (
+            <div key={r.key} className={i > 0 ? 'border-t border-[var(--line-2)]' : ''}>
+              <WatchRow href={r.href} title={r.title} sub={r.sub} badge={r.badge} price={r.price} changeRate={r.cr} loading={r.loading} />
+              <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+                <Pill href={r.href} tone="muted">{r.detailLabel}</Pill>
+                {r.analysis && <Pill href={r.analysis} tone="accent">{r.analysisLabel ?? '분석'}</Pill>}
+                <Pill onClick={r.remove} tone="danger">삭제</Pill>
+              </div>
+            </div>
           ))
         )}
       </div>
-      {mounted && rows.length > 0 && (
-        <p className="text-[11.5px] text-[var(--faint)] mt-2.5 px-1">행을 왼쪽으로 밀면 {tab === 'overseas' ? '가상투자' : '분석'}·삭제, ⋮ 는 전체 메뉴</p>
-      )}
 
-      <ActionSheet open={!!menu} onClose={() => setMenu(null)} title={menu?.title} actions={menu?.actions ?? []} />
-      {trade && (
-        <VirtualTradeModal symbol={trade.symbol} name={trade.name} assetType={trade.assetType} price={trade.price} currency={trade.currency} onClose={() => setTrade(null)} />
-      )}
       {toast && (
         <div className="toast" role="status">
           {toast.text}
