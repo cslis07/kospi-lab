@@ -23,9 +23,8 @@ const fmtUsd = (n: number) => {
   if (n < 1) return n.toFixed(4);
   return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 };
-// 그래프 라벨용 짧은 표기(부호 포함)
-const fmtShort = (n: number) => (Math.abs(n) >= 1 ? `${n >= 0 ? '+' : ''}${Math.round(n)}` : `${n >= 0 ? '+' : ''}${n.toFixed(1)}`);
-
+// 부호 있는 손익 표기(음수도 정상 표시) — fmtUsd는 양수 전용이라 절대값에 부호를 붙인다
+const fmtPnl = (n: number) => `${n >= 0 ? '+' : '-'}${fmtUsd(Math.abs(n))}`;
 /* ── 타입(필요 최소) ─────────────────────────────── */
 interface AccountResp { configured?: boolean; totalUsdt?: number; assets?: unknown[]; error?: string; locked?: boolean }
 interface Position {
@@ -56,25 +55,27 @@ const BIZ_LABEL: Record<string, string> = {
 };
 const bizLabel = (b: string) => BIZ_LABEL[b] ?? b.toLowerCase().replace(/_/g, ' ');
 
-/* ── 최근 7일 일별 실현손익(USDT) 막대 그래프 (값 라벨 표시) ─── */
-interface Bar { label: string; v: number; has: boolean }
+/* ── 최근 7일 일별 이익/손실 분리 막대 그래프 ────────────
+ * 하루에 이익(초록·위)과 손실(빨강·아래)을 따로 쌓는다. 그래야 순손익이 마이너스인 날에도
+ * 그날의 이익이 보인다(예전엔 일별 순손익이라 이익 매매가 손실에 묻혀 초록이 안 보였음). */
+interface Bar { label: string; plus: number; minus: number; has: boolean }
 function PerfGraph({ bars }: { bars: Bar[] }) {
-  const maxAbs = Math.max(1, ...bars.map((b) => Math.abs(b.v)));
+  const maxAbs = Math.max(1, ...bars.flatMap((b) => [b.plus, Math.abs(b.minus)]));
   return (
-    <div className="flex items-end justify-between gap-1.5 h-32 px-1">
+    <div className="flex items-stretch justify-between gap-1.5 h-32 px-1">
       {bars.map((b, i) => {
-        const h = Math.round((Math.abs(b.v) / maxAbs) * 40);
-        const up = b.v >= 0;
+        const hp = Math.round((b.plus / maxAbs) * 40);
+        const hm = Math.round((Math.abs(b.minus) / maxAbs) * 40);
         return (
           <div key={i} className="flex-1 flex flex-col items-center h-full">
             <div className="flex-1 w-full flex flex-col justify-end items-center">
-              {b.has && up && <span className="text-[8.5px] font-bold text-emerald-500 tabular-nums mb-0.5">{fmtShort(b.v)}</span>}
-              {b.has && up && <div className="w-full max-w-[26px] rounded-t bg-emerald-400/80" style={{ height: `${Math.max(3, h)}px` }} />}
+              {b.plus > 0 && <span className="text-[8.5px] font-bold text-emerald-500 tabular-nums mb-0.5">+{Math.round(b.plus)}</span>}
+              {b.plus > 0 && <div className="w-full max-w-[26px] rounded-t bg-emerald-400/85" style={{ height: `${Math.max(3, hp)}px` }} />}
             </div>
             <div className="w-full h-px bg-[var(--border)]" />
             <div className="flex-1 w-full flex flex-col justify-start items-center">
-              {b.has && !up && <div className="w-full max-w-[26px] rounded-b bg-red-400/80" style={{ height: `${Math.max(3, h)}px` }} />}
-              {b.has && !up && <span className="text-[8.5px] font-bold text-red-500 tabular-nums mt-0.5">{fmtShort(b.v)}</span>}
+              {b.minus < 0 && <div className="w-full max-w-[26px] rounded-b bg-red-400/85" style={{ height: `${Math.max(3, hm)}px` }} />}
+              {b.minus < 0 && <span className="text-[8.5px] font-bold text-red-500 tabular-nums mt-0.5">{Math.round(b.minus)}</span>}
             </div>
             <span className="text-[9px] text-[var(--text-muted)] mt-0.5">{b.label}</span>
           </div>
@@ -184,18 +185,21 @@ export default function AssetsPage() {
     const t0 = start.getTime();
     const bars: Bar[] = Array.from({ length: 7 }, (_, i) => {
       const dayStart = t0 - (6 - i) * DAY;
-      return { label: new Date(dayStart).toLocaleDateString('ko-KR', { weekday: 'short' }), v: 0, has: false };
+      return { label: new Date(dayStart).toLocaleDateString('ko-KR', { weekday: 'short' }), plus: 0, minus: 0, has: false };
     });
-    let net = 0, win = 0, loss = 0;
+    let net = 0, win = 0, loss = 0, grossPlus = 0, grossMinus = 0;
     for (const p of ps) {
       net += p.netProfit;
-      if (p.netProfit > 0) win++; else if (p.netProfit < 0) loss++;
+      if (p.netProfit > 0) { win++; grossPlus += p.netProfit; } else if (p.netProfit < 0) { loss++; grossMinus += p.netProfit; }
       if (p.closeTs >= t0 - 6 * DAY && p.closeTs < t0 + DAY) {
         const idx = Math.floor((p.closeTs - (t0 - 6 * DAY)) / DAY);
-        if (idx >= 0 && idx < 7) { bars[idx].v += p.netProfit; bars[idx].has = true; }
+        if (idx >= 0 && idx < 7) {
+          if (p.netProfit >= 0) bars[idx].plus += p.netProfit; else bars[idx].minus += p.netProfit;
+          bars[idx].has = true;
+        }
       }
     }
-    return { bars, net, closed: ps.length, win, loss };
+    return { bars, net, closed: ps.length, win, loss, grossPlus, grossMinus };
   }, [hist]);
 
   const [modal, setModal] = useState<Modal>(null);
@@ -326,7 +330,7 @@ export default function AssetsPage() {
               <div className="grid grid-cols-3 gap-2 mb-3 text-center">
                 <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
                   <p className="text-[10px] text-[var(--text-muted)]">순손익</p>
-                  <p className={`text-base font-bold tabular-nums ${perf.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{perf.net >= 0 ? '+' : ''}{fmtUsd(perf.net)}</p>
+                  <p className={`text-base font-bold tabular-nums ${perf.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{fmtPnl(perf.net)}</p>
                   <p className="text-[9px] text-[var(--text-muted)]">USDT</p>
                 </div>
                 <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
@@ -334,12 +338,13 @@ export default function AssetsPage() {
                   <p className="text-base font-bold tabular-nums text-[var(--text)]">{perf.closed}건</p>
                 </div>
                 <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-                  <p className="text-[10px] text-[var(--text-muted)]">이익·손실</p>
-                  <p className="text-base font-bold tabular-nums"><span className="text-emerald-500">{perf.win}</span><span className="text-[var(--text-muted)]"> · </span><span className="text-red-500">{perf.loss}</span></p>
+                  <p className="text-[10px] text-[var(--text-muted)]">이익 · 손실</p>
+                  <p className="text-sm font-bold tabular-nums leading-tight"><span className="text-emerald-500">{fmtPnl(perf.grossPlus)}</span><span className="text-[var(--text-muted)]"> · </span><span className="text-red-500">{fmtPnl(perf.grossMinus)}</span></p>
+                  <p className="text-[9px] text-[var(--text-muted)]">{perf.win}승 {perf.loss}패</p>
                 </div>
               </div>
               <PerfGraph bars={perf.bars} />
-              <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-70">막대 = 일별 실현손익(USDT, 초록 이익·빨강 손실) · 거래소 자동 집계</p>
+              <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-70">막대 = 하루의 이익(초록·위)·손실(빨강·아래)을 따로 표시 · 거래소 자동 집계(USDT)</p>
             </>
           )}
         </div>
