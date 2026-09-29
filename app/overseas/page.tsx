@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import { OVERSEAS_LIST } from '@/lib/overseasList';
@@ -169,6 +170,17 @@ export default function OverseasPage() {
 
   const isLoading = Object.keys(allData).length === 0;
 
+  // 등락 TOP — 수록 종목(OVERSEAS_LIST) 중 실시간 등락률 정렬(국내 RankList와 동일한 카드 구성)
+  const ranked = useMemo(() => {
+    const withData = OVERSEAS_LIST
+      .map((s): { s: MarketItem; d?: OverseasStockData } => ({ s: { symbol: s.symbol, name: s.name, exchange: s.exchange }, d: allData[s.symbol] }))
+      .filter((x): x is { s: MarketItem; d: OverseasStockData } => !!x.d && Number.isFinite(x.d.changeRate));
+    return {
+      gainers: [...withData].sort((a, b) => b.d.changeRate - a.d.changeRate).slice(0, 4),
+      losers: [...withData].sort((a, b) => a.d.changeRate - b.d.changeRate).slice(0, 4),
+    };
+  }, [allData]);
+
   const filtered = useMemo(() => {
     let list: MarketItem[] = OVERSEAS_LIST;
     if (exchFilter !== 'all') list = list.filter((s) => s.exchange === exchFilter);
@@ -192,6 +204,48 @@ export default function OverseasPage() {
 
   return (
     <div className="pb-12">
+      {/* 등락 TOP — 수록 종목 중(Yahoo 실시간), 국내와 동일한 카드 구성 */}
+      <div className="grid gap-6 md:grid-cols-2 mb-7">
+        {(['gainers', 'losers'] as const).map((kind) => {
+          const up = kind === 'gainers';
+          const rows = ranked[kind];
+          return (
+            <section key={kind}>
+              <div className="fin-sec">
+                <h3>{up ? '상승률 TOP' : '하락률 TOP'} <span className="ml-2 text-[11px] font-semibold text-[var(--faint)] align-middle">수록 종목 중</span></h3>
+              </div>
+              <div className="fin-card overflow-hidden">
+                {isLoading ? (
+                  [0, 1, 2, 3].map((i) => (
+                    <div key={i} className="fin-row">
+                      <div className="flex-1 space-y-1.5"><span className="skeleton h-3.5 w-24" /><span className="skeleton h-2.5 w-16" /></div>
+                      <div className="flex flex-col items-end space-y-1.5"><span className="skeleton h-3.5 w-16" /><span className="skeleton h-2.5 w-10" /></div>
+                    </div>
+                  ))
+                ) : rows.length ? (
+                  rows.map(({ s, d }) => (
+                    <Link key={s.symbol} href={`/overseas/${encodeURIComponent(s.symbol)}`} className={`fin-row ${up ? 'up' : 'down'}`}>
+                      <div className="min-w-0 flex-1">
+                        <div className="nm truncate">{d.name ?? s.name}</div>
+                        <div className="sb">{s.exchange} · {s.symbol}</div>
+                      </div>
+                      <div className="shrink-0">
+                        <div className="pr tabular-nums">${fmtUsd(d.price)}</div>
+                        <div className="ch tabular-nums" style={{ color: up ? 'var(--warn)' : 'var(--accent)' }}>
+                          {d.changeRate > 0 ? '+' : ''}{d.changeRate.toFixed(2)}%
+                        </div>
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <p className="px-4 py-6 text-center text-xs text-[var(--text-muted)]">표시할 종목이 없습니다</p>
+                )}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+
       {/* 안내 배너 */}
       <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] mb-4 px-1">
         <span className="text-red-400">ℹ</span>
