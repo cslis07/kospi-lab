@@ -388,6 +388,12 @@ export default function OverseasPage() {
                           {item.exchange}
                         </span>
                         <span className="text-[10px] font-mono text-[var(--text-muted)]">{item.symbol}</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); router.push(`/screener?tickers=${item.symbol}&market=US&run=1`); }}
+                          className="inline-flex items-center gap-0.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md text-[var(--text-muted)] bg-[var(--surface-2)] border border-[var(--border)] hover:text-[var(--text)]"
+                          aria-label={`${item.name} 간단 재무`}>
+                          간단
+                        </button>
                       </div>
                     </div>
                   </div>
