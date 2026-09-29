@@ -107,8 +107,8 @@ export default function OverseasDetailPage() {
               <p className="text-[32px] font-extrabold tabular-nums tracking-tight text-[var(--text)] mt-3 leading-none">{usd(d.price)}</p>
               <p className="text-[15px] font-bold tabular-nums mt-1.5" style={{ color: d.change === 0 ? 'var(--faint)' : isUp ? UP : DOWN }}>
                 {d.change === 0 ? '' : isUp ? '▲ ' : '▼ '}{usd(Math.abs(d.change))} ({isUp ? '+' : ''}{d.changeRate.toFixed(2)}%)
+                {krw !== null && <span className="text-[var(--text-muted)] font-semibold ml-2 tabular-nums">≈ {krw.toLocaleString('ko-KR')}원</span>}
               </p>
-              {krw !== null && <p className="text-[12px] text-[var(--text-muted)] mt-0.5 tabular-nums">≈ {krw.toLocaleString('ko-KR')}원</p>}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 mt-4 pt-4 border-t border-[var(--line-2)] text-sm">
                 <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">시가총액</p><p className="font-bold text-[var(--text)] tabular-nums">{fmtCap(d.marketCap)}</p></div>
                 <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">거래량</p><p className="font-bold text-[var(--text)] tabular-nums">{fmtVol(d.volume)}</p></div>

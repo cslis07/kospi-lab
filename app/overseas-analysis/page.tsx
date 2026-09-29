@@ -106,8 +106,8 @@ function Inner() {
             <p className="text-[30px] font-extrabold tabular-nums tracking-tight text-[var(--text)] mt-3 leading-none">{usd(d.price)}</p>
             <p className="text-[15px] font-bold tabular-nums mt-1.5" style={{ color: d.change === 0 ? 'var(--faint)' : isUp ? UP : DOWN }}>
               {d.change === 0 ? '' : isUp ? '▲ ' : '▼ '}{usd(Math.abs(d.change))} ({isUp ? '+' : ''}{d.changeRate.toFixed(2)}%)
+              {usdRate ? <span className="text-[var(--text-muted)] font-semibold ml-2 tabular-nums">≈ {Math.round(d.price * usdRate).toLocaleString('ko-KR')}원</span> : null}
             </p>
-            {usdRate ? <p className="text-[22px] font-bold text-[var(--text-muted)] mt-1 tabular-nums leading-none">≈ {Math.round(d.price * usdRate).toLocaleString('ko-KR')}원</p> : null}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 mt-4 pt-4 border-t border-[var(--line-2)] text-sm">
               <Metric label="시가총액" value={fmtCap(d.marketCap)} />
               <Metric label="52주 최고" value={d.high52w ? usd(d.high52w) : '—'} />
