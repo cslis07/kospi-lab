@@ -1,6 +1,38 @@
 {
-  "updated": "2026-08-25T23:49:57.322Z",
+  "updated": "2026-09-29T06:55:10.581Z",
   "open": [
+    {
+      "id": "BTCUSDT-swing-1790664909195",
+      "sym": "BTCUSDT",
+      "mode": "swing",
+      "dir": 1,
+      "dirLabel": "LONG",
+      "entry": 83624,
+      "tp": 84384.3,
+      "sl": 82888.7,
+      "ts": 1790664909195,
+      "price0": 83973.9,
+      "ultra": false,
+      "conf": 91,
+      "eq": 76
+    },
+    {
+      "id": "ETHUSDT-swing-1790664909195",
+      "sym": "ETHUSDT",
+      "mode": "swing",
+      "dir": 1,
+      "dirLabel": "LONG",
+      "entry": 2674.92,
+      "tp": 2719.99,
+      "sl": 2641.33,
+      "ts": 1790664909195,
+      "price0": 2706.87,
+      "ultra": false,
+      "conf": 92,
+      "eq": 64
+    }
+  ],
+  "closed": [
     {
       "id": "ETHUSDT-swing-1787467312879",
       "sym": "ETHUSDT",
@@ -14,10 +46,12 @@
       "price0": 2393,
       "ultra": false,
       "conf": 74,
-      "eq": 76
-    }
-  ],
-  "closed": [
+      "eq": 76,
+      "closeTs": 1790664909195,
+      "closePrice": 2706.87,
+      "outcome": "WIN",
+      "r": 3.85
+    },
     {
       "id": "BTCUSDT-scalp-1787672554993",
       "sym": "BTCUSDT",
@@ -349,14 +383,15 @@
       "avgR": 0.57
     },
     "swing": {
-      "n": 1,
+      "n": 2,
       "winRate": 100,
-      "avgR": 2.61
+      "avgR": 3.23
     },
     "all": {
-      "n": 17,
-      "winRate": 71,
-      "avgR": 0.69
+      "n": 18,
+      "winRate": 72,
+      "avgR": 0.87
     }
-  }
+  },
+  "watch": {}
 }
