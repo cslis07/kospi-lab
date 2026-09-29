@@ -301,7 +301,7 @@ export default function AssetsPage() {
         <div className="space-y-2">
           <NavCard href="/bitget" icon="bitget" title="계좌 상세" sub="잔고·포지션·청산 내역·입출금" onNavigate={() => setSheet(false)} />
           <NavCard href="/performance" icon="growth" title="전체 성과" sub="승률·기대값·주간 리뷰" onNavigate={() => setSheet(false)} />
-          <NavCard href="/journal" icon="journal" title="매매일지" sub="기록·결과 입력·복기" onNavigate={() => setSheet(false)} />
+          <NavCard href="/journal" icon="journal" title="매매일지" sub="거래소 대조·기분·월별" onNavigate={() => setSheet(false)} />
         </div>
       </BottomSheet>
     </div>

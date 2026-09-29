@@ -1,83 +1,252 @@
 'use client';
 
 /**
- * 매매일지 성적표 — 이 앱의 정직한 핵심.
+ * 매매일지 (단순화판) — 세 조각만 남긴다.
+ *  ① 거래소 대조: Bitget USDT 선물 청산 이력을 그대로 가져온다(매매 목록의 유일한 소스).
+ *  ② 매매별 기분: 청산 포지션마다 '진입 당시 심리'를 이 브라우저에 덧입힌다.
+ *  ③ 월별 보고서: 거래소 매입·청산 + 내 기분을 합쳐 어떻게 매매해왔는지 되짚는다.
  *
- * 진입 엣지가 없다는 걸 측정으로 확인했으므로(PROJECT_STATUS §0), 가치는
- * "엔진이 뭐라 하든 내가 실제로 얼마나 버는가"를 재는 데 있다. 코인·주식 저널을
- * 시간창별 승률·기대값·R 분포·규율(미청산 비율)로 보여준다.
+ * 코인선물 전용(거래소 자동 대조가 되는 유일한 소스). 읽기 전용 조회 — 주문하지 않는다.
+ * 색은 한국 관행(상승·이익=빨강 / 하락·손실=파랑).
  */
-
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useMemo } from 'react';
-import { useCoinJournal } from '@/hooks/useCoinJournal';
-import { useStockJournal } from '@/hooks/useStockJournal';
-import { scoreboard } from '@/lib/journalStats';
-import ScoreCard from '@/components/ScoreCard';
-import ExchangeReconcile from '@/components/ExchangeReconcile';
-import CircuitBreakerBar from '@/components/CircuitBreakerBar';
-import RetroReport from '@/components/RetroReport';
-import AiCoach from '@/components/AiCoach';
-import WeeklyReview from '@/components/WeeklyReview';
-import TradeAutopsy from '@/components/TradeAutopsy';
-import type { RetroEntry } from '@/lib/journalRetro';
+import BottomSheet from '@/components/ui/BottomSheet';
+import { useTradeMood } from '@/hooks/useTradeMood';
+import { MOODS, MOOD_BY_KEY, type MoodKey } from '@/lib/tradeMood';
+import { monthlyStats, moodStats, type TradePosition } from '@/lib/tradeReport';
+import { fmtCoinPrice } from '@/lib/coins';
+import type { ClosedPosition } from '@/app/api/bitget/history/route';
+
+const UP = '#f04452';
+const DOWN = '#3182f6';
+const COIN_NAME: Record<string, string> = {
+  BTCUSDT: '비트코인', ETHUSDT: '이더리움', XRPUSDT: '리플', SOLUSDT: '솔라나',
+};
+const coinName = (s: string) => COIN_NAME[s] ?? s.replace(/USDT$/, '');
+
+const fmtPnl = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(2)}`;
+const pnlColor = (n: number) => (n > 0 ? UP : n < 0 ? DOWN : 'var(--faint)');
+function fmtHold(ms: number | null): string {
+  if (ms == null || ms <= 0) return '—';
+  const min = Math.round(ms / 60000);
+  if (min < 60) return `${min}분`;
+  const h = Math.floor(min / 60), m = min % 60;
+  if (h < 24) return m ? `${h}시간 ${m}분` : `${h}시간`;
+  const d = Math.floor(h / 24), rh = h % 24;
+  return rh ? `${d}일 ${rh}시간` : `${d}일`;
+}
+const kstDateTime = (ts: number) =>
+  new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+    .format(new Date(ts));
+const kstMonthLabel = (ym: string) => { const [y, m] = ym.split('-'); return `${y}년 ${Number(m)}월`; };
 
 export default function JournalPage() {
-  const coin = useCoinJournal();
-  const stock = useStockJournal();
+  const { moods, mounted, setMood, clearMood } = useTradeMood();
+  const [days, setDays] = useState(30);
+  const [positions, setPositions] = useState<ClosedPosition[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
-  const coinSb = useMemo(() => scoreboard(coin.entries), [coin.entries]);
-  const stockSb = useMemo(() => scoreboard(stock.entries), [stock.entries]);
+  // 기분 편집 시트
+  const [editing, setEditing] = useState<ClosedPosition | null>(null);
+  const [pick, setPick] = useState<MoodKey | null>(null);
+  const [note, setNote] = useState('');
+  useEffect(() => {
+    if (!editing) return;
+    const cur = moods[editing.positionId];
+    setPick(cur?.mood ?? null);
+    setNote(cur?.note ?? '');
+  }, [editing, moods]);
+
+  const load = useCallback(async (d: number) => {
+    setBusy(true); setErr(null); setMsg(null);
+    try {
+      const res = await fetch(`/api/bitget/history?days=${d}`);
+      if (res.status === 401) { setErr('잠금 상태입니다 — /bitget 에서 접근 토큰을 1회 입력하세요.'); setPositions([]); return; }
+      const j = await res.json() as { configured?: boolean; error?: string; positions?: ClosedPosition[] };
+      if (j.configured === false) { setErr('Bitget API 키가 서버에 설정되지 않았습니다.'); setPositions([]); return; }
+      if (j.error) { setErr(`거래소 조회 실패 — ${j.error.includes('40014') ? '키에 선물 읽기 권한이 없습니다(Bitget API 관리에서 Futures/Position Read 추가).' : j.error}`); setPositions([]); return; }
+      const list = j.positions ?? [];
+      setPositions(list);
+      if (!list.length) setMsg(`최근 ${d}일 청산된 선물 포지션이 없습니다.`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(false); setLoaded(true); }
+  }, []);
+
+  // 진입 시 자동 1회 + 기간 변경 시 재조회
+  useEffect(() => { load(days); }, [days, load]);
+
+  const months = useMemo(() => monthlyStats(positions), [positions]);
+  const mstats = useMemo(() => moodStats(positions, moods), [positions, moods]);
+  const moodTotal = mstats.reduce((a, s) => a + s.count, 0);
+
+  const saveMood = () => {
+    if (!editing || !pick) return;
+    setMood(editing.positionId, pick, note);
+    setEditing(null);
+  };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="max-w-3xl mx-auto px-4 py-6">
       <div className="mb-4">
-        <h1 className="text-lg font-bold text-[var(--text)]">매매일지 성적표 <span className="text-xs font-normal text-[var(--text-muted)]">내 실제 성적 실측</span></h1>
+        <h1 className="text-lg font-bold text-[var(--text)]">매매일지 <span className="text-xs font-normal text-[var(--text-muted)]">거래소 대조 · 기분 · 월별 보고서</span></h1>
         <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
-          이 앱의 룰 엔진은 예측 우위가 확인되지 않았습니다(코인 727건 49.7%·81건 41.7% / 주식 362건 54.1%로 진입필터 없는 대조군 54.8%보다 낮음).
-          <strong className="text-[var(--text)]"> 믿을 것은 엔진 점수가 아니라 내 실제 성적</strong>입니다 —
-          손절을 지켰는지, 승률과 기대값이 실제로 어떤지를 여기서 봅니다.
+          거래소가 아는 매입·청산·실현손익(수수료·펀딩 반영)을 그대로 가져오고, 매매마다 <strong className="text-[var(--text)]">진입 당시 기분</strong>을 남깁니다.
+          손으로 적는 기록은 이긴 매매만 남기 쉬워, 대조는 거래소에 맡깁니다. <span className="text-[var(--faint)]">코인선물(Bitget) · 읽기 전용 조회.</span>
         </p>
       </div>
 
-      {/* 손실 서킷브레이커 — 오늘 더 매매하면 안 되는 상태를 산수로 알린다 */}
-      <CircuitBreakerBar />
+      {/* 기간 + 가져오기 */}
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <div className="flex items-center gap-1.5">
+          {[7, 30, 90].map((d) => (
+            <button key={d} type="button" onClick={() => setDays(d)} disabled={busy}
+              className={`px-3 py-1.5 rounded-lg border text-[12px] font-semibold transition-colors disabled:opacity-50 ${
+                days === d ? 'bg-sky-500/15 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)]'
+              }`}>{d}일</button>
+          ))}
+        </div>
+        <button type="button" onClick={() => load(days)} disabled={busy}
+          className="px-3 py-1.5 rounded-lg border border-sky-500/40 bg-sky-500/15 text-sky-400 text-[12px] font-semibold disabled:opacity-50">
+          {busy ? '대조 중…' : '⟳ 거래소에서 가져오기'}
+        </button>
+      </div>
 
-      {/* 주간 리뷰 — 이번 주 vs 지난 주, 규율 지표·최다 실수 요약(코인+주식 합산) */}
-      {(coin.mounted || stock.mounted) && (
-        <WeeklyReview rows={[...coin.entries, ...stock.entries]} />
+      {err && <p className="mb-3 text-[12px] text-red-400">⚠ {err} {err.includes('잠금') && <Link href="/bitget" className="underline">계좌로 이동</Link>}</p>}
+      {msg && !err && <p className="mb-3 text-[12px] text-[var(--text-muted)]">{msg}</p>}
+
+      {/* ③ 월별 보고서 */}
+      {months.length > 0 && (
+        <section className="mb-5">
+          <h2 className="text-sm font-bold text-[var(--text)] mb-2">월별 보고서</h2>
+          <div className="space-y-3">
+            {months.map((m) => (
+              <div key={m.month} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <b className="text-[15px] text-[var(--text)]">{kstMonthLabel(m.month)}</b>
+                  <span className="text-[15px] font-extrabold tabular-nums" style={{ color: pnlColor(m.netSum) }}>{fmtPnl(m.netSum)} USDT</span>
+                </div>
+                <div className="grid grid-cols-3 gap-x-3 gap-y-3 text-sm">
+                  <Stat label="거래" value={`${m.count}건`} />
+                  <Stat label="승률" value={m.winRate != null ? `${m.winRate.toFixed(0)}% (${m.wins}/${m.count})` : '—'} />
+                  <Stat label="롱 / 숏" value={`${m.longCount} / ${m.shortCount}`} />
+                  <Stat label="평균 보유" value={fmtHold(m.avgHoldMs)} />
+                  <Stat label="수수료" value={`${m.feeSum.toFixed(2)}`} />
+                  <Stat label="펀딩" value={fmtPnl(m.fundingSum)} />
+                </div>
+                {(m.best || m.worst) && (
+                  <div className="mt-3 pt-3 border-t border-[var(--line-2)] grid grid-cols-2 gap-3 text-[12px]">
+                    {m.best && <div><span className="text-[var(--text-muted)]">최고 </span><b className="text-[var(--text)]">{coinName(m.best.symbol)}</b> <span className="tabular-nums" style={{ color: pnlColor(m.best.netProfit) }}>{fmtPnl(m.best.netProfit)}</span></div>}
+                    {m.worst && <div><span className="text-[var(--text-muted)]">최저 </span><b className="text-[var(--text)]">{coinName(m.worst.symbol)}</b> <span className="tabular-nums" style={{ color: pnlColor(m.worst.netProfit) }}>{fmtPnl(m.worst.netProfit)}</span></div>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* 기분별 성적 */}
+          {moodTotal > 0 && (
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mt-3">
+              <h3 className="text-[13px] font-bold text-[var(--text)] mb-2">기분별 성적 <span className="text-[10px] font-normal text-[var(--text-muted)]">어떤 심리일 때 잘·못 했나</span></h3>
+              <div className="space-y-1.5">
+                {mstats.map((s) => {
+                  const meta = MOOD_BY_KEY.get(s.mood)!;
+                  return (
+                    <div key={s.mood} className="flex items-center gap-2 text-[13px]">
+                      <span className="w-28 shrink-0">{meta.emoji} {meta.label}</span>
+                      <span className="text-[var(--text-muted)] tabular-nums w-14">{s.count}건</span>
+                      <span className="text-[var(--text-muted)] tabular-nums w-16">{s.winRate != null ? `${s.winRate.toFixed(0)}%` : '—'}</span>
+                      <span className="ml-auto font-bold tabular-nums" style={{ color: pnlColor(s.netSum) }}>{fmtPnl(s.netSum)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </section>
       )}
 
-      {/* 거래소 대조 — 성적표의 입력을 손이 아니라 거래소가 채우게 한다(생존 편향 차단) */}
-      {coin.mounted && <ExchangeReconcile entries={coin.entries} applyReconcile={coin.applyReconcile} />}
-
-      {/* 매매 복기 — 왜 지고 있는가(과거 서술). 코인·주식 저널 합쳐서 본다 */}
-      {(coin.mounted || stock.mounted) && (
-        <RetroReport entries={[...coin.entries, ...stock.entries] as unknown as RetroEntry[]} />
+      {/* ①+② 매매 목록 (탭 → 기분) */}
+      {positions.length > 0 && (
+        <section>
+          <h2 className="text-sm font-bold text-[var(--text)] mb-2">매매 목록 <span className="text-[10px] font-normal text-[var(--text-muted)]">행을 눌러 그날 기분을 기록</span></h2>
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+            {positions.map((p, i) => {
+              const mood = moods[p.positionId];
+              const meta = mood ? MOOD_BY_KEY.get(mood.mood) : null;
+              return (
+                <button key={p.positionId} type="button" onClick={() => setEditing(p)}
+                  className={`w-full text-left px-4 py-3 flex items-center gap-3 active:bg-[var(--surface-2)] transition-colors ${i > 0 ? 'border-t border-[var(--line-2)]' : ''}`}>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5 flex-wrap">
+                      <b className="text-[14px] text-[var(--text)]">{coinName(p.symbol)}</b>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.side === 'long' ? 'text-[#f04452] bg-[#f04452]/10' : 'text-[#3182f6] bg-[#3182f6]/10'}`}>{p.side === 'long' ? '롱' : '숏'}</span>
+                      {meta && <span className="text-[11px]">{meta.emoji} {meta.label}</span>}
+                    </span>
+                    <span className="block text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
+                      {kstDateTime(p.closeTs)} · {fmtCoinPrice(p.openAvg)} → {fmtCoinPrice(p.closeAvg)} · {fmtHold(p.closeTs - p.openTs)}
+                    </span>
+                  </span>
+                  <span className="text-[14px] font-bold tabular-nums shrink-0" style={{ color: pnlColor(p.netProfit) }}>{fmtPnl(p.netProfit)}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       )}
 
-      {/* 매매 심화 복기 — 진입·손절 타이밍 + 이벤트 대조 + 응대(코인 매매) */}
-      {coin.mounted && <TradeAutopsy />}
-
-      {/* AI 복기 코치 — 통계를 넘겨 행동 피드백(방향 추천 아님) */}
-      {(coin.mounted || stock.mounted) && (
-        <AiCoach entries={[...coin.entries, ...stock.entries] as unknown as RetroEntry[]} />
-      )}
-
-      {(coin.mounted || stock.mounted) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ScoreCard title="코인선물 성적" href="/coin-analysis" sb={coinSb} unit="USDT" />
-          <ScoreCard title="국내주식 성적" href="/stock-analysis" sb={stockSb} unit="원" />
+      {loaded && !busy && !err && positions.length === 0 && (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-sm text-[var(--text-muted)]">
+          표시할 청산 매매가 없습니다. 기간을 늘리거나 다시 가져와 보세요.
         </div>
       )}
 
       <p className="text-[10px] text-[var(--text-muted)] mt-4 leading-relaxed">
-        ※ 실현손익·승률은 <strong>결과를 입력한 청산 건</strong>만 반영합니다. 미청산(결과 미입력)은 승률 분모에서 제외됩니다.
-        <br />※ <strong>기대값(R)은 계획을 기록한 매매에서만</strong> 계산됩니다 — 손절·사이징이 없으면 1R 이 얼마인지 알 수 없어 비워 둡니다.
-        거래소에서 자동 수집한 매매(계획 없이 진입)는 <strong>실현손익에는 들어가고 R 에는 안 들어갑니다.</strong>
-        기대값이 비어 있는데 실현손익이 마이너스라면, <strong className="text-[var(--text)]">계획 없이 친 매매가 손실을 냈다는 뜻</strong>입니다.
-        데이터는 이 브라우저에만 저장되며 <Link href="/virtual" className="text-sky-400 hover:underline">가상투자·백업</Link>에서 내보낼 수 있습니다.
+        ※ 매매·손익은 <strong className="text-[var(--text)]">거래소가 청산한 포지션</strong>만 반영합니다(수수료·펀딩 포함). 기분 기록은 이 브라우저에만 저장되며
+        <Link href="/virtual" className="text-sky-400 hover:underline"> 가상투자·백업</Link>에서 관리합니다. 읽기 전용 조회이며 주문은 하지 않습니다.
       </p>
+
+      {/* 기분 편집 시트 */}
+      <BottomSheet open={!!editing} onClose={() => setEditing(null)} title={editing ? `${coinName(editing.symbol)} · 진입 당시 기분` : ''}
+        footer={
+          <div className="flex items-center gap-2">
+            {editing && moods[editing.positionId] && (
+              <button type="button" onClick={() => { clearMood(editing.positionId); setEditing(null); }}
+                className="px-3 py-2.5 rounded-xl border border-[var(--border)] text-[13px] text-red-400 font-semibold">삭제</button>
+            )}
+            <button type="button" onClick={saveMood} disabled={!pick}
+              className="flex-1 px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-[13px] font-bold disabled:opacity-40">저장</button>
+          </div>
+        }>
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {MOODS.map((m) => (
+            <button key={m.key} type="button" onClick={() => setPick(m.key)}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-[13px] font-semibold transition-colors ${
+                pick === m.key ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)]'
+              }`}>
+              <span className="text-[16px]">{m.emoji}</span>{m.label}
+            </button>
+          ))}
+        </div>
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={200}
+          placeholder="메모(선택) — 왜 그렇게 들어갔나, 무엇을 배웠나"
+          className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[13px] text-[var(--text)] resize-none" />
+      </BottomSheet>
+
+      {!mounted && <div className="skeleton h-40 mt-3" />}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[var(--text-muted)] text-[11px] mb-0.5">{label}</p>
+      <p className="font-bold tabular-nums text-[var(--text)]">{value}</p>
     </div>
   );
 }

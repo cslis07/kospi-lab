@@ -120,6 +120,7 @@ export const MENU: MenuGroup[] = [
  *  ※ KRX 시장(/krx)·성장주 발굴(/growth)은 중복이라 제거: KRX는 시장›국내 "전체보기"로,
  *    성장주 스크리닝은 분석›스크리너로 대체된다. */
 export const EXTRAS: MenuItem[] = [
+  { href: '/journal',   icon: 'journal',   label: '매매일지',    desc: '거래소 대조·기분·월별 보고서' },
   { href: '/virtual',   icon: 'virtual',   label: '가상투자',    desc: '모의매매·백업' },
   { href: '/invest',    icon: 'invest',    label: '투자설계',    desc: '계좌·자산 추천' },
   { href: '/tax',       icon: 'tax',       label: '세제혜택',    desc: 'ISA·IRP·연금' },
