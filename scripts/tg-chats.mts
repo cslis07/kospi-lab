@@ -22,3 +22,14 @@ for (const u of (up?.result ?? []) as any[]) {
 console.log('CHATS:');
 for (const [id, label] of chats) console.log(`  CHAT_ID ${id}  (${label})`);
 if (!chats.size) console.log('  (none) — 알림 봇을 그룹에 추가하고 그룹에서 "/start@봇username" 을 보낸 뒤 다시 실행하세요.');
+
+// KL_TELEGRAM_CHAT_ID 가 주어지면 그 방으로 테스트 발신(멤버십·전달 확인)
+const KC = process.env.KL_TELEGRAM_CHAT_ID;
+if (KC) {
+  const r = await fetch(`https://api.telegram.org/bot${T}/sendMessage`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: KC, text: '✅ KOSPI LAB 연결 테스트 — 앞으로 코인선물 규율 알림이 이 방으로 옵니다.' }),
+  });
+  const jr = await r.json();
+  console.log('TEST_SEND', jr?.ok ? 'OK' : 'FAIL', JSON.stringify(jr?.description ?? ('msg_id=' + jr?.result?.message_id)));
+}

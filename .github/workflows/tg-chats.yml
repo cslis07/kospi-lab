@@ -13,4 +13,5 @@ jobs:
       - name: chat id 조회
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          KL_TELEGRAM_CHAT_ID: ${{ secrets.KL_TELEGRAM_CHAT_ID }}
         run: npx --yes tsx scripts/tg-chats.mts
