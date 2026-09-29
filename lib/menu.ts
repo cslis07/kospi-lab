@@ -97,7 +97,7 @@ export const MENU: MenuGroup[] = [
   // 라우트·AnalysisSwitch는 유지하고, tabExtra로 분석 탭 강조·drillTitle로 앱바 제목만 보존한다.
   // 공시(/dart)는 제거 — 종목별 공시는 종목 분석 결과·종목 상세에 이미 있어 독립 전체 피드는 중복.
   G('analysis', '분석', 'c-amber', 'qc-amber', 'analysis', [
-    { href: '/screener',       icon: 'screener', label: '스크리너',  desc: 'ROE·PER·성장주',            alias: ['/growth'] },
+    { href: '/screener',       icon: 'screener', label: '종목 비교',  desc: '여러 종목 재무 비교',        alias: ['/growth'] },
     { href: '/report',         icon: 'report',   label: '리포트',    desc: '증권사 리포트' },
   ], ['/stock-analysis', '/coin-analysis']),
   // 관심종목 — 홈에서 분리해 독립 탭으로 승격(단일 화면, 내부 국내·해외·코인 세그먼트). 하단 탭에서 바로 진입.

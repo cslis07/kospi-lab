@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { searchKrStocks } from '@/lib/krStocks';
 import type { KrxDailyData } from '@/app/api/krx/daily/route';
@@ -286,7 +287,8 @@ function SkeletonCard() {
 type Market  = 'KR' | 'US';
 type SortKey = 'buffettScore' | 'roe' | 'opMargin' | 'per' | 'revenueGrowth';
 
-export default function ScreenerPage() {
+function ScreenerInner() {
+  const searchParams = useSearchParams();
   const [market, setMarket]           = useState<Market>('KR');
   const [customInput, setCustomInput] = useState('');
   const [customTickers, setCustomTickers] = useState<string[]>([]);
@@ -296,6 +298,23 @@ export default function ScreenerPage() {
   const [sortKey, setSortKey]         = useState<SortKey>('buffettScore');
   const [showGuide, setShowGuide]     = useState(false);
   const [minScore, setMinScore]       = useState(0);
+
+  // 시세 목록의 '간단' 버튼 등에서 ?tickers=005930&market=KR&run=1 로 진입하면 자동 로드·분석
+  useEffect(() => {
+    const t = searchParams.get('tickers');
+    if (!t) return;
+    const mkt: Market = searchParams.get('market') === 'US' ? 'US' : 'KR';
+    const list = t.split(',')
+      .map((s) => {
+        const u = s.trim().toUpperCase();
+        return mkt === 'KR' && /^\d{6}$/.test(u) ? `${u}.KS` : u;
+      })
+      .filter(Boolean);
+    if (!list.length) return;
+    setMarket(mkt);
+    setCustomTickers(list);
+    if (searchParams.get('run') === '1') setQuery({ tickers: list, market: mkt });
+  }, [searchParams]);
 
   // ── 자동완성 검색 상태 ───────────────────────────────────────────────────────
   const [hits, setHits]           = useState<SearchHit[]>([]);
@@ -459,9 +478,9 @@ export default function ScreenerPage() {
     <div className="max-w-4xl mx-auto pb-16">
       {/* ── Title ── */}
       <div className="mb-6">
-        <h1 className="text-lg font-bold text-[var(--text)]">버핏 스크리너</h1>
+        <h1 className="text-lg font-bold text-[var(--text)]">종목 비교 <span className="text-xs font-normal text-[var(--text-muted)]">간단 재무 스냅샷</span></h1>
         <p className="text-xs text-[var(--text-muted)] mt-0.5">
-          Warren Buffett 스타일 7가지 기준으로 성장주를 분석합니다
+          버핏 스타일 7개 재무 기준으로 여러 종목을 나란히 비교합니다. <strong className="text-[var(--text)]">검증된 매수 신호가 아니라 재무 스냅샷</strong>이며, 심화 분석은 시세 목록의 ‘분석’ 버튼입니다.
         </p>
       </div>
 
@@ -759,5 +778,13 @@ export default function ScreenerPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ScreenerPage() {
+  return (
+    <Suspense fallback={<div className="max-w-4xl mx-auto py-10"><div className="skeleton h-40" /></div>}>
+      <ScreenerInner />
+    </Suspense>
   );
 }
