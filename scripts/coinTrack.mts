@@ -10,12 +10,13 @@ import { evaluateBreaker, DEFAULT_LIMITS, type BreakerEntry, type BreakerLimits 
 
 const BITGET = 'https://api.bitget.com';
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT'];
-const MODES = ['scalp', 'swing'] as const;
+const MODES = ['scalp'] as const;   // 스윙 신호 알림 제외(사용자 요청) — 스캘프만 추적·발신
 const HORIZON_H: Record<string, number> = { scalp: 6, swing: 72 };
 const DATA = 'data/coin-signals.json';
 const MAX_CLOSED = 300;
-const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TG_CHAT = process.env.TELEGRAM_CHAT_ID;
+// kospi-lab 전용 텔레그램(있으면 사용) → 없으면 공용으로 폴백. posteady 등과 채팅방 분리용.
+const TG_TOKEN = process.env.KL_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
+const TG_CHAT = process.env.KL_TELEGRAM_CHAT_ID || process.env.TELEGRAM_CHAT_ID;
 
 async function candles(sym: string, g: string, limit: number): Promise<Candle[]> {
   const u = `${BITGET}/api/v2/mix/market/candles?symbol=${sym}&productType=USDT-FUTURES&granularity=${g}&limit=${limit}`;
@@ -171,7 +172,7 @@ async function main() {
     const r = outcome === 'WIN' ? +(Math.abs(s.tp - s.entry) / riskDist).toFixed(2) : outcome === 'LOSS' ? -1 : +(((P - s.entry) * s.dir) / riskDist).toFixed(2);
     db.closed.unshift({ ...s, closeTs: now, closePrice: P, outcome, r });
     const emoji = outcome === 'WIN' ? '✅' : outcome === 'LOSS' ? '❌' : '⏱';
-    await telegram(`${emoji} <b>${s.sym.replace('USDT', '')} ${s.mode.toUpperCase()} ${s.dirLabel} 종료: ${outcome}</b>\nR ${r} · 진입 ${fp(s.sym, s.entry)} → 현재 ${fp(s.sym, P)}`);
+    if (s.mode !== 'swing') await telegram(`${emoji} <b>${s.sym.replace('USDT', '')} ${s.mode.toUpperCase()} ${s.dirLabel} 종료: ${outcome}</b>\nR ${r} · 진입 ${fp(s.sym, s.entry)} → 현재 ${fp(s.sym, P)}`);
   }
   db.open = stillOpen;
 

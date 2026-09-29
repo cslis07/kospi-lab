@@ -34,6 +34,9 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # kospi-lab 전용(있으면 우선) — posteady 등과 채팅방 분리
+          KL_TELEGRAM_BOT_TOKEN: ${{ secrets.KL_TELEGRAM_BOT_TOKEN }}
+          KL_TELEGRAM_CHAT_ID: ${{ secrets.KL_TELEGRAM_CHAT_ID }}
           # 포지션 감시용(선택) — 없으면 감시는 조용히 skip
           BITGET_API_KEY: ${{ secrets.BITGET_API_KEY }}
           BITGET_API_SECRET: ${{ secrets.BITGET_API_SECRET }}
