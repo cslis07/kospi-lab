@@ -82,16 +82,11 @@ const G = (key: string, label: string, color: string, qc: string, navIcon: strin
 });
 
 export const MENU: MenuGroup[] = [
-  // 홈 = 대시보드 단독(항목 1개 → 서브탭 없이 바로 진입). 뉴스·오늘의 리스크·매매 대원칙은 '인사이트' 탭으로 이동.
+  // 홈 = 대시보드 단독(항목 1개 → 서브탭 없이 바로 진입). 오늘의 리스크는 삭제, 뉴스·매매 대원칙은 '더보기 도구'(EXTRAS)로 이동.
   // 경제 캘린더(/calendar)는 홈 '주요 이벤트' 클릭으로 진입(tabExtra로 홈 탭 강조).
   G('home', '홈', 'c-blue', 'qc-blue', 'home', [
     { href: '/', icon: 'home', label: '대시보드', desc: '시장 요약·관심·이벤트' },
   ], ['/calendar']),
-  G('insight', '인사이트', 'c-amber', 'qc-amber', 'insight', [
-    { href: '/today',      icon: 'risk',       label: '오늘의 리스크', desc: '서킷브레이커·오늘 실현·이벤트' },
-    { href: '/news',       icon: 'news',       label: '뉴스',          desc: '시장 소식' },
-    { href: '/principles', icon: 'principles', label: '매매 대원칙',   desc: '지킬 3·피할 3' },
-  ]),
   G('market', '시장', 'c-violet', 'qc-violet', 'domestic', [
     { href: '/domestic', icon: 'domestic', label: '국내', desc: 'KOSPI·KOSDAQ·등락 랭킹', alias: ['/krx'] },
     { href: '/overseas', icon: 'overseas', label: '해외', desc: '미국 등 글로벌' },
@@ -120,7 +115,9 @@ export const MENU: MenuGroup[] = [
  *  ※ KRX 시장(/krx)·성장주 발굴(/growth)은 중복이라 제거: KRX는 시장›국내 "전체보기"로,
  *    성장주 스크리닝은 분석›스크리너로 대체된다. */
 export const EXTRAS: MenuItem[] = [
-  { href: '/journal',   icon: 'journal',   label: '매매일지',    desc: '거래소 대조·기분·월별 보고서' },
+  { href: '/journal',    icon: 'journal',    label: '매매일지',    desc: '거래소 대조·기분·월별 보고서' },
+  { href: '/news',       icon: 'news',       label: '뉴스',        desc: '시장 소식' },
+  { href: '/principles', icon: 'principles', label: '매매 대원칙', desc: '지킬 3·피할 3' },
   { href: '/virtual',   icon: 'virtual',   label: '가상투자',    desc: '모의매매·백업' },
   { href: '/invest',    icon: 'invest',    label: '투자설계',    desc: '계좌·자산 추천' },
   { href: '/tax',       icon: 'tax',       label: '세제혜택',    desc: 'ISA·IRP·연금' },
