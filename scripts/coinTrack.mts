@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs';
 import { buildModes, type Candle } from '../lib/coinSignalModes.ts';
 import { getEtfFlows, etfBiasFor } from '../lib/etfFlow.ts';
 import { bitgetSignedGet, bitgetKeysConfigured } from '../lib/bitget.ts';
+import { evaluateBreaker, DEFAULT_LIMITS, type BreakerEntry, type BreakerLimits } from '../lib/circuitBreaker.ts';
 
 const BITGET = 'https://api.bitget.com';
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT'];
@@ -72,6 +73,60 @@ async function fetchOpenJournal(): Promise<any[]> {
 }
 
 const normSym = (x: string) => (x || '').toUpperCase().replace(/_.*$/, '').replace(/[^A-Z0-9]/g, '');
+
+// ── 규율 알림용 헬퍼(Bitget이 모르는 영역: 내 한도·규칙·복기) ──────────────────
+const KST = 9 * 3600e3;
+function kstDayStart(ts: number) { const d = ts + KST; return Math.floor(d / 86_400_000) * 86_400_000 - KST; }
+const fmtSigned = (n: number | null) => (n == null ? '-' : `${n >= 0 ? '+' : ''}${Math.round(n)}`);
+
+/** 서킷브레이커 한도(동기화 설정) — 없으면 기본값(연속손절 3, 손실한도 미설정) */
+async function fetchRiskLimits(): Promise<BreakerLimits> {
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return DEFAULT_LIMITS;
+  try {
+    const r = await fetch(`${url}/rest/v1/kl_sync?id=eq.kospi-lab-risk-limits&select=data`, { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows: any = await r.json();
+    const d = rows?.[0]?.data;
+    return d && typeof d === 'object' ? { ...DEFAULT_LIMITS, ...d } : DEFAULT_LIMITS;
+  } catch { return DEFAULT_LIMITS; }
+}
+
+interface Hist { symbol: string; side: 'long' | 'short'; net: number; fee: number; funding: number; openTs: number; closeTs: number }
+/** Bitget 청산 이력(실현손익) — 서킷브레이커/주간복기의 소스(브라우저 무관, 항상 최신) */
+async function fetchClosedHistory(days: number): Promise<Hist[]> {
+  const end = Date.now(), start = end - days * 86400e3;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const num = (v: any) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+  try {
+    const j = await bitgetSignedGet(`/api/v2/mix/position/history-position?productType=USDT-FUTURES&startTime=${start}&endTime=${end}&limit=100`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = ((j.data as any)?.list as any[] | undefined) ?? [];
+    return rows.map((r) => {
+      const openFee = num(r.openFee), closeFee = num(r.closeFee), funding = num(r.totalFunding);
+      return {
+        symbol: String(r.symbol ?? ''),
+        side: (r.holdSide === 'short' ? 'short' : 'long') as 'long' | 'short',
+        net: r.netProfit != null ? num(r.netProfit) : num(r.pnl) - (openFee + closeFee) * -1 + funding,
+        fee: openFee + closeFee, funding, openTs: num(r.ctime), closeTs: num(r.utime),
+      };
+    }).filter((p) => p.symbol && p.closeTs > 0).sort((a, b) => b.closeTs - a.closeTs);
+  } catch { return []; }
+}
+
+/** 손절/익절 등 활성 플랜 주문이 걸린 심볼 집합 — '손절 미설정' 오탐 방지용. 실패 시 null(경보 skip) */
+async function fetchPendingSlSymbols(): Promise<Set<string> | null> {
+  try {
+    const j = await bitgetSignedGet(`/api/v2/mix/order/orders-plan-pending?productType=USDT-FUTURES&planType=profit_loss`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = j.data as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const list: any[] = d?.entrustedList ?? d?.list ?? (Array.isArray(d) ? d : []);
+    const set = new Set<string>();
+    for (const o of list) { const s = normSym(String(o.symbol ?? '')); if (s) set.add(s); }
+    return set;
+  } catch { return null; }
+}
 
 function computeStats(closed: Closed[]) {
   const by: Record<string, { n: number; win: number; rSum: number }> = { scalp: { n: 0, win: 0, rSum: 0 }, swing: { n: 0, win: 0, rSum: 0 }, all: { n: 0, win: 0, rSum: 0 } };
@@ -175,8 +230,53 @@ async function main() {
           if (e.target2 > 0 && (long ? mark >= e.target2 : mark <= e.target2)) fire(`${e.id}:t2`, `🎯 <b>${nm} 목표2 도달</b> (${e.target2}) · 현재 ${mark}`);
         }
       }
-      for (const k of Object.keys(db.watch)) if (now - db.watch[k] > 3 * 24 * 3600e3) delete db.watch[k];   // 오래된 키 정리
-      if (alerts.length) { await telegram(alerts.join('\n\n')); console.log('포지션 알림', alerts.length); }
+      // ── 규율 알림(Bitget이 모르는 영역): 내 한도·규칙·복기 ──
+      const limits = await fetchRiskLimits();
+      const hist = await fetchClosedHistory(30);
+
+      // 1) 서킷브레이커 — 연속손절/일일·주간 손실 한도(거래소 실현손익 기준). 하루 1회씩.
+      if (hist.length) {
+        const entries: BreakerEntry[] = hist.map((h) => ({ ts: h.closeTs, result: h.net > 0 ? 'win' : h.net < 0 ? 'loss' : 'even', realizedUsdt: h.net }));
+        const cb = evaluateBreaker(entries, limits, now);
+        const day = kstDayStart(now);
+        if (cb.status === 'blocked') {
+          fire(`cb:blocked:${day}`, `🛑 <b>서킷브레이커 작동 — 오늘 신규 진입 금지</b>\n${cb.reasons.join('\n')}\n연속손절 ${cb.lossStreak} · 오늘 ${fmtSigned(cb.todayRealized)} · 7일 ${fmtSigned(cb.weekRealized)} USDT`);
+        } else if (cb.status === 'warn') {
+          fire(`cb:warn:${day}`, `🟡 <b>서킷브레이커 경고</b>\n${cb.reasons.join('\n')}`);
+        }
+      }
+
+      // 2) 손절 미설정 포지션 — 계획(일지 손절)도 거래소 SL도 없으면 규율 경고(6시간 재발화)
+      const slSet = await fetchPendingSlSymbols();
+      if (slSet) {
+        for (const pp of positions) {
+          const sym = String(pp.symbol), side = pp.holdSide === 'short' ? 'short' : 'long';
+          const hasPlan = openJournal.some((e) => normSym(e.symbol) === normSym(sym) && e.direction === side && Number(e.stop) > 0);
+          if (!hasPlan && !slSet.has(normSym(sym))) {
+            fire(`${sym}:noplan`, `🚧 <b>${sym.replace('USDT', '')} 손절 미설정</b>\n계획(일지 손절)도 거래소 SL도 없습니다 — 손절가부터 정하세요.`);
+          }
+        }
+      }
+
+      // 3) 주간 복기 요약 — 월요일 09시(KST) 이후 주 1회
+      const kstNow = new Date(now + KST);
+      if (kstNow.getUTCDay() === 1 && kstNow.getUTCHours() >= 9) {
+        const wkKey = `weekly:${kstDayStart(now)}`;
+        const wk = hist.filter((h) => h.closeTs >= now - 7 * 86400e3);
+        if (!db.watch[wkKey] && wk.length) {
+          db.watch[wkKey] = now;
+          const wins = wk.filter((h) => h.net > 0).length;
+          const netSum = wk.reduce((a, h) => a + h.net, 0);
+          const feeSum = wk.reduce((a, h) => a + h.fee, 0);
+          const fundSum = wk.reduce((a, h) => a + h.funding, 0);
+          let streak = 0, maxStreak = 0;
+          for (const h of [...wk].sort((a, b) => a.closeTs - b.closeTs)) { if (h.net < 0) { streak++; maxStreak = Math.max(maxStreak, streak); } else if (h.net > 0) streak = 0; }
+          await telegram(`📅 <b>주간 복기 (최근 7일)</b>\n거래 ${wk.length}건 · 승률 ${Math.round((wins / wk.length) * 100)}%\n순손익 ${fmtSigned(netSum)} USDT\n누수 — 수수료 -${Math.round(feeSum)} · 펀딩 ${fmtSigned(fundSum)}\n최대 연속손절 ${maxStreak}회\n— 계획대로 손절했는지·복수매매는 없었는지 복기하세요.`);
+        }
+      }
+
+      for (const k of Object.keys(db.watch)) if (now - db.watch[k] > 8 * 24 * 3600e3) delete db.watch[k];   // 오래된 키 정리(주간 키 보존 위해 8일)
+      if (alerts.length) { await telegram(alerts.join('\n\n')); console.log('포지션·규율 알림', alerts.length); }
     } catch (e) { console.error('position watch fail', (e as Error).message); }
   }
 
