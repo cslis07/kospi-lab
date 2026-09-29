@@ -70,6 +70,8 @@ function Inner() {
     symbol ? `/api/overseas/chart?symbol=${encodeURIComponent(symbol)}&months=${TIMEFRAMES[tfIdx].months}` : null, fetcher, { refreshInterval: 300000 });
   const { data: scr } = useSWR<ScreenerResult[] | { error: string }>(
     symbol ? `/api/screener?tickers=${encodeURIComponent(symbol)}&market=US` : null, fetcher, { revalidateOnFocus: false });
+  const { data: market } = useSWR<{ usdkrw?: { value: number } | null }>('/api/market', fetcher, { refreshInterval: 60000, revalidateOnFocus: false });
+  const usdRate = market?.usdkrw?.value;
 
   if (!symbol) {
     return <p className="max-w-3xl mx-auto px-4 py-16 text-center text-sm text-[var(--text-muted)]">종목이 지정되지 않았습니다. 시장 › 해외 목록에서 종목 옆 ‘분석’을 눌러 주세요.</p>;
@@ -105,6 +107,7 @@ function Inner() {
             <p className="text-[15px] font-bold tabular-nums mt-1.5" style={{ color: d.change === 0 ? 'var(--faint)' : isUp ? UP : DOWN }}>
               {d.change === 0 ? '' : isUp ? '▲ ' : '▼ '}{usd(Math.abs(d.change))} ({isUp ? '+' : ''}{d.changeRate.toFixed(2)}%)
             </p>
+            {usdRate ? <p className="text-[12px] text-[var(--text-muted)] mt-0.5 tabular-nums">≈ {Math.round(d.price * usdRate).toLocaleString('ko-KR')}원</p> : null}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 mt-4 pt-4 border-t border-[var(--line-2)] text-sm">
               <Metric label="시가총액" value={fmtCap(d.marketCap)} />
               <Metric label="52주 최고" value={d.high52w ? usd(d.high52w) : '—'} />

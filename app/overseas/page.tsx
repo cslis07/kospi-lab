@@ -229,8 +229,9 @@ export default function OverseasPage() {
                         <div className="nm truncate">{d.name ?? s.name}</div>
                         <div className="sb">{s.exchange} · {s.symbol}</div>
                       </div>
-                      <div className="shrink-0">
+                      <div className="shrink-0 text-right">
                         <div className="pr tabular-nums">${fmtUsd(d.price)}</div>
+                        {usdRate ? <div className="text-[9px] text-[var(--faint)] tabular-nums">≈ {Math.round(d.price * usdRate).toLocaleString('ko-KR')}원</div> : null}
                         <div className="ch tabular-nums" style={{ color: up ? 'var(--warn)' : 'var(--accent)' }}>
                           {d.changeRate > 0 ? '+' : ''}{d.changeRate.toFixed(2)}%
                         </div>
@@ -406,9 +407,10 @@ export default function OverseasPage() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 sm:contents">
-                    {/* 현재가 */}
+                    {/* 현재가 (달러 + 원화 환산) */}
                     <p className="text-sm font-bold text-[var(--text)] text-right tabular-nums whitespace-nowrap">
                       {d ? `$${fmtUsd(d.price)}` : <span className="text-[var(--text-dim)]">-</span>}
+                      {d && usdRate ? <span className="block text-[10px] font-normal text-[var(--text-muted)]">≈ {Math.round(d.price * usdRate).toLocaleString('ko-KR')}원</span> : null}
                     </p>
 
                     {/* 등락률 */}
