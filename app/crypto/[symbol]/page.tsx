@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 코인 상세 — 헤더(☆·⋮) → 가격 차트(지표 시트) → 접는 정보(USDT 무기한 선물: 선물가·프리미엄·펀딩비).
+ * 코인 상세 — 헤더(☆·⋮) → 가격 차트(지표 시트) → 현물 시세 요약.
  * 관심 코인 목록 안에선 옆으로 밀어 이전/다음 코인. 색은 한국 관행(상승=빨강·하락=파랑).
  */
 import { useState } from 'react';
@@ -9,7 +9,6 @@ import { useParams } from 'next/navigation';
 import useSWR from 'swr';
 import PriceChart, { TIMEFRAMES } from '@/components/detail/PriceChart';
 import SwipeNav from '@/components/detail/SwipeNav';
-import Collapsible from '@/components/ui/Collapsible';
 import ActionSheet, { KebabButton, type SheetAction } from '@/components/ui/ActionSheet';
 import VirtualTradeModal from '@/components/VirtualTradeModal';
 import { badgeTint } from '@/components/WatchRow';
@@ -29,7 +28,6 @@ function fmtVol(n?: number | null) {
   if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
   return n.toFixed(2);
 }
-interface FutTicker { symbol: string; price: number; changeRate: number; fundingRate: number | null; quoteVolume: number }
 
 export default function CryptoDetailPage() {
   const symbol = String(useParams().symbol ?? '').toUpperCase();
@@ -44,11 +42,8 @@ export default function CryptoDetailPage() {
 
   const { data: batch, error } = useSWR<Record<string, CryptoData>>(symbol ? `/api/crypto/batch?symbols=${symbol}` : null, fetcher, { refreshInterval: 5000 });
   const { data: chart } = useSWR<ChartPoint[]>(symbol ? `/api/crypto/chart/${symbol}?months=${TIMEFRAMES[tfIdx].months}` : null, fetcher, { refreshInterval: 60000 });
-  const { data: futAll } = useSWR<FutTicker[]>('/api/futures/tickers', fetcher, { refreshInterval: 10000, revalidateOnFocus: false });
 
   const c = batch?.[symbol];
-  const fut = Array.isArray(futAll) ? futAll.find((f) => f.symbol === symbol) : undefined;
-  const premium = c && fut && c.price > 0 ? ((fut.price - c.price) / c.price) * 100 : null;
   const isUp = (c?.change ?? 0) >= 0;
   const watched = wl.watchlist.some((w) => w.symbol === symbol);
   const toggleWatch = () => (watched ? wl.remove(symbol) : wl.add({ symbol, base, name: en }));
@@ -112,24 +107,6 @@ export default function CryptoDetailPage() {
       </SwipeNav>
 
       <PriceChart points={chart} isUp={isUp} tfIdx={tfIdx} onTf={setTfIdx} fmt={(n) => fmtCoinPrice(n)} yFmt={yFmt} />
-
-      {c && fut && (
-        <Collapsible title="USDT 무기한 선물" sub="Bitget" defaultOpen>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-            <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">선물 현재가</p><p className="font-bold tabular-nums text-[var(--text)]">{fmtCoinPrice(fut.price)}</p></div>
-            <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">선물 24시간</p>
-              <p className="font-bold tabular-nums" style={{ color: fut.changeRate === 0 ? 'var(--faint)' : fut.changeRate > 0 ? UP : DOWN }}>{fut.changeRate > 0 ? '+' : ''}{fut.changeRate.toFixed(2)}%</p></div>
-            <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">현물 대비 프리미엄</p><p className="font-bold tabular-nums text-[var(--text)]">{premium != null ? `${premium > 0 ? '+' : ''}${premium.toFixed(3)}%` : '—'}</p></div>
-            <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">펀딩비 (8시간)</p>
-              <p className="font-bold tabular-nums" style={{ color: fut.fundingRate != null && Math.abs(fut.fundingRate) >= 0.05 ? 'var(--amber)' : 'var(--ink)' }}>
-                {fut.fundingRate != null ? `${fut.fundingRate > 0 ? '+' : ''}${fut.fundingRate.toFixed(4)}%` : '—'}
-              </p></div>
-          </div>
-          <p className="text-[11px] text-[var(--faint)] mt-3 leading-relaxed">
-            펀딩비가 양(+)이면 롱이 숏에게, 음(−)이면 숏이 롱에게 지급합니다. ±0.05% 이상은 한쪽 쏠림 과열 신호(방향 예측 아님)로 주황 표시.
-          </p>
-        </Collapsible>
-      )}
 
       <ActionSheet open={menuOpen} onClose={() => setMenuOpen(false)} title={ko} actions={actions} />
       {trade && c && (
