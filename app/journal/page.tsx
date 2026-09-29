@@ -4,7 +4,7 @@
  * 매매일지 (단순화판) — 세 조각만 남긴다.
  *  ① 거래소 대조: Bitget USDT 선물 청산 이력 + 현재 열린 포지션을 그대로 가져온다(매매 목록의 소스).
  *  ② 매매별 기분: 각 매매마다 '진입 당시 심리'를 이 브라우저에 덧입힌다(열린 포지션에 바로 기록 가능).
- *  ③ 월별 보고서: 거래소 매입·청산 + 내 기분을 합쳐 어떻게 매매해왔는지 되짚는다(청산 건만).
+ *  ③ 월별 보고서: 평소엔 월 목록만 접어두고, 월을 선택하면 그 달의 요약·거래내역·청산 성적·기분별 성적을 펼친다.
  *
  * 코인선물 전용(거래소 자동 대조가 되는 유일한 소스). 읽기 전용 조회 — 주문하지 않는다.
  * 색은 한국 관행(상승·이익=빨강 / 하락·손실=파랑).
@@ -12,9 +12,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import BottomSheet from '@/components/ui/BottomSheet';
-import { useTradeMood } from '@/hooks/useTradeMood';
+import { useTradeMood, type TradeMood } from '@/hooks/useTradeMood';
 import { MOODS, MOOD_BY_KEY, type MoodKey } from '@/lib/tradeMood';
-import { monthlyStats, moodStats } from '@/lib/tradeReport';
+import { monthlyStats, moodStats, kstMonth } from '@/lib/tradeReport';
 import { fmtCoinPrice } from '@/lib/coins';
 import type { ClosedPosition } from '@/app/api/bitget/history/route';
 
@@ -53,6 +53,15 @@ function SideBadge({ side }: { side: 'long' | 'short' }) {
   return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${side === 'long' ? 'text-[#f04452] bg-[#f04452]/10' : 'text-[#3182f6] bg-[#3182f6]/10'}`}>{side === 'long' ? '롱' : '숏'}</span>;
 }
 
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"
+      className="text-[var(--faint)] shrink-0 transition-transform" style={{ transform: open ? 'rotate(90deg)' : 'none' }} aria-hidden>
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
 export default function JournalPage() {
   const { moods, mounted, setMood, clearMood } = useTradeMood();
   const [days, setDays] = useState(30);
@@ -62,6 +71,7 @@ export default function JournalPage() {
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [selMonth, setSelMonth] = useState<string | null>(null); // 펼쳐진 월(null=전부 접힘)
 
   // 기분 편집 시트 — 열린/청산 포지션 공통으로 { id, symbol } 을 편집한다
   const [editing, setEditing] = useState<{ id: string; symbol: string } | null>(null);
@@ -105,8 +115,16 @@ export default function JournalPage() {
   useEffect(() => { load(days); }, [days, load]);
 
   const months = useMemo(() => monthlyStats(positions), [positions]);
-  const mstats = useMemo(() => moodStats(positions, moods), [positions, moods]);
-  const moodTotal = mstats.reduce((a, s) => a + s.count, 0);
+  // 월별 거래내역(상세 펼침용)
+  const monthGroups = useMemo(() => {
+    const map = new Map<string, ClosedPosition[]>();
+    for (const p of positions) {
+      const k = kstMonth(p.closeTs);
+      const arr = map.get(k);
+      if (arr) arr.push(p); else map.set(k, [p]);
+    }
+    return map;
+  }, [positions]);
 
   const saveMood = () => {
     if (!editing || !pick) return;
@@ -177,80 +195,78 @@ export default function JournalPage() {
         </section>
       )}
 
-      {/* ③ 월별 보고서 (청산 건만) */}
+      {/* ③ 월별 보고서 — 접힘 상태로 월 목록만, 월을 누르면 상세 펼침(청산 건만) */}
       {months.length > 0 && (
         <section className="mb-5">
-          <h2 className="text-sm font-bold text-[var(--text)] mb-2">월별 보고서</h2>
-          <div className="space-y-3">
-            {months.map((m) => (
-              <div key={m.month} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <b className="text-[15px] text-[var(--text)]">{kstMonthLabel(m.month)}</b>
-                  <span className="text-[15px] font-extrabold tabular-nums" style={{ color: pnlColor(m.netSum) }}>{fmtPnl(m.netSum)} USDT</span>
-                </div>
-                <div className="grid grid-cols-3 gap-x-3 gap-y-3 text-sm">
-                  <Stat label="거래" value={`${m.count}건`} />
-                  <Stat label="승률" value={m.winRate != null ? `${m.winRate.toFixed(0)}% (${m.wins}/${m.count})` : '—'} />
-                  <Stat label="롱 / 숏" value={`${m.longCount} / ${m.shortCount}`} />
-                  <Stat label="평균 보유" value={fmtHold(m.avgHoldMs)} />
-                  <Stat label="수수료" value={`${m.feeSum.toFixed(2)}`} />
-                  <Stat label="펀딩" value={fmtPnl(m.fundingSum)} />
-                </div>
-                {(m.best || m.worst) && (
-                  <div className="mt-3 pt-3 border-t border-[var(--line-2)] grid grid-cols-2 gap-3 text-[12px]">
-                    {m.best && <div><span className="text-[var(--text-muted)]">최고 </span><b className="text-[var(--text)]">{coinName(m.best.symbol)}</b> <span className="tabular-nums" style={{ color: pnlColor(m.best.netProfit) }}>{fmtPnl(m.best.netProfit)}</span></div>}
-                    {m.worst && <div><span className="text-[var(--text-muted)]">최저 </span><b className="text-[var(--text)]">{coinName(m.worst.symbol)}</b> <span className="tabular-nums" style={{ color: pnlColor(m.worst.netProfit) }}>{fmtPnl(m.worst.netProfit)}</span></div>}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* 기분별 성적 */}
-          {moodTotal > 0 && (
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mt-3">
-              <h3 className="text-[13px] font-bold text-[var(--text)] mb-2">기분별 성적 <span className="text-[10px] font-normal text-[var(--text-muted)]">어떤 심리일 때 잘·못 했나</span></h3>
-              <div className="space-y-1.5">
-                {mstats.map((s) => {
-                  const meta = MOOD_BY_KEY.get(s.mood)!;
-                  return (
-                    <div key={s.mood} className="flex items-center gap-2 text-[13px]">
-                      <span className="w-28 shrink-0">{meta.emoji} {meta.label}</span>
-                      <span className="text-[var(--text-muted)] tabular-nums w-14">{s.count}건</span>
-                      <span className="text-[var(--text-muted)] tabular-nums w-16">{s.winRate != null ? `${s.winRate.toFixed(0)}%` : '—'}</span>
-                      <span className="ml-auto font-bold tabular-nums" style={{ color: pnlColor(s.netSum) }}>{fmtPnl(s.netSum)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* ①+② 청산 매매 목록 (탭 → 기분) */}
-      {positions.length > 0 && (
-        <section>
-          <h2 className="text-sm font-bold text-[var(--text)] mb-2">청산 매매 <span className="text-[10px] font-normal text-[var(--text-muted)]">행을 눌러 그날 기분을 기록</span></h2>
+          <h2 className="text-sm font-bold text-[var(--text)] mb-2">월별 보고서 <span className="text-[10px] font-normal text-[var(--text-muted)]">월을 누르면 상세가 열립니다</span></h2>
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
-            {positions.map((p, i) => {
-              const mood = moods[p.positionId];
-              const meta = mood ? MOOD_BY_KEY.get(mood.mood) : null;
+            {months.map((m, i) => {
+              const isOpen = selMonth === m.month;
+              const trades = monthGroups.get(m.month) ?? [];
+              const mm = moodStats(trades, moods);
               return (
-                <button key={p.positionId} type="button" onClick={() => setEditing({ id: p.positionId, symbol: p.symbol })}
-                  className={`w-full text-left px-4 py-3 flex items-center gap-3 active:bg-[var(--surface-2)] transition-colors ${i > 0 ? 'border-t border-[var(--line-2)]' : ''}`}>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5 flex-wrap">
-                      <b className="text-[14px] text-[var(--text)]">{coinName(p.symbol)}</b>
-                      <SideBadge side={p.side} />
-                      {meta && <span className="text-[11px]">{meta.emoji} {meta.label}</span>}
+                <div key={m.month} className={i > 0 ? 'border-t border-[var(--line-2)]' : ''}>
+                  <button type="button" onClick={() => setSelMonth(isOpen ? null : m.month)}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 active:bg-[var(--surface-2)] transition-colors">
+                    <span className="flex items-center gap-2 min-w-0">
+                      <Chevron open={isOpen} />
+                      <b className="text-[15px] text-[var(--text)]">{kstMonthLabel(m.month)}</b>
+                      <span className="text-[11px] text-[var(--text-muted)]">{m.count}건 · 승 {m.winRate != null ? `${m.winRate.toFixed(0)}%` : '—'}</span>
                     </span>
-                    <span className="block text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
-                      {kstDateTime(p.closeTs)} · {fmtCoinPrice(p.openAvg)} → {fmtCoinPrice(p.closeAvg)} · {fmtHold(p.closeTs - p.openTs)}
-                    </span>
-                  </span>
-                  <span className="text-[14px] font-bold tabular-nums shrink-0" style={{ color: pnlColor(p.netProfit) }}>{fmtPnl(p.netProfit)}</span>
-                </button>
+                    <span className="text-[15px] font-extrabold tabular-nums shrink-0" style={{ color: pnlColor(m.netSum) }}>{fmtPnl(m.netSum)} USDT</span>
+                  </button>
+
+                  {isOpen && (
+                    <div className="px-4 pb-4">
+                      {/* 요약 */}
+                      <div className="grid grid-cols-3 gap-x-3 gap-y-3 text-sm rounded-xl bg-[var(--surface-2)] p-3">
+                        <Stat label="거래" value={`${m.count}건`} />
+                        <Stat label="승률" value={m.winRate != null ? `${m.winRate.toFixed(0)}% (${m.wins}/${m.count})` : '—'} />
+                        <Stat label="롱 / 숏" value={`${m.longCount} / ${m.shortCount}`} />
+                        <Stat label="평균 보유" value={fmtHold(m.avgHoldMs)} />
+                        <Stat label="수수료" value={`${m.feeSum.toFixed(2)}`} />
+                        <Stat label="펀딩" value={fmtPnl(m.fundingSum)} />
+                      </div>
+                      {(m.best || m.worst) && (
+                        <div className="mt-3 grid grid-cols-2 gap-3 text-[12px]">
+                          {m.best && <div><span className="text-[var(--text-muted)]">최고 </span><b className="text-[var(--text)]">{coinName(m.best.symbol)}</b> <span className="tabular-nums" style={{ color: pnlColor(m.best.netProfit) }}>{fmtPnl(m.best.netProfit)}</span></div>}
+                          {m.worst && <div><span className="text-[var(--text-muted)]">최저 </span><b className="text-[var(--text)]">{coinName(m.worst.symbol)}</b> <span className="tabular-nums" style={{ color: pnlColor(m.worst.netProfit) }}>{fmtPnl(m.worst.netProfit)}</span></div>}
+                        </div>
+                      )}
+
+                      {/* 기분별 성적(그 달) */}
+                      {mm.length > 0 && (
+                        <div className="mt-4">
+                          <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">기분별 성적 <span className="text-[10px] font-normal text-[var(--text-muted)]">어떤 심리일 때 잘·못 했나</span></h3>
+                          <div className="space-y-1.5">
+                            {mm.map((s) => {
+                              const meta = MOOD_BY_KEY.get(s.mood)!;
+                              return (
+                                <div key={s.mood} className="flex items-center gap-2 text-[13px]">
+                                  <span className="w-28 shrink-0">{meta.emoji} {meta.label}</span>
+                                  <span className="text-[var(--text-muted)] tabular-nums w-12">{s.count}건</span>
+                                  <span className="text-[var(--text-muted)] tabular-nums w-14">{s.winRate != null ? `${s.winRate.toFixed(0)}%` : '—'}</span>
+                                  <span className="ml-auto font-bold tabular-nums" style={{ color: pnlColor(s.netSum) }}>{fmtPnl(s.netSum)}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 거래내역(그 달, 청산 성적) — 행을 눌러 기분 기록 */}
+                      <div className="mt-4">
+                        <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">거래내역 <span className="text-[10px] font-normal text-[var(--text-muted)]">행을 눌러 기분 기록</span></h3>
+                        <div className="rounded-xl border border-[var(--line-2)] overflow-hidden">
+                          {trades.map((p, j) => (
+                            <TradeRow key={p.positionId} p={p} mood={moods[p.positionId]} border={j > 0}
+                              onEdit={() => setEditing({ id: p.positionId, symbol: p.symbol })} />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -297,6 +313,26 @@ export default function JournalPage() {
 
       {!mounted && <div className="skeleton h-40 mt-3" />}
     </div>
+  );
+}
+
+function TradeRow({ p, mood, border, onEdit }: { p: ClosedPosition; mood?: TradeMood; border: boolean; onEdit: () => void }) {
+  const meta = mood ? MOOD_BY_KEY.get(mood.mood) : null;
+  return (
+    <button type="button" onClick={onEdit}
+      className={`w-full text-left px-3 py-2.5 flex items-center gap-3 bg-[var(--bg-card)] active:bg-[var(--surface-2)] transition-colors ${border ? 'border-t border-[var(--line-2)]' : ''}`}>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5 flex-wrap">
+          <b className="text-[13px] text-[var(--text)]">{coinName(p.symbol)}</b>
+          <SideBadge side={p.side} />
+          {meta && <span className="text-[11px]">{meta.emoji} {meta.label}</span>}
+        </span>
+        <span className="block text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
+          {kstDateTime(p.closeTs)} · {fmtCoinPrice(p.openAvg)} → {fmtCoinPrice(p.closeAvg)} · {fmtHold(p.closeTs - p.openTs)}
+        </span>
+      </span>
+      <span className="text-[13px] font-bold tabular-nums shrink-0" style={{ color: pnlColor(p.netProfit) }}>{fmtPnl(p.netProfit)}</span>
+    </button>
   );
 }
 
