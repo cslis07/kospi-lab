@@ -93,17 +93,8 @@ export const MENU: MenuGroup[] = [
     { href: '/coins',    icon: 'crypto',   label: '코인', desc: '시세·거시 환경·ETF' },
     { href: '/futures',  icon: 'futures',  label: '선물', desc: 'USDT 무기한·펀딩' },
   ], ['/stock/', '/crypto/']),
-  // 종목 분석(/stock-analysis·/coin-analysis)은 메뉴에서 숨김 — 시장 목록의 행별 '분석' 버튼으로 진입(자동 실행).
-  // 라우트·AnalysisSwitch는 유지하고, tabExtra로 분석 탭 강조·drillTitle로 앱바 제목만 보존한다.
-  // 공시(/dart)는 제거 — 종목별 공시는 종목 분석 결과·종목 상세에 이미 있어 독립 전체 피드는 중복.
-  G('analysis', '분석', 'c-amber', 'qc-amber', 'analysis', [
-    { href: '/screener',       icon: 'screener', label: '종목 비교',  desc: '여러 종목 재무 비교',        alias: ['/growth'] },
-    { href: '/report',         icon: 'report',   label: '리포트',    desc: '증권사 리포트' },
-  ], ['/stock-analysis', '/coin-analysis']),
-  // 관심종목 — 홈에서 분리해 독립 탭으로 승격(단일 화면, 내부 국내·해외·코인 세그먼트). 하단 탭에서 바로 진입.
-  G('watch', '관심종목', 'c-rose', 'qc-rose', 'star', [
-    { href: '/my-stocks', icon: 'star', label: '관심종목', desc: '국내·해외·코인 저장 목록' },
-  ]),
+  // 분석(종목 비교·리포트)·관심종목은 하단 탭에서 제외하고 '더보기 도구'(EXTRAS)로 이동(2026-09-29, 기능은 유지).
+  // 종목/코인선물 분석(/stock-analysis·/coin-analysis)은 시장 목록의 '분석' 버튼으로 진입(드릴다운, drillTitle로 제목 유지).
   // 자산 — 단일 허브 한 화면(계좌 잔액 + 성과 7일 대표 노출, 청산·이체·일지는 팝업). 2026-09-23 재구성.
   // 상세 페이지(계좌/성과/매매일지)는 허브에서 진입하는 드릴다운이라 tabExtra로 탭 강조만 유지.
   G('assets', '자산', 'c-green', 'qc-green', 'portfolio', [
@@ -115,6 +106,9 @@ export const MENU: MenuGroup[] = [
  *  ※ KRX 시장(/krx)·성장주 발굴(/growth)은 중복이라 제거: KRX는 시장›국내 "전체보기"로,
  *    성장주 스크리닝은 분석›스크리너로 대체된다. */
 export const EXTRAS: MenuItem[] = [
+  { href: '/my-stocks',  icon: 'star',       label: '관심종목',    desc: '국내·해외·코인 저장 목록' },
+  { href: '/screener',   icon: 'screener',   label: '종목 비교',   desc: '여러 종목 재무 비교', alias: ['/growth'] },
+  { href: '/report',     icon: 'report',     label: '리포트',      desc: '증권사 리포트' },
   { href: '/journal',    icon: 'journal',    label: '매매일지',    desc: '거래소 대조·기분·월별 보고서' },
   { href: '/news',       icon: 'news',       label: '뉴스',        desc: '시장 소식' },
   { href: '/principles', icon: 'principles', label: '매매 대원칙', desc: '지킬 3·피할 3' },
