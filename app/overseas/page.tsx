@@ -389,6 +389,13 @@ export default function OverseasPage() {
                         </span>
                         <span className="text-[10px] font-mono text-[var(--text-muted)]">{item.symbol}</span>
                         <button
+                          onClick={(e) => { e.stopPropagation(); router.push(`/overseas-analysis?symbol=${encodeURIComponent(item.symbol)}`); }}
+                          className="inline-flex items-center gap-0.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md text-[var(--accent)] bg-[var(--accent-soft)] border border-[var(--accent)]/25 hover:brightness-105"
+                          aria-label={`${item.name} 분석`}>
+                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5" /></svg>
+                          분석
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); router.push(`/screener?tickers=${item.symbol}&market=US&run=1`); }}
                           className="inline-flex items-center gap-0.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md text-[var(--text-muted)] bg-[var(--surface-2)] border border-[var(--border)] hover:text-[var(--text)]"
                           aria-label={`${item.name} 간단 재무`}>

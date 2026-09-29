@@ -143,6 +143,7 @@ export function drillTitle(pathname: string): string {
   if (under(pathname, '/journal')) return '매매일지';
   // 시장 목록의 '분석' 버튼으로 진입(메뉴에서 숨김)
   if (under(pathname, '/stock-analysis')) return '종목 분석';
+  if (under(pathname, '/overseas-analysis')) return '해외 분석';
   if (under(pathname, '/coin-analysis')) return '코인선물 분석';
   // 홈 '주요 이벤트' 클릭으로 진입(메뉴에서 숨김)
   if (under(pathname, '/calendar')) return '경제 캘린더';
