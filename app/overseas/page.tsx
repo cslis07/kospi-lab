@@ -29,7 +29,7 @@ const BRAND: Record<string, { bg: string; color: string; label: string }> = {
   V:     { bg: '#1A1F71', color: '#fff',    label: 'V' },
   TSM:   { bg: '#003366', color: '#fff',    label: 'T' },
   COIN:  { bg: '#1652F0', color: '#fff',    label: 'C' },
-  PLTR:  { bg: '#1B1B1B', color: '#60a5fa', label: 'P' },
+  PLTR:  { bg: '#1B1B1B', color: '#00acfe', label: 'P' },
 };
 
 function CompanyLogo({ symbol }: { symbol: string }) {
@@ -37,7 +37,7 @@ function CompanyLogo({ symbol }: { symbol: string }) {
   return (
     <div
       className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
-      style={{ backgroundColor: b?.bg ?? '#374151', color: b?.color ?? '#fff' }}
+      style={{ backgroundColor: b?.bg ?? '#00215e', color: b?.color ?? '#fff' }}
     >
       {b?.label ?? symbol.slice(0, 2)}
     </div>

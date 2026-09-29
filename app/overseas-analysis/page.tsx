@@ -14,8 +14,8 @@ import PriceChart, { TIMEFRAMES } from '@/components/detail/PriceChart';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import type { OverseasStockData, ChartPoint } from '@/lib/types';
 
-const UP = '#f04452';
-const DOWN = '#3182f6';
+const UP = '#ff4433';
+const DOWN = '#1c6cff';
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const yFmt = (v: number) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}K` : `$${v.toFixed(v >= 100 ? 0 : 2)}`);
@@ -47,7 +47,7 @@ const CRIT: { key: keyof BDetails; label: string }[] = [
   { key: 'debt', label: '부채비율 < 100%' }, { key: 'growth', label: '매출성장 > 0' }, { key: 'per', label: 'PER 0~35' }, { key: 'profit', label: '순이익 흑자' },
 ];
 
-function passColor(p: boolean | null) { return p === true ? 'text-[#f04452]' : p === false ? 'text-[#3182f6]' : 'text-[var(--faint)]'; }
+function passColor(p: boolean | null) { return p === true ? 'text-[#ff4433]' : p === false ? 'text-[#1c6cff]' : 'text-[var(--faint)]'; }
 
 function Metric({ label, value, pass }: { label: string; value: string; pass?: boolean | null }) {
   return (
@@ -147,7 +147,7 @@ function Inner() {
           <>
             <div className="flex items-center gap-3 mb-3">
               <div className="shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl border text-xl font-black"
-                style={{ color: f.buffettScore >= 6 ? '#22c55e' : f.buffettScore >= 4 ? '#f59e0b' : '#ef4444', borderColor: 'var(--border)' }}>
+                style={{ color: f.buffettScore >= 6 ? '#00cc4b' : f.buffettScore >= 4 ? '#ff8833' : '#ff4433', borderColor: 'var(--border)' }}>
                 {f.buffettScore}<span className="text-[9px] font-normal opacity-70">/7</span>
               </div>
               <div className="flex-1 grid grid-cols-3 gap-x-3 gap-y-2 text-sm">
@@ -169,7 +169,7 @@ function Inner() {
                 const p = f.buffettDetails[c.key];
                 return (
                   <span key={c.key} className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded border font-medium ${
-                    p === true ? 'text-[#f04452] border-[#f04452]/30 bg-[#f04452]/10' : p === false ? 'text-[#3182f6] border-[#3182f6]/30 bg-[#3182f6]/10' : 'text-[var(--faint)] border-[var(--border)]'
+                    p === true ? 'text-[#ff4433] border-[#ff4433]/30 bg-[#ff4433]/10' : p === false ? 'text-[#1c6cff] border-[#1c6cff]/30 bg-[#1c6cff]/10' : 'text-[var(--faint)] border-[var(--border)]'
                   }`}>{p === true ? '✓' : p === false ? '✕' : '—'} {c.label}</span>
                 );
               })}

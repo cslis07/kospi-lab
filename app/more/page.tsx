@@ -6,7 +6,6 @@
  */
 import { Suspense } from 'react';
 import HomeMenu from '@/components/HomeMenu';
-import ThemeToggle from '@/components/ThemeToggle';
 import SyncIndicator from '@/components/SyncIndicator';
 import { GUIDE } from '@/lib/menu';
 
@@ -30,10 +29,6 @@ export default function MorePage() {
       <section>
         <h2 className="text-[11px] font-semibold text-[var(--text-muted)] mb-2.5 uppercase tracking-wide px-1">설정 · 정보</h2>
         <div className="rounded-2xl border border-[var(--border)] overflow-hidden">
-          <div className="list-row">
-            <span className="text-sm font-semibold">테마</span>
-            <span className="ml-auto"><ThemeToggle /></span>
-          </div>
           <div className="list-row">
             <span className="text-sm font-semibold">클라우드 동기화</span>
             <span className="ml-auto"><SyncIndicator /></span>

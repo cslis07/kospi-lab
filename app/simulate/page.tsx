@@ -159,16 +159,16 @@ function CompoundSim() {
         <ResponsiveContainer width="100%" height={260}>
           <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
             <defs>
-              <linearGradient id="fvGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} /><stop offset="95%" stopColor="#3b82f6" stopOpacity={0} /></linearGradient>
-              <linearGradient id="prGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6b7280" stopOpacity={0.3} /><stop offset="95%" stopColor="#6b7280" stopOpacity={0} /></linearGradient>
+              <linearGradient id="fvGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00acfe" stopOpacity={0.3} /><stop offset="95%" stopColor="#00acfe" stopOpacity={0} /></linearGradient>
+              <linearGradient id="prGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#5c6f8a" stopOpacity={0.3} /><stop offset="95%" stopColor="#5c6f8a" stopOpacity={0} /></linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis dataKey="year" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} interval={Math.ceil(years / 5) - 1} />
             <YAxis tickFormatter={(v) => v >= 100000000 ? `${(v/100000000).toFixed(0)}억` : `${(v/10000).toFixed(0)}만`} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={50} />
             <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Area type="monotone" dataKey="fv" name="예상 자산" stroke="#3b82f6" fill="url(#fvGrad)" strokeWidth={2} />
-            <Area type="monotone" dataKey="principal" name="투자 원금" stroke="#6b7280" fill="url(#prGrad)" strokeWidth={1.5} strokeDasharray="4 2" />
+            <Area type="monotone" dataKey="fv" name="예상 자산" stroke="#00acfe" fill="url(#fvGrad)" strokeWidth={2} />
+            <Area type="monotone" dataKey="principal" name="투자 원금" stroke="#5c6f8a" fill="url(#prGrad)" strokeWidth={1.5} strokeDasharray="4 2" />
           </AreaChart>
         </ResponsiveContainer>
       </div>

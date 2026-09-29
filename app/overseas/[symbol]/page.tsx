@@ -17,8 +17,8 @@ import { badgeTint } from '@/components/WatchRow';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import type { OverseasStockData, ChartPoint } from '@/lib/types';
 
-const UP = '#f04452';
-const DOWN = '#3182f6';
+const UP = '#ff4433';
+const DOWN = '#1c6cff';
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 // Yahoo 내부 거래소 코드 → 통용 명칭(NMS 같은 코드가 그대로 노출되지 않게)
 const EXCHANGE: Record<string, string> = { NMS: 'NASDAQ', NGM: 'NASDAQ', NCM: 'NASDAQ', NASDAQGS: 'NASDAQ', NASDAQGM: 'NASDAQ', NYQ: 'NYSE', NYSE: 'NYSE', PCX: 'NYSE Arca', ASE: 'NYSE American', BTS: 'Cboe' };

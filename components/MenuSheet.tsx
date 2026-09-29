@@ -7,7 +7,6 @@
 import { Suspense } from 'react';
 import BottomSheet from './ui/BottomSheet';
 import HomeMenu from './HomeMenu';
-import ThemeToggle from './ThemeToggle';
 import SyncIndicator from './SyncIndicator';
 import { GUIDE } from '@/lib/menu';
 
@@ -20,10 +19,6 @@ export default function MenuSheet({ open, onClose }: { open: boolean; onClose: (
 
       <h3 className="text-[11px] font-semibold text-[var(--text-muted)] mt-7 mb-2.5 uppercase tracking-wide">설정 · 정보</h3>
       <div className="rounded-2xl border border-[var(--border)] overflow-hidden">
-        <div className="list-row">
-          <span className="text-sm font-semibold">테마</span>
-          <span className="ml-auto"><ThemeToggle /></span>
-        </div>
         <div className="list-row">
           <span className="text-sm font-semibold">클라우드 동기화</span>
           <span className="ml-auto"><SyncIndicator /></span>

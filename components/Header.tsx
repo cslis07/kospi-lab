@@ -4,7 +4,6 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import ThemeToggle from './ThemeToggle';
 import SyncIndicator from './SyncIndicator';
 import GlobalSearch from './GlobalSearch';
 import SearchSheet from './SearchSheet';
@@ -135,7 +134,7 @@ export default function Header() {
         {mode === 'home' ? (
           <Link href="/" aria-label="홈" className="flex items-center gap-2 pl-2.5 min-w-0 flex-1">
             <span aria-hidden className="grid place-items-center w-7 h-7 rounded-lg text-[13px] font-black text-white shrink-0"
-              style={{ background: 'linear-gradient(135deg,#3182f6,#1b64da)', boxShadow: '0 2px 8px rgba(49,130,246,.35)' }}>K</span>
+              style={{ background: 'linear-gradient(135deg,#1c6cff,#1b64da)', boxShadow: '0 2px 8px rgba(28,108,255,.35)' }}>K</span>
             <span className="text-[17px] font-extrabold tracking-tight text-[var(--text)] truncate">KOSPI LAB</span>
           </Link>
         ) : mode === 'section' ? (
@@ -165,7 +164,7 @@ export default function Header() {
         <div className="flex items-center gap-3 shrink-0 min-w-0">
           <Link href="/" aria-label="홈으로" className="flex items-center gap-2 leading-tight">
             <span aria-hidden className="grid place-items-center w-7 h-7 rounded-lg text-[13px] font-black text-white"
-              style={{ background: 'linear-gradient(135deg,#3182f6,#1b64da)', boxShadow: '0 2px 8px rgba(49,130,246,.35)' }}>K</span>
+              style={{ background: 'linear-gradient(135deg,#1c6cff,#1b64da)', boxShadow: '0 2px 8px rgba(28,108,255,.35)' }}>K</span>
             <span className="block">
               <h1 className="text-sm font-extrabold tracking-tight text-[var(--text)]">KOSPI LAB</h1>
               <p className="text-[9px] text-[var(--text-muted)] leading-none mt-0.5 hidden sm:block">투자 리스크 관리</p>
@@ -218,7 +217,6 @@ export default function Header() {
           </div>
 
           <SyncIndicator />
-          <ThemeToggle />
 
           {/* 전체 메뉴 팝업 버튼 — 홈 하단 바로가기 카드를 대신한다(모바일 ☰ 시트와 동일 내용) */}
           <button type="button" onClick={() => setMenuOpen(true)} aria-label="전체 메뉴"

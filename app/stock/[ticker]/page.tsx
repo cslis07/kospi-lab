@@ -23,8 +23,8 @@ import SwipeNav from '@/components/detail/SwipeNav';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 // 한국 관행: 상승=빨강, 하락=파랑 (앱 전체와 통일 — 이 화면만 초록/빨강이던 불일치 수정)
-const UP = '#f04452';
-const DOWN = '#3182f6';
+const UP = '#ff4433';
+const DOWN = '#1c6cff';
 
 function fmt(n: number) { return new Intl.NumberFormat('ko-KR').format(Math.round(n)); }
 function fmtVol(n: number) {
@@ -495,12 +495,12 @@ export default function StockDetailPage() {
   );
 
   const INDS = [
-    { key: 'ma5',  label: 'MA5',   desc: '5일 이동평균',         active: showMA5,  set: setShowMA5,  hex: '#eab308' },
-    { key: 'ma20', label: 'MA20',  desc: '20일 이동평균',        active: showMA20, set: setShowMA20, hex: '#3b82f6' },
-    { key: 'ma60', label: 'MA60',  desc: '60일 이동평균',        active: showMA60, set: setShowMA60, hex: '#f97316' },
-    { key: 'bb',   label: 'BB',    desc: '볼린저 밴드 (20, 2σ)', active: showBB,   set: setShowBB,   hex: '#8b5cf6' },
-    { key: 'rsi',  label: 'RSI',   desc: 'RSI(14) 보조 차트',    active: showRSI,  set: setShowRSI,  hex: '#10b981' },
-    { key: 'vol',  label: '거래량', desc: '거래량 보조 차트',     active: showVol,  set: setShowVol,  hex: '#0ea5e9' },
+    { key: 'ma5',  label: 'MA5',   desc: '5일 이동평균',         active: showMA5,  set: setShowMA5,  hex: '#ffcc02' },
+    { key: 'ma20', label: 'MA20',  desc: '20일 이동평균',        active: showMA20, set: setShowMA20, hex: '#00acfe' },
+    { key: 'ma60', label: 'MA60',  desc: '60일 이동평균',        active: showMA60, set: setShowMA60, hex: '#ff8833' },
+    { key: 'bb',   label: 'BB',    desc: '볼린저 밴드 (20, 2σ)', active: showBB,   set: setShowBB,   hex: '#9019e6' },
+    { key: 'rsi',  label: 'RSI',   desc: 'RSI(14) 보조 차트',    active: showRSI,  set: setShowRSI,  hex: '#00cc4b' },
+    { key: 'vol',  label: '거래량', desc: '거래량 보조 차트',     active: showVol,  set: setShowVol,  hex: '#00acfe' },
   ];
   const activeInd = INDS.filter((i) => i.active);
 
@@ -613,7 +613,7 @@ export default function StockDetailPage() {
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Line type="monotone" dataKey="mainRet" name={stock.name} stroke={isPos ? UP : DOWN}
                     strokeWidth={1.5} dot={false} />
-                  <Line type="monotone" dataKey="compareRet" name={compareName || compareTicker} stroke="#f59e0b"
+                  <Line type="monotone" dataKey="compareRet" name={compareName || compareTicker} stroke="#ff8833"
                     strokeWidth={1.5} dot={false} connectNulls />
                   <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 4" />
                 </ComposedChart>
@@ -647,13 +647,13 @@ export default function StockDetailPage() {
                   <Area type="monotone" dataKey="price" stroke={isPos ? UP : DOWN}
                     strokeWidth={1.5} fill="url(#stockGrad)" dot={false} />
                   {showBB && <>
-                    <Line type="monotone" dataKey="bbUpper"  stroke="#8b5cf6" strokeWidth={1} dot={false} strokeDasharray="4 2" />
-                    <Line type="monotone" dataKey="bbMiddle" stroke="#8b5cf6" strokeWidth={1} dot={false} opacity={0.5} />
-                    <Line type="monotone" dataKey="bbLower"  stroke="#8b5cf6" strokeWidth={1} dot={false} strokeDasharray="4 2" />
+                    <Line type="monotone" dataKey="bbUpper"  stroke="#9019e6" strokeWidth={1} dot={false} strokeDasharray="4 2" />
+                    <Line type="monotone" dataKey="bbMiddle" stroke="#9019e6" strokeWidth={1} dot={false} opacity={0.5} />
+                    <Line type="monotone" dataKey="bbLower"  stroke="#9019e6" strokeWidth={1} dot={false} strokeDasharray="4 2" />
                   </>}
                   {showMA5  && <Line type="monotone" dataKey="ma5"  stroke="#facc15" strokeWidth={1.2} dot={false} />}
-                  {showMA20 && <Line type="monotone" dataKey="ma20" stroke="#60a5fa" strokeWidth={1.2} dot={false} />}
-                  {showMA60 && <Line type="monotone" dataKey="ma60" stroke="#f97316" strokeWidth={1.2} dot={false} />}
+                  {showMA20 && <Line type="monotone" dataKey="ma20" stroke="#00acfe" strokeWidth={1.2} dot={false} />}
+                  {showMA60 && <Line type="monotone" dataKey="ma60" stroke="#ff8833" strokeWidth={1.2} dot={false} />}
                 </ComposedChart>
               )}
             </ResponsiveContainer>
@@ -664,7 +664,7 @@ export default function StockDetailPage() {
                 <AreaChart data={enhancedData} margin={{ top: 4, right: 5, left: 10, bottom: 0 }}>
                   <XAxis dataKey="date" hide />
                   <YAxis hide />
-                  <Area type="monotone" dataKey="volume" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.3} dot={false} />
+                  <Area type="monotone" dataKey="volume" stroke="#00acfe" fill="#00acfe" fillOpacity={0.3} dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -677,8 +677,8 @@ export default function StockDetailPage() {
                   <ComposedChart data={rsiData} margin={{ top: 0, right: 5, left: 10, bottom: 0 }}>
                     <YAxis domain={[0, 100]} ticks={[30, 70]} tick={{ fontSize: 9, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={24} />
                     <XAxis dataKey="date" hide />
-                    <ReferenceLine y={70} stroke="#ef4444" strokeDasharray="3 3" strokeOpacity={0.5} />
-                    <ReferenceLine y={30} stroke="#10b981" strokeDasharray="3 3" strokeOpacity={0.5} />
+                    <ReferenceLine y={70} stroke="#ff4433" strokeDasharray="3 3" strokeOpacity={0.5} />
+                    <ReferenceLine y={30} stroke="#00cc4b" strokeDasharray="3 3" strokeOpacity={0.5} />
                     <Tooltip content={({ active, payload }) => {
                       if (!active || !payload?.length) return null;
                       return (

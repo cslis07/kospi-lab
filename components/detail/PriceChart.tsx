@@ -15,8 +15,8 @@ export const TIMEFRAMES = [
   { label: '6개월', months: 6 },
   { label: '1년',   months: 12 },
 ];
-const UP = '#f04452';
-const DOWN = '#3182f6';
+const UP = '#ff4433';
+const DOWN = '#1c6cff';
 
 interface Pt { date: string; price: number; volume?: number }
 
@@ -39,10 +39,10 @@ export default function PriceChart({
   const [ma60, setMa60] = useState(false);
   const [vol, setVol] = useState(true);
   const INDS = [
-    { key: 'ma5',  label: 'MA5',   desc: '5일 이동평균',    active: ma5,  set: setMa5,  hex: '#eab308' },
-    { key: 'ma20', label: 'MA20',  desc: '20일 이동평균',   active: ma20, set: setMa20, hex: '#3b82f6' },
-    { key: 'ma60', label: 'MA60',  desc: '60일 이동평균',   active: ma60, set: setMa60, hex: '#f97316' },
-    { key: 'vol',  label: '거래량', desc: '거래량 보조 차트', active: vol,  set: setVol,  hex: '#0ea5e9' },
+    { key: 'ma5',  label: 'MA5',   desc: '5일 이동평균',    active: ma5,  set: setMa5,  hex: '#ffcc02' },
+    { key: 'ma20', label: 'MA20',  desc: '20일 이동평균',   active: ma20, set: setMa20, hex: '#00acfe' },
+    { key: 'ma60', label: 'MA60',  desc: '60일 이동평균',   active: ma60, set: setMa60, hex: '#ff8833' },
+    { key: 'vol',  label: '거래량', desc: '거래량 보조 차트', active: vol,  set: setVol,  hex: '#00acfe' },
   ];
   const active = INDS.filter((i) => i.active);
   const color = isUp ? UP : DOWN;
@@ -104,16 +104,16 @@ export default function PriceChart({
                 );
               }} />
               <Area type="monotone" dataKey="price" stroke={color} strokeWidth={1.6} fill={`url(#g${gid})`} dot={false} />
-              {ma5 && <Line type="monotone" dataKey="ma5" stroke="#eab308" strokeWidth={1.1} dot={false} connectNulls />}
-              {ma20 && <Line type="monotone" dataKey="ma20" stroke="#3b82f6" strokeWidth={1.1} dot={false} connectNulls />}
-              {ma60 && <Line type="monotone" dataKey="ma60" stroke="#f97316" strokeWidth={1.1} dot={false} connectNulls />}
+              {ma5 && <Line type="monotone" dataKey="ma5" stroke="#ffcc02" strokeWidth={1.1} dot={false} connectNulls />}
+              {ma20 && <Line type="monotone" dataKey="ma20" stroke="#00acfe" strokeWidth={1.1} dot={false} connectNulls />}
+              {ma60 && <Line type="monotone" dataKey="ma60" stroke="#ff8833" strokeWidth={1.1} dot={false} connectNulls />}
             </ComposedChart>
           </ResponsiveContainer>
           {vol && data.some((d) => d.volume) && (
             <ResponsiveContainer width="100%" height={56}>
               <AreaChart data={data} margin={{ top: 4, right: 5, left: 8, bottom: 0 }}>
                 <XAxis dataKey="date" hide /><YAxis hide />
-                <Area type="monotone" dataKey="volume" stroke="#0ea5e9" strokeWidth={0} fill="#0ea5e9" fillOpacity={0.28} dot={false} />
+                <Area type="monotone" dataKey="volume" stroke="#00acfe" strokeWidth={0} fill="#00acfe" fillOpacity={0.28} dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           )}

@@ -36,7 +36,7 @@ function CandleShape({ x = 0, y = 0, width = 0, height = 0, payload }: CandleSha
   const span = h - l;
   if (span <= 0 || height <= 0) return null;
   const up = c >= o;
-  const color = up ? '#10b981' : '#ef4444';
+  const color = up ? '#00cc4b' : '#ff4433';
   const bodyTopPrice = Math.max(o, c);
   const bodyBotPrice = Math.min(o, c);
   const pxPerPrice = height / span;
@@ -90,8 +90,8 @@ export default function CoinCandleChart({
     resistances.slice(0, 2).forEach((p) => out.push({ price: p, label: `저항 ${fmt(p, digits)}`, color: '#f87171', dash: true }));
     supports.slice(0, 2).forEach((p) => out.push({ price: p, label: `지지 ${fmt(p, digits)}`, color: '#34d399', dash: true }));
     if (fib) {
-      out.push({ price: fib.r382, label: 'fib 38.2%', color: '#fbbf24' });
-      out.push({ price: fib.r618, label: 'fib 61.8%', color: '#fbbf24' });
+      out.push({ price: fib.r382, label: 'fib 38.2%', color: '#ffcc02' });
+      out.push({ price: fib.r618, label: 'fib 61.8%', color: '#ffcc02' });
     }
     return out.filter((l) => l.price >= yMin && l.price <= yMax);
   }, [supports, resistances, fib, digits, yMin, yMax]);
@@ -136,7 +136,7 @@ export default function CoinCandleChart({
         <Bar dataKey="range" shape={<CandleShape />} isAnimationActive={false} />
         {/* EMA 오버레이 */}
         <Line type="monotone" dataKey="ema20" stroke="#a855f7" strokeWidth={1.2} dot={false} isAnimationActive={false} />
-        <Line type="monotone" dataKey="ema60" stroke="#38bdf8" strokeWidth={1.2} dot={false} isAnimationActive={false} />
+        <Line type="monotone" dataKey="ema60" stroke="#00acfe" strokeWidth={1.2} dot={false} isAnimationActive={false} />
         {/* 지지·저항·피보나치 레벨 */}
         {levels.map((l, i) => (
           <ReferenceLine key={`lv${i}`} y={l.price} stroke={l.color} strokeWidth={1}
@@ -145,20 +145,20 @@ export default function CoinCandleChart({
         ))}
         {/* 진입·손절·익절 */}
         {direction !== 'wait' && entry ? (
-          <ReferenceLine y={entry} stroke="#e5e7eb" strokeWidth={1}
-            label={{ value: '진입', position: 'left', fontSize: 8, fill: '#e5e7eb' }} />
+          <ReferenceLine y={entry} stroke="#ccced0" strokeWidth={1}
+            label={{ value: '진입', position: 'left', fontSize: 8, fill: '#ccced0' }} />
         ) : null}
         {direction !== 'wait' && stop ? (
-          <ReferenceLine y={stop} stroke="#ef4444" strokeWidth={1.2}
-            label={{ value: '손절', position: 'left', fontSize: 8, fill: '#ef4444' }} />
+          <ReferenceLine y={stop} stroke="#ff4433" strokeWidth={1.2}
+            label={{ value: '손절', position: 'left', fontSize: 8, fill: '#ff4433' }} />
         ) : null}
         {direction !== 'wait' && target1 ? (
-          <ReferenceLine y={target1} stroke="#10b981" strokeWidth={1} strokeDasharray="3 3"
-            label={{ value: 'T1', position: 'left', fontSize: 8, fill: '#10b981' }} />
+          <ReferenceLine y={target1} stroke="#00cc4b" strokeWidth={1} strokeDasharray="3 3"
+            label={{ value: 'T1', position: 'left', fontSize: 8, fill: '#00cc4b' }} />
         ) : null}
         {direction !== 'wait' && target2 ? (
-          <ReferenceLine y={target2} stroke="#10b981" strokeWidth={1} strokeDasharray="3 3"
-            label={{ value: 'T2', position: 'left', fontSize: 8, fill: '#10b981' }} />
+          <ReferenceLine y={target2} stroke="#00cc4b" strokeWidth={1} strokeDasharray="3 3"
+            label={{ value: 'T2', position: 'left', fontSize: 8, fill: '#00cc4b' }} />
         ) : null}
       </ComposedChart>
     </ResponsiveContainer>

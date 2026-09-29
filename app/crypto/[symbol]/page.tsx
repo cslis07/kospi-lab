@@ -16,8 +16,8 @@ import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 import { COINS, fmtCoinPrice } from '@/lib/coins';
 import type { CryptoData, ChartPoint } from '@/lib/types';
 
-const UP = '#f04452';
-const DOWN = '#3182f6';
+const UP = '#ff4433';
+const DOWN = '#1c6cff';
 const ANALYZABLE = ['BTC', 'ETH', 'XRP', 'SOL'];
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const yFmt = (v: number) => (v >= 1000 ? `$${(v / 1000).toFixed(0)}K` : v >= 1 ? `$${v.toFixed(2)}` : `$${v.toFixed(4)}`);

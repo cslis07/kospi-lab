@@ -29,7 +29,7 @@ const BRAND: Record<string, { bg: string; color: string; label: string }> = {
 function CompanyLogo({ code, name }: { code: string; name: string }) {
   const brand    = BRAND[code];
   const initials = brand?.label ?? name.slice(0, 2);
-  const bg       = brand?.bg    ?? '#374151';
+  const bg       = brand?.bg    ?? '#00215e';
   const color    = brand?.color ?? '#fff';
   return (
     <div
@@ -124,7 +124,7 @@ export default function StockDetailModal({ code, name, market, onClose }: Props)
   const insight       = getInsight(investorRows);
 
   const isPos      = (stock?.change ?? 0) >= 0;
-  const lineColor  = isPos ? '#ef4444' : '#3b82f6';
+  const lineColor  = isPos ? '#ff4433' : '#00acfe';
 
   return (
     <div

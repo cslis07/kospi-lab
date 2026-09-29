@@ -9,7 +9,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
           <p style={{ fontSize: 32, margin: '0 0 12px' }}>⚠️</p>
           <h2 style={{ fontSize: 16, margin: '0 0 8px' }}>앱에 문제가 생겼습니다</h2>
           <p style={{ fontSize: 12, opacity: 0.7, margin: '0 0 20px' }}>{error.digest ? `오류 코드: ${error.digest}` : '잠시 후 다시 시도해 주세요.'}</p>
-          <button onClick={reset} style={{ padding: '8px 16px', borderRadius: 12, border: '1px solid #38bdf8', background: 'rgba(56,189,248,.15)', color: '#38bdf8', fontWeight: 600, cursor: 'pointer' }}>
+          <button onClick={reset} style={{ padding: '8px 16px', borderRadius: 12, border: '1px solid #00acfe', background: 'rgba(28,108,255,.15)', color: '#00acfe', fontWeight: 600, cursor: 'pointer' }}>
             다시 시도
           </button>
         </div>

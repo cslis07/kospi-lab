@@ -4,8 +4,8 @@
   "description": "국내주식·코인선물 손절·사이징·청산가 계산과 매매 기록 — 투자 리스크 관리 대시보드",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f2f4f6",
-  "theme_color": "#f2f4f6",
+  "background_color": "#000814",
+  "theme_color": "#000814",
   "orientation": "portrait-primary",
   "icons": [
     {

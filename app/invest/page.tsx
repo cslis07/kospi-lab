@@ -68,12 +68,12 @@ function calcRecommendation(inp: Inputs) {
 
   /* 3. 종목 매핑 */
   const tickerMap: Record<string, { ticker: string; desc: string; color: string }> = {
-    'S&P500':   { ticker: 'SPLG',  desc: 'Invesco S&P500 ETF',  color: '#3b82f6' },
-    '나스닥100': { ticker: 'QQQM',  desc: 'Invesco NASDAQ100',   color: '#8b5cf6' },
-    '비트코인':  { ticker: 'BTC',   desc: 'Bitcoin (spot)',      color: '#f59e0b' },
-    '채권':     { ticker: 'BND',   desc: 'Vanguard 채권 ETF',   color: '#10b981' },
-    '현금':     { ticker: 'CASH',  desc: 'CMA / 파킹통장',      color: '#6b7280' },
-    '금':       { ticker: 'GLD',   desc: 'SPDR Gold Trust',     color: '#eab308' },
+    'S&P500':   { ticker: 'SPLG',  desc: 'Invesco S&P500 ETF',  color: '#00acfe' },
+    '나스닥100': { ticker: 'QQQM',  desc: 'Invesco NASDAQ100',   color: '#9019e6' },
+    '비트코인':  { ticker: 'BTC',   desc: 'Bitcoin (spot)',      color: '#ff8833' },
+    '채권':     { ticker: 'BND',   desc: 'Vanguard 채권 ETF',   color: '#00cc4b' },
+    '현금':     { ticker: 'CASH',  desc: 'CMA / 파킹통장',      color: '#5c6f8a' },
+    '금':       { ticker: 'GLD',   desc: 'SPDR Gold Trust',     color: '#ffcc02' },
   };
 
   const assets: Asset[] = Object.entries(normalized).map(([name, ratio]) => ({

@@ -47,7 +47,7 @@ function CompanyLogo({ ticker, name }: { ticker: string; name: string }) {
   return (
     <div
       className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-      style={{ backgroundColor: b?.bg ?? '#374151', color: b?.color ?? '#fff' }}
+      style={{ backgroundColor: b?.bg ?? '#00215e', color: b?.color ?? '#fff' }}
     >
       {b?.label ?? name.slice(0, 2)}
     </div>

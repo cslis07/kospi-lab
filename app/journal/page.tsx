@@ -18,8 +18,8 @@ import { monthlyStats, moodStats, kstMonth } from '@/lib/tradeReport';
 import { fmtCoinPrice } from '@/lib/coins';
 import type { ClosedPosition } from '@/app/api/bitget/history/route';
 
-const UP = '#f04452';
-const DOWN = '#3182f6';
+const UP = '#ff4433';
+const DOWN = '#1c6cff';
 const COIN_NAME: Record<string, string> = {
   BTCUSDT: '비트코인', ETHUSDT: '이더리움', XRPUSDT: '리플', SOLUSDT: '솔라나',
 };
@@ -50,7 +50,7 @@ const kstDateTime = (ts: number) =>
 const kstMonthLabel = (ym: string) => { const [y, m] = ym.split('-'); return `${y}년 ${Number(m)}월`; };
 
 function SideBadge({ side }: { side: 'long' | 'short' }) {
-  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${side === 'long' ? 'text-[#f04452] bg-[#f04452]/10' : 'text-[#3182f6] bg-[#3182f6]/10'}`}>{side === 'long' ? '롱' : '숏'}</span>;
+  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${side === 'long' ? 'text-[#ff4433] bg-[#ff4433]/10' : 'text-[#1c6cff] bg-[#1c6cff]/10'}`}>{side === 'long' ? '롱' : '숏'}</span>;
 }
 
 function Chevron({ open }: { open: boolean }) {

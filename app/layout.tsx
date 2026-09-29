@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 import NavTabs from '@/components/NavTabs';
@@ -21,31 +22,28 @@ export const metadata: Metadata = {
   },
 };
 
+// Copilot Money 디자인 — Jokker/Matter(상용)의 대체재. 라틴·숫자만 담당하고 한글은 Pretendard 로 폴백.
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
+const grotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-grotesk', display: 'swap' });
+
 export const viewport: Viewport = {
-  // 기본 라이트, 다크 선택 시 다크 크롬
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f2f4f6' },
-    { media: '(prefers-color-scheme: dark)', color: '#0f1115' },
-  ],
+  // 다크 전용(미드나잇 캔버스)
+  themeColor: '#000814',
+  colorScheme: 'dark',
   width: 'device-width',
   initialScale: 1,
   // 노치·제스처바 안전영역(env(safe-area-inset-*))을 쓰려면 cover 필요 — 하단 탭바 여백에 사용
   viewportFit: 'cover',
 };
 
-// 페인트 전에 실행 — 사용자가 명시적으로 다크를 골랐을 때만 html.dark 를 붙인다(기본은 라이트).
-const THEME_INIT = `try{if(localStorage.getItem('theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}`;
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // 다크 전용 — html.dark 를 정적으로 붙여 기존 다크 규칙·dark: 변형이 항상 적용되게 한다(테마 토글 제거).
   return (
-    <html lang="ko" className="h-full">
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
-      </head>
+    <html lang="ko" className={`h-full dark ${inter.variable} ${grotesk.variable}`}>
       <body className="min-h-full flex flex-col">
         <PwaRegister />
         <Header />
-        <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 pt-4 md:pt-6">
+        <div className="flex-1 max-w-[1200px] mx-auto w-full px-4 sm:px-6 pt-4 md:pt-6">
           <NavTabs />
           {children}
         </div>

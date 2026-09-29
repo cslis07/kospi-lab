@@ -149,7 +149,7 @@ export default function WatchlistPreview({ limit = 6 }: { limit?: number }) {
             <span className="text-[15px] text-[var(--faint)]">종목 검색해서 추가</span>
           </button>
 
-          <div className="chip-scroll">
+          <div className="chip-scroll in-card">
             {([['default', '기본순'], ['up', '상승률순'], ['down', '하락률순']] as [Sort, string][]).map(([k, l]) => (
               <button key={k} type="button" className={`chip ${sort === k ? 'active' : ''}`} aria-pressed={sort === k} onClick={() => setSort(k)}>{l}</button>
             ))}
