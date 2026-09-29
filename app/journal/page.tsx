@@ -2,9 +2,9 @@
 
 /**
  * 매매일지 (단순화판) — 세 조각만 남긴다.
- *  ① 거래소 대조: Bitget USDT 선물 청산 이력을 그대로 가져온다(매매 목록의 유일한 소스).
- *  ② 매매별 기분: 청산 포지션마다 '진입 당시 심리'를 이 브라우저에 덧입힌다.
- *  ③ 월별 보고서: 거래소 매입·청산 + 내 기분을 합쳐 어떻게 매매해왔는지 되짚는다.
+ *  ① 거래소 대조: Bitget USDT 선물 청산 이력 + 현재 열린 포지션을 그대로 가져온다(매매 목록의 소스).
+ *  ② 매매별 기분: 각 매매마다 '진입 당시 심리'를 이 브라우저에 덧입힌다(열린 포지션에 바로 기록 가능).
+ *  ③ 월별 보고서: 거래소 매입·청산 + 내 기분을 합쳐 어떻게 매매해왔는지 되짚는다(청산 건만).
  *
  * 코인선물 전용(거래소 자동 대조가 되는 유일한 소스). 읽기 전용 조회 — 주문하지 않는다.
  * 색은 한국 관행(상승·이익=빨강 / 하락·손실=파랑).
@@ -14,7 +14,7 @@ import Link from 'next/link';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { useTradeMood } from '@/hooks/useTradeMood';
 import { MOODS, MOOD_BY_KEY, type MoodKey } from '@/lib/tradeMood';
-import { monthlyStats, moodStats, type TradePosition } from '@/lib/tradeReport';
+import { monthlyStats, moodStats } from '@/lib/tradeReport';
 import { fmtCoinPrice } from '@/lib/coins';
 import type { ClosedPosition } from '@/app/api/bitget/history/route';
 
@@ -24,6 +24,14 @@ const COIN_NAME: Record<string, string> = {
   BTCUSDT: '비트코인', ETHUSDT: '이더리움', XRPUSDT: '리플', SOLUSDT: '솔라나',
 };
 const coinName = (s: string) => COIN_NAME[s] ?? s.replace(/USDT$/, '');
+
+/** 현재 열린 포지션(/api/bitget/positions) — positionId가 없어 기분 키는 open-심볼-방향 */
+interface OpenPosition {
+  symbol: string; side: 'long' | 'short'; size: number; openAvg: number;
+  markPrice: number; leverage: number; unrealizedPL: number;
+  liquidationPrice: number; liqDistPct: number | null;
+}
+const openId = (p: OpenPosition) => `open-${p.symbol}-${p.side}`;
 
 const fmtPnl = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(2)}`;
 const pnlColor = (n: number) => (n > 0 ? UP : n < 0 ? DOWN : 'var(--faint)');
@@ -41,22 +49,27 @@ const kstDateTime = (ts: number) =>
     .format(new Date(ts));
 const kstMonthLabel = (ym: string) => { const [y, m] = ym.split('-'); return `${y}년 ${Number(m)}월`; };
 
+function SideBadge({ side }: { side: 'long' | 'short' }) {
+  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${side === 'long' ? 'text-[#f04452] bg-[#f04452]/10' : 'text-[#3182f6] bg-[#3182f6]/10'}`}>{side === 'long' ? '롱' : '숏'}</span>;
+}
+
 export default function JournalPage() {
   const { moods, mounted, setMood, clearMood } = useTradeMood();
   const [days, setDays] = useState(30);
   const [positions, setPositions] = useState<ClosedPosition[]>([]);
+  const [open, setOpen] = useState<OpenPosition[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  // 기분 편집 시트
-  const [editing, setEditing] = useState<ClosedPosition | null>(null);
+  // 기분 편집 시트 — 열린/청산 포지션 공통으로 { id, symbol } 을 편집한다
+  const [editing, setEditing] = useState<{ id: string; symbol: string } | null>(null);
   const [pick, setPick] = useState<MoodKey | null>(null);
   const [note, setNote] = useState('');
   useEffect(() => {
     if (!editing) return;
-    const cur = moods[editing.positionId];
+    const cur = moods[editing.id];
     setPick(cur?.mood ?? null);
     setNote(cur?.note ?? '');
   }, [editing, moods]);
@@ -64,14 +77,25 @@ export default function JournalPage() {
   const load = useCallback(async (d: number) => {
     setBusy(true); setErr(null); setMsg(null);
     try {
-      const res = await fetch(`/api/bitget/history?days=${d}`);
-      if (res.status === 401) { setErr('잠금 상태입니다 — /bitget 에서 접근 토큰을 1회 입력하세요.'); setPositions([]); return; }
-      const j = await res.json() as { configured?: boolean; error?: string; positions?: ClosedPosition[] };
+      const [hRes, pRes] = await Promise.all([
+        fetch(`/api/bitget/history?days=${d}`),
+        fetch('/api/bitget/positions').catch(() => null),
+      ]);
+
+      // 현재 열린 포지션 — best-effort(잠금·권한 문제는 아래 history 에러로 안내)
+      let openList: OpenPosition[] = [];
+      if (pRes && pRes.ok) {
+        try { const pj = await pRes.json() as { positions?: OpenPosition[] }; if (Array.isArray(pj.positions)) openList = pj.positions; } catch { /* 무시 */ }
+      }
+      setOpen(openList);
+
+      if (hRes.status === 401) { setErr('잠금 상태입니다 — /bitget 에서 접근 토큰을 1회 입력하세요.'); setPositions([]); return; }
+      const j = await hRes.json() as { configured?: boolean; error?: string; positions?: ClosedPosition[] };
       if (j.configured === false) { setErr('Bitget API 키가 서버에 설정되지 않았습니다.'); setPositions([]); return; }
       if (j.error) { setErr(`거래소 조회 실패 — ${j.error.includes('40014') ? '키에 선물 읽기 권한이 없습니다(Bitget API 관리에서 Futures/Position Read 추가).' : j.error}`); setPositions([]); return; }
       const list = j.positions ?? [];
       setPositions(list);
-      if (!list.length) setMsg(`최근 ${d}일 청산된 선물 포지션이 없습니다.`);
+      if (!list.length && !openList.length) setMsg(`최근 ${d}일 청산된 선물 포지션이 없고, 열린 포지션도 없습니다.`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally { setBusy(false); setLoaded(true); }
@@ -86,7 +110,7 @@ export default function JournalPage() {
 
   const saveMood = () => {
     if (!editing || !pick) return;
-    setMood(editing.positionId, pick, note);
+    setMood(editing.id, pick, note);
     setEditing(null);
   };
 
@@ -119,7 +143,41 @@ export default function JournalPage() {
       {err && <p className="mb-3 text-[12px] text-red-400">⚠ {err} {err.includes('잠금') && <Link href="/bitget" className="underline">계좌로 이동</Link>}</p>}
       {msg && !err && <p className="mb-3 text-[12px] text-[var(--text-muted)]">{msg}</p>}
 
-      {/* ③ 월별 보고서 */}
+      {/* 현재 포지션 (미청산) — 진입 당시 기분을 바로 기록 */}
+      {open.length > 0 && (
+        <section className="mb-5">
+          <h2 className="text-sm font-bold text-[var(--text)] mb-2">현재 포지션 <span className="text-[10px] font-normal text-[var(--text-muted)]">미청산 · 눌러서 진입 기분 기록</span></h2>
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+            {open.map((p, i) => {
+              const id = openId(p);
+              const mood = moods[id];
+              const meta = mood ? MOOD_BY_KEY.get(mood.mood) : null;
+              return (
+                <button key={id} type="button" onClick={() => setEditing({ id, symbol: p.symbol })}
+                  className={`w-full text-left px-4 py-3 flex items-center gap-3 active:bg-[var(--surface-2)] transition-colors ${i > 0 ? 'border-t border-[var(--line-2)]' : ''}`}>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5 flex-wrap">
+                      <b className="text-[14px] text-[var(--text)]">{coinName(p.symbol)}</b>
+                      <SideBadge side={p.side} />
+                      {p.leverage > 0 && <span className="text-[10px] font-bold text-[var(--faint)]">{p.leverage}x</span>}
+                      {meta && <span className="text-[11px]">{meta.emoji} {meta.label}</span>}
+                    </span>
+                    <span className="block text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
+                      진입 {fmtCoinPrice(p.openAvg)} · 현재 {fmtCoinPrice(p.markPrice)}{p.liqDistPct != null ? ` · 청산까지 ${p.liqDistPct.toFixed(1)}%` : ''}
+                    </span>
+                  </span>
+                  <span className="text-right shrink-0">
+                    <span className="block text-[14px] font-bold tabular-nums" style={{ color: pnlColor(p.unrealizedPL) }}>{fmtPnl(p.unrealizedPL)}</span>
+                    <span className="block text-[10px] text-[var(--faint)]">미실현</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ③ 월별 보고서 (청산 건만) */}
       {months.length > 0 && (
         <section className="mb-5">
           <h2 className="text-sm font-bold text-[var(--text)] mb-2">월별 보고서</h2>
@@ -170,21 +228,21 @@ export default function JournalPage() {
         </section>
       )}
 
-      {/* ①+② 매매 목록 (탭 → 기분) */}
+      {/* ①+② 청산 매매 목록 (탭 → 기분) */}
       {positions.length > 0 && (
         <section>
-          <h2 className="text-sm font-bold text-[var(--text)] mb-2">매매 목록 <span className="text-[10px] font-normal text-[var(--text-muted)]">행을 눌러 그날 기분을 기록</span></h2>
+          <h2 className="text-sm font-bold text-[var(--text)] mb-2">청산 매매 <span className="text-[10px] font-normal text-[var(--text-muted)]">행을 눌러 그날 기분을 기록</span></h2>
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
             {positions.map((p, i) => {
               const mood = moods[p.positionId];
               const meta = mood ? MOOD_BY_KEY.get(mood.mood) : null;
               return (
-                <button key={p.positionId} type="button" onClick={() => setEditing(p)}
+                <button key={p.positionId} type="button" onClick={() => setEditing({ id: p.positionId, symbol: p.symbol })}
                   className={`w-full text-left px-4 py-3 flex items-center gap-3 active:bg-[var(--surface-2)] transition-colors ${i > 0 ? 'border-t border-[var(--line-2)]' : ''}`}>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5 flex-wrap">
                       <b className="text-[14px] text-[var(--text)]">{coinName(p.symbol)}</b>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.side === 'long' ? 'text-[#f04452] bg-[#f04452]/10' : 'text-[#3182f6] bg-[#3182f6]/10'}`}>{p.side === 'long' ? '롱' : '숏'}</span>
+                      <SideBadge side={p.side} />
                       {meta && <span className="text-[11px]">{meta.emoji} {meta.label}</span>}
                     </span>
                     <span className="block text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
@@ -199,23 +257,23 @@ export default function JournalPage() {
         </section>
       )}
 
-      {loaded && !busy && !err && positions.length === 0 && (
+      {loaded && !busy && !err && positions.length === 0 && open.length === 0 && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-sm text-[var(--text-muted)]">
-          표시할 청산 매매가 없습니다. 기간을 늘리거나 다시 가져와 보세요.
+          표시할 매매가 없습니다. 기간을 늘리거나 다시 가져와 보세요.
         </div>
       )}
 
       <p className="text-[10px] text-[var(--text-muted)] mt-4 leading-relaxed">
-        ※ 매매·손익은 <strong className="text-[var(--text)]">거래소가 청산한 포지션</strong>만 반영합니다(수수료·펀딩 포함). 기분 기록은 이 브라우저에만 저장되며
-        <Link href="/virtual" className="text-sky-400 hover:underline"> 가상투자·백업</Link>에서 관리합니다. 읽기 전용 조회이며 주문은 하지 않습니다.
+        ※ 월별 보고서·손익은 <strong className="text-[var(--text)]">거래소가 청산한 포지션</strong>만 반영합니다(수수료·펀딩 포함). 현재 포지션의 미실현손익은 참고용이며 보고서에 넣지 않습니다.
+        기분 기록은 이 브라우저에만 저장되며 <Link href="/virtual" className="text-sky-400 hover:underline">가상투자·백업</Link>에서 관리합니다. 읽기 전용 조회이며 주문은 하지 않습니다.
       </p>
 
       {/* 기분 편집 시트 */}
       <BottomSheet open={!!editing} onClose={() => setEditing(null)} title={editing ? `${coinName(editing.symbol)} · 진입 당시 기분` : ''}
         footer={
           <div className="flex items-center gap-2">
-            {editing && moods[editing.positionId] && (
-              <button type="button" onClick={() => { clearMood(editing.positionId); setEditing(null); }}
+            {editing && moods[editing.id] && (
+              <button type="button" onClick={() => { clearMood(editing.id); setEditing(null); }}
                 className="px-3 py-2.5 rounded-xl border border-[var(--border)] text-[13px] text-red-400 font-semibold">삭제</button>
             )}
             <button type="button" onClick={saveMood} disabled={!pick}
