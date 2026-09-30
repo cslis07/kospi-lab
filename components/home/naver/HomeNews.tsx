@@ -24,7 +24,8 @@ function ago(pub?: string): string {
 }
 
 export default function HomeNews() {
-  const { data } = useSWR<NewsItem[]>('/api/news', fetcher, { refreshInterval: 300000, revalidateOnFocus: false });
+  // 국내는 사이드 '최근 소식'이 담당 → 여기는 해외(중복 방지)
+  const { data } = useSWR<NewsItem[]>('/api/news?category=international', fetcher, { refreshInterval: 300000, revalidateOnFocus: false });
   const items = (data ?? []).slice(0, 6);
   const isMobile = useMediaQuery('(max-width: 1023px)');
   const [open, setOpen] = useState(false); // 모바일 기본 접힘(화면 비율 절약)
@@ -35,7 +36,7 @@ export default function HomeNews() {
         style={{ display: 'flex', alignItems: 'center', marginBottom: open || !isMobile ? 14 : 0, cursor: isMobile ? 'pointer' : 'default' }}
         onClick={isMobile ? () => setOpen((o) => !o) : undefined}
       >
-        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>주요 뉴스</h3>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>해외 주요 뉴스</h3>
         <Link href="/news" onClick={(e) => e.stopPropagation()} style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>더보기 →</Link>
         {isMobile && (
           <span aria-hidden style={{ marginLeft: 8, width: 28, height: 28, display: 'grid', placeItems: 'center', color: 'var(--muted)' }}>

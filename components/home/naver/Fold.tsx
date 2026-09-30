@@ -36,30 +36,41 @@ export function Chevron({ open, className }: { open: boolean; className?: string
 export default function Fold({ open, enabled, children }: { open: boolean; enabled: boolean; children: React.ReactNode }) {
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
+  const first = useRef(true);
 
   useEffect(() => {
     const el = outer.current, content = inner.current;
     if (!el || !content) return;
 
     if (!enabled) {
+      // useMediaQuery 는 첫 렌더에 false → 모바일에선 곧 true 로 바뀐다. 그 첫 활성화도 '첫 마운트'로 취급.
       el.style.maxHeight = 'none';
       el.style.overflow = 'visible';
       return;
     }
     el.style.overflow = 'hidden';
 
+    // 첫 마운트는 애니메이션 없이 최종 상태로. ⚠️ 여기서 scrollHeight(px)로 고정하면
+    // 'none→px' 은 트랜지션이 없어 transitionend 가 안 와서, 데이터가 늦게 오면 아래가 잘린다(실측 버그).
+    if (first.current) {
+      first.current = false;
+      el.style.maxHeight = open ? 'none' : '0px';
+      return;
+    }
+
     if (open) {
       el.style.maxHeight = content.scrollHeight + 'px';
-      const done = () => { el.style.maxHeight = 'none'; el.removeEventListener('transitionend', done); };
-      el.addEventListener('transitionend', done);
-      return () => el.removeEventListener('transitionend', done);
-    } else {
-      // 'none' 상태였다면 먼저 현재 높이로 고정한 뒤 다음 프레임에 0 으로 — 트랜지션이 걸리게
-      el.style.maxHeight = content.scrollHeight + 'px';
-      const id = requestAnimationFrame(() => { if (outer.current) outer.current.style.maxHeight = '0px'; });
-      return () => cancelAnimationFrame(id);
+      const done = () => { if (outer.current) outer.current.style.maxHeight = 'none'; };
+      el.addEventListener('transitionend', done, { once: true });
+      const t = setTimeout(done, 600); // transitionend 누락 대비
+      return () => { clearTimeout(t); el.removeEventListener('transitionend', done); };
     }
-  }, [open, enabled, children]);
+    // 닫기: 'none' 이면 먼저 현재 높이로 고정 → 두 프레임 뒤 0 (트랜지션이 걸리게)
+    el.style.maxHeight = content.scrollHeight + 'px';
+    let id2 = 0;
+    const id1 = requestAnimationFrame(() => { id2 = requestAnimationFrame(() => { if (outer.current) outer.current.style.maxHeight = '0px'; }); });
+    return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2); };
+  }, [open, enabled]);
 
   return (
     <div ref={outer} style={{ transition: 'max-height .45s cubic-bezier(.16,1,.3,1)' }}>

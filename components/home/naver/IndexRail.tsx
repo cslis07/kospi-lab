@@ -1,81 +1,75 @@
 'use client';
 
 /**
- * 홈 상단 지수 카드 레일 — 코스피·코스닥·USD·S&P500·나스닥·다우존스.
- * 가로 스크롤(모바일)·줄바꿈 없는 한 줄(데스크탑). 각 카드에 미니 스파크라인.
- * 색: 상승=빨강(--warn) · 하락=파랑(--accent) 한국 관행. 데이터 /api/home/indices(60초).
+ * 홈 상단 지수 카드 레일 — 코스피·코스닥·USD·S&P500·나스닥·다우존스 (네이버 실시간, 10초 갱신).
+ * 모바일 = 가로 스크롤, 데스크탑(≥1024) = 6칸 그리드로 전부 노출(.idx-rail — globals.css).
+ * 스파크: 국내 = 당일 분봉(점선 = 전일 종가), 해외·환율 = 최근 1개월. 장중이면 '● 실시간', 아니면 '장마감'.
+ * 색: 상승=빨강(--warn) · 하락=파랑(--accent).
  */
 import useSWR from 'swr';
 
-interface IndexCard { code: string; name: string; value: number; change: number; changeRate: number; spark: number[] }
+interface IndexCard {
+  code: string; name: string; value: number; change: number; changeRate: number;
+  live: boolean; spark: number[]; sparkLabel: string;
+}
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dir = (c: number) => (c > 0 ? 'up' : c < 0 ? 'down' : 'flat');
 const colorOf = (c: number) => (c > 0 ? 'var(--warn)' : c < 0 ? 'var(--accent)' : 'var(--faint)');
 
-function MiniSpark({ points, change }: { points: number[]; change: number }) {
-  const W = 96, H = 32, pad = 2;
-  if (!points || points.length < 2) return <svg width={W} height={H} aria-hidden />;
-  const min = Math.min(...points), max = Math.max(...points), span = max - min || 1;
-  const X = (i: number) => pad + (i / (points.length - 1)) * (W - pad * 2);
-  const Y = (v: number) => pad + (1 - (v - min) / span) * (H - pad * 2);
-  const d = points.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+/** 폭 100% 반응형 스파크 — viewBox 늘림 + non-scaling-stroke 로 선 두께 유지 */
+function Spark({ points, change, base }: { points: number[]; change: number; base?: number }) {
+  const W = 100, H = 30;
+  if (!points || points.length < 2) return <div style={{ height: H }} aria-hidden />;
+  const lo = Math.min(...points, base ?? Infinity), hi = Math.max(...points, base ?? -Infinity);
+  const span = hi - lo || 1;
+  const X = (i: number) => (i / (points.length - 1)) * W;
+  const Y = (v: number) => 2 + (1 - (v - lo) / span) * (H - 4);
+  const d = points.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(2)},${Y(v).toFixed(2)}`).join(' ');
   const col = colorOf(change);
-  const id = `g-${Math.abs(points[0] * 1000 | 0)}`;
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden style={{ overflow: 'visible' }}>
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={col} stopOpacity="0.20" />
-          <stop offset="100%" stopColor={col} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${d} L${X(points.length - 1)},${H - pad} L${X(0)},${H - pad} Z`} fill={`url(#${id})`} />
-      <path d={d} fill="none" stroke={col} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" />
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height={H} aria-hidden style={{ display: 'block' }}>
+      {base != null && base >= lo && base <= hi && (
+        <line x1={0} x2={W} y1={Y(base)} y2={Y(base)} stroke="var(--faint)" strokeWidth={1} strokeDasharray="2 2" vectorEffect="non-scaling-stroke" opacity={0.7} />
+      )}
+      <path d={`${d} L${W},${H} L0,${H} Z`} fill={col} opacity={0.1} />
+      <path d={d} fill="none" stroke={col} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
 
-function Card({ c, active }: { c: IndexCard; active?: boolean }) {
-  const d = dir(c.change);
+function Card({ c, on }: { c: IndexCard; on?: boolean }) {
   const col = colorOf(c.change);
-  const arrow = d === 'up' ? '▲' : d === 'down' ? '▼' : '·';
+  const arrow = c.change > 0 ? '▲' : c.change < 0 ? '▼' : '·';
+  const isKr = c.sparkLabel === '오늘';
   return (
-    <div
-      className="idx-card"
-      style={{
-        flex: '0 0 auto', minWidth: 176, padding: '14px 16px',
-        background: 'var(--surface)', border: `1px solid ${active ? 'var(--accent)' : 'var(--line)'}`,
-        borderRadius: 'var(--r-md)', boxShadow: 'var(--neo-sm)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: 'var(--muted)' }}>
-        <span style={{ color: 'var(--ink)' }}>{c.name}</span>
-        <span style={{ fontSize: 10.5, color: 'var(--faint)', fontWeight: 500 }}>실시간</span>
+    <div className={`idx-card${on ? ' on' : ''}`}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+        <span className={`idx-live${c.live ? ' on' : ''}`} style={{ marginLeft: 'auto' }}>
+          <i />{c.live ? '실시간' : '장마감'}
+        </span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 6 }}>
-        <div style={{ minWidth: 0 }}>
-          <div className="tabular-nums" style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.02em' }}>{fmt(c.value)}</div>
-          <div className="tabular-nums" style={{ fontSize: 12, fontWeight: 700, color: col, marginTop: 2 }}>
-            {arrow} {fmt(Math.abs(c.change))} ({c.changeRate >= 0 ? '+' : ''}{c.changeRate.toFixed(2)}%)
-          </div>
-        </div>
-        <MiniSpark points={c.spark} change={c.change} />
+      <div className="tabular-nums" style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.02em', marginTop: 4 }}>
+        {fmt(c.value)}
+      </div>
+      <div className="tabular-nums" style={{ fontSize: 11.5, fontWeight: 700, color: col, marginTop: 1, whiteSpace: 'nowrap' }}>
+        {arrow} {fmt(Math.abs(c.change))} ({c.changeRate >= 0 ? '+' : ''}{c.changeRate.toFixed(2)}%)
+      </div>
+      <div style={{ marginTop: 6 }}>
+        <Spark points={c.spark} change={c.change} base={isKr ? c.value - c.change : undefined} />
       </div>
     </div>
   );
 }
 
 export default function IndexRail() {
-  const { data } = useSWR<{ cards: IndexCard[] }>('/api/home/indices', fetcher, { refreshInterval: 60000, revalidateOnFocus: false });
+  const { data } = useSWR<{ cards: IndexCard[] }>('/api/home/indices', fetcher, { refreshInterval: 10000, revalidateOnFocus: true });
   const cards = data?.cards ?? [];
   return (
-    <div className="chip-scroll" style={{ gap: 10, paddingBottom: 4 }}>
+    <div className="idx-rail">
       {cards.length === 0
-        ? Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="skeleton" style={{ flex: '0 0 auto', width: 176, height: 78, borderRadius: 'var(--r-md)' }} />
-          ))
-        : cards.map((c, i) => <Card key={c.code} c={c} active={i === 0} />)}
+        ? Array.from({ length: 6 }).map((_, i) => <div key={i} className="idx-card skeleton" style={{ height: 112 }} />)
+        : cards.map((c, i) => <Card key={c.code} c={c} on={i === 0} />)}
     </div>
   );
 }

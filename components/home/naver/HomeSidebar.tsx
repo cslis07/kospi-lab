@@ -11,7 +11,16 @@ import Link from 'next/link';
 import { useWatchlist } from '@/hooks/useWatchlist';
 
 interface PopularItem { code: string; name: string; price: number; changeRate: number }
-interface StatusResp { popular: PopularItem[] }
+interface StatusResp { popular: PopularItem[]; date?: string }
+
+function ago(pub?: string): string {
+  if (!pub) return '';
+  const m = Math.floor((Date.now() - new Date(pub).getTime()) / 60000);
+  if (!Number.isFinite(m) || m < 0) return '';
+  if (m < 60) return `${m}분 전`;
+  if (m < 1440) return `${Math.floor(m / 60)}시간 전`;
+  return `${Math.floor(m / 1440)}일 전`;
+}
 interface NewsItem { title: string; link: string; source: string; pubDate?: string }
 interface BatchItem { ticker: string; name: string; price: number; changeRate: number }
 
@@ -44,22 +53,25 @@ function StockRow({ code, name, price, changeRate, href }: { code: string; name:
 
 function RecentNews() {
   const { data } = useSWR<NewsItem[]>('/api/news?category=domestic', fetcher, { refreshInterval: 300000, revalidateOnFocus: false });
-  const items = (data ?? []).slice(0, 5);
+  const items = (data ?? []).slice(0, 6);
   return (
     <div className="fin-card" style={{ padding: '16px 18px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
         <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>최근 소식</h3>
+        <span className="fin-chip" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)' }}>국내 뉴스</span>
         <Link href="/news" style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--accent)', fontWeight: 600 }}>더보기 →</Link>
       </div>
-      {items.length === 0 ? (
+      {!data ? (
         <div className="skeleton" style={{ height: 120, borderRadius: 10 }} />
+      ) : items.length === 0 ? (
+        <div style={{ padding: '18px 4px', fontSize: 12.5, color: 'var(--faint)' }}>국내 뉴스를 불러오지 못했습니다. 잠시 후 다시 시도됩니다.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {items.map((n, i) => (
             <a key={i} href={n.link} target="_blank" rel="noopener noreferrer"
               style={{ padding: '10px 0', borderTop: i ? '1px solid var(--line-2)' : 'none', textDecoration: 'none' }}>
               <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{n.title}</div>
-              <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 3 }}>{n.source}</div>
+              <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 3 }}>{n.source}{ago(n.pubDate) ? ` · ${ago(n.pubDate)}` : ''}</div>
             </a>
           ))}
         </div>
@@ -93,7 +105,9 @@ function StockTabs() {
             {lbl}
           </button>
         ))}
-        <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--faint)', alignSelf: 'center' }}>{tab === 'popular' ? '거래대금 상위' : ''}</span>
+        <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--faint)', alignSelf: 'center' }}>
+          {tab === 'popular' ? `${st?.date && st.date.length === 8 ? `${st.date.slice(4, 6)}.${st.date.slice(6, 8)} ` : ''}거래대금 상위` : '실시간'}
+        </span>
       </div>
       <div>
         {tab === 'popular' ? (

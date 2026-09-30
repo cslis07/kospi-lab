@@ -1,69 +1,118 @@
 import { NextResponse } from 'next/server';
-import { claudeBriefing } from '@/lib/anthropic';
-import { fetchKrxDailyMap } from '@/lib/krx';
+import { krIndexLive, krIndexIntegration, worldIndexLive, usdKrwLive } from '@/lib/naverIndex';
+import { fetchNaverMainNews, fetchNews } from '@/lib/newsFeeds';
+import { fetchBitgetTickers } from '@/lib/bitget';
+import { geminiBrief, openaiBrief, type ProviderResult } from '@/lib/llmBriefing';
 
 /**
- * 홈 AI 브리핑 — 코스피 시황 한 문장 헤드라인 + 불릿 3개. 1시간 메모리 캐시로 비용 억제.
- * 방향 추천 금지(앱 원칙): '무엇이 왜 움직였나'만. ANTHROPIC 키 없으면 error 반환 → 컴포넌트가 룰 기반 폴백.
+ * 홈 AI 브리핑 — ?tab=kr(국내)|us(해외)|coin(코인). Gemini + ChatGPT 를 병렬 호출해 둘 다 반환.
+ * 근거 = 실시간 시세·수급 + 헤드라인. 방향(매수·매도·전망) 추천 금지 — 앱 원칙(측정상 예측 우위 없음).
+ *
+ * 무료 한도 보호: 탭별 결과 1시간 메모리 캐시 + CDN s-maxage=3600, 동시 요청은 한 번의 생성으로 합침.
+ * 한 제공사라도 성공하면 1시간, 전부 실패면 5분만 캐시(복구 시 빨리 반영).
  */
-export const revalidate = 0; // 캐시는 아래 메모리 캐시로 직접 제어
+export const maxDuration = 30;
+export const revalidate = 0;
 
-const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
-  Referer: 'https://m.stock.naver.com/', Accept: 'application/json',
-};
-const num = (s: unknown) => Number(String(s ?? 0).replace(/,/g, '').replace(/[+\s%]/g, '')) || 0;
+type Tab = 'kr' | 'us' | 'coin';
+interface BriefingResponse { tab: Tab; providers: ProviderResult[]; facts: string; asOf: string }
 
-let _cache: { data: unknown; ts: number } | null = null;
-const TTL = 60 * 60 * 1000; // 1h
+const TTL_OK = 60 * 60 * 1000;
+const TTL_FAIL = 5 * 60 * 1000;
+const cache = new Map<Tab, { data: BriefingResponse; exp: number }>();
+const inflight = new Map<Tab, Promise<BriefingResponse>>();
 
-async function marketSummary() {
-  let kospi = 0, kospiRate = 0, foreign = 0, inst = 0, indiv = 0, up = 0, down = 0;
-  try {
-    const b = await fetch('https://m.stock.naver.com/api/index/KOSPI/basic', { headers: HEADERS, signal: AbortSignal.timeout(6000) });
-    if (b.ok) { const j = await b.json(); kospi = num(j.closePrice); kospiRate = num(j.fluctuationsRatio); }
-  } catch { /* skip */ }
-  try {
-    const t = await fetch('https://m.stock.naver.com/api/index/KOSPI/trend', { headers: HEADERS, signal: AbortSignal.timeout(6000) });
-    if (t.ok) { const j = await t.json(); foreign = num(j.foreignValue); inst = num(j.institutionalValue); indiv = num(j.personalValue); }
-  } catch { /* skip */ }
-  try {
-    const { map } = await fetchKrxDailyMap();
-    for (const d of map.values()) { if (d.close <= 0) continue; if (d.changeRate > 0) up++; else if (d.changeRate < 0) down++; }
-  } catch { /* skip */ }
-  return { kospi, kospiRate, foreign, inst, indiv, up, down };
+const sign = (n: number) => `${n >= 0 ? '+' : ''}${n}`;
+const eok = (n: number) => `${n >= 0 ? '+' : ''}${Math.round(n).toLocaleString('ko-KR')}억`;
+
+async function krContext(): Promise<{ facts: string; heads: string[] }> {
+  const [kospi, kosdaq, integ, news] = await Promise.all([
+    krIndexLive('KOSPI'), krIndexLive('KOSDAQ'), krIndexIntegration('KOSPI'), fetchNaverMainNews(12),
+  ]);
+  const f: string[] = [];
+  if (kospi) f.push(`코스피 ${kospi.value.toLocaleString()} (${sign(kospi.changeRate)}%, ${kospi.live ? '장중' : '마감'})`);
+  if (kosdaq) f.push(`코스닥 ${kosdaq.value.toLocaleString()} (${sign(kosdaq.changeRate)}%)`);
+  if (integ?.investor) f.push(`코스피 투자자 순매수: 외국인 ${eok(integ.investor.foreign)}, 기관 ${eok(integ.investor.institution)}, 개인 ${eok(integ.investor.individual)}`);
+  if (integ?.program) f.push(`프로그램 매매: 전체 ${eok(integ.program.total)} (차익 ${eok(integ.program.arbitrage)}, 비차익 ${eok(integ.program.nonArbitrage)})`);
+  if (integ?.upDown) f.push(`코스피 종목: 상승 ${integ.upDown.up} / 보합 ${integ.upDown.flat} / 하락 ${integ.upDown.down}`);
+  return { facts: f.join('\n'), heads: news.slice(0, 10).map((n) => n.title) };
 }
 
-export async function GET() {
-  if (_cache && Date.now() - _cache.ts < TTL) {
-    return NextResponse.json(_cache.data);
+async function usContext(): Promise<{ facts: string; heads: string[] }> {
+  const [sp, nq, dj, fx, news] = await Promise.all([
+    worldIndexLive('.INX'), worldIndexLive('.IXIC'), worldIndexLive('.DJI'), usdKrwLive(), fetchNews('international', 30),
+  ]);
+  const f: string[] = [];
+  if (sp) f.push(`S&P 500 ${sp.value.toLocaleString()} (${sign(sp.changeRate)}%, ${sp.live ? '장중' : '최근 마감'})`);
+  if (nq) f.push(`나스닥 종합 ${nq.value.toLocaleString()} (${sign(nq.changeRate)}%)`);
+  if (dj) f.push(`다우존스 ${dj.value.toLocaleString()} (${sign(dj.changeRate)}%)`);
+  if (fx) f.push(`원/달러 ${fx.value.toLocaleString()}원 (${sign(fx.changeRate)}%)`);
+  return { facts: f.join('\n'), heads: news.slice(0, 10).map((n) => n.title) };
+}
+
+async function coinContext(): Promise<{ facts: string; heads: string[] }> {
+  const f: string[] = [];
+  try {
+    const t = await fetchBitgetTickers();
+    for (const [sym, name] of [['BTCUSDT', '비트코인'], ['ETHUSDT', '이더리움'], ['XRPUSDT', '리플'], ['SOLUSDT', '솔라나']] as const) {
+      const x = t.get(sym);
+      if (x) f.push(`${name} ${Number(x.lastPr).toLocaleString('en-US')} USDT (24h ${sign(Math.round(Number(x.change24h) * 10000) / 100)}%)`);
+    }
+  } catch { /* 시세 없이 */ }
+  try {
+    const j = await (await fetch('https://api.alternative.me/fng/?limit=1', { signal: AbortSignal.timeout(6000), next: { revalidate: 1800 } })).json();
+    const v = j?.data?.[0];
+    if (v) f.push(`공포·탐욕 지수 ${v.value} (${v.value_classification})`);
+  } catch { /* skip */ }
+  const [intl, kr] = await Promise.all([fetchNews('international', 60), fetchNaverMainNews(30)]);
+  const rx = /bitcoin|crypto|ether|btc|eth|xrp|solana|stablecoin|비트코인|코인|가상자산|이더리움|암호화폐|스테이블/i;
+  const heads = [...kr, ...intl].filter((n) => rx.test(n.title)).slice(0, 10).map((n) => n.title);
+  return { facts: f.join('\n'), heads };
+}
+
+const MARKET_NAME: Record<Tab, string> = { kr: '한국 증시', us: '미국 증시·환율', coin: '가상자산 시장' };
+
+function buildPrompt(tab: Tab, facts: string, heads: string[]): string {
+  return [
+    `너는 ${MARKET_NAME[tab]} 시황 요약가다. 아래 [데이터]와 [헤드라인]만 근거로, 지금 무엇이 왜 움직였는지 한국어로 요약하라.`,
+    '규칙: 매수·매도·목표가·전망 추천 금지. 데이터·헤드라인에 없는 수치나 사실을 지어내지 말 것. 헤드라인은 참고 맥락으로만.',
+    '',
+    '[데이터]', facts || '(수집 실패)',
+    '',
+    '[헤드라인]', heads.length ? heads.map((h) => `- ${h}`).join('\n') : '(없음)',
+    '',
+    'JSON 으로만 답하라: {"headline":"한 문장(45자 이내)","bullets":["문장(60자 이내)","문장","문장"]}',
+  ].join('\n');
+}
+
+async function generate(tab: Tab): Promise<BriefingResponse> {
+  const ctx = tab === 'kr' ? await krContext() : tab === 'us' ? await usContext() : await coinContext();
+  const prompt = buildPrompt(tab, ctx.facts, ctx.heads);
+  const providers = await Promise.all([geminiBrief(prompt), openaiBrief(prompt)]);
+  return { tab, providers, facts: ctx.facts, asOf: new Date().toISOString() };
+}
+
+export async function GET(req: Request) {
+  const t = new URL(req.url).searchParams.get('tab');
+  const tab: Tab = t === 'us' || t === 'coin' ? t : 'kr';
+
+  const hit = cache.get(tab);
+  let data: BriefingResponse;
+  if (hit && hit.exp > Date.now()) {
+    data = hit.data;
+  } else {
+    let p = inflight.get(tab);
+    if (!p) {
+      p = generate(tab).finally(() => inflight.delete(tab));
+      inflight.set(tab, p);
+    }
+    data = await p;
+    const anyOk = data.providers.some((x) => x.ok);
+    cache.set(tab, { data, exp: Date.now() + (anyOk ? TTL_OK : TTL_FAIL) });
   }
 
-  const s = await marketSummary();
-  const facts =
-    `코스피 ${s.kospi ? s.kospi.toLocaleString() : '?'} (${s.kospiRate >= 0 ? '+' : ''}${s.kospiRate}%). ` +
-    `투자자 순매수(억): 외국인 ${s.foreign}, 기관 ${s.inst}, 개인 ${s.indiv}. ` +
-    `상승 ${s.up}종목 / 하락 ${s.down}종목.`;
-
-  const prompt =
-    `너는 한국 증시 시황 요약가다. 아래 오늘 데이터만 근거로, 매수/매도 방향 추천 없이 ` +
-    `"무엇이 왜 움직였는지"만 담백하게 요약하라. 없는 사실을 지어내지 말 것.\n\n` +
-    `데이터: ${facts}\n\n` +
-    `출력 형식(정확히 지킬 것):\n` +
-    `첫 줄 = 한 문장 헤드라인(따옴표·머리기호 없이).\n` +
-    `그 다음 줄부터 "- "로 시작하는 불릿 3개(각 한 문장, ~40자).`;
-
-  const res = await claudeBriefing(prompt, 400, 'home-briefing', null);
-  if (res.error || !res.text) {
-    // 캐시하지 않음 — 키 충전/복구 시 즉시 반영
-    return NextResponse.json({ error: res.error ?? 'empty', facts: s });
-  }
-
-  const lines = res.text.split('\n').map((l) => l.trim()).filter(Boolean);
-  const headline = lines[0]?.replace(/^["'“]|["'”]$/g, '') ?? '';
-  const bullets = lines.slice(1).filter((l) => l.startsWith('-')).map((l) => l.replace(/^[-•]\s*/, '')).slice(0, 3);
-
-  const data = { headline, bullets, facts: s, model: res.model, asOf: new Date().toISOString() };
-  _cache = { data, ts: Date.now() };
-  return NextResponse.json(data);
+  const anyOk = data.providers.some((x) => x.ok);
+  return NextResponse.json(data, {
+    headers: { 'Cache-Control': anyOk ? 's-maxage=3600, stale-while-revalidate=7200' : 's-maxage=300' },
+  });
 }

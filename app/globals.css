@@ -944,6 +944,28 @@ a.fin-row:active { background: var(--surface-2); }
 }
 
 
+/* ── 홈 지수 카드 레일 — 모바일 가로 스크롤 / 데스크탑(≥1024) 6칸 그리드로 전부 노출(잘림 방지) ── */
+.idx-rail {
+  display: flex; gap: 10px; overflow-x: auto;
+  margin: 0 -16px; padding: 2px 16px 6px;
+  scrollbar-width: none; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+}
+.idx-rail::-webkit-scrollbar { display: none; }
+.idx-card {
+  flex: 0 0 168px; scroll-snap-align: start; min-width: 0;
+  padding: 12px 14px 10px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: var(--neo-sm);
+}
+.idx-card.on { border-color: var(--accent); }
+@media (min-width: 1024px) {
+  .idx-rail { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); overflow: visible; margin: 0; padding: 0; }
+  .idx-card { flex: none; }
+}
+.idx-live { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: var(--faint); white-space: nowrap; }
+.idx-live i { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); }
+.idx-live.on { color: var(--ok); }
+.idx-live.on i { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+
 /* 모바일 본문 하단 여백 — 탭바에 가리지 않게 */
 @media (max-width: 767px) {
   .app-footer { padding-bottom: calc(var(--tabbar-h) + var(--sab) + 12px); margin-top: 24px; }
