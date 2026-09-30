@@ -7,6 +7,7 @@
  */
 import { Suspense } from 'react';
 import NaverHome from '@/components/home/naver/NaverHome';
+import PcMarketSections from '@/components/home/naver/PcMarketSections';
 
 const ROLE_TEXT = (
   <>
@@ -20,6 +21,8 @@ function DashboardInner() {
   return (
     <>
       <NaverHome />
+      {/* PC(≥1024px) 전용 — 실시간 랭킹·산업 트렌드·리서치·테마 ETF·시장지표를 부제목 기준으로 모두 노출(모바일은 시장 탭 메뉴로) */}
+      <PcMarketSections />
       {/* 이 도구의 역할 — 모바일 접기 / 데스크탑 전문 */}
       <details className="md:hidden fin-card px-4 py-3 mt-6 text-[11px] leading-relaxed text-[var(--text-muted)]">
         <summary className="cursor-pointer list-none flex items-center gap-2">

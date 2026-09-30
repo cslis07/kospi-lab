@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-09-30 (81차) — PC 홈에 시장 섹션 5종 전부 노출(네이버 증권 홈 배치)
+
+- 사용자 요청: 산업 트렌드·실시간 랭킹·시장지표·테마 ETF·리서치를 네이버 증권처럼 **홈에서 부제목 기준으로 간격을 두고 모두 노출**, **PC에만 적용**.
+- 순서는 stock.naver.com 홈 페이지 코드의 위젯 배치 순서 그대로: **실시간 랭킹 → 산업 트렌드 → 리서치(애널리스트 산업 | 목표주가 2단) → 테마 ETF → 환율·시장지표**. 섹션 제목 22px + 섹션 간격 56px, 각 섹션 우측 '전체보기 →'(메뉴 페이지로).
+- PC 판정 ≥1024px, `useMediaQuery` 로 **아예 마운트하지 않음**(CSS 숨김 아님) → 모바일 홈은 변화 없음·추가 API 호출 없음. 모바일은 기존대로 시장 탭 메뉴로 진입.
+- 구조: 5개 페이지 본문을 `components/naver/sections/*Section.tsx`(home 모드 포함)로 옮겨 **메뉴 페이지와 홈이 같은 컴포넌트를 공유**(페이지 파일은 얇은 래퍼). home 모드 = 산업 트렌드 TOP3 · 리서치 리포트 4건+목표주가 2장 · 테마 ETF 4개 · 시장지표 6칸×2줄(네이버 배치). `components/home/naver/PcMarketSections.tsx` 신규, `ui.tsx` 에 `MoreLink`·큰 제목 옵션.
+- tsc 0 · build 0 · 헤드리스 PC 홈 전체(1280×5200)·모바일 홈(미노출) 확인.
+
 ## 2026-09-30 (80차) — 네이버 증권 홈 위젯 기반 신규 메뉴 5종(시장 탭)
 
 - 사용자 요청 "첨부 이미지의 각 기능 메뉴를 만들자 · stock.naver.com 면밀히 분석". Chrome 확장 미연결이라 **stock.naver.com 번들 정적분석**으로 실제 호출 경로를 확정: `_next` 청크 66개 + webpack 런타임의 lazy 청크(해시맵·`2248` 별도 규칙)를 받아 유니코드 이스케이프 디코딩 후, 위젯 컴포넌트(IndustryTrend·BigTargetPriceResearch·AnalystFocusedIndustry·ExchangeMarketIndicator·NotableETF·Ranking)의 URL 조립부를 추적하고 파라미터(열거값 포함)를 실호출로 검증.

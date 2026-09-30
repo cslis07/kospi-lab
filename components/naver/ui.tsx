@@ -78,13 +78,23 @@ export function MiniLine({ points, rate, height = 34 }: { points: number[]; rate
   );
 }
 
-export function SectionTitle({ title, sub, right }: { title: string; sub?: string; right?: React.ReactNode }) {
+/** 섹션 제목. big = 홈(PC) 섹션용(네이버 증권 홈처럼 큰 부제목 + 넉넉한 아래 간격) */
+export function SectionTitle({ title, sub, right, big }: { title: string; sub?: string; right?: React.ReactNode; big?: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em' }}>{title}</h2>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: big ? 16 : 12 }}>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: big ? 22 : 18, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em' }}>{title}</h2>
       {sub && <span style={{ fontSize: 12, color: 'var(--faint)' }}>{sub}</span>}
-      {right && <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>{right}</div>}
+      {right && <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>{right}</div>}
     </div>
+  );
+}
+
+/** 홈 섹션 → 전체 메뉴 페이지로 */
+export function MoreLink({ href, label = '전체보기' }: { href: string; label?: string }) {
+  return (
+    <Link href={href} style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', whiteSpace: 'nowrap', textDecoration: 'none', padding: '6px 4px' }}>
+      {label} →
+    </Link>
   );
 }
 
