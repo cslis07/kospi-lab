@@ -40,15 +40,17 @@ function friendly(status: number): string {
   return `요청 실패(${status})`;
 }
 
-export async function geminiBrief(prompt: string): Promise<ProviderResult> {
+/** 마감시각(deadline)까지 남은 시간 안에서 한 번의 호출 타임아웃(cap 이하, 최소 2초) */
+const budget = (deadline: number, cap: number) => Math.max(2000, Math.min(cap, deadline - Date.now() - 500));
+
+export async function geminiBrief(prompt: string, deadline = Date.now() + 25000): Promise<ProviderResult> {
   const base: ProviderResult = { id: 'gemini', name: 'Gemini', ok: false };
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) return { ...base, notConfigured: true, error: 'GEMINI_API_KEY 미설정' };
 
-  // 2026-09-30 실측: flash-latest(=최신) 는 수요 폭주 503 이 잦음 → 3.6-flash 기본, 과부하·한도(모델별)면 다음 모델로.
-  // 품질 우선 3.6-flash → 붐비면 빠르고 안정적인 flash-lite(1초대) → 3.5-flash
-  const models = [process.env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash', 'gemini-flash-lite-latest', 'gemini-3.5-flash'];
-  const t0 = Date.now();
+  // 2026-09-30 실측: flash-latest(=최신) 는 수요 폭주 503 이 잦고, 모델별 응답이 2~16초로 크게 흔들린다.
+  // 품질 우선 3.6-flash → 붐비면 다른 용량 풀의 lite 들 → 3.5-flash. 503·429 는 다음 모델로.
+  const models = [process.env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash'];
   let lastErr = '';
   // ⚠️ Gemini 3.x 는 생각(thinking) 토큰이 maxOutputTokens 를 먹는다 — 1024 로 두면 생각 983개에 답이 잘려
   //    MAX_TOKENS(JSON 조각)로 끝났다(실측). 요약엔 생각이 필요 없으니 thinkingLevel 'minimal'(2.4초·생각 0) + 여유 4096.
@@ -63,12 +65,12 @@ export async function geminiBrief(prompt: string): Promise<ProviderResult> {
           ...(withThinking ? { thinkingConfig: { thinkingLevel: 'minimal' } } : {}),
         },
       }),
-      // 한 모델이 예산을 다 먹지 않게 — 첫 시도 10초, 이후는 남은 예산(총 22초) 안에서
-      signal: AbortSignal.timeout(Math.max(3000, Math.min(10000, 22000 - (Date.now() - t0)))),
+      // 한 모델이 마감을 다 먹지 않게 — 모델당 최대 12초, 마감까지 남은 시간 안에서
+      signal: AbortSignal.timeout(budget(deadline, 12000)),
     });
 
   for (const model of [...new Set(models)]) {
-    if (Date.now() - t0 > 19000) break; // 라우트 maxDuration(30s) 안에서 끝내기
+    if (deadline - Date.now() < 2500) break; // 마감 임박 — 라우트가 maxDuration 에 잘리기 전에 끝낸다
     try {
       let res = await call(model, true);
       if (res.status === 400) {
@@ -96,7 +98,7 @@ export async function geminiBrief(prompt: string): Promise<ProviderResult> {
   return { ...base, error: lastErr || '실패' };
 }
 
-export async function openaiBrief(prompt: string): Promise<ProviderResult> {
+export async function openaiBrief(prompt: string, deadline = Date.now() + 25000): Promise<ProviderResult> {
   const base: ProviderResult = { id: 'openai', name: 'ChatGPT', ok: false };
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) return { ...base, notConfigured: true, error: 'OPENAI_API_KEY 미설정' };
@@ -111,7 +113,7 @@ export async function openaiBrief(prompt: string): Promise<ProviderResult> {
         response_format: { type: 'json_object' },
         max_completion_tokens: 1200,
       }),
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(budget(deadline, 25000)),
     });
     if (!res.ok) {
       const body = await res.text();

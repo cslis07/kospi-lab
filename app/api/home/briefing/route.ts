@@ -11,8 +11,13 @@ import { geminiBrief, openaiBrief, type ProviderResult } from '@/lib/llmBriefing
  * 무료 한도 보호: 탭별 결과 1시간 메모리 캐시 + CDN s-maxage=3600, 동시 요청은 한 번의 생성으로 합침.
  * 한 제공사라도 성공하면 1시간, 전부 실패면 5분만 캐시(복구 시 빨리 반영).
  */
-export const maxDuration = 30;
+// Gemini 무료 티어는 붐빌 때 모델별 응답이 2~16초로 흔들린다 → 폴백 여유를 위해 60초(생성은 CDN SWR 로 백그라운드라 사용자 대기 거의 없음)
+export const maxDuration = 60;
 export const revalidate = 0;
+
+/** 헤드라인 등 '있으면 좋은' 근거는 ms 안에 안 오면 fallback 으로 — 요약 시간을 잡아먹지 않게 */
+const within = <T,>(p: Promise<T>, ms: number, fallback: T): Promise<T> =>
+  Promise.race([p.catch(() => fallback), new Promise<T>((res) => setTimeout(() => res(fallback), ms))]);
 
 type Tab = 'kr' | 'us' | 'coin';
 interface BriefingResponse { tab: Tab; providers: ProviderResult[]; facts: string; asOf: string }
@@ -43,7 +48,7 @@ const eok = (n: number) => `${n >= 0 ? '+' : ''}${Math.round(n).toLocaleString('
 
 async function krContext(): Promise<{ facts: string; heads: string[] }> {
   const [kospi, kosdaq, integ, news] = await Promise.all([
-    krIndexLive('KOSPI'), krIndexLive('KOSDAQ'), krIndexIntegration('KOSPI'), fetchNaverMainNews(12),
+    krIndexLive('KOSPI'), krIndexLive('KOSDAQ'), krIndexIntegration('KOSPI'), within(fetchNaverMainNews(12), 5000, []),
   ]);
   const f: string[] = [];
   if (kospi) f.push(`코스피 ${kospi.value.toLocaleString()} (${sign(kospi.changeRate)}%, ${kospi.live ? '장중' : '마감'})`);
@@ -56,7 +61,7 @@ async function krContext(): Promise<{ facts: string; heads: string[] }> {
 
 async function usContext(): Promise<{ facts: string; heads: string[] }> {
   const [sp, nq, dj, fx, news] = await Promise.all([
-    worldIndexLive('.INX'), worldIndexLive('.IXIC'), worldIndexLive('.DJI'), usdKrwLive(), fetchNews('international', 30),
+    worldIndexLive('.INX'), worldIndexLive('.IXIC'), worldIndexLive('.DJI'), usdKrwLive(), within(fetchNews('international', 30), 5000, []),
   ]);
   const f: string[] = [];
   if (sp) f.push(`S&P 500 ${sp.value.toLocaleString()} (${sign(sp.changeRate)}%, ${sp.live ? '장중' : '최근 마감'})`);
@@ -80,7 +85,7 @@ async function coinContext(): Promise<{ facts: string; heads: string[] }> {
     const v = j?.data?.[0];
     if (v) f.push(`공포·탐욕 지수 ${v.value} (${v.value_classification})`);
   } catch { /* skip */ }
-  const [intl, kr] = await Promise.all([fetchNews('international', 60), fetchNaverMainNews(30)]);
+  const [intl, kr] = await Promise.all([within(fetchNews('international', 60), 5000, []), within(fetchNaverMainNews(30), 5000, [])]);
   const rx = /bitcoin|crypto|ether|btc|eth|xrp|solana|stablecoin|비트코인|코인|가상자산|이더리움|암호화폐|스테이블/i;
   const heads = [...kr, ...intl].filter((n) => rx.test(n.title)).slice(0, 10).map((n) => n.title);
   return { facts: f.join('\n'), heads };
@@ -102,9 +107,10 @@ function buildPrompt(tab: Tab, facts: string, heads: string[]): string {
 }
 
 async function generate(tab: Tab): Promise<BriefingResponse> {
+  const deadline = Date.now() + 50_000; // maxDuration 60 초 안에서 응답까지 끝낸다
   const ctx = tab === 'kr' ? await krContext() : tab === 'us' ? await usContext() : await coinContext();
   const prompt = buildPrompt(tab, ctx.facts, ctx.heads);
-  const providers = withStale(tab, await Promise.all([geminiBrief(prompt), openaiBrief(prompt)]));
+  const providers = withStale(tab, await Promise.all([geminiBrief(prompt, deadline), openaiBrief(prompt, deadline)]));
   return { tab, providers, facts: ctx.facts, asOf: new Date().toISOString() };
 }
 
