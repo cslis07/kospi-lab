@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchKisFinancialRatio } from '@/lib/kisFinance';
+import { withCdn } from '@/lib/cdn';
 
 export const maxDuration = 30;
 
@@ -34,7 +35,7 @@ const PICKS: Record<string, { code: string; name: string; tag: string }[]> = {
   ],
 };
 
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   const risk = req.nextUrl.searchParams.get('risk') ?? 'neutral';
   const list = PICKS[risk] ?? PICKS.neutral;
 
@@ -56,3 +57,6 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(out);
 }
+
+// CDN 캐시(성향별 대표주) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 600, 3600);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withCdn } from '@/lib/cdn';
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -19,7 +20,7 @@ function fmtDate(s: string): string {
   return d.length === 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : d;
 }
 
-export async function GET(
+async function handler(
   _req: NextRequest,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
@@ -50,3 +51,6 @@ export async function GET(
     return NextResponse.json({ error: String(e) }, { status: 502 });
   }
 }
+
+// CDN 캐시(투자자 동향) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 300, 3600);

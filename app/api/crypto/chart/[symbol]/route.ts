@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BITGET_BASE } from '@/lib/bitget';
+import { withCdn } from '@/lib/cdn';
 
 interface CryptoChartPoint {
   date: string;
@@ -77,7 +78,7 @@ async function fromYahoo(symbol: string, range: string): Promise<CryptoChartPoin
     .filter((p) => p.price > 0);
 }
 
-export async function GET(
+async function handler(
   req: NextRequest,
   { params }: { params: Promise<{ symbol: string }> },
 ) {
@@ -99,3 +100,6 @@ export async function GET(
     return NextResponse.json({ error: String(e) }, { status: 502 });
   }
 }
+
+// CDN 캐시(차트) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 60, 600);

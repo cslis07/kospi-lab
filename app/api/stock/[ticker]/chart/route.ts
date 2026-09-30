@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ChartPoint } from '@/lib/types';
+import { withCdn } from '@/lib/cdn';
 
 const YF_HEADERS = {
   'User-Agent':
@@ -105,7 +106,7 @@ async function fetchNaver(ticker: string, months: number): Promise<ChartPoint[]>
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────
-export async function GET(
+async function handler(
   req: NextRequest,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
@@ -127,3 +128,6 @@ export async function GET(
     return NextResponse.json({ error: String(e) }, { status: 502 });
   }
 }
+
+// CDN 캐시(차트) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 60, 600);

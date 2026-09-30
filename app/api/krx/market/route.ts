@@ -4,10 +4,11 @@
  */
 import { NextResponse } from 'next/server';
 import { fetchKrxIndices, fetchKrxCommodities, hasKrxKey } from '@/lib/krx';
+import { withCdn } from '@/lib/cdn';
 
 export const revalidate = 300;
 
-export async function GET() {
+async function handler() {
   if (!hasKrxKey()) return NextResponse.json({ configured: false });
   try {
     const [indices, commodities] = await Promise.all([
@@ -19,3 +20,6 @@ export async function GET() {
     return NextResponse.json({ configured: true, error: String(e) }, { status: 502 });
   }
 }
+
+// CDN 캐시(KRX 전 거래일 확정치) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 600, 86400);

@@ -6,6 +6,7 @@ import type { DartFinancials } from '@/lib/dartClient';
 import { fetchKisFinancialRatio, fetchKisOpMargin } from '@/lib/kisFinance';
 import type { KisFinancials } from '@/lib/kisFinance';
 import { fetchYahoo, yfRaw as raw, yfStr as str } from '@/lib/yahooFinance';
+import { withCdn } from '@/lib/cdn';
 
 // 여러 소스(Yahoo·Naver·KIS·DART)를 직렬로 조회하므로 기본 10s로는 부족할 수 있다
 export const maxDuration = 30;
@@ -204,7 +205,7 @@ function buildFromDart(d: DartFinancials, ticker: string, roeMin: number) {
 }
 
 // ── GET handler ───────────────────────────────────────────────────────────────
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const tickers = (searchParams.get('tickers') ?? '')
     .split(',')
@@ -297,3 +298,6 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(results);
 }
+
+// CDN 캐시(재무 스냅샷) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 600, 3600);

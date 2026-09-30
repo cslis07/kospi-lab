@@ -3,6 +3,7 @@ import {
   Candle, analyzeTimeframe, buildVerdict, srZones, fibonacci, atr,
 } from '@/lib/coinAnalysis';
 import { BITGET_BASE } from '@/lib/bitget';
+import { withCdn } from '@/lib/cdn';
 
 /**
  * 4개 코인의 룰 엔진 판정만 일괄 계산하는 경량 스캐너.
@@ -70,7 +71,7 @@ async function scanOne(symbol: string): Promise<ScanItem | null> {
   }
 }
 
-export async function GET() {
+async function handler() {
   if (_cache && Date.now() - _cache.ts < TTL) {
     return NextResponse.json({ items: _cache.items, cached: true, updatedAt: _cache.ts });
   }
@@ -79,3 +80,6 @@ export async function GET() {
   if (items.length) _cache = { ts: Date.now(), items };
   return NextResponse.json({ items, cached: false, updatedAt: Date.now() });
 }
+
+// CDN 캐시(코인 스캔) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 60, 600);

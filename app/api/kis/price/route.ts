@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { kisGet } from '@/lib/kis';
+import { withCdn } from '@/lib/cdn';
 
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   const ticker = req.nextUrl.searchParams.get('ticker');
   if (!ticker) return NextResponse.json({ error: 'ticker required' }, { status: 400 });
 
@@ -36,3 +37,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: String(e) }, { status: 502 });
   }
 }
+
+// CDN 캐시(시세) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 10, 60);

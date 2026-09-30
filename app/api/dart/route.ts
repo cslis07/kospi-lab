@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withCdn } from '@/lib/cdn';
 
 const DART_KEY = process.env.DART_API_KEY ?? '';
 
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   if (!DART_KEY) {
     return NextResponse.json(
       { error: 'DART_API_KEY 환경변수가 설정되지 않았습니다. Vercel 환경변수에 DART_API_KEY를 추가하세요.' },
@@ -56,3 +57,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: String(e) }, { status: 502 });
   }
 }
+
+// CDN 캐시(공시) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 3600, 86400);

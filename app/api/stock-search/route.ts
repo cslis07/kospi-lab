@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { KR_STOCKS } from '@/lib/krStocks';
+import { withCdn } from '@/lib/cdn';
 
 interface SearchResult {
   ticker: string;
@@ -91,7 +92,7 @@ async function krxSearch(req: NextRequest, q: string): Promise<SearchResult[] | 
 }
 
 // ── GET handler ───────────────────────────────────────────────────────────────
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get('q') ?? '').trim();
   if (!q) return NextResponse.json([]);
 
@@ -110,3 +111,6 @@ export async function GET(req: NextRequest) {
   // 3. 로컬 폴백
   return NextResponse.json(localSearch(q));
 }
+
+// CDN 캐시(검색 결과) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 3600, 86400);

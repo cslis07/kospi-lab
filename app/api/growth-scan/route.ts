@@ -14,6 +14,7 @@ import { fetchKrxDailyMap, hasKrxKey } from '@/lib/krx';
 import { fetchGrowthFinance, scoreGrowth } from '@/lib/growthScreener';
 import { fetchMarketEnvironment } from '@/lib/marketEnvironment';
 import { US_UNIVERSE, US_SECTORS, US_THEMES, scanUsTicker } from '@/lib/usGrowth';
+import { withCdn } from '@/lib/cdn';
 
 export const maxDuration = 30;
 export const preferredRegion = 'icn1';   // 네이버·KRX 모두 한국 API (FRED·Yahoo 는 리전 무관)
@@ -21,7 +22,7 @@ export const preferredRegion = 'icn1';   // 네이버·KRX 모두 한국 API (FR
 const BATCH_MAX = 15;
 const CONCURRENCY = 6;
 
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
 
   /* ── 시장 환경 (유가·금리·VIX·달러 + 종합 판단) ── */
@@ -122,3 +123,6 @@ export async function GET(req: NextRequest) {
   const failed = codes.filter((c) => !ok.some((r) => r.code === c));
   return NextResponse.json({ items: ok, failed });
 }
+
+// CDN 캐시(성장주 스캔) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 600, 3600);

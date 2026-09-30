@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchStockList } from '@/lib/stockList';
 import type { SearchResult } from '@/lib/types';
+import { withCdn } from '@/lib/cdn';
 
 // ── Naver Finance 자동완성 ─────────────────────────────────────────────────────
 // items[n] = [종목명, 6자리코드, 기업전체명, ?, 시장("0"=KOSPI "1"=KOSDAQ), ...]
@@ -47,7 +48,7 @@ async function naverSearch(q: string): Promise<SearchResult[] | null> {
   return results.length > 0 ? results : null;
 }
 
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get('q') ?? '').trim();
   if (!q) return NextResponse.json([]);
 
@@ -60,3 +61,6 @@ export async function GET(req: NextRequest) {
   // 2. 로컬 리스트 폴백
   return NextResponse.json(searchStockList(q));
 }
+
+// CDN 캐시(검색 결과) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 3600, 86400);

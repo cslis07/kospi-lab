@@ -8,6 +8,7 @@
  */
 import assert from 'node:assert/strict';
 import { TtlCache } from '../lib/cache';
+import { withCdn } from '../lib/cdn';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -78,4 +79,19 @@ ok('delete·clear 동작', () => {
   assert.equal(c.size, 0);
 });
 
-console.log(`\n${passed} passed`);
+// ── withCdn: 정상(200)에만 CDN 헤더, 오류 응답·핸들러가 정한 헤더는 그대로 ──
+(async () => {
+  const ok200 = withCdn(async () => new Response('{}', { status: 200 }), 60, 600);
+  const err502 = withCdn(async () => new Response('x', { status: 502 }), 60, 600);
+  const preset = withCdn(async () => new Response('{}', { status: 200, headers: { 'Cache-Control': 's-maxage=5' } }), 60, 600);
+  const withArgs = withCdn(async (a: number, b: { p: string }) => new Response(`${a}${b.p}`), 1, 2);
+  const [r1, r2, r3, r4] = [await ok200(), await err502(), await preset(), await withArgs(7, { p: 'x' })];
+  const body4 = await r4.text();
+
+  ok('withCdn: 200 응답에 s-maxage·stale-while-revalidate 부착', () => assert.equal(r1.headers.get('Cache-Control'), 's-maxage=60, stale-while-revalidate=600'));
+  ok('withCdn: 오류 응답(502)은 캐시하지 않는다', () => assert.equal(r2.headers.get('Cache-Control'), null));
+  ok('withCdn: 핸들러가 정한 Cache-Control은 덮어쓰지 않는다', () => assert.equal(r3.headers.get('Cache-Control'), 's-maxage=5'));
+  ok('withCdn: 인자(req·params)를 그대로 넘긴다', () => assert.equal(body4, '7x'));
+
+  console.log(`\n${passed} passed`);
+})();

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
+import { withCdn } from '@/lib/cdn';
 
 /** Bitget USDT 선물 히스토리 캔들(공개, 키 불필요) — 매매 해부용. endTime 기준 과거로 limit개. */
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: Request) {
+async function handler(req: Request) {
   const { searchParams } = new URL(req.url);
   const symbol = (searchParams.get('symbol') ?? '').toUpperCase();
   const endTime = searchParams.get('endTime') ?? String(Date.now());
@@ -24,3 +25,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: String(e), candles: [] }, { status: 200 });
   }
 }
+
+// CDN 캐시(과거 캔들) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 60, 600);

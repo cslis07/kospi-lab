@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { fetchBitgetFuturesTickers } from '@/lib/bitget';
+import { withCdn } from '@/lib/cdn';
 
-export async function GET() {
+async function handler() {
   try {
     const { list } = await fetchBitgetFuturesTickers();
     const rows = list.map((t) => ({
@@ -21,3 +22,6 @@ export async function GET() {
     return NextResponse.json({ error: String(e) }, { status: 502 });
   }
 }
+
+// CDN 캐시(선물 시세) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 10, 120);

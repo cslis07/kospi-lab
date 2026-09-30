@@ -6,6 +6,7 @@
  * 사용법: GET /api/krx/stock-list?q=삼성전자
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { withCdn } from '@/lib/cdn';
 
 const KRX_KEY  = () => process.env.KRX_API_KEY ?? '';   // 하드코딩 폴백 금지 — 키는 env에서만
 const KRX_BASE = 'https://data-dbg.krx.co.kr/svc/apis';
@@ -100,7 +101,7 @@ async function getList(): Promise<KrxStockEntry[]> {
 }
 
 // ── GET handler ───────────────────────────────────────────────────────────────
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get('q') ?? '').trim();
 
   const list = await getList();
@@ -122,3 +123,6 @@ export async function GET(req: NextRequest) {
     results.map((s) => ({ ticker: s.ticker, name: s.name, code: s.code, market: s.market }))
   );
 }
+
+// CDN 캐시(상장 종목 목록) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 3600, 86400);

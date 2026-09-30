@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchOverseasList } from '@/lib/overseasList';
+import { withCdn } from '@/lib/cdn';
 
 const HEADERS = {
   'User-Agent':
@@ -54,7 +55,7 @@ async function fetchYahooSearch(q: string) {
     }));
 }
 
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   const q = req.nextUrl.searchParams.get('q') ?? '';
   if (!q.trim()) return NextResponse.json([]);
 
@@ -69,3 +70,6 @@ export async function GET(req: NextRequest) {
   // 2. 정적 목록 폴백
   return NextResponse.json(searchOverseasList(q));
 }
+
+// CDN 캐시(검색 결과) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 3600, 86400);

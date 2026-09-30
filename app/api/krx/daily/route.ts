@@ -7,11 +7,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchKrxDailyMap } from '@/lib/krx';
 import type { KrxDailyData } from '@/lib/krx';
+import { withCdn } from '@/lib/cdn';
 
 // 기존 소비처(screener)가 이 경로에서 타입을 import하므로 재-export
 export type { KrxDailyData } from '@/lib/krx';
 
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   const codes = (req.nextUrl.searchParams.get('codes') ?? '')
     .split(',').map((c) => c.trim()).filter(Boolean);
 
@@ -25,3 +26,6 @@ export async function GET(req: NextRequest) {
   }
   return NextResponse.json(result);
 }
+
+// CDN 캐시(KRX 전 거래일 확정치) — 만료 후에도 직전 값을 즉시 응답
+export const GET = withCdn(handler, 600, 86400);
