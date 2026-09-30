@@ -6,7 +6,7 @@
  * 값 30초 갱신, 미니차트 = 최근 30거래일 종가. 상태: 실시간 / N분 지연 / 장마감.
  */
 import useSWR from 'swr';
-import { fetcher, colorOf, arrowOf, MiniLine, SectionTitle, SourceNote, Empty, MoreLink } from '@/components/naver/ui';
+import { fetcher, colorOf, arrowOf, MiniLine, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, MoreLink } from '@/components/naver/ui';
 
 interface Q { code: string; name: string; cat: string; unit?: string; price: number; change: number; changeRate: number; status: string; spark: number[] }
 
@@ -44,12 +44,18 @@ function Card({ q, compact }: { q: Q; compact?: boolean }) {
 export default function IndicatorsSection({ home = false }: { home?: boolean }) {
   const { data, error } = useSWR<{ items: Q[] }>('/api/naver/indicators', fetcher, { refreshInterval: 30000, keepPreviousData: true });
   const by = new Map((data?.items ?? []).map((q) => [q.code, q]));
-  const slot = (c: string) => { const q = by.get(c); return q ? <Card key={c} q={q} compact={home} /> : <div key={c} className="skeleton" style={{ height: home ? 118 : 128, borderRadius: 'var(--r)' }} />; };
+  // 응답이 왔는데 이 지표만 없으면(코드 변경 등) 스켈레톤을 끝없이 돌리지 않고 '없음' 카드로
+  const slot = (c: string) => {
+    const q = by.get(c);
+    if (q) return <Card key={c} q={q} compact={home} />;
+    if (data) return <div key={c} className="fin-card" style={{ height: home ? 118 : 128, display: 'grid', placeItems: 'center', fontSize: 12, color: 'var(--faint)' }}>지표 없음</div>;
+    return <div key={c} className="skeleton" style={{ height: home ? 118 : 128, borderRadius: 'var(--r)' }} />;
+  };
 
   return (
     <div>
       <SectionTitle big={home} title="환율 · 시장지표" sub={home ? undefined : '30초마다 갱신 · 미니차트 최근 30거래일'} right={home ? <MoreLink href="/indicators" /> : undefined} />
-      {error ? <div className="fin-card"><Empty /></div> : home ? (
+      {error ? <div className="fin-card"><Empty /></div> : data && !data.items.length ? <div className="fin-card"><Empty text={EMPTY_SOURCE} /></div> : home ? (
         <div className="nv-ind-home">{HOME_ORDER.map(slot)}</div>
       ) : GROUPS.map(([g, codes]) => (
         <section key={g} style={{ marginBottom: 18 }}>

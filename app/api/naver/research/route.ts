@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { goalPriceChanged, analystIndustries, industryReports } from '@/lib/naverStock';
+import { goalPriceChanged, analystIndustries, industryReports, naverCache } from '@/lib/naverStock';
 
 /**
  * 리서치 — 두 위젯을 한 번에.
@@ -16,5 +16,5 @@ export async function GET(req: Request) {
   const industry = sp.get('industry') || ind.industries[0]?.industry || '';
   const reports = industry ? await industryReports(industry, 8) : [];
   return NextResponse.json({ direction, goal, analyst: { ...ind, industry, reports }, asOf: new Date().toISOString() },
-    { headers: { 'Cache-Control': 's-maxage=600, stale-while-revalidate=1800' } });
+    { headers: naverCache('research', goal.sets.length === 0 && ind.industries.length === 0, 's-maxage=600, stale-while-revalidate=1800') });
 }

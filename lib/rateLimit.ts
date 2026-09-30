@@ -35,8 +35,15 @@ export function rateLimit(key: string, limit: number, windowMs: number): RateLim
   return { ok: true, retryAfter: 0 };
 }
 
+/**
+ * 클라이언트 IP. Vercel이 직접 채우는 `x-real-ip`를 먼저 본다.
+ * `x-forwarded-for` 첫 값은 클라이언트가 임의로 넣을 수 있어 폴백으로만 쓴다
+ * (Vercel은 XFF도 덮어써서 실측상 우회 불가였지만, 다른 호스팅에선 제한 우회 통로가 된다).
+ */
 export function clientIp(req: Request): string {
+  const real = req.headers.get('x-real-ip');
+  if (real) return real.trim();
   const fwd = req.headers.get('x-forwarded-for');
   if (fwd) return fwd.split(',')[0].trim();
-  return req.headers.get('x-real-ip') ?? 'unknown';
+  return 'unknown';
 }

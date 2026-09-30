@@ -290,6 +290,13 @@ header.site-header { box-shadow: var(--shadow-header); }
 .pill-shadow { box-shadow: var(--shadow-pill); background-color: var(--pill-bg); }
 .bar-shadow  { box-shadow: var(--shadow-bar); }
 
+/* 터치 영역 확대 — 보이는 크기는 그대로, 투명 ::after로 누를 수 있는 면적만 넓힌다(권장 44px).
+   pill은 위쪽을 조금만 넓혀 바로 위 종목명 탭(행 선택)을 가로채지 않게 한다. */
+.hit { position: relative; }
+.hit::after { content: ''; position: absolute; }
+.hit-icon::after { inset: -12px; }
+.hit-pill::after { inset: -6px -3px -12px; }
+
 /* ── 카드 표면 — 토스는 평평한 흰 카드(광택 없음) ───── */
 .surface {
   background-color: var(--surface);

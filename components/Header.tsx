@@ -9,7 +9,7 @@ import GlobalSearch from './GlobalSearch';
 import SearchSheet from './SearchSheet';
 import MenuSheet from './MenuSheet';
 import ThemeToggle from './ThemeToggle';
-import { activeItem, drillTitle } from '@/lib/menu';
+import { activeItem, drillTitle, pageOwnsH1 } from '@/lib/menu';
 import type { FxRate } from '@/lib/types';
 
 // 앱바는 쿼리 없는 메뉴 항목만 판정하므로 빈 파라미터로 충분(useSearchParams 를 쓰면 레이아웃 전체에 Suspense 가 필요해진다)
@@ -106,6 +106,8 @@ export default function Header() {
   // 앱바 3모드: 홈 섹션=로고 / 다른 섹션=섹션 큰 제목(탭 이동이라 뒤로가기 없음) / 섹션 밖 상세=뒤로가기+제목
   const hit = activeItem(pathname, NO_QUERY);
   const mode: 'home' | 'section' | 'drill' = !hit ? 'drill' : hit.group.key === 'home' ? 'home' : 'section';
+  // 문서 제목(h1)은 화면당 1개: 본문이 h1을 가지면 양보, 아니면 여기서 sr-only로. 앱바 글자는 장식(span)
+  const docTitle = mode === 'home' ? 'KOSPI LAB — 투자 리스크 관리' : mode === 'section' ? (hit!.group.label === hit!.item.label ? hit!.item.label : `${hit!.group.label} · ${hit!.item.label}`) : drillTitle(pathname);
   const goBack = () => { if (typeof window !== 'undefined' && window.history.length > 1) router.back(); else router.push('/'); };
 
   // 화면 이동 시 시트 닫기 + 다른 컴포넌트(빈 관심목록 등)가 검색을 열 수 있게 전역 이벤트 수신
@@ -130,6 +132,7 @@ export default function Header() {
 
   return (
     <header className="site-header border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-md sticky top-0 z-40">
+      {!pageOwnsH1(pathname) && <h1 className="sr-only">{docTitle}</h1>}
       {/* ── 모바일 앱바 (md 미만) ── */}
       <div className="md:hidden appbar px-1.5 flex items-center gap-0.5">
         {mode === 'home' ? (
@@ -139,13 +142,13 @@ export default function Header() {
             <span className="text-[17px] font-extrabold tracking-tight text-[var(--text)] truncate">KOSPI LAB</span>
           </Link>
         ) : mode === 'section' ? (
-          <h1 className="flex-1 min-w-0 truncate pl-3 text-[21px] font-extrabold tracking-tight text-[var(--text)]">{hit!.group.label}</h1>
+          <span className="flex-1 min-w-0 truncate pl-3 font-display text-[21px] font-extrabold tracking-tight text-[var(--text)]">{hit!.group.label}</span>
         ) : (
           <>
             <button type="button" onClick={goBack} className="appbar-ic" aria-label="뒤로가기">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg>
             </button>
-            <h1 className="flex-1 min-w-0 truncate text-[17px] font-bold tracking-tight text-[var(--text)]">{drillTitle(pathname)}</h1>
+            <span className="flex-1 min-w-0 truncate font-display text-[17px] font-bold tracking-tight text-[var(--text)]">{drillTitle(pathname)}</span>
           </>
         )}
         <ThemeToggle className="appbar-ic" />
@@ -168,7 +171,7 @@ export default function Header() {
             <span aria-hidden className="grid place-items-center w-7 h-7 rounded-lg text-[13px] font-black text-white"
               style={{ background: 'linear-gradient(135deg,#1c6cff,#1b64da)', boxShadow: '0 2px 8px rgba(28,108,255,.35)' }}>K</span>
             <span className="block">
-              <h1 className="text-sm font-extrabold tracking-tight text-[var(--text)]">KOSPI LAB</h1>
+              <span className="block font-display text-sm font-extrabold tracking-tight text-[var(--text)]">KOSPI LAB</span>
               <p className="text-[9px] text-[var(--text-muted)] leading-none mt-0.5 hidden sm:block">투자 리스크 관리</p>
             </span>
           </Link>

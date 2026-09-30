@@ -23,11 +23,21 @@ const HEADERS = {
 export async function nget<T = unknown>(path: string, revalidate = 60, timeoutMs = 9000): Promise<T | null> {
   try {
     const res = await fetch(BASE + path, { headers: HEADERS, next: { revalidate }, signal: AbortSignal.timeout(timeoutMs) });
-    if (!res.ok) return null;
+    if (!res.ok) { console.warn(`[naver] ${res.status} ${path.split('?')[0]}`); return null; }
     return (await res.json()) as T;
-  } catch {
+  } catch (e) {
+    console.warn(`[naver] 실패 ${path.split('?')[0]}: ${e instanceof Error ? e.name : 'error'}`);
     return null;
   }
+}
+
+/**
+ * 라우트 응답 캐시 헤더. 비공식 API라 구조가 바뀌면 조용히 빈 값이 온다 →
+ * 빈 응답은 CDN에 오래 박제하지 않고(15초) 로그에 남겨 Vercel 로그에서 '[naver] 빈 응답'으로 찾게 한다.
+ */
+export function naverCache(route: string, empty: boolean, normal: string): HeadersInit {
+  if (empty) console.warn(`[naver] 빈 응답 ${route} — 소스 구조 변경 가능`);
+  return { 'Cache-Control': empty ? 's-maxage=15, stale-while-revalidate=30' : normal };
 }
 
 export const n = (v: unknown): number => {

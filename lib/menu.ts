@@ -156,6 +156,18 @@ export function drillTitle(pathname: string): string {
   return EXTRAS.find((e) => under(pathname, e.href))?.label ?? 'KOSPI LAB';
 }
 
+/**
+ * 페이지 본문이 자체 <h1>을 가진 경로(예: 종목 상세의 종목명). 여기 있으면 헤더는 h1을 만들지 않고,
+ * 없으면 헤더가 화면 제목을 sr-only <h1>로 넣는다 → 모든 화면 h1 정확히 1개.
+ * '/'로 끝나는 항목은 접두사(동적 경로). tests/headings.test.ts 가 app/ 의 실제 <h1>과 대조한다.
+ */
+export const OWN_H1_ROUTES = [
+  '/bitget', '/brokerage', '/crypto/', '/futures', '/growth', '/invest', '/journal', '/krx',
+  '/overseas/', '/overseas-analysis', '/principles', '/screener', '/simulate', '/stock/', '/tax', '/virtual',
+];
+export const pageOwnsH1 = (pathname: string) =>
+  OWN_H1_ROUTES.some((r) => (r.endsWith('/') ? pathname.startsWith(r) : under(pathname, r)));
+
 /** 전체 항목 평탄화(그룹색 유지, href 중복 제거) — 메뉴 검색·자주쓰는 후보 풀 */
 export type FlatMenuItem = MenuItem & { color: string; qc: string };
 export const FLAT: FlatMenuItem[] = [

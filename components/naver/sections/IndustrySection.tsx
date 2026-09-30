@@ -7,7 +7,7 @@
  */
 import { useState } from 'react';
 import useSWR from 'swr';
-import { fetcher, colorOf, signPct, Badge, Change, Seg, SectionTitle, SourceNote, Empty, StockLink, fmtUsd, MoreLink } from '@/components/naver/ui';
+import { fetcher, colorOf, signPct, Badge, Change, Seg, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, StockLink, fmtUsd, MoreLink } from '@/components/naver/ui';
 
 interface TrendStock { code: string; name: string; logo?: string; price: number; change: number; changeRate: number }
 interface TrendCard { rank: number; code: string; name: string; changeRate: number; rising: number; flat: number; falling: number; stocks: TrendStock[] }
@@ -85,7 +85,7 @@ export default function IndustrySection({ home = false }: { home?: boolean }) {
         {market === 'kr' && <Seg<Cat> value={cat} onChange={setCat} options={[['industries', '업종'], ['themes', '테마']]} />}
       </div>
 
-      {error ? <div className="fin-card"><Empty /></div> : (
+      {error ? <div className="fin-card"><Empty /></div> : data && !cards.length ? <div className="fin-card"><Empty text={EMPTY_SOURCE} /></div> : (
         <div className="nv-it-grid">
           {(isLoading && !cards.length ? Array.from({ length: home ? 3 : 6 }) : cards).map((c, i) =>
             c ? <Card key={(c as TrendCard).code} c={c as TrendCard} market={market} /> : <div key={i} className="skeleton" style={{ height: 300, borderRadius: 'var(--r)' }} />)}

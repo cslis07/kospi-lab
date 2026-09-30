@@ -8,7 +8,7 @@
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { fetcher, colorOf, signPct, Seg, SectionTitle, SourceNote, Empty, fmtUsd, MoreLink } from '@/components/naver/ui';
+import { fetcher, colorOf, signPct, Seg, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, fmtUsd, MoreLink } from '@/components/naver/ui';
 
 interface Theme { code: string; name: string; large: string; count: number; return1d?: number; return3m?: number }
 interface Etf { code: string; name: string; price: number; change: number; changeRate: number; return1w?: number; return1m?: number; type: string; currency: 'KRW' | 'USD' }
@@ -71,7 +71,7 @@ export default function ThemeEtfSection({ home = false }: { home?: boolean }) {
       <div className="nv-te-wrap">
         {/* 중분류(테마) 목록 */}
         <div className="fin-card nv-te-list" style={{ maxHeight: home ? 400 : 720 }}>
-          {list.length === 0 ? <div className="skeleton" style={{ height: 200 }} /> : list.map((t) => (
+          {list.length === 0 ? (data || error ? <Empty text={error ? undefined : EMPTY_SOURCE} /> : <div className="skeleton" style={{ height: 200 }} />) : list.map((t) => (
             <button key={t.code} type="button" onClick={() => { setTheme(t.code); setLarge(t.large); }}
               style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '11px 12px', borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer',
                 background: sel === t.code ? 'var(--surface-2)' : 'transparent', color: sel === t.code ? 'var(--ink)' : 'var(--ink-2)', fontWeight: sel === t.code ? 800 : 500, fontSize: 14 }}>

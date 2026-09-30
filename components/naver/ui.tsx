@@ -102,6 +102,9 @@ export function SourceNote({ children }: { children: React.ReactNode }) {
   return <p style={{ fontSize: 11, color: 'var(--faint)', marginTop: 12, lineHeight: 1.6 }}>{children}</p>;
 }
 
+/** 요청은 성공했는데 0건 — 비공식 API 구조 변경 가능성을 숨기지 않고 알린다(빈 박스·무한 스켈레톤 금지) */
+export const EMPTY_SOURCE = '네이버 증권에서 받은 데이터가 없습니다. 원본 구조가 바뀌었을 수 있어요 — 잠시 후 다시 시도됩니다.';
+
 export function Empty({ text = '데이터를 불러오지 못했습니다. 잠시 후 다시 시도됩니다.' }: { text?: string }) {
   return <div style={{ padding: '28px 8px', textAlign: 'center', fontSize: 13, color: 'var(--faint)' }}>{text}</div>;
 }

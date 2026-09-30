@@ -232,7 +232,8 @@ export default function DomesticPage() {
                 <div key={stock.ticker} onClick={() => setSelected(stock)}
                   className="flex items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-white/3 transition-colors sm:grid sm:grid-cols-[40px_48px_1fr_120px_90px_140px] sm:gap-2">
                   <button onClick={(e) => toggleWatch(e, stock)}
-                    className={`text-base shrink-0 transition-colors ${inW ? 'text-red-400' : 'text-[var(--text-dim)] hover:text-red-400'}`}>
+                    aria-label={`${stock.name} 관심종목 ${inW ? '해제' : '추가'}`}
+                    className={`hit hit-icon text-base shrink-0 transition-colors ${inW ? 'text-red-400' : 'text-[var(--text-dim)] hover:text-red-400'}`}>
                     {inW ? '♥' : '♡'}
                   </button>
                   <span className="text-xs text-[var(--text-muted)] shrink-0 sm:text-center tabular-nums w-4 sm:w-auto">{idx + 1}</span>
@@ -244,14 +245,14 @@ export default function DomesticPage() {
                         <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${stock.market === 'KOSDAQ' ? 'text-purple-400' : 'text-blue-400'}`}>{stock.market}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); router.push(`/stock-analysis?ticker=${stock.ticker}&run=1`); }}
-                          className="inline-flex items-center gap-0.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md text-[var(--accent)] bg-[var(--accent-soft)] border border-[var(--accent)]/25 hover:brightness-105"
+                          className="hit hit-pill inline-flex items-center gap-0.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md text-[var(--accent)] bg-[var(--accent-soft)] border border-[var(--accent)]/25 hover:brightness-105"
                           aria-label={`${stock.name} 분석`}>
                           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5" /></svg>
                           분석
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); router.push(`/screener?tickers=${stock.ticker}&market=KR&run=1`); }}
-                          className="inline-flex items-center gap-0.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md text-[var(--text-muted)] bg-[var(--surface-2)] border border-[var(--border)] hover:text-[var(--text)]"
+                          className="hit hit-pill inline-flex items-center gap-0.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md text-[var(--text-muted)] bg-[var(--surface-2)] border border-[var(--border)] hover:text-[var(--text)]"
                           aria-label={`${stock.name} 간단 재무`}>
                           간단
                         </button>

@@ -7,7 +7,7 @@
  */
 import { useState } from 'react';
 import useSWR from 'swr';
-import { fetcher, colorOf, Change, Seg, SectionTitle, SourceNote, Empty, StockLink, fmtKrw, fmtUsdBig, fmtCount, fmtUsd, MoreLink } from '@/components/naver/ui';
+import { fetcher, colorOf, Change, Seg, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, StockLink, fmtKrw, fmtUsdBig, fmtCount, fmtUsd, MoreLink } from '@/components/naver/ui';
 
 type Tab = 'value' | 'popular' | 'up' | 'down' | 'cap' | 'volume';
 interface Row { code: string; name: string; price: number; change: number; changeRate: number; metric: number; metricLabel: string; href?: string }
@@ -31,7 +31,7 @@ function Column({ title, sub, rows, kind, right }: { title: string; sub?: string
         {sub && <span style={{ fontSize: 11, color: 'var(--faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>}
         {right && <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{right}</div>}
       </div>
-      {!rows ? <div className="skeleton" style={{ height: 620, borderRadius: 10 }} /> : rows.length === 0 ? <Empty /> : rows.map((r, i) => (
+      {!rows ? <div className="skeleton" style={{ height: 620, borderRadius: 10 }} /> : rows.length === 0 ? <Empty text={EMPTY_SOURCE} /> : rows.map((r, i) => (
         <div key={`${r.code}-${i}`} className={`nv-rk-row${i === 0 ? ' first' : ''}`}>
           <span className="tabular-nums" style={{ width: 18, flexShrink: 0, fontSize: 13, fontWeight: 700, color: i < 3 ? 'var(--ink)' : 'var(--faint)' }}>{i + 1}</span>
           <StockLink href={r.href}>

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { rankKrStocks, rankUsStocks, rankKrEtfs, rankCoins, type RankTab } from '@/lib/naverStock';
+import { rankKrStocks, rankUsStocks, rankKrEtfs, rankCoins, naverCache, type RankTab } from '@/lib/naverStock';
 
 /**
  * 실시간 랭킹 — ?tab=value|popular|up|down|cap|volume &coin=UPBIT|BITHUMB
@@ -16,5 +16,5 @@ export async function GET(req: Request) {
   const coin = sp.get('coin') === 'BITHUMB' ? 'BITHUMB' : 'UPBIT';
   const [kr, us, etf, crypto] = await Promise.all([rankKrStocks(tab), rankUsStocks(tab), rankKrEtfs(tab), rankCoins(tab, coin)]);
   return NextResponse.json({ tab, coin, kr, us, etf, crypto, asOf: new Date().toISOString() },
-    { headers: { 'Cache-Control': 's-maxage=20, stale-while-revalidate=60' } });
+    { headers: naverCache('ranking', !kr.length && !us.length && !etf.length && !crypto.length, 's-maxage=20, stale-while-revalidate=60') });
 }
