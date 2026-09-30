@@ -27,20 +27,25 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 const grotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-grotesk', display: 'swap' });
 
 export const viewport: Viewport = {
-  // 다크 전용(미드나잇 캔버스)
+  // 기본 다크(미드나잇 캔버스). 라이트 전환 시 ThemeToggle 이 meta theme-color 를 갱신.
   themeColor: '#000814',
-  colorScheme: 'dark',
+  colorScheme: 'dark light',
   width: 'device-width',
   initialScale: 1,
   // 노치·제스처바 안전영역(env(safe-area-inset-*))을 쓰려면 cover 필요 — 하단 탭바 여백에 사용
   viewportFit: 'cover',
 };
 
+// 페인트 전에 저장된 테마를 html 클래스로 적용(FOUC 방지). 기본 = 다크.
+// 우선순위: ?theme=light|dark 쿼리(딥링크·공유·테스트, 지정 시 저장) → localStorage → 다크.
+const themeInit = `(function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='light'||q==='dark')?q:localStorage.getItem('kl-theme');t=(t==='light')?'light':'dark';if(q==='light'||q==='dark'){try{localStorage.setItem('kl-theme',t);}catch(_){}}var e=document.documentElement;e.classList.remove('light','dark');e.classList.add(t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#ffffff':'#000814');}catch(_){document.documentElement.classList.add('dark');}})();`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // 다크 전용 — html.dark 를 정적으로 붙여 기존 다크 규칙·dark: 변형이 항상 적용되게 한다(테마 토글 제거).
+  // 기본 다크(className 에 dark) + 인라인 스크립트가 저장값이 light 면 교체. DOM 클래스가 진실원.
   return (
-    <html lang="ko" className={`h-full dark ${inter.variable} ${grotesk.variable}`}>
+    <html lang="ko" suppressHydrationWarning className={`h-full dark ${inter.variable} ${grotesk.variable}`}>
       <body className="min-h-full flex flex-col">
+        <script dangerouslySetInnerHTML={{ __html: themeInit }} />
         <PwaRegister />
         <Header />
         <div className="flex-1 max-w-[1200px] mx-auto w-full px-4 sm:px-6 pt-4 md:pt-6">

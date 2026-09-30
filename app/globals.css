@@ -114,6 +114,97 @@
   --pill-bg: #010d1e;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   라이트(순백 클린) 테마 — html.light 일 때만. 다크는 위 값 그대로.
+   같은 변수명에 라이트 값만 얹어 컴포넌트 수정 없이 리스킨한다.
+   배경 순백 · 연회색 카드 · 옅은 보더 · 인셋 흰빛 섀도 대신 부드러운 회색 드롭섀도.
+   시그널 색(상승 Coral·하락 Signal Blue)은 관행 유지, 보조색은 흰 배경 가독을 위해 약간 어둡게.
+   ══════════════════════════════════════════════════════════════ */
+html.light {
+  color-scheme: light;
+
+  /* Copilot 팔레트의 라이트 대응 */
+  --cp-canvas: #ffffff;
+  --cp-deep: #f6f7f9;     /* 카드 1단 — 연회색 */
+  --cp-indigo: #eef1f5;   /* 보조 2단 */
+  --cp-cobalt: #123a8f;   /* 강조 블록 — 진한 블루 유지(흰 글자 대비) */
+  --cp-white: #ffffff;
+  --cp-fog: #4a5568;
+  --cp-mist: #6b7480;
+  --cp-steel: #e4e8ef;
+  --cp-blue: #1c6cff;
+
+  /* 깊이 — 라이트는 흰빛 인셋 대신 회색 드롭섀도 + 옅은 보더 */
+  --neo: 0 1px 2px rgba(16,24,40,.05), 0 4px 12px -2px rgba(16,24,40,.07);
+  --neo-sm: 0 1px 2px rgba(16,24,40,.06);
+  --glow: inset 0 0 0 1px rgba(16,24,40,.03);
+  --pressed: inset 0 2px 5px rgba(16,24,40,.10);
+
+  --surface: #f6f7f9;
+  --surface-2: #eef1f5;
+  --ink: #0b1220;
+  --ink-2: #4a5568;
+  --muted: #4a5568;
+  --faint: #8a94a3;
+  --line: #e4e8ef;
+  --line-2: rgba(16,24,40,.08);
+  --accent-ink: #155ce0;                         /* 흰 배경 위 액센트 글자 — 다크(#5b93ff)보다 진하게 */
+  --ok: #00a83e;   --ok-soft: rgba(0,168,62,.12);
+  --warn: #ff4433; --warn-soft: rgba(255,68,51,.11);   /* 상승 = 관행 코랄 유지 */
+  --amber: #b7791f; --amber-soft: rgba(255,204,2,.18);
+  --violet: #7c3aed; --violet-soft: rgba(124,58,237,.12);
+  --rose: #db2777;  --rose-soft: rgba(219,39,119,.10);
+  --sh-1: var(--neo-sm);
+  --sh-2: var(--neo);
+  --sh-pop: var(--neo);
+
+  --bg: #ffffff;
+  --bg-elev: #f6f7f9;
+  --bg-card: #f6f7f9;
+  --bg-card-hover: #eef1f5;
+  --card: #f6f7f9;
+  --text: #0b1220;
+  --text-muted: #4a5568;
+  --text-dim: #8a94a3;
+  --border: #e4e8ef;
+  --border-hover: #cdd5e0;
+
+  --accent: #1c6cff;                             /* 하락 = 관행 시그널 블루 유지 */
+  --accent-soft: rgba(28,108,255,.10);
+
+  --shadow-header: 0 1px 0 rgba(16,24,40,.06);
+  --shadow-card:   var(--neo);
+  --shadow-pill:   var(--neo-sm);
+  --shadow-bar:    none;
+
+  --nav-active: #0b1220;
+  --pill-bg: #ffffff;
+}
+
+/* 라이트 — 어두운 배경을 전제로 박힌 흰빛 값 교정(스크롤바·그랩·시트·토스트 등) */
+html.light * { scrollbar-color: rgba(16,24,40,.18) transparent; }
+html.light *::-webkit-scrollbar-thumb { background: rgba(16,24,40,.18); }
+html.light *::-webkit-scrollbar-thumb:hover { background: rgba(16,24,40,.30); }
+html.light .sheet-grab { background: rgba(16,24,40,.16); }
+html.light .ev-imp i { background: rgba(16,24,40,.12); }
+html.light .tgl { background: rgba(16,24,40,.16); }
+html.light .skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, rgba(16,24,40,.05) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+}
+html.light .kl-cta { box-shadow: 0 1px 2px rgba(28,108,255,.35); }
+html.light .kl-cta:active { box-shadow: var(--pressed); }
+html.light .kl-ghost { color: var(--text); border-color: var(--border-hover); }
+html.light .kl-ghost:hover { background: rgba(16,24,40,.04); }
+html.light .navlink.active,
+html.light .chip.active { box-shadow: 0 1px 2px rgba(28,108,255,.30); }
+html.light .sheet-dim { background: rgba(16,24,40,.32); }
+/* 되돌리기 토스트 — 라이트 표면에서도 대비 위해 어두운 배경 유지 */
+html.light .toast { background: #0b1220; color: #fff; border-color: rgba(16,24,40,.14); }
+html.light .toast button { color: #7fb0ff; }
+/* 선택 색 — 라이트에선 옅은 파랑 배경 + 진한 글자 */
+html.light ::selection { background: rgba(28,108,255,.22); color: #0b1220; }
+
 /* ── Base ─────────────────────────────────────────── */
 html { color-scheme: dark; scroll-behavior: smooth; background-color: var(--bg); }
 

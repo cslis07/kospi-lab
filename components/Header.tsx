@@ -8,6 +8,7 @@ import SyncIndicator from './SyncIndicator';
 import GlobalSearch from './GlobalSearch';
 import SearchSheet from './SearchSheet';
 import MenuSheet from './MenuSheet';
+import ThemeToggle from './ThemeToggle';
 import { activeItem, drillTitle } from '@/lib/menu';
 import type { FxRate } from '@/lib/types';
 
@@ -147,6 +148,7 @@ export default function Header() {
             <h1 className="flex-1 min-w-0 truncate text-[17px] font-bold tracking-tight text-[var(--text)]">{drillTitle(pathname)}</h1>
           </>
         )}
+        <ThemeToggle className="appbar-ic" />
         <button type="button" className="appbar-ic" onClick={() => setSearchOpen(true)} aria-label="종목 검색">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden><path d="M21 21l-4.35-4.35M11 19a8 8 0 110-16 8 8 0 010 16z" /></svg>
         </button>
@@ -217,6 +219,9 @@ export default function Header() {
           </div>
 
           <SyncIndicator />
+
+          {/* 다크/라이트 토글 */}
+          <ThemeToggle className="appbar-ic" />
 
           {/* 전체 메뉴 팝업 버튼 — 홈 하단 바로가기 카드를 대신한다(모바일 ☰ 시트와 동일 내용) */}
           <button type="button" onClick={() => setMenuOpen(true)} aria-label="전체 메뉴"

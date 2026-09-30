@@ -2,6 +2,16 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-09-30 (75차) — 라이트(순백 클린) 테마 + 다크/라이트 토글
+
+- **화이트 버전 추가**(사용자 요청, 09-29 "다크 전용·토글 제거"의 디자인 재결정). 다크는 그대로 두고 라이트를 병행, 헤더 토글로 전환.
+- `globals.css`에 **`html.light` 토큰 블록** 추가 — 같은 변수명에 값만 얹어 컴포넌트 수정 없이 리스킨: 배경 순백 `#ffffff`·카드 연회색 `#f6f7f9`·보조 `#eef1f5`·헤어라인 `#e4e8ef`·잉크 `#0b1220`. 흰빛 인셋 뉴모픽 섀도 → 부드러운 회색 드롭섀도(`--neo`/`--neo-sm`/`--glow`/`--pressed` 재정의). 강조 블록(cobalt)은 진한 블루 `#123a8f`로 흰 글자 대비 유지.
+- 어두운 배경 전제로 박힌 흰빛 값 교정: 스크롤바·시트 그랩·이벤트 임팩트 바·토글 트랙·스켈레톤·CTA/고스트 버튼·시트 딤·되돌리기 토스트(어두운 유지)·선택색.
+- **시그널색 관행 유지**: 상승 Coral `#ff4433`·하락 Signal Blue `#1c6cff`는 라이트에서도 동일. 보조색(green/amber/violet/rose)만 흰 배경 가독 위해 약간 어둡게. 브랜드 로고색·유색 배지·버튼은 불변.
+- **`ThemeToggle`** 재도입(SVG 해/달, 이모지 없음) — 모바일 앱바·데스크탑 헤더. `kl-theme` 저장 + `meta theme-color` 갱신, DOM 클래스가 진실원.
+- **`layout.tsx`**: 프리하이드레이션 스크립트로 FOUC 방지(기본 다크), `?theme=light|dark` 딥링크 override, `colorScheme:'dark light'`.
+- `globals.css`·`layout.tsx`·`components/Header.tsx`·신규 `components/ThemeToggle.tsx`. tsc 0 · build 0 · 로컬 프로덕션 헤드리스(홈·시장·더보기) 라이트/다크 확인, 흰-배경 흰-글자 깨짐 없음.
+
 ## 2026-09-30 (74차) — data 브랜치 Vercel 빌드 실패 반복 차단
 
 - 원인: 09-29 크론 재활성 후 15분마다 `data` 브랜치(스냅샷 JSON만 있음)에 커밋 → Vercel이 미리보기 빌드 시도 → `app` 폴더 없음으로 **매번 실패**(+ 무료 일일 배포 한도 100회 소모 위험).
