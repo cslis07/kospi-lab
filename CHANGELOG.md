@@ -2,6 +2,19 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-09-30 (80차) — 네이버 증권 홈 위젯 기반 신규 메뉴 5종(시장 탭)
+
+- 사용자 요청 "첨부 이미지의 각 기능 메뉴를 만들자 · stock.naver.com 면밀히 분석". Chrome 확장 미연결이라 **stock.naver.com 번들 정적분석**으로 실제 호출 경로를 확정: `_next` 청크 66개 + webpack 런타임의 lazy 청크(해시맵·`2248` 별도 규칙)를 받아 유니코드 이스케이프 디코딩 후, 위젯 컴포넌트(IndustryTrend·BigTargetPriceResearch·AnalystFocusedIndustry·ExchangeMarketIndicator·NotableETF·Ranking)의 URL 조립부를 추적하고 파라미터(열거값 포함)를 실호출로 검증.
+- **시장 탭에 5개 메뉴 추가**(`lib/menu.ts` 단일 소스): 산업 트렌드 `/industry` · 실시간 랭킹 `/ranking` · 시장지표 `/indicators` · 테마 ETF `/theme-etf` · 리서치 `/research`.
+  - **산업 트렌드**: 국내(업종·테마)/미국(섹터) × 일간·주간·월간 등락률 순위 카드 — 상승·보합·하락 막대 + 상승률 TOP3(로고·현재가·등락), 순위 더보기.
+  - **실시간 랭킹**: 거래대금·인기·상승·하락·시가총액·거래량 6탭 × 국내 주식·미국 주식·국내 ETF·가상자산(업비트/빗썸) 4열 10위, 20초 갱신.
+  - **시장지표**: 네이버 홈과 같은 12종(USD·EUR·JPY·달러인덱스·미국채 3/10년·WTI·국제금·국내금·은·국채 2/10년), 실시간/N분 지연/장마감 표기 그대로, 30거래일 미니차트, 30초 갱신.
+  - **테마 ETF**: 국내 227·미국 501 테마(대분류→중분류) 선택 → 상위 ETF. 국내는 1주 수익률 순, 미국은 해당 필드가 없어 **거래대금 순으로 명시**.
+  - **리서치**: 최근 1주 애널리스트 집중 산업(산업 칩 + 리포트, 원문은 네이버 리서치 링크) · 목표주가 변화 큰 종목(상향/하향, 최신 vs 직전 목표가·투자의견·작성일 기준가·이전대비). 투자의견은 증권사별 표기(Buy/매수)를 한국어로 통일. **애널리스트 의견일 뿐 앱의 매수·매도 신호가 아님**을 명시.
+- 신규 `lib/naverStock.ts`(호출·정규화, 실패 시 빈 값) · `app/api/naver/{industry,ranking,indicators,theme-etf,research}`(**preferredRegion icn1**, CDN 캐시 20초~10분) · `components/naver/ui.tsx`(등락·조/억·$억 표기·미니라인).
+- 수정: 억/조·$억/천만 표기에서 자리올림 누락('$210억 10천만') → 최소 단위 반올림 후 분할, 달러 가격 천 단위 쉼표. Windows 에서 국기 이모지가 'KR/US' 글자로 보여 제거. 랭킹 4열은 뱃지 대신 이름 두 줄 허용.
+- tsc 0 · test 148 · build 0 · 로컬 프로덕션 5개 API 전 탭 실측 + 데스크탑/모바일 헤드리스 확인.
+
 ## 2026-09-30 (79차) — AI 브리핑 가동(Gemini) · 응답 잘림 수정 · 직전 요약 폴백
 
 - **키 등록**: `GEMINI_API_KEY`·`OPENAI_API_KEY` 를 `.env.local`(gitignore) + Vercel production(암호화)에 등록. 값은 저장소·로그에 없음.

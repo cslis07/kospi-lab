@@ -92,6 +92,12 @@ export const MENU: MenuGroup[] = [
     { href: '/overseas', icon: 'overseas', label: '해외', desc: '미국 등 글로벌' },
     { href: '/coins',    icon: 'crypto',   label: '코인', desc: '시세·거시 환경·ETF' },
     { href: '/futures',  icon: 'futures',  label: '선물', desc: 'USDT 무기한·펀딩' },
+    // 2026-09-30 네이버페이 증권 홈 위젯 기반 5종(데이터: stock.naver.com, lib/naverStock.ts)
+    { href: '/industry',   icon: 'growth',  label: '산업 트렌드', desc: '업종·테마·섹터 등락 순위' },
+    { href: '/ranking',    icon: 'krx',     label: '실시간 랭킹', desc: '거래대금·인기·상승·하락' },
+    { href: '/indicators', icon: 'signal',  label: '시장지표',   desc: '환율·금리·원자재' },
+    { href: '/theme-etf',  icon: 'tools',   label: '테마 ETF',   desc: '테마별 상위 ETF' },
+    { href: '/research',   icon: 'report',  label: '리서치',     desc: '애널리스트 산업·목표주가' },
   ], ['/stock/', '/crypto/']),
   // 분석(종목 비교·리포트)·관심종목은 하단 탭에서 제외하고 '더보기 도구'(EXTRAS)로 이동(2026-09-29, 기능은 유지).
   // 종목/코인선물 분석(/stock-analysis·/coin-analysis)은 시장 목록의 '분석' 버튼으로 진입(드릴다운, drillTitle로 제목 유지).
