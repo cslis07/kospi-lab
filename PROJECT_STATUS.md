@@ -162,7 +162,8 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 
 ### 게이트·리전·런타임
 - `middleware.ts` 게이트: `/api/bitget/*`·`/api/analyze`·`/api/stock-analysis`·`/api/coin-analysis`·`/api/debug/*`·`/api/sync`. 홈·네이버 라우트는 공개(의도).
-- `preferredRegion='icn1'`: 분석·스캔·coin-env · 🆕 `/api/naver/*`(비공식 API 해외 IP 차단 예방).
+- 🆕 **함수 리전 = `vercel.json` `regions:["icn1"]`(09-30)**. 라우트별 `preferredRegion='icn1'`은 **무료 요금제에서 무시돼 전부 iad1(미국 동부)에서 돌고 있었음**(`x-vercel-id: icn1::iad1` 실측). 확인: 응답 헤더 `x-vercel-id`가 `icn1::icn1`이면 서울.
+- 🆕 **CDN 캐시**: 공개 데이터 라우트는 `lib/cdn.ts withCdn(handler, s-maxage, swr)` 또는 직접 `Cache-Control`. 원칙 = 신선 구간 짧게 + stale-while-revalidate 길게(방문 뜸한 개인 앱이라 만료 상태가 기본). **배포하면 CDN 캐시가 비워져 배포 직후 첫 방문만 느림**(KRX 랭킹 5~9초·AI 브리핑 4초).
 - 🆕 `/api/home/briefing` `maxDuration=60`(Gemini 폴백 여유). 분석 라우트 30초.
 
 ---
@@ -178,6 +179,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 ## 8. 최근 발생한 에러와 해결 (누적)
 | 증상 | 원인 | 해결 | 날짜 |
 |---|---|---|---|
+| **전 화면 로딩 5초**(홈·국내 스켈레톤 5초) | ① 함수가 iad1에서 돌며 네이버·KRX 태평양 왕복(`preferredRegion` 무시) ② 시세·KRX 등 라우트에 CDN 캐시 없음 ③ 있는 캐시도 swr 30초라 늘 만료 | `vercel.json` icn1 · 공개 라우트 20+개 캐시(`withCdn`) · swr 연장 → 모바일 4G 실측 홈 5.05→0.85초, 국내 5.06→0.97초, 코인 7.7→0.83초 | 09-30 |
 | 리서치 목표주가 카드 2장이 세로로 쌓임·박스 크기 제각각 | styled-jsx 범위 클래스가 **변수에 담은 조건부 JSX엔 안 붙음** + 그리드 `align-items:start` | 섹션 레이아웃 전역 `nv-*`로 이전, `stretch`, 랭킹 행 62px·헤더 44px 고정 | 09-30 |
 | 커밋에 모르는 `project-state.json` 포함 | `git add -A` | 다음 커밋에서 추적 해제+gitignore(비밀값 없음 확인, 이력엔 남음) | 09-30 |
 | `$210억 10천만`·`2조 10000억` | 큰 단위로 나눈 뒤 반올림 → 자리올림 누락 | 최소 단위로 먼저 반올림 후 분할 | 09-30 |
