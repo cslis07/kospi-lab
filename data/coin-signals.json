@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-30T07:58:41.885Z",
+  "updated": "2026-09-30T14:50:02.775Z",
   "open": [
     {
       "id": "BTCUSDT-swing-1790664909195",
@@ -15,7 +15,9 @@
       "ultra": false,
       "conf": 91,
       "eq": 76
-    },
+    }
+  ],
+  "closed": [
     {
       "id": "SOLUSDT-scalp-1790755118593",
       "sym": "SOLUSDT",
@@ -29,10 +31,12 @@
       "price0": 118.436,
       "ultra": false,
       "conf": 92,
-      "eq": 63
-    }
-  ],
-  "closed": [
+      "eq": 63,
+      "closeTs": 1790779800029,
+      "closePrice": 118.908,
+      "outcome": "EXPIRE",
+      "r": -0.34
+    },
     {
       "id": "SOLUSDT-scalp-1790727549640",
       "sym": "SOLUSDT",
@@ -435,9 +439,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 18,
-      "winRate": 61,
-      "avgR": 0.4
+      "n": 19,
+      "winRate": 58,
+      "avgR": 0.36
     },
     "swing": {
       "n": 3,
@@ -445,15 +449,15 @@
       "avgR": 2.6
     },
     "all": {
-      "n": 21,
-      "winRate": 67,
-      "avgR": 0.71
+      "n": 22,
+      "winRate": 64,
+      "avgR": 0.66
     }
   },
   "watch": {
-    "ETHUSDT:liq": 1790665942361,
+    "ETHUSDT:liq": 1790779800029,
     "cb:warn:1790607600000": 1790665942361,
     "ETHUSDT:liqCrit": 1790755118593,
-    "ETHUSDT:noplan": 1790755118593
+    "ETHUSDT:noplan": 1790779800029
   }
 }
