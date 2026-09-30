@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-29T22:57:43.090Z",
+  "updated": "2026-09-30T00:19:12.385Z",
   "open": [
     {
       "id": "BTCUSDT-swing-1790664909195",
@@ -15,6 +15,36 @@
       "ultra": false,
       "conf": 91,
       "eq": 76
+    },
+    {
+      "id": "XRPUSDT-scalp-1790727549640",
+      "sym": "XRPUSDT",
+      "mode": "scalp",
+      "dir": -1,
+      "dirLabel": "SHORT",
+      "entry": 1.49125,
+      "tp": 1.4813,
+      "sl": 1.49654,
+      "ts": 1790727549640,
+      "price0": 1.4864,
+      "ultra": false,
+      "conf": 100,
+      "eq": 72
+    },
+    {
+      "id": "SOLUSDT-scalp-1790727549640",
+      "sym": "SOLUSDT",
+      "mode": "scalp",
+      "dir": -1,
+      "dirLabel": "SHORT",
+      "entry": 118.838,
+      "tp": 118.529,
+      "sl": 119.217,
+      "ts": 1790727549640,
+      "price0": 118.619,
+      "ultra": false,
+      "conf": 92,
+      "eq": 73
     }
   ],
   "closed": [
