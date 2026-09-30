@@ -289,11 +289,14 @@ export default function IndexBoard() {
           <button className={`seg-i ${code === 'KOSPI' ? 'on' : ''}`} onClick={() => setCode('KOSPI')}>코스피</button>
           <button className={`seg-i ${code === 'KOSDAQ' ? 'on' : ''}`} onClick={() => setCode('KOSDAQ')}>코스닥</button>
         </div>
-        {headline && (
+        {headline ? (
           <span className="fin-chip" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', maxWidth: '100%', fontSize: 11.5, padding: '5px 10px' }}>
             <b style={{ fontWeight: 800, marginRight: 4 }}>AI</b>{headline}
           </span>
-        )}
+        ) : brief === undefined ? (
+          // 요약 도착 전 칩 자리(모바일에선 한 줄을 차지해 도착 순간 아래가 밀렸다)
+          <span className="fin-chip skeleton" aria-hidden style={{ width: '62%', height: 27, padding: 0 }} />
+        ) : null}
       </div>
 
       {/* 대표 수치 — 왼쪽(값·등락·상태)은 안에서 줄바꿈, 오른쪽(링크·접기)은 같은 줄 고정 */}
@@ -333,8 +336,9 @@ export default function IndexBoard() {
         <div className="board-grid" style={{ marginTop: 10 }}>
           <div style={{ minWidth: 0 }}>
             <Chart points={b?.points ?? []} mode={mode} range={range} prevClose={b?.prevClose ?? 0} />
-            {range === '1d' && b?.tradingDate && (
-              <div style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2 }}>{b.tradingDate} 분봉 · 30초마다 갱신 · 차트에 마우스(터치)를 대면 값 표시</div>
+            {/* 안내 줄은 데이터 전에도 자리를 잡는다(도착 순간 아래가 밀리지 않게) */}
+            {range === '1d' && (
+              <div style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2, minHeight: 15 }}>{b?.tradingDate ? `${b.tradingDate} 분봉 · 30초마다 갱신 · 차트에 마우스(터치)를 대면 값 표시` : ' '}</div>
             )}
           </div>
 
@@ -355,14 +359,24 @@ export default function IndexBoard() {
               </div>
             </div>
 
-            {b?.week52High && b?.week52Low ? <Stat52 low={b.week52Low} high={b.week52High} value={value} /> : null}
-
-            {b?.investor && (
-              <Trio title="투자자 순매수" sub={`${b.investor.date}`}
-                items={[['외국인', b.investor.foreign], ['기관', b.investor.institution], ['개인', b.investor.individual]]} />
-            )}
-            {b?.program && (
-              <Trio title="프로그램 매매" items={[['전체', b.program.total], ['차익', b.program.arbitrage], ['비차익', b.program.nonArbitrage]]} />
+            {/* 데이터 전엔 실제와 같은 높이(52주 58 · 투자자/프로그램 63px 실측)의 자리 — 첫 방문 CLS 0.27의 원인이었다 */}
+            {!b ? (
+              <>
+                <div className="skeleton" style={{ height: 58, borderRadius: 10 }} />
+                <div className="skeleton" style={{ height: 63, borderRadius: 10 }} />
+                <div className="skeleton" style={{ height: 63, borderRadius: 10 }} />
+              </>
+            ) : (
+              <>
+                {b.week52High && b.week52Low ? <Stat52 low={b.week52Low} high={b.week52High} value={value} /> : null}
+                {b.investor && (
+                  <Trio title="투자자 순매수" sub={`${b.investor.date}`}
+                    items={[['외국인', b.investor.foreign], ['기관', b.investor.institution], ['개인', b.investor.individual]]} />
+                )}
+                {b.program && (
+                  <Trio title="프로그램 매매" items={[['전체', b.program.total], ['차익', b.program.arbitrage], ['비차익', b.program.nonArbitrage]]} />
+                )}
+              </>
             )}
           </div>
         </div>

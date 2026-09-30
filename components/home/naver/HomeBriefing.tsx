@@ -86,7 +86,7 @@ export default function HomeBriefing() {
 
       <div style={{ display: 'grid', gridTemplateColumns: wide ? '1fr 1fr' : '1fr', gap: 12, marginTop: 14 }}>
         {shown.length === 0
-          ? Array.from({ length: wide ? 2 : 1 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 150, borderRadius: 'var(--r-sm)' }} />)
+          ? Array.from({ length: wide ? 2 : 1 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 270, borderRadius: 'var(--r-sm)' }} />)
           : shown.map((p) => <ProviderCard key={p.id} p={p} facts={data?.facts ?? ''} />)}
       </div>
       {isLoading && shown.length === 0 && <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 6 }}>시세·뉴스를 모아 요약하는 중…</div>}
