@@ -171,6 +171,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 ## 7. 무인 실행되는 것
 | 이름 | 주기 | 역할 | 끄는 법 |
 |---|---|---|---|
+| 🆕 `.github/workflows/warm-cache.yml` | 프로덕션 배포 성공 시 1회 | 공개 API·화면 CDN 캐시 채우기(배포하면 CDN이 비워짐) | `gh workflow disable warm-cache.yml` |
 | `.github/workflows/coin-track.yml` → `scripts/coinTrack.mts` | 15분(지연·누락 잦음) | 스캘프 신호 판정·포지션 감시·규율 알림(서킷·손절 미설정·주간 복기) → 텔레그램 "kospi lab" 그룹, data 브랜치 커밋(트리에 vercel.json) | `gh workflow disable coin-track.yml`. ⚠️ 저장소 비활동 시 자동 비활성 이력(08-25~09-29) → 알림 끊기면 `gh workflow list` |
 - AI 브리핑·네이버 데이터는 **크론 아님**(요청 시 생성 + 캐시). 방문이 없으면 호출도 없음.
 
@@ -179,6 +180,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 ## 8. 최근 발생한 에러와 해결 (누적)
 | 증상 | 원인 | 해결 | 날짜 |
 |---|---|---|---|
+| 모바일 홈 첫 방문 화면이 크게 밀림(CLS 0.27) · 전체 메뉴 581px 밀림 | ① `useMediaQuery` 첫 값 false → 정적 HTML이 PC 배치 ② 지수 보드 칸이 데이터 도착 시 생김 ③ `useSearchParams`가 정적 HTML에서 메뉴를 빼고 대체 화면만 | 차이는 CSS로·훅 초기값 모바일 기준 · 로딩 자리 실측 높이 · 쿼리는 마운트 후 `location.search` | 09-30 |
 | **전 화면 로딩 5초**(홈·국내 스켈레톤 5초) | ① 함수가 iad1에서 돌며 네이버·KRX 태평양 왕복(`preferredRegion` 무시) ② 시세·KRX 등 라우트에 CDN 캐시 없음 ③ 있는 캐시도 swr 30초라 늘 만료 | `vercel.json` icn1 · 공개 라우트 20+개 캐시(`withCdn`) · swr 연장 → 모바일 4G 실측 홈 5.05→0.85초, 국내 5.06→0.97초, 코인 7.7→0.83초 | 09-30 |
 | 리서치 목표주가 카드 2장이 세로로 쌓임·박스 크기 제각각 | styled-jsx 범위 클래스가 **변수에 담은 조건부 JSX엔 안 붙음** + 그리드 `align-items:start` | 섹션 레이아웃 전역 `nv-*`로 이전, `stretch`, 랭킹 행 62px·헤더 44px 고정 | 09-30 |
 | 커밋에 모르는 `project-state.json` 포함 | `git add -A` | 다음 커밋에서 추적 해제+gitignore(비밀값 없음 확인, 이력엔 남음) | 09-30 |
@@ -244,6 +246,9 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 ## 11. ⛔ 하지 말 것
 - **시크릿 하드코딩 폴백 금지**(public 저장소, KRX 키가 이렇게 유출됨) · 🆕 **키 값을 로그·응답·커밋에 금지** — 커밋 전 `git diff --cached | grep -cE '<키 접두>'` 0 확인.
 - **`vercel env pull` 절대 금지**(로컬 전용 키 삭제). `vercel env add`만(stdin).
+- 🆕 **화면 폭 JS 판별(`useMediaQuery`)로 레이아웃을 바꾸지 말 것** — 정적 HTML은 폭을 모른다. 차이는 CSS 미디어쿼리, 훅은 동작용·초기값 모바일 기준(`ssrDefault`).
+- 🆕 **`useSearchParams`를 화면 본문 컴포넌트에 쓰지 말 것** — 정적 HTML에서 통째로 빠지고 Suspense 대체 화면만 나가 JS 후 밀린다. 강조 표시 정도면 마운트 후 `location.search`.
+- 🆕 **Recharts는 `next/dynamic`으로만** — 차트 파일에서 상수 하나만 import해도 라이브러리가 페이지 번들에 딸려 온다(`components/detail/chartLayout.ts`에 둘 것). 동적 상세로 가는 목록 링크는 `prefetch={false}`.
 - 🆕 **`git add -A` 금지** — `project-state.json`(다른 도구 로컬 파일) 같은 게 섞여 public에 올라감. 경로 지정 add.
 - 🆕 **다른 프로젝트의 키를 스크립트로 복사하지 말 것** — 권한 정책 차단 대상. 사용자에게 받을 것.
 - **`APP_ACCESS_TOKEN` Vercel에서 삭제 금지**(게이트 503) · `.env.local` 커밋 금지.

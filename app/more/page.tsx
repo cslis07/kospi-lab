@@ -4,7 +4,6 @@
  * 전체 메뉴(페이지판) — 모바일은 앱바 ☰ 시트가 같은 내용을 띄운다. 검색·자주 쓰는·5섹션·더보기 도구 + 설정.
  * 데스크탑은 상단 알약 내비가 있으므로 이 페이지는 모바일 위주로 쓰인다.
  */
-import { Suspense } from 'react';
 import HomeMenu from '@/components/HomeMenu';
 import SyncIndicator from '@/components/SyncIndicator';
 import { GUIDE } from '@/lib/menu';
@@ -21,9 +20,7 @@ export default function MorePage() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-        <Suspense fallback={<div className="skeleton h-40" />}>
-          <HomeMenu />
-        </Suspense>
+        <HomeMenu />
       </section>
 
       <section>
