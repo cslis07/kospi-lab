@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-30T01:54:19.067Z",
+  "updated": "2026-09-30T07:58:41.885Z",
   "open": [
     {
       "id": "BTCUSDT-swing-1790664909195",
@@ -15,6 +15,21 @@
       "ultra": false,
       "conf": 91,
       "eq": 76
+    },
+    {
+      "id": "SOLUSDT-scalp-1790755118593",
+      "sym": "SOLUSDT",
+      "mode": "scalp",
+      "dir": -1,
+      "dirLabel": "SHORT",
+      "entry": 118.7515,
+      "tp": 118.414,
+      "sl": 119.218,
+      "ts": 1790755118593,
+      "price0": 118.436,
+      "ultra": false,
+      "conf": 92,
+      "eq": 63
     }
   ],
   "closed": [
@@ -438,7 +453,7 @@
   "watch": {
     "ETHUSDT:liq": 1790665942361,
     "cb:warn:1790607600000": 1790665942361,
-    "ETHUSDT:liqCrit": 1790733255414,
-    "ETHUSDT:noplan": 1790733255414
+    "ETHUSDT:liqCrit": 1790755118593,
+    "ETHUSDT:noplan": 1790755118593
   }
 }
