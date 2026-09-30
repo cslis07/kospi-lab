@@ -1,21 +1,17 @@
 'use client';
 
 /**
- * 홈 — 시장 요약 · 관심종목 · 오늘의 리스크 · 주요 이벤트 (IA 2026-09-18).
- * 모바일: 인사 → 코스피 히어로 → 주요 지표 스트립 → 관심종목 → 오늘의 리스크 → 주요 이벤트.
- * 데스크탑: 지수 히어로 → 3열(관심·리스크·이벤트) → 코인 시장환경. 섹션 이동은 헤더 우측 '전체메뉴' 팝업.
- * 상승/하락 TOP 은 시장 › 국내로, 코인 시장환경·ETF 전체는 시장 › 코인으로 옮겼다.
+ * 홈 — 분기:
+ *  · 모바일(<md): 네이버 금융 스타일 홈(NaverHome) — 지수 레일·큰 차트(접기)·AI 브리핑·주요 뉴스(접기)·최근 소식·인기/관심.
+ *  · 데스크탑(md+): 기존 대시보드 유지(시장 요약·관심종목·이벤트 캘린더·코인 거시환경).  ← 사용자 지시(2026-09-30): PC는 현행 유지.
  */
 import { Suspense } from 'react';
 import Link from 'next/link';
 import MarketHero from '@/components/MarketHero';
 import CoinDashboard from '@/components/CoinDashboard';
-import HeroIndex from '@/components/fin/HeroIndex';
-import Greeting from '@/components/fin/Greeting';
-import MarketStrip from '@/components/home/MarketStrip';
 import WatchlistPreview from '@/components/home/WatchlistPreview';
-import EventList from '@/components/home/EventList';
 import EventCalendar from '@/components/home/EventCalendar';
+import NaverHome from '@/components/home/naver/NaverHome';
 
 const ROLE_TEXT = (
   <>
@@ -25,20 +21,11 @@ const ROLE_TEXT = (
   </>
 );
 
-function DashboardInner() {
+/* ── 데스크탑 대시보드 (기존 유지) ── */
+function DesktopDashboard() {
   return (
-    <div className="space-y-7 md:space-y-8">
-      {/* ── 시장 요약 (모바일) ── */}
-      <div className="md:hidden space-y-6">
-        <div>
-          <Greeting />
-          <HeroIndex />
-        </div>
-        <MarketStrip />
-      </div>
-
-      {/* ── 시장 요약 (데스크탑) ── */}
-      <section className="hidden md:block">
+    <div className="space-y-8">
+      <section>
         <div className="flex items-baseline gap-2 mb-3">
           <h2 className="eyebrow text-base font-bold text-[var(--text)]">시장 요약</h2>
           <span className="text-xs text-[var(--text-muted)]">주요 지수</span>
@@ -47,16 +34,10 @@ function DashboardInner() {
         <MarketHero />
       </section>
 
-      {/* ── 관심종목 · 주요 이벤트 (오늘의 리스크·매매 대원칙은 '인사이트' 탭으로 이동) ──
-           주요 이벤트: 모바일=리스트(EventList), 데스크탑(PC)=풀폭 월간 캘린더(EventCalendar) */}
       <WatchlistPreview />
-      <div>
-        <div className="md:hidden"><EventList /></div>
-        <EventCalendar />
-      </div>
+      <EventCalendar />
 
-      {/* ── 코인 거시 환경 (데스크탑 — 모바일은 시장 › 코인) ── */}
-      <section className="hidden md:block">
+      <section>
         <div className="flex items-baseline gap-2 mb-3">
           <h2 className="eyebrow text-base font-bold text-[var(--text)]">코인 · 거시 환경</h2>
           <span className="text-xs text-[var(--text-muted)]">금리 · 유가 · 심리 · ETF 수급</span>
@@ -65,22 +46,33 @@ function DashboardInner() {
         <CoinDashboard />
       </section>
 
-      {/* 이 앱은 진입 신호를 주는 도구가 아니다 — 모바일은 한 줄+접기, 데스크탑은 전문 */}
-      <details className="md:hidden fin-card px-4 py-3 text-[11px] leading-relaxed text-[var(--text-muted)]">
-        <summary className="cursor-pointer list-none flex items-center gap-2">
-          <span className="text-xs font-bold text-[var(--text)]">이 도구의 역할</span>
-          <span className="truncate">매매 신호 아님 · 손절·사이징·기록 도구</span>
-          <span className="ml-auto shrink-0 text-[var(--accent)] font-semibold">자세히</span>
-        </summary>
-        <p className="mt-2">{ROLE_TEXT}</p>
-      </details>
-      <div className="hidden md:block rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3">
         <p className="text-xs font-semibold text-[var(--text)] mb-1">이 도구의 역할</p>
         <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">{ROLE_TEXT}</p>
       </div>
-
-      {/* 섹션 바로가기 카드는 제거 — 데스크탑은 헤더 우측 '전체메뉴' 팝업, 모바일은 하단 탭·전체 메뉴 시트가 대신 */}
     </div>
+  );
+}
+
+function DashboardInner() {
+  return (
+    <>
+      <div className="md:hidden">
+        <NaverHome />
+        {/* 이 도구의 역할 — 모바일 한 줄 접기 */}
+        <details className="fin-card px-4 py-3 mt-6 text-[11px] leading-relaxed text-[var(--text-muted)]">
+          <summary className="cursor-pointer list-none flex items-center gap-2">
+            <span className="text-xs font-bold text-[var(--text)]">이 도구의 역할</span>
+            <span className="truncate">매매 신호 아님 · 손절·사이징·기록 도구</span>
+            <span className="ml-auto shrink-0 text-[var(--accent)] font-semibold">자세히</span>
+          </summary>
+          <p className="mt-2">{ROLE_TEXT}</p>
+        </details>
+      </div>
+      <div className="hidden md:block">
+        <DesktopDashboard />
+      </div>
+    </>
   );
 }
 
