@@ -36,17 +36,18 @@ function Bar({ rising, flat, falling }: { rising: number; flat: number; falling:
 
 function Card({ c, market }: { c: TrendCard; market: Market }) {
   return (
-    <div className="fin-card" style={{ padding: 18, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+    <div className="fin-card" style={{ padding: 18, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      {/* 제목 줄은 한 줄 고정(긴 업종명은 말줄임) — 카드 높이가 제각각 되지 않게 */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, whiteSpace: 'nowrap', minWidth: 0 }}>
         {c.rank === 1 && <span aria-hidden>🔥</span>}
-        <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>{c.rank}위</span>
-        <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{c.name}</span>
-        <span className="tabular-nums" style={{ fontSize: 15, fontWeight: 700, color: colorOf(c.changeRate) }}>{signPct(c.changeRate)}</span>
+        <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', flexShrink: 0 }}>{c.rank}위</span>
+        <span title={c.name} style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+        <span className="tabular-nums" style={{ fontSize: 15, fontWeight: 700, color: colorOf(c.changeRate), flexShrink: 0 }}>{signPct(c.changeRate)}</span>
       </div>
       <div style={{ marginTop: 12 }}><Bar rising={c.rising} flat={c.flat} falling={c.falling} /></div>
       <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', margin: '16px 0 4px' }}>상승률 TOP</div>
       {c.stocks.length === 0 ? <Empty text="종목 정보 없음" /> : c.stocks.map((s) => (
-        <div key={s.code} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderTop: '1px solid var(--line-2)' }}>
+        <div key={s.code} className="nv-it-row">
           <StockLink href={market === 'kr' ? `/stock/${s.code}` : `/overseas/${encodeURIComponent(s.code)}`}>
             <Badge name={s.name} logo={s.logo} size={32} />
             <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
@@ -79,13 +80,13 @@ export default function IndustrySection({ home = false }: { home?: boolean }) {
           <Seg<Period> value={period} onChange={setPeriod} options={[['daily', '일간'], ['weekly', '주간'], ['monthly', '월간']]} />
           {home && <MoreLink href="/industry" />}
         </>} />
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+      <div className="nv-chips" style={{ marginBottom: 14 }}>
         <Seg<Market> value={market} onChange={(v) => { setMarket(v); setSize(home ? 3 : 6); }} options={[['kr', '국내'], ['us', '미국']]} />
         {market === 'kr' && <Seg<Cat> value={cat} onChange={setCat} options={[['industries', '업종'], ['themes', '테마']]} />}
       </div>
 
       {error ? <div className="fin-card"><Empty /></div> : (
-        <div className="it-grid">
+        <div className="nv-it-grid">
           {(isLoading && !cards.length ? Array.from({ length: home ? 3 : 6 }) : cards).map((c, i) =>
             c ? <Card key={(c as TrendCard).code} c={c as TrendCard} market={market} /> : <div key={i} className="skeleton" style={{ height: 300, borderRadius: 'var(--r)' }} />)}
         </div>
@@ -96,12 +97,6 @@ export default function IndustrySection({ home = false }: { home?: boolean }) {
         </button>
       )}
       {!home && <SourceNote>출처: 네이버페이 증권(업종·테마·섹터 분류와 등락률). {period === 'daily' ? '일간' : period === 'weekly' ? '주간' : '월간'} 등락률 기준 순위이며, 시장 흐름 참고용일 뿐 매수·매도 신호가 아닙니다.</SourceNote>}
-
-      <style jsx>{`
-        .it-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-        @media (max-width: 1023px) { .it-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-        @media (max-width: 640px) { .it-grid { grid-template-columns: 1fr; } }
-      `}</style>
     </div>
   );
 }

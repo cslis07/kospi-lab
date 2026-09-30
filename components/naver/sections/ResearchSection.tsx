@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { fetcher, colorOf, signPct, Seg, SectionTitle, SourceNote, Empty, fmtCount, MoreLink } from '@/components/naver/ui';
+import { fetcher, colorOf, signPct, SectionTitle, SourceNote, Empty, fmtCount, MoreLink } from '@/components/naver/ui';
 
 interface Res { nid: string; title: string; writeDate: string; goalPrice: number; priceAtWriteDate: number; opinion: string; opinionType: string }
 interface GoalSet { itemCode: string; itemName: string; brokerName: string; goalPriceDiff: number; goalPriceDiffRate: number; latest: Res; prev: Res | null }
@@ -89,20 +89,21 @@ export default function ResearchSection({ home = false }: { home?: boolean }) {
   const a = data?.analyst;
   const sel = industry || a?.industry || '';
   const today = todayKst();
-  const reports = (a?.reports ?? []).slice(0, home ? 4 : 8);
+  const reports = (a?.reports ?? []).slice(0, home ? 5 : 8);
   const sets = (data?.goal.sets ?? []).slice(0, home ? 2 : 10);
 
   const analyst = (
-    <section style={{ minWidth: 0 }}>
+    <section className="nv-rs-col">
       <SectionTitle big={home} title="최근 1주간 애널리스트들이 집중한 산업" sub={!home && a?.baseDate ? `${a.baseDate} 이후 7일` : undefined} />
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+      <div className="nv-chips" style={{ marginBottom: 12 }}>
         {(a?.industries ?? []).slice(0, home ? 4 : 12).map((x) => (
           <button key={x.industry} type="button" className={`chip ${sel === x.industry ? 'active' : ''}`} onClick={() => setIndustry(x.industry)}>
             {x.name} <span style={{ opacity: 0.7, fontWeight: 600 }}>{x.count}</span>
           </button>
         ))}
       </div>
-      <div className="fin-card" style={{ padding: '4px 16px' }}>
+      {/* nv-fill: 홈에선 오른쪽 목표주가 카드 높이까지 늘어나 두 열의 박스 아래선이 맞는다 */}
+      <div className="fin-card nv-fill" style={{ padding: '4px 16px' }}>
         {error ? <Empty /> : isLoading && !a ? <div className="skeleton" style={{ height: 220, margin: '12px 0' }} /> : reports.length === 0 ? <Empty text="리포트가 없습니다." /> :
           reports.map((r, i) => (
             <a key={r.nid} href={r.url} target="_blank" rel="noopener noreferrer"
@@ -121,14 +122,17 @@ export default function ResearchSection({ home = false }: { home?: boolean }) {
   );
 
   const goal = (
-    <section style={{ minWidth: 0 }}>
+    <section className="nv-rs-col">
       <SectionTitle big={home} title="목표주가 변화가 큰 종목 리서치" sub={!home && data?.goal.writeDate ? `${data.goal.writeDate} 기준` : undefined}
-        right={<>
-          <Seg<'up' | 'down'> value={direction} onChange={setDirection} options={[['up', '목표주가 상향'], ['down', '목표주가 하향']]} />
-          {home && <MoreLink href="/research" />}
-        </>} />
+        right={home ? <MoreLink href="/research" /> : undefined} />
+      {/* 네이버 배치처럼 제목 아래 칩 줄 — 왼쪽(산업 칩)과 같은 높이에서 박스가 시작된다 */}
+      <div className="nv-chips" style={{ marginBottom: 12 }}>
+        {([['up', '목표주가 상향'], ['down', '목표주가 하향']] as const).map(([k, l]) => (
+          <button key={k} type="button" className={`chip ${direction === k ? 'active' : ''}`} onClick={() => setDirection(k)}>{l}</button>
+        ))}
+      </div>
       {error ? <div className="fin-card"><Empty /></div> : (
-        <div className="rs-grid">
+        <div className="nv-rs-cards nv-fill">
           {(isLoading && !data ? Array.from({ length: 2 }) : sets).map((s, i) =>
             s ? <GoalCard key={`${(s as GoalSet).itemCode}-${(s as GoalSet).brokerName}`} s={s as GoalSet} today={today} /> : <div key={i} className="skeleton" style={{ height: 320, borderRadius: 'var(--r)' }} />)}
         </div>
@@ -139,18 +143,11 @@ export default function ResearchSection({ home = false }: { home?: boolean }) {
 
   return (
     <div>
-      <div className={home ? 'rs-home' : 'rs-page'}>
+      <div className={home ? 'nv-rs-home' : 'nv-rs-page'}>
         {analyst}
         {goal}
       </div>
       <SourceNote>출처: 네이버페이 증권 리서치(증권사 리포트). 목표주가·투자의견은 <b>각 증권사 애널리스트의 의견</b>을 그대로 옮긴 것으로, 이 앱의 매수·매도 신호가 아닙니다.{!home && ' 리포트 원문은 제목을 누르면 네이버 리서치에서 열립니다.'}</SourceNote>
-
-      <style jsx>{`
-        .rs-page { display: flex; flex-direction: column; gap: 28px; }
-        .rs-home { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 24px; align-items: start; }
-        .rs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-        @media (max-width: 760px) { .rs-grid { grid-template-columns: 1fr; } }
-      `}</style>
     </div>
   );
 }

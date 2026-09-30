@@ -21,8 +21,9 @@ function EtfCard({ e, rank }: { e: Etf; rank: number }) {
       style={{ padding: 16, minWidth: 0, textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <span style={{ fontSize: 12.5, fontWeight: 800, color: rank === 1 ? 'var(--ok)' : 'var(--faint)' }}>{rank}위</span>
       <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: 40 }}>{e.name}</span>
-      {e.type && <span style={{ fontSize: 11, color: 'var(--faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.type}</span>}
-      <div style={{ marginTop: 4 }}>
+      <span style={{ fontSize: 11, color: 'var(--faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minHeight: 15 }}>{e.type}</span>
+      {/* 가격·수익률은 카드 아래쪽에 모아 카드끼리 같은 높이에 정렬 */}
+      <div style={{ marginTop: 'auto', paddingTop: 4 }}>
         <div style={{ fontSize: 11, color: 'var(--faint)' }}>현재가</div>
         <div className="tabular-nums" style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>
           {usd ? fmtUsd(e.price) : `${e.price.toLocaleString()}원`}{' '}
@@ -59,16 +60,17 @@ export default function ThemeEtfSection({ home = false }: { home?: boolean }) {
           {home && <MoreLink href="/theme-etf" />}
         </>} />
 
-      {/* 대분류 */}
-      <div className="chip-scroll in-card" style={{ marginBottom: 10 }}>
+      {/* 대분류 — PC는 줄바꿈(오른쪽 잘림 없음), 모바일은 가로 스크롤 */}
+      <div className="nv-chips" style={{ marginBottom: 12 }}>
         {larges.map((l) => (
           <button key={l} type="button" className={`chip ${curLarge === l ? 'active' : ''}`} onClick={() => setLarge(l)}>{l}</button>
         ))}
       </div>
 
-      <div className="te-wrap">
+      {/* 테마 목록 박스와 ETF 카드는 같은 높이(stretch). 목록이 길면 박스 안에서 스크롤 */}
+      <div className="nv-te-wrap">
         {/* 중분류(테마) 목록 */}
-        <div className="fin-card te-list" style={{ padding: 8, maxHeight: home ? 380 : undefined, overflowY: home ? 'auto' : undefined }}>
+        <div className="fin-card nv-te-list" style={{ maxHeight: home ? 400 : 720 }}>
           {list.length === 0 ? <div className="skeleton" style={{ height: 200 }} /> : list.map((t) => (
             <button key={t.code} type="button" onClick={() => { setTheme(t.code); setLarge(t.large); }}
               style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '11px 12px', borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer',
@@ -81,10 +83,10 @@ export default function ThemeEtfSection({ home = false }: { home?: boolean }) {
           ))}
         </div>
 
-        {/* 선택 테마 ETF */}
-        <div style={{ minWidth: 0 }}>
+        {/* 선택 테마 ETF — 목록 박스 높이를 채운다 */}
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           {error ? <div className="fin-card"><Empty /></div> : (
-            <div className="te-grid">
+            <div className="nv-te-grid">
               {(isLoading && !data ? Array.from({ length: 4 }) : etfs).map((e, i) =>
                 e ? <EtfCard key={(e as Etf).code} e={e as Etf} rank={i + 1} /> : <div key={i} className="skeleton" style={{ height: 210, borderRadius: 'var(--r)' }} />)}
             </div>
@@ -94,16 +96,6 @@ export default function ThemeEtfSection({ home = false }: { home?: boolean }) {
       </div>
 
       <SourceNote>출처: 네이버페이 증권 ETF 테마 분류. 국내는 1주일 수익률, 미국은 거래대금 순위입니다. 과거 수익률은 미래 수익을 보장하지 않으며 추천이 아닙니다.</SourceNote>
-      <style jsx>{`
-        .te-wrap { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px; align-items: start; }
-        .te-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-        @media (max-width: 1100px) { .te-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-        @media (max-width: 760px) {
-          .te-wrap { grid-template-columns: 1fr; }
-          .te-wrap :global(.te-list) { display: flex; overflow-x: auto; gap: 4px; }
-          .te-wrap :global(.te-list) > :global(button) { width: auto !important; flex: 0 0 auto; }
-        }
-      `}</style>
     </div>
   );
 }

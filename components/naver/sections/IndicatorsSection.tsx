@@ -50,19 +50,14 @@ export default function IndicatorsSection({ home = false }: { home?: boolean }) 
     <div>
       <SectionTitle big={home} title="환율 · 시장지표" sub={home ? undefined : '30초마다 갱신 · 미니차트 최근 30거래일'} right={home ? <MoreLink href="/indicators" /> : undefined} />
       {error ? <div className="fin-card"><Empty /></div> : home ? (
-        <div className="ind-home">{HOME_ORDER.map(slot)}</div>
+        <div className="nv-ind-home">{HOME_ORDER.map(slot)}</div>
       ) : GROUPS.map(([g, codes]) => (
         <section key={g} style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', margin: '0 2px 8px' }}>{g}</div>
-          <div className="ind-grid">{codes.map(slot)}</div>
+          <div className="nv-ind-grid">{codes.map(slot)}</div>
         </section>
       ))}
       {!home && <SourceNote>출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물). 국내 금은 g당 원화 가격, 엔화는 100엔 기준입니다. ‘N분 지연’ 표시 지표는 실시간이 아닙니다.</SourceNote>}
-      <style jsx>{`
-        .ind-home { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
-        .ind-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-        @media (max-width: 900px) { .ind-grid, .ind-home { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-      `}</style>
     </div>
   );
 }

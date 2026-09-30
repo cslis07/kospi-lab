@@ -24,14 +24,15 @@ function metricText(r: Row, kind: 'krw' | 'usd' | 'coin') {
 
 function Column({ title, sub, rows, kind, right }: { title: string; sub?: string; rows?: Row[]; kind: 'krw' | 'usd' | 'coin'; right?: React.ReactNode }) {
   return (
-    <div className="fin-card" style={{ padding: '14px 14px 6px', minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>{title}</h3>
-        {sub && <span style={{ fontSize: 11, color: 'var(--faint)' }}>{sub}</span>}
-        {right && <div style={{ marginLeft: 'auto' }}>{right}</div>}
+    <div className="fin-card nv-rk-col">
+      {/* 헤더 높이 고정(가상자산 열의 거래소 토글 때문에 행 시작 위치가 어긋나지 않게) */}
+      <div className="nv-rk-head">
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{title}</h3>
+        {sub && <span style={{ fontSize: 11, color: 'var(--faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>}
+        {right && <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{right}</div>}
       </div>
-      {!rows ? <div className="skeleton" style={{ height: 420, borderRadius: 10 }} /> : rows.length === 0 ? <Empty /> : rows.map((r, i) => (
-        <div key={`${r.code}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 0', borderTop: i ? '1px solid var(--line-2)' : 'none' }}>
+      {!rows ? <div className="skeleton" style={{ height: 620, borderRadius: 10 }} /> : rows.length === 0 ? <Empty /> : rows.map((r, i) => (
+        <div key={`${r.code}-${i}`} className={`nv-rk-row${i === 0 ? ' first' : ''}`}>
           <span className="tabular-nums" style={{ width: 18, flexShrink: 0, fontSize: 13, fontWeight: 700, color: i < 3 ? 'var(--ink)' : 'var(--faint)' }}>{i + 1}</span>
           <StockLink href={r.href}>
             {/* 4열이 좁아 뱃지를 빼고 이름을 두 줄까지 허용(잘림 방지) */}
@@ -60,11 +61,11 @@ export default function RankingSection({ home = false }: { home?: boolean }) {
   return (
     <div>
       <SectionTitle big={home} title="실시간 랭킹" sub="20초마다 갱신" right={home ? <MoreLink href="/ranking" /> : undefined} />
-      <div className="chip-scroll in-card" style={{ marginBottom: 14 }}>
+      <div className="nv-chips" style={{ marginBottom: 14 }}>
         {TABS.map(([k, l]) => <button key={k} type="button" className={`chip ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {error ? <div className="fin-card"><Empty /></div> : (
-        <div className="rk-grid">
+        <div className="nv-rk-grid">
           <Column title="국내 주식" rows={data?.kr} kind="krw" />
           <Column title="미국 주식" sub="정규장 랭킹" rows={data?.us} kind="usd" />
           <Column title="국내 ETF" rows={data?.etf} kind="krw" />
@@ -73,11 +74,6 @@ export default function RankingSection({ home = false }: { home?: boolean }) {
         </div>
       )}
       {!home && <SourceNote>출처: 네이버페이 증권(국내·미국 주식·ETF), 업비트·빗썸 원화마켓(가상자산). 순위는 시장 관심도 참고용이며 매수·매도 신호가 아닙니다. 등락률 색: <span style={{ color: colorOf(1) }}>상승</span> · <span style={{ color: colorOf(-1) }}>하락</span>.</SourceNote>}
-      <style jsx>{`
-        .rk-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
-        @media (max-width: 1200px) { .rk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-        @media (max-width: 640px) { .rk-grid { grid-template-columns: 1fr; } }
-      `}</style>
     </div>
   );
 }

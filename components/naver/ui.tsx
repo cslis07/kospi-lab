@@ -81,7 +81,7 @@ export function MiniLine({ points, rate, height = 34 }: { points: number[]; rate
 /** 섹션 제목. big = 홈(PC) 섹션용(네이버 증권 홈처럼 큰 부제목 + 넉넉한 아래 간격) */
 export function SectionTitle({ title, sub, right, big }: { title: string; sub?: string; right?: React.ReactNode; big?: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: big ? 16 : 12 }}>
+    <div className="nv-head" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: big ? 14 : 12 }}>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: big ? 22 : 18, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em' }}>{title}</h2>
       {sub && <span style={{ fontSize: 12, color: 'var(--faint)' }}>{sub}</span>}
       {right && <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>{right}</div>}
