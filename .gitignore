@@ -48,3 +48,6 @@ data/coin-signals.json
 
 # 핸드오프 문서 — 커밋 금지(public 저장소)
 *.pdf
+
+# 로컬 전용 프로젝트 진행 기록(다른 도구가 관리) — 저장소에 올리지 않음
+project-state.json
