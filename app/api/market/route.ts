@@ -117,7 +117,7 @@ export async function GET() {
       usdkrw: fxData.usdkrw,
       jpykrw: fxData.jpykrw,
       usdtkrw: usdt.status === 'fulfilled' ? usdt.value : null,
-    });
+    }, { headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=600' } });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 502 });
   }

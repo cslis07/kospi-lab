@@ -21,6 +21,6 @@ export async function GET() {
 
   return NextResponse.json(
     { available: true, popular, date },
-    { headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=900' } },
+    { headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=86400' } },
   );
 }

@@ -81,5 +81,5 @@ export async function GET(req: NextRequest) {
     if (r.status === 'fulfilled') map[symbols[i]] = r.value;
   });
 
-  return NextResponse.json(map);
+  return NextResponse.json(map, { headers: { 'Cache-Control': 's-maxage=15, stale-while-revalidate=300' } });
 }

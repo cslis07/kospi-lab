@@ -7,6 +7,6 @@ export async function GET(req: NextRequest) {
   const category: NewsCategory | null = c === 'domestic' || c === 'international' ? c : null;
   const news = await fetchNews(category, 100);
   return NextResponse.json(news, {
-    headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
+    headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
   });
 }

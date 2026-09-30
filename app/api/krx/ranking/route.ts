@@ -14,7 +14,8 @@ export async function GET() {
   }
   try {
     const data = await fetchKrxRankings(30);
-    return NextResponse.json({ configured: true, ...data });
+    // 전 거래일 확정치라 오래 캐시해도 된다(첫 화면 즉시)
+    return NextResponse.json({ configured: true, ...data }, { headers: { 'Cache-Control': 's-maxage=600, stale-while-revalidate=86400' } });
   } catch (e) {
     return NextResponse.json({ configured: true, count: 0, error: String(e) }, { status: 502 });
   }

@@ -49,5 +49,5 @@ export async function GET(req: NextRequest) {
   const map: Record<string, StockData> = {};
   results.forEach((r) => { if (r.status === 'fulfilled') map[r.value[0]] = r.value[1]; });
 
-  return NextResponse.json(map);
+  return NextResponse.json(map, { headers: { 'Cache-Control': 's-maxage=10, stale-while-revalidate=300' } });
 }

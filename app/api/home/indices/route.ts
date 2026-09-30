@@ -66,6 +66,6 @@ export async function GET() {
   ])).filter((x): x is IndexCard => !!x);
   return NextResponse.json(
     { cards, asOf: new Date().toISOString() },
-    { headers: { 'Cache-Control': 's-maxage=10, stale-while-revalidate=30' } },
+    { headers: { 'Cache-Control': 's-maxage=10, stale-while-revalidate=600' } },
   );
 }

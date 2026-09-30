@@ -98,5 +98,5 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  return NextResponse.json(map);
+  return NextResponse.json(map, { headers: { 'Cache-Control': 's-maxage=10, stale-while-revalidate=120' } });
 }

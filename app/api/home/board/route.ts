@@ -45,6 +45,6 @@ export async function GET(req: Request) {
       program: integ?.program ?? null,
       asOf: new Date().toISOString(),
     },
-    { headers: { 'Cache-Control': range === '1d' ? 's-maxage=15, stale-while-revalidate=30' : 's-maxage=120, stale-while-revalidate=600' } },
+    { headers: { 'Cache-Control': range === '1d' ? 's-maxage=15, stale-while-revalidate=600' : 's-maxage=120, stale-while-revalidate=3600' } },
   );
 }

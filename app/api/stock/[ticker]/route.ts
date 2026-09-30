@@ -55,7 +55,7 @@ export async function GET(
       low52w: parseNum(get('52주 최저')) || undefined,
     };
 
-    return NextResponse.json(stock);
+    return NextResponse.json(stock, { headers: { 'Cache-Control': 's-maxage=10, stale-while-revalidate=300' } });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 502 });
   }

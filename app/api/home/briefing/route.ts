@@ -137,6 +137,6 @@ export async function GET(req: Request) {
   // 스테일(직전 성공본)만 있으면 5분 뒤 다시 생성 시도 — 1시간 묶어두지 않는다
   const anyOk = freshOk(data);
   return NextResponse.json(data, {
-    headers: { 'Cache-Control': anyOk ? 's-maxage=3600, stale-while-revalidate=7200' : 's-maxage=300' },
+    headers: { 'Cache-Control': anyOk ? 's-maxage=3600, stale-while-revalidate=86400' : 's-maxage=300' },
   });
 }
