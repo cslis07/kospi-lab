@@ -2,6 +2,12 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-09-30 (74차) — data 브랜치 Vercel 빌드 실패 반복 차단
+
+- 원인: 09-29 크론 재활성 후 15분마다 `data` 브랜치(스냅샷 JSON만 있음)에 커밋 → Vercel이 미리보기 빌드 시도 → `app` 폴더 없음으로 **매번 실패**(+ 무료 일일 배포 한도 100회 소모 위험).
+- 수정: 크론이 만드는 data 커밋 트리 루트에 `vercel.json`(`git.deploymentEnabled:false`)을 함께 넣어 **그 브랜치 커밋은 배포 자체를 생성하지 않게** 함. main 배포에는 영향 없음.
+- `.github/workflows/coin-track.yml`.
+
 ## 2026-09-29 (73차) — Copilot Money 디자인 시스템 전면 적용 (다크 전용)
 
 - style.refero.design `DESIGN.md`(Copilot Money) 이식: **미드나잇 캔버스 `#000814` + 표면 3단(deep `#010d1e`·indigo `#001533`·cobalt `#00215e`) + 시그널 블루 `#1c6cff` 단일 액센트**, 텍스트 white/fog `#ccced0`/mist `#999ca1`, 헤어라인 steel `#11263b`.

@@ -55,7 +55,10 @@ jobs:
             if [ "$OLD" = "$BLOB" ]; then echo "변경 없음"; exit 0; fi
           fi
           INNER=$(printf '100644 blob %s\tcoin-signals.json\n' "$BLOB" | git mktree)
-          TREE=$(printf '040000 tree %s\tdata\n' "$INNER" | git mktree)
+          # data 브랜치엔 앱 코드가 없어 Vercel 미리보기 빌드가 매번 실패(+일일 배포 한도 소모)했다.
+          # 트리 루트에 vercel.json(git.deploymentEnabled=false)을 같이 넣어 이 브랜치 커밋은 배포 자체를 만들지 않게 한다.
+          VJ=$(printf '{"git":{"deploymentEnabled":false}}\n' | git hash-object -w --stdin)
+          TREE=$(printf '040000 tree %s\tdata\n100644 blob %s\tvercel.json\n' "$INNER" "$VJ" | git mktree)
           PARENT=$(git rev-parse -q --verify origin/data || true)
           if [ -n "$PARENT" ]; then
             COMMIT=$(git commit-tree "$TREE" -p "$PARENT" -m "[TRACK] 코인 신호 스냅샷·판정 갱신")
