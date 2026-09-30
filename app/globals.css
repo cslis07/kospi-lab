@@ -297,6 +297,20 @@ header.site-header { box-shadow: var(--shadow-header); }
 .hit-icon::after { inset: -12px; }
 .hit-pill::after { inset: -6px -3px -12px; }
 
+/* 홈 모바일/PC 차이는 CSS로 — JS 폭 판별(첫 렌더엔 모름)에 맡기면 실행 순간 화면이 밀린다(CLS 0.27 실측) */
+.nv-m-only { display: grid; }
+.nv-board-chart { height: 250px; }
+.nv-news-head { margin-bottom: 14px; }
+@media (max-width: 1023px) {
+  .nv-fold-closed { max-height: 0; overflow: hidden; }
+  .nv-news-head.closed { margin-bottom: 0; }
+}
+@media (min-width: 1024px) {
+  .nv-m-only { display: none; }
+  .nv-board-chart { height: 310px; }
+  .nv-fold { max-height: none !important; overflow: visible !important; }
+}
+
 /* ── 카드 표면 — 토스는 평평한 흰 카드(광택 없음) ───── */
 .surface {
   background-color: var(--surface);

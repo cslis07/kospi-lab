@@ -51,15 +51,17 @@ function xLabel(x: string, range: Range) {
 }
 
 /* ── 인터랙티브 차트 ─────────────────────────────── */
-function Chart({ points, mode, range, prevClose, height }: { points: Pt[]; mode: 'line' | 'candle'; range: Range; prevClose: number; height: number }) {
+// 높이는 CSS(.nv-board-chart: 모바일 250 · PC 310)가 정하고 여기선 실측만 — JS 폭 판별 전후로 높이가 바뀌지 않게
+function Chart({ points, mode, range, prevClose }: { points: Pt[]; mode: 'line' | 'candle'; range: Range; prevClose: number }) {
   const wrap = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
+  const [h, setH] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
 
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setW(Math.round(e.contentRect.width)));
+    const ro = new ResizeObserver(([e]) => { setW(Math.round(e.contentRect.width)); setH(Math.round(e.contentRect.height)); });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -67,9 +69,9 @@ function Chart({ points, mode, range, prevClose, height }: { points: Pt[]; mode:
   const data = useMemo(() => (mode === 'candle' && range === '1d' ? bucket(points, 5) : points), [points, mode, range]);
   useEffect(() => setHover(null), [data]);
 
-  const H = height, padL = 6, padR = 66, padT = 24, padB = 34;
+  const H = h || 250, padL = 6, padR = 66, padT = 24, padB = 34;
   const n = data.length;
-  const ready = w > 0 && n >= 2;
+  const ready = w > 0 && h > 0 && n >= 2;
 
   // 기준값: 1일 = 전일 종가, 그 외 = 기간 첫 종가
   const base = range === '1d' && prevClose ? prevClose : n ? data[0].c : 0;
@@ -104,10 +106,10 @@ function Chart({ points, mode, range, prevClose, height }: { points: Pt[]; mode:
   const clampX = (x: number, anchorW: number) => Math.max(padL + anchorW / 2, Math.min(w - padR - anchorW / 2, x));
 
   return (
-    <div ref={wrap} style={{ position: 'relative', width: '100%', height: H, touchAction: 'pan-y', userSelect: 'none' }}
+    <div ref={wrap} className="nv-board-chart" style={{ position: 'relative', width: '100%', touchAction: 'pan-y', userSelect: 'none' }}
       onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHover(null)}>
       {!ready ? (
-        <div className="skeleton" style={{ width: '100%', height: H, borderRadius: 12 }} />
+        <div className="skeleton" style={{ width: '100%', height: '100%', borderRadius: 12 }} />
       ) : (
         <svg width={w} height={H} style={{ display: 'block' }} role="img" aria-label="지수 차트">
           <defs>
@@ -265,7 +267,7 @@ export default function IndexBoard() {
   const [code, setCode] = useState<'KOSPI' | 'KOSDAQ'>('KOSPI');
   const [range, setRange] = useState<Range>('1d');
   const [mode, setMode] = useState<'line' | 'candle'>('line');
-  const isMobile = useMediaQuery('(max-width: 1023px)');
+  const isMobile = useMediaQuery('(max-width: 1023px)', true);
   const [open, setOpen] = useState(true);
 
   const { data: b } = useSWR<BoardResp>(`/api/home/board?code=${code}&range=${range}`, fetcher, {
@@ -309,12 +311,10 @@ export default function IndexBoard() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
           <Link href="/domestic" style={{ fontSize: 12.5, color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>{name} 시장 →</Link>
-          {isMobile && (
-            <button type="button" onClick={() => setOpen((o) => !o)} aria-label={open ? '차트 접기' : '차트 펼치기'} aria-expanded={open}
-              style={{ width: 32, height: 32, display: 'grid', placeItems: 'center', border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}>
-              <Chevron open={open} />
-            </button>
-          )}
+          <button type="button" className="nv-m-only" onClick={() => setOpen((o) => !o)} aria-label={open ? '차트 접기' : '차트 펼치기'} aria-expanded={open}
+            style={{ width: 32, height: 32, placeItems: 'center', border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}>
+            <Chevron open={open} />
+          </button>
         </div>
       </div>
 
@@ -332,7 +332,7 @@ export default function IndexBoard() {
 
         <div className="board-grid" style={{ marginTop: 10 }}>
           <div style={{ minWidth: 0 }}>
-            <Chart points={b?.points ?? []} mode={mode} range={range} prevClose={b?.prevClose ?? 0} height={isMobile ? 250 : 310} />
+            <Chart points={b?.points ?? []} mode={mode} range={range} prevClose={b?.prevClose ?? 0} />
             {range === '1d' && b?.tradingDate && (
               <div style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2 }}>{b.tradingDate} 분봉 · 30초마다 갱신 · 차트에 마우스(터치)를 대면 값 표시</div>
             )}

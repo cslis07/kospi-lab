@@ -4,7 +4,11 @@ import RankList from '@/components/fin/RankList';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import StockDetailModal from '@/components/StockDetailModal';
+import dynamic from 'next/dynamic';
+import { useProgressiveList } from '@/hooks/useProgressiveList';
+// 상세 창은 행을 눌렀을 때만 필요 — Recharts 포함 ~115KB 를 첫 로딩에서 빼고, 화면이 뜬 뒤 한가할 때 미리 받아 둔다
+const loadModal = () => import('@/components/StockDetailModal');
+const StockDetailModal = dynamic(loadModal, { ssr: false });
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { STOCK_LIST, type StockItem } from '@/lib/stockList';
 import type { StockData } from '@/lib/types';
@@ -79,6 +83,13 @@ type MarketFilter = 'all' | 'KOSPI' | 'KOSDAQ';
 
 export default function DomesticPage() {
   const router = useRouter();
+  // 첫 화면이 뜬 뒤 한가할 때 상세 창 코드를 미리 받아, 행을 눌렀을 때 지연이 없게
+  useEffect(() => {
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number; cancelIdleCallback?: (h: number) => void };
+    if (w.requestIdleCallback) { const h = w.requestIdleCallback(() => void loadModal()); return () => w.cancelIdleCallback?.(h); }
+    const t = window.setTimeout(() => void loadModal(), 2500);
+    return () => clearTimeout(t);
+  }, []);
   // 6청크 × 20종목을 5초마다 갱신하면 5초당 최대 240건이 네이버로 나간다.
   const OPT = { refreshInterval: 15000, dedupingInterval: 5000, revalidateOnFocus: false };
   const { data: d0 } = useSWR<Record<string, StockData>>(C0 ? `/api/stock/batch?tickers=${C0}` : null, fetcher, OPT);
@@ -137,6 +148,8 @@ export default function DomesticPage() {
     if (sort === 'priceDesc')      return [...list].sort((a, b) => (allData[b.ticker]?.price      ?? 0) - (allData[a.ticker]?.price      ?? 0));
     return list;
   }, [query, sort, mktFilter, watchOnly, watchSet, mounted, allData]);
+  // 긴 목록은 40행씩 점진 렌더(검색·정렬·필터가 바뀌면 처음부터)
+  const prog = useProgressiveList(filtered.length, `${query}|${sort}|${mktFilter}|${watchOnly}`);
 
   return (
     <div className="pb-12">
@@ -224,7 +237,7 @@ export default function DomesticPage() {
           <div className="py-20 text-center text-[var(--text-muted)] text-sm">해당 조건의 종목이 없습니다</div>
         ) : (
           <div className="divide-y divide-[var(--border)]">
-            {filtered.map((stock, idx) => {
+            {filtered.slice(0, prog.shown).map((stock, idx) => {
               const d     = allData[stock.ticker];
               const isPos = (d?.changeRate ?? 0) >= 0;
               const inW   = watchSet.has(stock.ticker);
@@ -275,6 +288,7 @@ export default function DomesticPage() {
                 </div>
               );
             })}
+            {prog.hasMore && <div ref={prog.sentinelRef} className="py-4 text-center text-xs text-[var(--text-dim)]">{filtered.length - prog.shown}개 더 불러오는 중…</div>}
           </div>
         )}
       </div>

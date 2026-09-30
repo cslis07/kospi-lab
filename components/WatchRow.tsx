@@ -66,7 +66,7 @@ export default function WatchRow({
           </span>
         )}
         {analyzeHref && (
-          <Link href={analyzeHref} className="wl-analyze" aria-label={`${title} 분석`} onClick={(e) => e.stopPropagation()}>
+          <Link prefetch={false} href={analyzeHref} className="wl-analyze" aria-label={`${title} 분석`} onClick={(e) => e.stopPropagation()}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5" /></svg>
             분석
           </Link>

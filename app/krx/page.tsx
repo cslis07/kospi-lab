@@ -201,7 +201,7 @@ export default function KrxPage() {
                       <tr key={r.code} className={`border-t border-[var(--border)] first:border-0 ${i % 2 ? 'bg-[var(--bg)]/20' : ''}`}>
                         <td className="px-3 py-2.5 text-[var(--text-muted)] w-6 tabular-nums">{i + 1}</td>
                         <td className="px-3 py-2.5">
-                          <Link href={`/stock/${r.code}`} className="hover:text-sky-400">
+                          <Link prefetch={false} href={`/stock/${r.code}`} className="hover:text-sky-400">
                             <span className="font-semibold text-[var(--text)]">{r.name}</span>
                           </Link>
                           {r.baseIndex && <span className="text-[10px] text-[var(--text-muted)] ml-1.5">{r.baseIndex}</span>}
@@ -247,7 +247,7 @@ function RankTable({ rows, tab }: { rows: RankItem[]; tab: RankKey }) {
             <tr key={r.code} className={`border-t border-[var(--border)] hover:bg-white/3 ${i % 2 ? 'bg-[var(--bg)]/20' : ''}`}>
               <td className="px-3 py-2.5 text-[var(--text-muted)] tabular-nums">{i + 1}</td>
               <td className="px-3 py-2.5">
-                <Link href={`/stock/${r.code}`} className="hover:text-sky-400 transition-colors">
+                <Link prefetch={false} href={`/stock/${r.code}`} className="hover:text-sky-400 transition-colors">
                   <span className="font-semibold text-[var(--text)]">{r.name}</span>
                   <span className="text-[10px] text-[var(--text-muted)] ml-1.5 font-mono">{r.code}</span>
                 </Link>

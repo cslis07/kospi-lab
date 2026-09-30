@@ -54,7 +54,7 @@ function GoalCard({ s, today }: { s: GoalSet; today: string }) {
   const rows = [s.latest, s.prev].filter(Boolean) as Res[];
   return (
     <div className="fin-card" style={{ padding: 18, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-      <Link href={`/stock/${s.itemCode}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+      <Link prefetch={false} href={`/stock/${s.itemCode}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
         <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em' }}>{s.itemName}</span>
         <span style={{ fontSize: 11.5, color: 'var(--faint)' }}>{s.itemCode}</span>
       </Link>

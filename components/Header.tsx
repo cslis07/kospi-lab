@@ -6,8 +6,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import SyncIndicator from './SyncIndicator';
 import GlobalSearch from './GlobalSearch';
-import SearchSheet from './SearchSheet';
-import MenuSheet from './MenuSheet';
+import dynamic from 'next/dynamic';
+// 검색·전체 메뉴 시트는 누를 때만 필요 → 첫 번들에서 빼고, 화면이 뜬 뒤 한가할 때 마운트(애니메이션은 그대로)
+const SearchSheet = dynamic(() => import('./SearchSheet'), { ssr: false });
+const MenuSheet = dynamic(() => import('./MenuSheet'), { ssr: false });
 import ThemeToggle from './ThemeToggle';
 import { activeItem, drillTitle, pageOwnsH1 } from '@/lib/menu';
 import type { FxRate } from '@/lib/types';
@@ -98,7 +100,6 @@ function FxPill({ label, rate, className = 'hidden sm:flex' }: { label: string; 
 export default function Header() {
   const { data } = useSWR('/api/market', fetcher, { refreshInterval: 10000 });
   const { isKrOpen, isUsOpen, krLabel, usLabel } = useMarketStatus();
-  const [time, setTime] = useState('');
   const pathname = usePathname();
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -118,12 +119,12 @@ export default function Header() {
     return () => window.removeEventListener('kl:open-search', open);
   }, []);
 
+  const [sheetsReady, setSheetsReady] = useState(false);
   useEffect(() => {
-    const tick = () =>
-      setTime(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number; cancelIdleCallback?: (h: number) => void };
+    if (w.requestIdleCallback) { const h = w.requestIdleCallback(() => setSheetsReady(true)); return () => w.cancelIdleCallback?.(h); }
+    const t = window.setTimeout(() => setSheetsReady(true), 2000);
+    return () => clearTimeout(t);
   }, []);
 
   const usdkrw: FxRate | null = data?.usdkrw ?? null;
@@ -159,8 +160,8 @@ export default function Header() {
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden><path d="M4 6.5h16M4 12h16M4 17.5h16" /></svg>
         </button>
       </div>
-      <SearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
-      <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} />
+      {(sheetsReady || searchOpen) && <SearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />}
+      {(sheetsReady || menuOpen) && <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} />}
 
       {/* ── 데스크탑 헤더 (md+) ── */}
       <div className="hidden md:flex max-w-7xl mx-auto px-3 sm:px-6 h-14 items-center gap-3">
@@ -218,7 +219,7 @@ export default function Header() {
 
           {/* 시계 — md+ */}
           <div className="pill-shadow hidden md:flex items-center gap-1 text-xs text-[var(--text-muted)] font-mono border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
-            <span>{time}</span>
+            <Clock />
           </div>
 
           <SyncIndicator />
@@ -237,4 +238,16 @@ export default function Header() {
       </div>
     </header>
   );
+}
+
+/** 1초 시계 — 헤더 전체가 매초 다시 그려지지 않게 시계만 따로 갱신한다 */
+function Clock() {
+  const [time, setTime] = useState('');
+  useEffect(() => {
+    const tick = () => setTime(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <span>{time}</span>;
 }

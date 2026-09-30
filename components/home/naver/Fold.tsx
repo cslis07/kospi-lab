@@ -8,8 +8,13 @@
 import { useEffect, useRef } from 'react';
 import { useState } from 'react';
 
-export function useMediaQuery(query: string): boolean {
-  const [match, setMatch] = useState(false);
+/**
+ * ssrDefault = 정적 HTML·첫 렌더에서 쓸 값. 서버는 화면 폭을 모르므로 **모바일 기준**으로 넘길 것
+ * (주 사용 환경이 폰·APK — 첫 렌더를 PC로 그리면 JS 실행 순간 모바일로 바뀌며 화면이 크게 밀린다, CLS 0.27 실측).
+ * 레이아웃 차이는 가능하면 CSS 미디어쿼리(nv-m-only·nv-fold-closed·nv-board-chart)로 처리하고, 이 훅은 동작(클릭 등)에만.
+ */
+export function useMediaQuery(query: string, ssrDefault = false): boolean {
+  const [match, setMatch] = useState(ssrDefault);
   useEffect(() => {
     const mq = window.matchMedia(query);
     const on = () => setMatch(mq.matches);
@@ -43,9 +48,10 @@ export default function Fold({ open, enabled, children }: { open: boolean; enabl
     if (!el || !content) return;
 
     if (!enabled) {
-      // useMediaQuery 는 첫 렌더에 false → 모바일에선 곧 true 로 바뀐다. 그 첫 활성화도 '첫 마운트'로 취급.
-      el.style.maxHeight = 'none';
-      el.style.overflow = 'visible';
+      // PC: 인라인 스타일을 비우고 CSS(항상 펼침)에 맡긴다. 이후 모바일로 바뀌면 그 첫 활성화도 '첫 마운트'로 취급.
+      el.style.maxHeight = '';
+      el.style.overflow = '';
+      first.current = true;
       return;
     }
     el.style.overflow = 'hidden';
@@ -73,7 +79,8 @@ export default function Fold({ open, enabled, children }: { open: boolean; enabl
   }, [open, enabled]);
 
   return (
-    <div ref={outer} style={{ transition: 'max-height .45s cubic-bezier(.16,1,.3,1)' }}>
+    // 접힘 초기 상태는 클래스(CSS, 모바일 폭에서만)로도 표현 — JS 실행 전 정적 HTML부터 최종 모양이라 밀림 없음
+    <div ref={outer} className={`nv-fold${open ? '' : ' nv-fold-closed'}`} style={{ transition: 'max-height .45s cubic-bezier(.16,1,.3,1)' }}>
       <div ref={inner}>{children}</div>
     </div>
   );

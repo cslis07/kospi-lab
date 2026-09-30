@@ -9,12 +9,8 @@ import { ComposedChart, AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tool
 import BottomSheet from '@/components/ui/BottomSheet';
 import { calcMA } from '@/lib/indicators';
 
-export const TIMEFRAMES = [
-  { label: '1개월', months: 1 },
-  { label: '3개월', months: 3 },
-  { label: '6개월', months: 6 },
-  { label: '1년',   months: 12 },
-];
+import { TIMEFRAMES } from './chartLayout';
+export { TIMEFRAMES };
 const UP = '#ff4433';
 const DOWN = '#1c6cff';
 

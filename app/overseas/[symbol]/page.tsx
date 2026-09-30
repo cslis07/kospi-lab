@@ -8,7 +8,8 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import useSWR from 'swr';
-import PriceChart, { TIMEFRAMES } from '@/components/detail/PriceChart';
+import PriceChart from '@/components/detail/PriceChartLazy';
+import { TIMEFRAMES } from '@/components/detail/chartLayout';
 import SwipeNav from '@/components/detail/SwipeNav';
 import Collapsible from '@/components/ui/Collapsible';
 import ActionSheet, { KebabButton, type SheetAction } from '@/components/ui/ActionSheet';

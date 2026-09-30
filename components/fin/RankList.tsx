@@ -38,7 +38,7 @@ export default function RankList({ kind, limit = 4 }: { kind: 'gainers' | 'loser
           ))
         ) : rows.length ? (
           rows.map((r) => (
-            <Link key={r.code} href={`/stock/${r.code}`} className={`fin-row ${up ? 'up' : 'down'}`}>
+            <Link key={r.code} prefetch={false} href={`/stock/${r.code}`} className={`fin-row ${up ? 'up' : 'down'}`}>
               <div className="min-w-0 flex-1">
                 <div className="nm truncate">{r.name}</div>
                 <div className="sb">{r.market} · {r.code}</div>

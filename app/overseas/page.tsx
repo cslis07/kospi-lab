@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
+import { useProgressiveList } from '@/hooks/useProgressiveList';
 import { useRouter } from 'next/navigation';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import { OVERSEAS_LIST } from '@/lib/overseasList';
@@ -201,6 +202,8 @@ export default function OverseasPage() {
     if (sort === 'volume')         return [...list].sort((a, b) => (allData[b.symbol]?.volume      ?? 0) - (allData[a.symbol]?.volume      ?? 0));
     return list;
   }, [query, sort, exchFilter, watchOnly, watchSet, mounted, allData, remoteItems]);
+  // 긴 목록은 40행씩 점진 렌더(검색·정렬·필터가 바뀌면 처음부터)
+  const prog = useProgressiveList(filtered.length, `${query}|${sort}|${exchFilter}|${watchOnly}`);
 
   return (
     <div className="pb-12">
@@ -219,12 +222,13 @@ export default function OverseasPage() {
                   [0, 1, 2, 3].map((i) => (
                     <div key={i} className="fin-row">
                       <div className="flex-1 space-y-1.5"><span className="skeleton h-3.5 w-24" /><span className="skeleton h-2.5 w-16" /></div>
-                      <div className="flex flex-col items-end space-y-1.5"><span className="skeleton h-3.5 w-16" /><span className="skeleton h-2.5 w-10" /></div>
+                      {/* 실제 행과 같은 3줄(달러가·원화 환산·등락률) — 줄 수가 다르면 데이터 도착 시 아래가 밀린다 */}
+                      <div className="shrink-0 flex flex-col items-end gap-1"><span className="skeleton h-4 w-16" /><span className="skeleton h-3.5 w-20" /><span className="skeleton h-4 w-12" /></div>
                     </div>
                   ))
                 ) : rows.length ? (
                   rows.map(({ s, d }) => (
-                    <Link key={s.symbol} href={`/overseas/${encodeURIComponent(s.symbol)}`} className={`fin-row ${up ? 'up' : 'down'}`}>
+                    <Link key={s.symbol} prefetch={false} href={`/overseas/${encodeURIComponent(s.symbol)}`} className={`fin-row ${up ? 'up' : 'down'}`}>
                       <div className="min-w-0 flex-1">
                         <div className="nm truncate">{d.name ?? s.name}</div>
                         <div className="sb">{s.exchange} · {s.symbol}</div>
@@ -352,7 +356,7 @@ export default function OverseasPage() {
 
         {filtered.length > 0 && (
           <div className="divide-y divide-[var(--border)]">
-            {filtered.map((item, idx) => {
+            {filtered.slice(0, prog.shown).map((item, idx) => {
               const d       = allData[item.symbol];
               const isPos   = (d?.changeRate ?? 0) >= 0;
               const inWatch = watchSet.has(item.symbol);
@@ -439,6 +443,7 @@ export default function OverseasPage() {
                 </div>
               );
             })}
+            {prog.hasMore && <div ref={prog.sentinelRef} className="py-4 text-center text-xs text-[var(--text-dim)]">{filtered.length - prog.shown}개 더 불러오는 중…</div>}
           </div>
         )}
       </div>

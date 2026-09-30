@@ -111,5 +111,6 @@ export function Empty({ text = '데이터를 불러오지 못했습니다. 잠�
 
 export function StockLink({ href, children }: { href?: string; children: React.ReactNode }) {
   if (!href) return <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>{children}</div>;
-  return <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1, textDecoration: 'none', color: 'inherit' }}>{children}</Link>;
+  // 종목 행 링크는 미리 불러오지 않음 — 목록마다 수십 건의 서버 렌더(동적 상세 페이지) 요청이 생긴다
+  return <Link prefetch={false} href={href} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1, textDecoration: 'none', color: 'inherit' }}>{children}</Link>;
 }

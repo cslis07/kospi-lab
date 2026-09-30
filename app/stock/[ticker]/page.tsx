@@ -5,11 +5,10 @@ import { useParams } from 'next/navigation';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { searchKrStocks } from '@/lib/krStocks';
-import {
-  ComposedChart, AreaChart, Area, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  ReferenceLine, Legend,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+import { krChartHeight } from '@/components/detail/chartLayout';
+// Recharts(압축 ~120KB)는 차트를 그릴 때만 받는다
+const KrStockChart = dynamic(() => import('@/components/detail/KrStockChart'), { ssr: false });
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useAlerts } from '@/hooks/useAlerts';
 import { calcMA, calcRSI, calcBB } from '@/lib/indicators';
@@ -451,7 +450,8 @@ export default function StockDetailPage() {
         : null,
       mainRet: ((p.price / mainBase) - 1) * 100,
     }));
-  }, [chartData, prices, compareChart]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chart, compareChart]);
 
   const rsiData = enhancedData.filter((d) => d.rsi !== null);
   const chartMin = prices.length ? Math.min(...prices) * 0.995 : 0;
@@ -590,109 +590,12 @@ export default function StockDetailPage() {
 
         {/* 메인 차트 */}
         {enhancedData.length > 0 ? (
-          <>
-            <ResponsiveContainer width="100%" height={compareTicker ? 220 : 240}>
-              {compareTicker ? (
-                // 비교 모드: 수익률 정규화 차트
-                <ComposedChart data={enhancedData} margin={{ top: 5, right: 5, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
-                  <XAxis dataKey="date" tickFormatter={(v) => `${String(v).slice(4,6)}/${String(v).slice(6,8)}`}
-                    tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis tickFormatter={(v) => `${v.toFixed(1)}%`}
-                    tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={48} />
-                  <Tooltip content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    return (
-                      <div className="bg-gray-900 border border-white/10 rounded-lg px-3 py-2 text-xs space-y-1">
-                        {payload.map((p, i) => (
-                          <p key={i} style={{ color: p.color }}>{p.name}: {Number(p.value).toFixed(2)}%</p>
-                        ))}
-                      </div>
-                    );
-                  }} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Line type="monotone" dataKey="mainRet" name={stock.name} stroke={isPos ? UP : DOWN}
-                    strokeWidth={1.5} dot={false} />
-                  <Line type="monotone" dataKey="compareRet" name={compareName || compareTicker} stroke="#ff8833"
-                    strokeWidth={1.5} dot={false} connectNulls />
-                  <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 4" />
-                </ComposedChart>
-              ) : (
-                // 일반 모드: OHLC + 지표
-                <ComposedChart data={enhancedData} margin={{ top: 5, right: 5, left: 10, bottom: 5 }}>
-                  <defs>
-                    <linearGradient id="stockGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor={isPos ? UP : DOWN} stopOpacity={0.25} />
-                      <stop offset="95%" stopColor={isPos ? UP : DOWN} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
-                  <XAxis dataKey="date" tickFormatter={(v) => `${String(v).slice(4,6)}/${String(v).slice(6,8)}`}
-                    tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis domain={[chartMin, chartMax]} tickFormatter={(v) => `${Math.round(v / 1000)}k`}
-                    tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={42} />
-                  <Tooltip content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const d = payload[0].payload as typeof enhancedData[0];
-                    return (
-                      <div className="bg-gray-900 border border-white/10 rounded-lg px-3 py-2 text-xs space-y-0.5">
-                        <p className="text-gray-400">{String(d.date).replace(/(\d{4})(\d{2})(\d{2})/, '$1.$2.$3')}</p>
-                        <p className="text-white font-semibold">₩{fmt(d.price)}</p>
-                        {showMA5  && d.ma5  && <p className="text-yellow-400">MA5: ₩{fmt(d.ma5)}</p>}
-                        {showMA20 && d.ma20 && <p className="text-blue-400">MA20: ₩{fmt(d.ma20)}</p>}
-                        {showMA60 && d.ma60 && <p className="text-orange-400">MA60: ₩{fmt(d.ma60)}</p>}
-                      </div>
-                    );
-                  }} />
-                  <Area type="monotone" dataKey="price" stroke={isPos ? UP : DOWN}
-                    strokeWidth={1.5} fill="url(#stockGrad)" dot={false} />
-                  {showBB && <>
-                    <Line type="monotone" dataKey="bbUpper"  stroke="#9019e6" strokeWidth={1} dot={false} strokeDasharray="4 2" />
-                    <Line type="monotone" dataKey="bbMiddle" stroke="#9019e6" strokeWidth={1} dot={false} opacity={0.5} />
-                    <Line type="monotone" dataKey="bbLower"  stroke="#9019e6" strokeWidth={1} dot={false} strokeDasharray="4 2" />
-                  </>}
-                  {showMA5  && <Line type="monotone" dataKey="ma5"  stroke="#facc15" strokeWidth={1.2} dot={false} />}
-                  {showMA20 && <Line type="monotone" dataKey="ma20" stroke="#00acfe" strokeWidth={1.2} dot={false} />}
-                  {showMA60 && <Line type="monotone" dataKey="ma60" stroke="#ff8833" strokeWidth={1.2} dot={false} />}
-                </ComposedChart>
-              )}
-            </ResponsiveContainer>
-
-            {/* 거래량 차트 */}
-            {showVol && !compareTicker && (
-              <ResponsiveContainer width="100%" height={60}>
-                <AreaChart data={enhancedData} margin={{ top: 4, right: 5, left: 10, bottom: 0 }}>
-                  <XAxis dataKey="date" hide />
-                  <YAxis hide />
-                  <Area type="monotone" dataKey="volume" stroke="#00acfe" fill="#00acfe" fillOpacity={0.3} dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-
-            {/* RSI 차트 */}
-            {showRSI && !compareTicker && rsiData.length > 0 && (
-              <div className="mt-3 border-t border-[var(--border)] pt-3">
-                <p className="text-[10px] text-[var(--text-muted)] mb-1">RSI (14)</p>
-                <ResponsiveContainer width="100%" height={80}>
-                  <ComposedChart data={rsiData} margin={{ top: 0, right: 5, left: 10, bottom: 0 }}>
-                    <YAxis domain={[0, 100]} ticks={[30, 70]} tick={{ fontSize: 9, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={24} />
-                    <XAxis dataKey="date" hide />
-                    <ReferenceLine y={70} stroke="#ff4433" strokeDasharray="3 3" strokeOpacity={0.5} />
-                    <ReferenceLine y={30} stroke="#00cc4b" strokeDasharray="3 3" strokeOpacity={0.5} />
-                    <Tooltip content={({ active, payload }) => {
-                      if (!active || !payload?.length) return null;
-                      return (
-                        <div className="bg-gray-900 border border-white/10 rounded-lg px-2 py-1 text-xs">
-                          <p className="text-emerald-400">RSI: {Number(payload[0].value).toFixed(1)}</p>
-                        </div>
-                      );
-                    }} />
-                    <Line type="monotone" dataKey="rsi" stroke="#34d399" strokeWidth={1.2} dot={false} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </>
+          // 차트 라이브러리는 지연 로딩 — 자리 높이를 미리 잡아 밀림 없음
+          <div style={{ minHeight: krChartHeight({ compare: !!compareTicker, showVol, showRSI }) }}>
+            <KrStockChart enhancedData={enhancedData} rsiData={rsiData} stock={stock} isPos={isPos}
+              chartMin={chartMin} chartMax={chartMax} compareTicker={compareTicker} compareName={compareName}
+              showMA5={showMA5} showMA20={showMA20} showMA60={showMA60} showBB={showBB} showVol={showVol} showRSI={showRSI} />
+          </div>
         ) : (
           <div className="h-60 flex items-center justify-center text-[var(--text-muted)] text-sm">
             차트 데이터 로딩 중...

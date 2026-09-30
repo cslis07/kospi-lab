@@ -37,7 +37,7 @@ function Badge({ name }: { name: string }) {
 
 function StockRow({ code, name, price, changeRate, href }: { code: string; name: string; price: number; changeRate: number; href: string }) {
   return (
-    <Link href={href} className="wl-row" style={{ padding: '10px 4px', textDecoration: 'none', color: 'inherit' }}>
+    <Link prefetch={false} href={href} className="wl-row" style={{ padding: '10px 4px', textDecoration: 'none', color: 'inherit' }}>
       <Badge name={name} />
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>

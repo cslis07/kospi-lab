@@ -34,27 +34,36 @@ function n(s: unknown): number {
   return Number(String(s).replace(/,/g, '')) || 0;
 }
 
-// 최근 영업일 후보 (주말 제외) — 발표 지연·휴장 대비 여러 날 재시도
+// 최근 영업일 후보 (주말 제외) — 발표 지연·휴장 대비 여러 날 재시도.
+// 서버는 UTC라 한국 날짜(KST)로 계산한다(안 그러면 한국 오전엔 어제 데이터를 건너뛴다).
 function candidateDays(count = 6): string[] {
   const out: string[] = [];
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
+  const d = new Date(Date.now() + 9 * 3600_000);
+  d.setUTCDate(d.getUTCDate() - 1);
   while (out.length < count) {
-    const wd = d.getDay();
+    const wd = d.getUTCDay();
     if (wd !== 0 && wd !== 6) out.push(d.toISOString().slice(0, 10).replace(/-/g, ''));
-    d.setDate(d.getDate() - 1);
+    d.setUTCDate(d.getUTCDate() - 1);
   }
   return out;
+}
+
+/**
+ * KRX 응답 캐시(Next 데이터 캐시 — 함수 인스턴스끼리 공유, 배포 단위).
+ * KRX는 시장 하나에 2.6~2.9초가 걸리는데 지난 거래일 데이터는 바뀌지 않는다.
+ * 가장 최근 후보일만 짧게(발표 전 빈 응답이 박제되지 않게), 그 이전 날짜는 하루.
+ */
+function krxCache(basDd: string): { next: { revalidate: number } } {
+  return { next: { revalidate: basDd === candidateDays(1)[0] ? 1800 : 86400 } };
 }
 
 async function fetchMarket(endpoint: string, basDd: string): Promise<Map<string, KrxDailyData>> {
   const map = new Map<string, KrxDailyData>();
   try {
-    const res = await fetch(`${KRX_BASE}/${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=UTF-8', 'AUTH_KEY': KRX_KEY() },
-      body: JSON.stringify({ basDd }),
-      cache: 'no-store',
+    // GET(쿼리) — POST는 데이터 캐시 대상이 아니라서 매번 2~3초씩 다시 받았다
+    const res = await fetch(`${KRX_BASE}/${endpoint}?basDd=${basDd}`, {
+      headers: { AUTH_KEY: KRX_KEY() },
+      ...krxCache(basDd),
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return map;
@@ -166,7 +175,7 @@ async function krxRaw(path: string, basDd: string): Promise<Record<string, strin
   try {
     const res = await fetch(`${KRX_BASE}/${path}?basDd=${basDd}`, {
       headers: { AUTH_KEY: KRX_KEY() },
-      cache: 'no-store',
+      ...krxCache(basDd),
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return [];

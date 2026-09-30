@@ -10,7 +10,8 @@ import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import useSWR from 'swr';
-import PriceChart, { TIMEFRAMES } from '@/components/detail/PriceChart';
+import PriceChart from '@/components/detail/PriceChartLazy';
+import { TIMEFRAMES } from '@/components/detail/chartLayout';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import type { OverseasStockData, ChartPoint } from '@/lib/types';
 

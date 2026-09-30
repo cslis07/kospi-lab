@@ -1,0 +1,34 @@
+# 배포 직후 CDN 캐시 채우기
+#
+# Vercel 은 배포할 때마다 CDN 캐시를 비운다 → 배포 직후 첫 방문이 KRX(5~9초)·AI 브리핑(4~10초) 원본을 기다린다.
+# 프로덕션 배포가 성공하면(Vercel 이 GitHub 에 남기는 deployment_status) 주요 공개 API·화면을 한 번씩 불러
+# 캐시를 미리 채운다. 개인·게이트 라우트(/api/bitget·/api/sync·분석)는 부르지 않는다.
+name: warm-cache
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+jobs:
+  warm:
+    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Warm CDN
+        env:
+          BASE: https://kospi-lab.vercel.app
+        run: |
+          set +e
+          # 1차: 느린 원본(KRX·AI·코인 환경)부터 병렬로
+          SLOW="/api/home/status /api/krx/ranking /api/coin-env /api/home/briefing?tab=kr /api/home/briefing?tab=us /api/home/briefing?tab=coin /api/whale"
+          for p in $SLOW; do curl -s -o /dev/null -w "%{http_code} %{time_total}s $p\n" --max-time 60 "$BASE$p" & done; wait
+          # 2차: 화면이 첫 로딩에 부르는 것들(주소가 화면 요청과 정확히 같아야 캐시가 맞는다)
+          FAST="/ /domestic /overseas /coins /ranking /industry /indicators /theme-etf /research
+                /api/market /api/home/indices /api/home/board?code=KOSPI&range=1d /api/home/board?code=KOSDAQ&range=1d
+                /api/news?category=international /api/news?category=domestic
+                /api/naver/ranking?tab=value&coin=UPBIT /api/naver/indicators
+                /api/naver/industry?market=kr&cat=industries&period=daily&size=6
+                /api/naver/research?direction=up /api/naver/theme-etf?region=kr"
+          for p in $FAST; do curl -s -o /dev/null -w "%{http_code} %{time_total}s $p\n" --max-time 30 "$BASE$p" & done; wait
+          exit 0
