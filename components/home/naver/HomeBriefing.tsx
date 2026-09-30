@@ -12,7 +12,7 @@ import { useMediaQuery } from './Fold';
 type Tab = 'kr' | 'us' | 'coin';
 interface Provider {
   id: 'gemini' | 'openai'; name: string; ok: boolean;
-  brief?: { headline: string; bullets: string[] }; model?: string; error?: string; notConfigured?: boolean;
+  brief?: { headline: string; bullets: string[] }; model?: string; error?: string; notConfigured?: boolean; stale?: boolean;
 }
 interface BriefResp { tab: Tab; providers: Provider[]; facts: string; asOf: string }
 
@@ -39,6 +39,7 @@ function ProviderCard({ p, facts }: { p: Provider; facts: string }) {
               </li>
             ))}
           </ul>
+          {p.stale && p.error && <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 8 }}>{p.error}</div>}
         </>
       ) : p.notConfigured ? (
         <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 8, lineHeight: 1.55 }}>

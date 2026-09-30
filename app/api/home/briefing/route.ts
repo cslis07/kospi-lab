@@ -19,8 +19,24 @@ interface BriefingResponse { tab: Tab; providers: ProviderResult[]; facts: strin
 
 const TTL_OK = 60 * 60 * 1000;
 const TTL_FAIL = 5 * 60 * 1000;
+const STALE_MAX = 6 * 60 * 60 * 1000; // 새 생성 실패 시 이 시간 이내의 직전 성공 요약을 대신 보여준다
 const cache = new Map<Tab, { data: BriefingResponse; exp: number }>();
 const inflight = new Map<Tab, Promise<BriefingResponse>>();
+const lastGood = new Map<string, { p: ProviderResult; at: number }>(); // key = `${tab}:${providerId}`
+
+/** 실패한 제공사는 6시간 이내 직전 성공본으로 대체(빈 카드보다 조금 전 요약이 낫다). 성공본은 기록. */
+function withStale(tab: Tab, providers: ProviderResult[]): ProviderResult[] {
+  return providers.map((p) => {
+    const k = `${tab}:${p.id}`;
+    if (p.ok) { lastGood.set(k, { p, at: Date.now() }); return p; }
+    const g = lastGood.get(k);
+    if (g && Date.now() - g.at < STALE_MAX && !p.notConfigured) {
+      const mins = Math.round((Date.now() - g.at) / 60000);
+      return { ...g.p, stale: true, error: `최신 생성 실패(${p.error ?? '오류'}) — ${mins}분 전 요약` };
+    }
+    return p;
+  });
+}
 
 const sign = (n: number) => `${n >= 0 ? '+' : ''}${n}`;
 const eok = (n: number) => `${n >= 0 ? '+' : ''}${Math.round(n).toLocaleString('ko-KR')}억`;
@@ -88,9 +104,11 @@ function buildPrompt(tab: Tab, facts: string, heads: string[]): string {
 async function generate(tab: Tab): Promise<BriefingResponse> {
   const ctx = tab === 'kr' ? await krContext() : tab === 'us' ? await usContext() : await coinContext();
   const prompt = buildPrompt(tab, ctx.facts, ctx.heads);
-  const providers = await Promise.all([geminiBrief(prompt), openaiBrief(prompt)]);
+  const providers = withStale(tab, await Promise.all([geminiBrief(prompt), openaiBrief(prompt)]));
   return { tab, providers, facts: ctx.facts, asOf: new Date().toISOString() };
 }
+
+const freshOk = (d: BriefingResponse) => d.providers.some((x) => x.ok && !x.stale);
 
 export async function GET(req: Request) {
   const t = new URL(req.url).searchParams.get('tab');
@@ -107,11 +125,11 @@ export async function GET(req: Request) {
       inflight.set(tab, p);
     }
     data = await p;
-    const anyOk = data.providers.some((x) => x.ok);
-    cache.set(tab, { data, exp: Date.now() + (anyOk ? TTL_OK : TTL_FAIL) });
+    cache.set(tab, { data, exp: Date.now() + (freshOk(data) ? TTL_OK : TTL_FAIL) });
   }
 
-  const anyOk = data.providers.some((x) => x.ok);
+  // 스테일(직전 성공본)만 있으면 5분 뒤 다시 생성 시도 — 1시간 묶어두지 않는다
+  const anyOk = freshOk(data);
   return NextResponse.json(data, {
     headers: { 'Cache-Control': anyOk ? 's-maxage=3600, stale-while-revalidate=7200' : 's-maxage=300' },
   });
