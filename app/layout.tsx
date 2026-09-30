@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   title: { default: 'KOSPI LAB — 투자 리스크 관리 대시보드', template: '%s | KOSPI LAB' },
   description: '국내주식·코인선물 손절·사이징·청산가 계산과 매매 기록. 룰엔진 체크리스트와 실시간 시세. 매매 신호를 제공하지 않습니다.',
   manifest: '/manifest.json',
+  // 개인용 도구 — 검색 결과에 노출하지 않는다(네이버 데이터를 옮겨 보여주는 화면이 검색에 퍼지지 않게)
+  robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

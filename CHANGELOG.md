@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-09-30 (84차) — 검색 노출 차단(noindex) + sitemap에 새 페이지 7개
+
+- 사용자 요청 "sitemap 7개 추가하고 검색 노출 막아". 개인용 도구라 검색 노출 불필요 + 네이버 데이터를 옮겨 보여주는 화면이 검색에 퍼지는 것 방지(완성도 축 9).
+- **noindex 이중 적용**: `app/layout.tsx` metadata `robots {index:false, follow:false}`(모든 페이지 `<meta name="robots">`) + `next.config.ts` 전 경로 `X-Robots-Tag: noindex, nofollow`(JSON·이미지 등 HTML 아닌 응답까지).
+- **robots.txt는 크롤링 허용 유지**(`/api/`·`/bitget`만 제외): `Disallow: /`로 막으면 크롤러가 noindex를 못 읽어 이미 색인된 주소가 남기 때문. sitemap도 유지 — 크롤러가 목록을 돌며 noindex를 확인해 기존 색인이 더 빨리 빠진다.
+- sitemap에 `/industry`·`/ranking`·`/indicators`·`/theme-etf`·`/research`·`/coins`·`/overseas-analysis` 추가(19→26).
+- tsc 0 · test 151 · build 0 · 배포 후 메타·헤더·sitemap 실측.
+
 ## 2026-09-30 (83차) — 완성도 4차 점검 후속: 빈 응답 표시·IP 판별·터치 영역·h1 1개
 
 - 사용자 요청 "4~7번 점검하고 수정"(COMPLETENESS 4차의 축 4 외부 수집·5 보안·6 모바일·7 정보 위계).
