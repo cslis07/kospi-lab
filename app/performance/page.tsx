@@ -12,6 +12,13 @@ import { scoreboard } from '@/lib/journalStats';
 import ScoreCard from '@/components/ScoreCard';
 import WeeklyReview from '@/components/WeeklyReview';
 import { ICON } from '@/lib/menu';
+import BreakdownTables from '@/components/BreakdownTables';
+import type { BreakItem } from '@/lib/tradeBreakdown';
+import { toCsv, downloadCsv, kstDateTime, kstStamp } from '@/lib/csv';
+
+const fmtR = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(2)}R`;
+const RESULT_KO: Record<string, string> = { open: '미청산', win: '익절', loss: '손절', even: '본전' };
+const winOf = (r: string) => (r === 'win' ? true : r === 'loss' ? false : null);
 
 function LinkRow({ href, icon, title, sub }: { href: string; icon: string; title: string; sub: string }) {
   return (
@@ -35,6 +42,24 @@ export default function PerformancePage() {
   const stockSb = useMemo(() => scoreboard(stock.entries), [stock.entries]);
   const ready = coin.mounted || stock.mounted;
 
+  // 손익 분해 — 결과가 나온 기록만(R 기준). 요일·시간대는 기록(진입 판단) 시각 KST
+  const breakItems: BreakItem[] = useMemo(() => [
+    ...coin.entries.filter((e) => e.result !== 'open').map((e) => ({ ts: e.ts, symbol: `C:${e.symbol}`, label: `${e.name || e.symbol} · 코인`, value: e.resultR, win: winOf(e.result) })),
+    ...stock.entries.filter((e) => e.result !== 'open').map((e) => ({ ts: e.ts, symbol: `S:${e.ticker}`, label: `${e.name || e.ticker} · 주식`, value: e.resultR, win: winOf(e.result) })),
+  ], [coin.entries, stock.entries]);
+
+  // CSV 내보내기 — 두 매매일지(코인·주식) 전체 기록. 이 기기의 기록이 원본이므로 백업용으로도 쓸 수 있다
+  const exportCsv = () => {
+    const rows = [
+      ...coin.entries.map((e) => [kstDateTime(e.ts), '코인선물', e.symbol, e.name, e.direction === 'long' ? '롱' : e.direction === 'short' ? '숏' : '관망',
+        e.price, e.entry, e.stop, e.leverage, RESULT_KO[e.result] ?? e.result, e.resultR, e.realizedUsdt ?? null, e.memo, e.id]),
+      ...stock.entries.map((e) => [kstDateTime(e.ts), '국내주식', e.ticker, e.name, e.stance === 'buy' ? '매수' : e.stance === 'reduce' ? '축소' : '중립',
+        e.price, null, e.stop, null, RESULT_KO[e.result] ?? e.result, e.resultR, null, e.memo, e.id]),
+    ].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+    downloadCsv(`매매기록_성과_${kstStamp()}.csv`, toCsv(
+      ['기록(KST)', '시장', '코드', '이름', '방향', '기록가', '진입가', '손절가', '레버리지', '결과', 'R', '실현손익(USDT)', '메모', 'ID'], rows));
+  };
+
   return (
     <div className="space-y-4 pb-6">
       <p className="text-xs leading-relaxed text-[var(--text-muted)] px-1">
@@ -43,6 +68,22 @@ export default function PerformancePage() {
       </p>
 
       {ready ? <WeeklyReview rows={[...coin.entries, ...stock.entries]} /> : <div className="skeleton h-40" />}
+
+      {ready && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] text-[var(--text-muted)]">코인 {coin.entries.length}건 · 주식 {stock.entries.length}건 기록</span>
+          <button type="button" onClick={exportCsv} disabled={coin.entries.length + stock.entries.length === 0}
+            title="두 매매일지 기록을 엑셀에서 열 수 있는 CSV로 저장(백업 겸용)"
+            className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-muted)] text-[12px] font-semibold disabled:opacity-40">
+            CSV 내보내기
+          </button>
+        </div>
+      )}
+
+      {ready && breakItems.length > 0 && (
+        <BreakdownTables items={breakItems} unit="R" valueLabel="R" fmt={fmtR}
+          sub={`결과 입력 ${breakItems.length}건 · 기록 시각(KST) 기준 · R은 손절을 계획한 매매만`} />
+      )}
 
       {ready && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

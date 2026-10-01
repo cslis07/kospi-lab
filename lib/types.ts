@@ -70,6 +70,14 @@ export interface PortfolioEntry {
 export interface AlertEntry {
   above?: number;
   below?: number;
+  /** 종목명(알림 관리 화면 표시용, 예전 항목엔 없음) */
+  name?: string;
+  /** false = 꺼짐. 없으면 켜짐(예전 항목 호환) */
+  enabled?: boolean;
+  /** 마지막으로 울린 시각(ms)·방향 — 울리면 자동으로 꺼진다(한 번만) */
+  firedAt?: number;
+  firedSide?: 'above' | 'below';
+  firedPrice?: number;
 }
 
 export interface OverseasStockData {

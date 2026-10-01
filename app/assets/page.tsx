@@ -11,6 +11,7 @@ import useSWR from 'swr';
 import BottomSheet from '@/components/ui/BottomSheet';
 import UnlockGate from '@/components/UnlockGate';
 import { ICON } from '@/lib/menu';
+import HoldingsConcentration from '@/components/HoldingsConcentration';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
@@ -228,6 +229,12 @@ export default function AssetsPage() {
             )}
           </div>
         )}
+      </section>
+
+      {/* ── 보유 주식 비중 — 도넛 + 한 종목·업종 쏠림 경고선(거래소 연결과 무관, 이 기기 보유 기록) ── */}
+      <section>
+        <div className="fin-sec"><h3>보유 주식 비중</h3></div>
+        <HoldingsConcentration />
       </section>
 
       {/* ── 실적 (거래소 청산 요약) ── */}

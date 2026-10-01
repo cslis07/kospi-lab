@@ -470,7 +470,7 @@ export default function StockDetailPage() {
     const below = parseFloat(alertBelow) || undefined;
     if (!above && !below) { removeAlert(ticker); return; }
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-    setAlert(ticker, { above, below });
+    setAlert(ticker, { above, below, name: stock?.name });
   };
 
   if (!ticker) return null;
@@ -702,6 +702,7 @@ export default function StockDetailPage() {
             <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-xs space-y-1">
               {myAlert.above && <p className="text-yellow-400">↑ ₩{fmt(myAlert.above)} 이상 시 알림</p>}
               {myAlert.below && <p className="text-yellow-400">↓ ₩{fmt(myAlert.below)} 이하 시 알림</p>}
+              {myAlert.enabled === false && <p className="text-[var(--text-muted)]">{myAlert.firedAt ? '이미 울려서 꺼짐' : '꺼짐'} — <Link href="/alerts" className="underline">알림 관리</Link>에서 다시 켜기</p>}
             </div>
           )}
           <div className="space-y-2">
@@ -716,7 +717,7 @@ export default function StockDetailPage() {
                 className="w-full py-2 rounded-lg text-[var(--text-muted)] text-xs hover:text-red-400 transition-colors">알림 해제</button>
             )}
           </div>
-          <p className="mt-3 text-xs text-[var(--text-muted)] opacity-70">브라우저 알림 권한이 필요합니다</p>
+          <p className="mt-3 text-xs text-[var(--text-muted)] opacity-70">앱이 열려 있는 동안 30초마다 확인하고, 한 번 울리면 꺼집니다(브라우저 알림 권한 필요). 전체 목록은 <Link href="/alerts" className="underline">알림 관리</Link>.</p>
         </div>
       </div>
       </Collapsible>

@@ -112,7 +112,7 @@
 
 ### 개선 여지
 - [ ] 🆕 **거시 DXY를 네이버 `.DXY`로 교체 검토** — 09-30 `securityService/integration/indicators`에서 실시간 ICE 달러인덱스 확보(§12 트리거 충족). 코인 거시환경 등은 아직 FRED 광의 사용
-- [ ] 🆕 인기 탭(홈 사이드)을 네이버 실시간 인기(`aggregate/domesticStock?type=popular`)로 교체 — 현재 KRX 전 거래일
+- [x] 인기 탭(홈 사이드) 네이버 실시간 인기로 교체(10-01, 91차) — 실패 시 KRX 전 거래일 대체
 - [x] 미참조 컴포넌트 14개 삭제(10-01, 90차) — AiCoach·ExchangeReconcile·IndexCards·KospiBar·MarketHero·RetroReport·SwipeRow·TradeAutopsy·Greeting·HeroIndex·EventCalendar·EventList·MarketStrip·WatchlistPreview. `lib/` 엔진·테스트·`/api/coach`·`/api/candles` 는 유지(git 이력으로 복구 가능)
 - [ ] 🆕 미국 섹터 우선주 코드(`BW PRA` 등) → `/overseas/` 상세 링크 미해결 가능
 - [ ] 기분 미기록 텔레그램 알림(§12) · 미청산 기분 승계 · 차트 색 점검 · `/assets` 30/90일 그래프 · 해외 시총 "—" · M-7/M-8 · `api/debug/naver` 제거 · 통합 테스트 · KRX 채권/파생 활용신청
@@ -238,6 +238,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 - 🆕 **시장 메뉴 5종 = 시장 탭 하위**(하단 탭 추가 안 함 — 09-29 3탭 단순화 유지). 각 위젯 API는 Chrome 확장 미연결로 **번들 정적분석**(`_next` 66청크 + webpack lazy 해시맵·`2248` 별도 규칙, `\uXXXX` 디코딩)으로 확정.
 - 🆕 **홈 시장 섹션 5종**: ~~PC(≥1024)만 미마운트~~ → **10-01 '어떤 상황에서도 노출'로 모든 폭**(창을 줄이거나 배율 150% 노트북=CSS 960px에서 사라지던 문제). 대신 섹션별 지연 마운트(`LazyMount`, 800px 앞). 순서는 stock.naver.com `app/page` 청크의 위젯 배치(랭킹→산업→리서치→테마 ETF→지표). 메뉴 페이지와 **같은 섹션 컴포넌트 공유**(`home` 모드).
 - 🆕 목표주가·투자의견은 **애널리스트 의견으로만** 표기(앱 신호 아님 명시), 원문은 `finance.naver.com/research/*_read.naver?nid=` 링크.
+- 🆕 **10-01 기능 5종(91차)**: 손익 분해 표(매매일지·성과), CSV 내보내기, 가격 알림 관리 `/alerts` + 실제 발동 감시(앱 열려 있을 때 30초·한 번만), 보유 비중 도넛 + 쏠림 경고선(종목 25%·업종 40% — 앱 기준선), 홈 인기 = 네이버 실시간 인기. **가격 알림은 91차 전까지 한 번도 울린 적 없었음**(저장만 하고 확인 코드 없음).
 - 🆕 **10-01 결정 묶음**: ① 실기기 확인 완료 ② **Pretendard 웹폰트 안 씀** — 실측(4G) 화면당 조각 11~19개·300~500KB, 페이지 용량 약 2배(홈 408→847KB)·폰트 교체 밀림 증가 → 기기 기본 한글 폰트 유지(원래 `@import`가 빌드에서 빠져 적용된 적 없었음) ③ **AI 브리핑 Gemini 하나만**(ChatGPT 코드 제거, 키 교체 안 함) ④ **홈 섹션에도 출처·신호 아님 문구**(완성도 축 9) ⑤ **미참조 컴포넌트 14개 삭제**.
 - 하단 3탭(09-29)·분석 2단계·매매일지 코인선물 전용·텔레그램 알림 범위·Supabase 서비스롤 Actions 등록·해외 TOP 수록 종목 기준·IA 판단 등 이전 결정은 유지(CHANGELOG 66~74차).
 - 크론 스냅샷=data 브랜치(+vercel.json) · KRX 재발급 보류 · "무조건 수익" 거절 → 산수 기반.
@@ -321,7 +322,7 @@ kospi-lab/
 ├── components/naver/{ui.tsx,sections/}# 🆕 공용 UI · 5개 섹션(home 모드)
 ├── components/ThemeToggle.tsx         # 🆕
 ├── components/ (셸·ui·detail·fin·WatchRow… 총 68)
-├── tests/ (5파일 148) · scripts/ (12, coinTrack.mts=크론)
+├── tests/ (7파일 167) · scripts/ (12, coinTrack.mts=크론)
 ├── .github/workflows/coin-track.yml
 └── PROJECT_STATUS.md · CHANGELOG.md · COMPLETENESS.md
 ```

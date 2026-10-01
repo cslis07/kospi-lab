@@ -15,6 +15,9 @@ import BottomSheet from '@/components/ui/BottomSheet';
 import { useTradeMood, type TradeMood } from '@/hooks/useTradeMood';
 import { MOODS, MOOD_BY_KEY, type MoodKey } from '@/lib/tradeMood';
 import { monthlyStats, moodStats, kstMonth } from '@/lib/tradeReport';
+import BreakdownTables from '@/components/BreakdownTables';
+import type { BreakItem } from '@/lib/tradeBreakdown';
+import { toCsv, downloadCsv, kstDateTime as csvTime, kstStamp } from '@/lib/csv';
 import { fmtCoinPrice } from '@/lib/coins';
 import type { ClosedPosition } from '@/app/api/bitget/history/route';
 
@@ -126,6 +129,24 @@ export default function JournalPage() {
     return map;
   }, [positions]);
 
+  // 손익 분해(요일·시간대는 '진입' 시각 기준 — 언제 들어간 매매가 잘 됐나)
+  const breakItems: BreakItem[] = useMemo(() => positions.map((p) => ({
+    ts: p.openTs || p.closeTs, symbol: p.symbol, label: coinName(p.symbol), value: p.netProfit,
+    win: p.netProfit > 0 ? true : p.netProfit < 0 ? false : null,
+  })), [positions]);
+
+  // CSV 내보내기 — 거래소 청산 내역 + 이 기기의 기분 기록(엑셀용 BOM·KST)
+  const exportCsv = () => {
+    const rows = [...positions].sort((a, b) => a.closeTs - b.closeTs).map((p) => {
+      const m = moods[p.positionId];
+      return [csvTime(p.openTs), csvTime(p.closeTs), p.symbol, coinName(p.symbol), p.side === 'long' ? '롱' : '숏',
+        p.openAvg, p.closeAvg, +p.netProfit.toFixed(4), +p.fee.toFixed(4), +p.funding.toFixed(4),
+        m ? MOOD_BY_KEY.get(m.mood)?.label ?? m.mood : '', m?.note ?? '', p.positionId];
+    });
+    downloadCsv(`매매일지_코인선물_${days}일_${kstStamp()}.csv`, toCsv(
+      ['진입(KST)', '청산(KST)', '심볼', '이름', '방향', '진입가', '청산가', '순손익(USDT)', '수수료', '펀딩', '진입 기분', '메모', '포지션ID'], rows));
+  };
+
   const saveMood = () => {
     if (!editing || !pick) return;
     setMood(editing.id, pick, note);
@@ -152,10 +173,17 @@ export default function JournalPage() {
               }`}>{d}일</button>
           ))}
         </div>
-        <button type="button" onClick={() => load(days)} disabled={busy}
-          className="px-3 py-1.5 rounded-lg border border-sky-500/40 bg-sky-500/15 text-sky-400 text-[12px] font-semibold disabled:opacity-50">
-          {busy ? '대조 중…' : '⟳ 거래소에서 가져오기'}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={exportCsv} disabled={busy || positions.length === 0}
+            title="청산 내역·기분 기록을 엑셀에서 열 수 있는 CSV로 저장"
+            className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-muted)] text-[12px] font-semibold disabled:opacity-40">
+            CSV 내보내기
+          </button>
+          <button type="button" onClick={() => load(days)} disabled={busy}
+            className="px-3 py-1.5 rounded-lg border border-sky-500/40 bg-sky-500/15 text-sky-400 text-[12px] font-semibold disabled:opacity-50">
+            {busy ? '대조 중…' : '⟳ 거래소에서 가져오기'}
+          </button>
+        </div>
       </div>
 
       {err && <p className="mb-3 text-[12px] text-red-400">⚠ {err} {err.includes('잠금') && <Link href="/bitget" className="underline">계좌로 이동</Link>}</p>}
@@ -193,6 +221,12 @@ export default function JournalPage() {
             })}
           </div>
         </section>
+      )}
+
+      {/* 손익 분해 — 요일·시간대·종목별(청산 건, 수수료·펀딩 반영 순손익) */}
+      {positions.length > 0 && (
+        <BreakdownTables items={breakItems} unit="USDT" valueLabel="순손익" fmt={fmtPnl}
+          sub={`최근 ${days}일 청산 ${positions.length}건 · 진입 시각(KST) 기준`} />
       )}
 
       {/* ③ 월별 보고서 — 접힘 상태로 월 목록만, 월을 누르면 상세 펼침(청산 건만) */}

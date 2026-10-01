@@ -5,6 +5,7 @@ import Header from '@/components/Header';
 import NavTabs from '@/components/NavTabs';
 import BottomNav from '@/components/BottomNav';
 import PwaRegister from '@/components/PwaRegister';
+import PriceAlertWatcher from '@/components/PriceAlertWatcher';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://kospi-lab.vercel.app'),
@@ -49,6 +50,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full flex flex-col">
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
         <PwaRegister />
+        {/* 국내 종목 가격 알림 감시(켜진 알림이 있을 때만 30초 확인) */}
+        <PriceAlertWatcher />
         <Header />
         <div className="flex-1 max-w-[1200px] mx-auto w-full px-4 sm:px-6 pt-4 md:pt-6">
           <NavTabs />

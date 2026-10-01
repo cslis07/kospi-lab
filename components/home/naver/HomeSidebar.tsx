@@ -2,16 +2,17 @@
 
 /**
  * 홈 우측 사이드바 — 최근 소식(뉴스 상위) + 인기|관심 종목 탭.
- * 인기 = /api/home/status.popular(KRX 거래대금 상위) · 관심 = watchlist + /api/stock/batch 실시간가.
+ * 인기 = /api/home/status.popular(네이버 실시간 인기 = 조회 많은 순, 20초 갱신 · 실패 시 KRX 전 거래일 거래대금) · 관심 = watchlist + /api/stock/batch 실시간가.
  * 종목 클릭 → 상세. 색: 상승 빨강 · 하락 파랑.
  */
 import { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { useWatchlist } from '@/hooks/useWatchlist';
+import { Flash, LiveStamp } from '@/components/naver/ui';
 
 interface PopularItem { code: string; name: string; price: number; changeRate: number }
-interface StatusResp { popular: PopularItem[]; date?: string }
+interface StatusResp { popular: PopularItem[]; date?: string; source?: 'naver' | 'krx'; asOf?: string }
 
 function ago(pub?: string): string {
   if (!pub) return '';
@@ -44,7 +45,7 @@ function StockRow({ code, name, price, changeRate, href }: { code: string; name:
         <div style={{ fontSize: 11, color: 'var(--faint)' }}>{code}</div>
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div className="tabular-nums" style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{price ? price.toLocaleString('ko-KR') : '—'}</div>
+        <div className="tabular-nums" style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{price ? <Flash value={price}>{price.toLocaleString('ko-KR')}</Flash> : '—'}</div>
         <div className="tabular-nums" style={{ fontSize: 11.5, fontWeight: 700, color: colorOf(changeRate) }}>{changeRate >= 0 ? '+' : ''}{changeRate.toFixed(2)}%</div>
       </div>
     </Link>
@@ -82,7 +83,7 @@ function RecentNews() {
 
 function StockTabs() {
   const [tab, setTab] = useState<'popular' | 'watch'>('popular');
-  const { data: st } = useSWR<StatusResp>('/api/home/status', fetcher, { refreshInterval: 300000, revalidateOnFocus: false });
+  const { data: st } = useSWR<StatusResp>('/api/home/status', fetcher, { refreshInterval: tab === 'popular' ? 20000 : 0, revalidateOnFocus: false, keepPreviousData: true });
   const { watchlist, mounted } = useWatchlist();
   const tickers = watchlist.map((w) => w.ticker).join(',');
   const { data: batch } = useSWR<BatchItem[] | Record<string, BatchItem>>(
@@ -106,7 +107,9 @@ function StockTabs() {
           </button>
         ))}
         <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--faint)', alignSelf: 'center' }}>
-          {tab === 'popular' ? `${st?.date && st.date.length === 8 ? `${st.date.slice(4, 6)}.${st.date.slice(6, 8)} ` : ''}거래대금 상위` : '실시간'}
+          {tab !== 'popular' ? '실시간'
+            : st?.source === 'naver' ? <span title="네이버 증권 실시간 인기 종목(조회 많은 순)">조회 많은 순 <LiveStamp asOf={st.asOf} every={20} /></span>
+            : `${st?.date && st.date.length === 8 ? `${st.date.slice(4, 6)}.${st.date.slice(6, 8)} ` : ''}거래대금 상위`}
         </span>
       </div>
       <div>

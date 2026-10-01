@@ -14,6 +14,8 @@ export interface CoinAlertRule {
   onDirection: 'long' | 'short' | null; // 특정 방향 전환 시 알림
   lastFiredTs?: number;
   lastDirection?: 'long' | 'short' | 'wait';
+  /** false = 꺼짐(알림 관리 화면). 없으면 켜짐(예전 항목 호환) */
+  enabled?: boolean;
 }
 
 const KEY = 'kospi-lab-coin-alerts';
@@ -65,7 +67,7 @@ export function useCoinAlerts() {
   /** 분석 결과 갱신 시 호출 */
   const check = useCallback((symbol: string, name: string, direction: 'long' | 'short' | 'wait', entryOk: boolean, score: number) => {
     const rule = rulesRef.current[symbol];
-    if (!rule) return;
+    if (!rule || rule.enabled === false) return;
     const now = Date.now();
     const onCooldown = rule.lastFiredTs && now - rule.lastFiredTs < COOLDOWN;
 
