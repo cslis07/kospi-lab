@@ -63,7 +63,8 @@ export default function IndicatorsSection({ home = false }: { home?: boolean }) 
           <div className="nv-ind-grid">{codes.map(slot)}</div>
         </section>
       ))}
-      {!home && <SourceNote>출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물). 국내 금은 g당 원화 가격, 엔화는 100엔 기준입니다. ‘N분 지연’ 표시 지표는 실시간이 아닙니다.</SourceNote>}
+      {/* 출처·신호 아님 고지는 홈에서도 노출(완성도 축 9) */}
+      <SourceNote>출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물). 국내 금은 g당 원화 가격, 엔화는 100엔 기준입니다. ‘N분 지연’ 표시 지표는 실시간이 아닙니다.</SourceNote>
     </div>
   );
 }

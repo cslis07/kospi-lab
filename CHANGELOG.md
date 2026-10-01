@@ -2,6 +2,15 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-01 (90차) — 결정 정리: Gemini 단일화 · Pretendard 미사용 확정 · 홈 출처 문구 · 미참조 컴포넌트 삭제
+
+- 사용자 정리 목록 반영: 실기기 확인 완료 / Pretendard 수정 여부 결정 / Gemini 키 하나로 진행 / PC 홈 섹션 출처 문구 검토 / 미참조 컴포넌트 정리 확정.
+- **AI 브리핑 Gemini 하나만**: `openaiBrief`·ChatGPT 카드·모델 토글·PC 2열 제거, Gemini 카드 1개. `OPENAI_API_KEY`는 코드에서 안 씀(환경변수는 그대로, 무해).
+- **Pretendard 미사용 확정**: `<link>`로 정상 로딩을 실측해 보니(모바일 4G·CPU 4배) 화면당 폰트 조각 11~19개·**300~500KB 추가**, 페이지 용량 약 2배(홈 408→847KB, 국내 577→932KB), 종목 상세 CLS 0.027→0.064. 속도 우선 → 기기 기본 한글 폰트 유지. 빌드에서 빠지던 `@import` 제거(빌드 경고 0), 이유를 globals.css에 기록.
+- **홈 섹션 출처 문구**: 산업 트렌드·실시간 랭킹·시장지표가 홈(home 모드)에선 출처·"매수·매도 신호 아님" 문구를 숨겼던 것 → 홈에서도 노출(완성도 축 9). 홈 5개 섹션 모두 출처 표시 확인.
+- **미참조 컴포넌트 14개 삭제**(import 그래프·이름 전수 검색 2중 확인, 0참조): AiCoach·ExchangeReconcile·IndexCards·KospiBar·MarketHero·RetroReport·SwipeRow·TradeAutopsy·fin/Greeting·fin/HeroIndex·home/EventCalendar·home/EventList·home/MarketStrip·home/WatchlistPreview. 엔진(`lib/`)·테스트·API 라우트는 유지, git 이력으로 복구 가능.
+- test 155 · tsc 0 · build 0(경고 0).
+
 ## 2026-10-01 (89차) — 홈 시장 섹션 5종 모든 화면 폭에서 노출
 
 - 사용자 제보 "전체화면이 돼야 산업트렌드·실시간랭킹·시장지표·테마etf·리서치가 뜨고 창이 작아지면 안 뜬다 — 어떤 상황에서도 노출되게".

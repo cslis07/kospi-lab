@@ -73,7 +73,8 @@ export default function RankingSection({ home = false }: { home?: boolean }) {
             right={<Seg<'UPBIT' | 'BITHUMB'> value={coin} onChange={setCoin} options={[['UPBIT', '업비트'], ['BITHUMB', '빗썸']]} />} />
         </div>
       )}
-      {!home && <SourceNote>출처: 네이버페이 증권(국내·미국 주식·ETF), 업비트·빗썸 원화마켓(가상자산). 순위는 시장 관심도 참고용이며 매수·매도 신호가 아닙니다. 등락률 색: <span style={{ color: colorOf(1) }}>상승</span> · <span style={{ color: colorOf(-1) }}>하락</span>.</SourceNote>}
+      {/* 출처·신호 아님 고지는 홈에서도 노출(완성도 축 9) */}
+      <SourceNote>출처: 네이버페이 증권(국내·미국 주식·ETF), 업비트·빗썸 원화마켓(가상자산). 순위는 시장 관심도 참고용이며 매수·매도 신호가 아닙니다. 등락률 색: <span style={{ color: colorOf(1) }}>상승</span> · <span style={{ color: colorOf(-1) }}>하락</span>.</SourceNote>
     </div>
   );
 }

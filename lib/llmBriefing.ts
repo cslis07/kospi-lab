@@ -1,16 +1,15 @@
 /**
- * 홈 AI 브리핑용 LLM 호출 — Gemini(무료 티어) · ChatGPT(OpenAI, 키 있을 때만).
- * 둘 다 {headline, bullets[3]} JSON 한 형식으로 받는다. temperature 는 넣지 않는다(최신 모델 일부가 400).
+ * 홈 AI 브리핑용 LLM 호출 — Gemini(무료 티어) 하나만(10-01 사용자 결정: ChatGPT 제거, 과금 없음).
+ * {headline, bullets[3]} JSON 한 형식으로 받는다. temperature 는 넣지 않는다(최신 모델 일부가 400).
  *
  * 비용·한도: 호출 빈도는 /api/home/briefing 의 탭별 1시간 캐시(메모리 + CDN s-maxage)로 억제한다.
  *  - Gemini: Google AI Studio 무료 티어. 모델 env GEMINI_MODEL(기본 gemini-3.6-flash → 3.5-flash → flash-lite-latest 폴백).
  *    ⚠️ gemini-2.5-flash 는 신규 사용자에게 폐기(404), flash-latest(최신) 는 수요 폭주 503 이 잦다(2026-09-30).
- *  - OpenAI: API 는 무료 한도가 없다(선불 크레딧). 키 없으면 'not_configured', 크레딧 0 이면 insufficient_quota.
  */
 
 export interface LlmBrief { headline: string; bullets: string[] }
 export interface ProviderResult {
-  id: 'gemini' | 'openai';
+  id: 'gemini';
   name: string;
   ok: boolean;
   brief?: LlmBrief;
@@ -96,37 +95,4 @@ export async function geminiBrief(prompt: string, deadline = Date.now() + 25000)
     }
   }
   return { ...base, error: lastErr || '실패' };
-}
-
-export async function openaiBrief(prompt: string, deadline = Date.now() + 25000): Promise<ProviderResult> {
-  const base: ProviderResult = { id: 'openai', name: 'ChatGPT', ok: false };
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) return { ...base, notConfigured: true, error: 'OPENAI_API_KEY 미설정' };
-  const model = process.env.OPENAI_MODEL?.trim() || 'gpt-5-mini';
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-        max_completion_tokens: 1200,
-      }),
-      signal: AbortSignal.timeout(budget(deadline, 25000)),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      console.error('[openai]', model, res.status, body.slice(0, 300));
-      // 키는 유효하지만 선불 크레딧 0 → 429 insufficient_quota (2026-09-30 실측). '잠시 후'가 아니라 결제가 필요.
-      if (body.includes('insufficient_quota')) return { ...base, model, error: 'OpenAI 크레딧 없음 — 결제(충전) 후 자동 표시' };
-      return { ...base, model, error: friendly(res.status) };
-    }
-    const j = await res.json();
-    const brief = parseBrief(j?.choices?.[0]?.message?.content ?? '');
-    if (!brief) return { ...base, model, error: '응답 형식 오류' };
-    return { ...base, ok: true, brief, model };
-  } catch (e) {
-    return { ...base, model, error: (e as Error).name === 'TimeoutError' ? '응답 지연(시간 초과)' : '네트워크 오류' };
-  }
 }

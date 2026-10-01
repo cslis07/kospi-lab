@@ -1,6 +1,8 @@
 @import "tailwindcss";
-/* Pretendard(한글) — 동적 서브셋. 라틴·숫자는 Inter/Space Grotesk(next/font), 한글은 Pretendard 로 폴백 */
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css');
+/* 한글 웹폰트(Pretendard)는 불러오지 않는다 — 10-01 결정. 실측(모바일 4G): 화면마다 조각 11~19개·300~500KB 추가로
+   페이지 용량이 약 2배(홈 408→847KB), 폰트 교체 밀림 증가. 한글은 기기 기본(안드로이드 Noto Sans KR·iOS Apple SD 고딕·
+   윈도우 맑은 고딕). 폰트 스택의 'Pretendard' 는 기기에 설치돼 있으면 쓰인다(다운로드 없음).
+   ※ 예전 '@import url(...pretendard...)' 은 '@import "tailwindcss"' 뒤라 빌드에서 빠져 원래 적용된 적이 없었다. */
 
 /* dark: 변형을 클래스 기준으로(html.dark 정적 부착) */
 @custom-variant dark (&:where(.dark, .dark *));

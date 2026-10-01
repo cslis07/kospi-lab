@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { krIndexLive, krIndexIntegration, worldIndexLive, usdKrwLive } from '@/lib/naverIndex';
 import { fetchNaverMainNews, fetchNews } from '@/lib/newsFeeds';
 import { fetchBitgetTickers } from '@/lib/bitget';
-import { geminiBrief, openaiBrief, type ProviderResult } from '@/lib/llmBriefing';
+import { geminiBrief, type ProviderResult } from '@/lib/llmBriefing';
 
 /**
- * 홈 AI 브리핑 — ?tab=kr(국내)|us(해외)|coin(코인). Gemini + ChatGPT 를 병렬 호출해 둘 다 반환.
+ * 홈 AI 브리핑 — ?tab=kr(국내)|us(해외)|coin(코인). Gemini 하나(무료 티어).
  * 근거 = 실시간 시세·수급 + 헤드라인. 방향(매수·매도·전망) 추천 금지 — 앱 원칙(측정상 예측 우위 없음).
  *
  * 무료 한도 보호: 탭별 결과 1시간 메모리 캐시 + CDN s-maxage=3600, 동시 요청은 한 번의 생성으로 합침.
@@ -110,7 +110,7 @@ async function generate(tab: Tab): Promise<BriefingResponse> {
   const deadline = Date.now() + 50_000; // maxDuration 60 초 안에서 응답까지 끝낸다
   const ctx = tab === 'kr' ? await krContext() : tab === 'us' ? await usContext() : await coinContext();
   const prompt = buildPrompt(tab, ctx.facts, ctx.heads);
-  const providers = withStale(tab, await Promise.all([geminiBrief(prompt, deadline), openaiBrief(prompt, deadline)]));
+  const providers = withStale(tab, [await geminiBrief(prompt, deadline)]);
   return { tab, providers, facts: ctx.facts, asOf: new Date().toISOString() };
 }
 

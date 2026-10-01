@@ -96,7 +96,8 @@ export default function IndustrySection({ home = false }: { home?: boolean }) {
           순위 더보기
         </button>
       )}
-      {!home && <SourceNote>출처: 네이버페이 증권(업종·테마·섹터 분류와 등락률). {period === 'daily' ? '일간' : period === 'weekly' ? '주간' : '월간'} 등락률 기준 순위이며, 시장 흐름 참고용일 뿐 매수·매도 신호가 아닙니다.</SourceNote>}
+      {/* 출처·신호 아님 고지는 홈에서도 노출(완성도 축 9) */}
+      <SourceNote>출처: 네이버페이 증권(업종·테마·섹터 분류와 등락률). {period === 'daily' ? '일간' : period === 'weekly' ? '주간' : '월간'} 등락률 기준 순위이며, 시장 흐름 참고용일 뿐 매수·매도 신호가 아닙니다.</SourceNote>
     </div>
   );
 }

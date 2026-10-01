@@ -1,6 +1,6 @@
 # KOSPI LAB — Project Status
 
-> **마지막 업데이트: 2026-09-30** (세션명 "주식2", 09-30 재개) — **라이트 테마 토글 + 네이버 금융/증권 스타일 홈(모바일·PC) + 네이버 증권 위젯 기반 시장 메뉴 5종 + AI 브리핑 Gemini/ChatGPT 탭**: 지수 실시간화·차트 호버·52주/시장현황 정정·국내 뉴스 복구·PC 홈 섹션 5종·박스 정렬. CHANGELOG 75→82차. (이전: 09-28~30 "주식4" Copilot 다크·3탭·매매일지)
+> **마지막 업데이트: 2026-10-01** (85~90차: 속도·실시간 시장 섹션·결정 정리) · 이전: (세션명 "주식2", 09-30 재개) — **라이트 테마 토글 + 네이버 금융/증권 스타일 홈(모바일·PC) + 네이버 증권 위젯 기반 시장 메뉴 5종 + AI 브리핑 Gemini/ChatGPT 탭**: 지수 실시간화·차트 호버·52주/시장현황 정정·국내 뉴스 복구·PC 홈 섹션 5종·박스 정렬. CHANGELOG 75→82차. (이전: 09-28~30 "주식4" Copilot 다크·3탭·매매일지)
 > **위치:** `C:\Users\GB\Documents\kospi-lab`
 > **GitHub:** `cslis07/kospi-lab` · 기본=현재 브랜치 `main` · ⚠️ **저장소 공개(public)**
 > **배포:** [kospi-lab.vercel.app](https://kospi-lab.vercel.app) · Vercel `cslis07` · **git push → 자동 배포**
@@ -18,16 +18,16 @@
 ### 이번 세션("주식2", 09-30)에 끝낸 것 — 전부 push·배포 (CHANGELOG 75~82차)
 1. **라이트(순백 클린) 테마 + 다크/라이트 토글**(기본 다크, `?theme=light|dark` 딥링크).
 2. **홈 = 네이버 금융 스타일**(모바일·PC 공통 `NaverHome`): 지수 레일(실시간)·큰 차트(1일 분봉/1개월/3개월/1년, 호버 툴팁)·시장현황·52주·투자자·프로그램매매·AI 브리핑·해외 주요 뉴스·최근 소식(국내)·인기/관심. 모바일은 차트·뉴스 **스프링 아코디언**.
-3. **AI 브리핑 = 국내/해외/코인 탭 × Gemini·ChatGPT**(Claude 호출 제거). Gemini ✅가동, ChatGPT ⏸크레딧 0.
+3. **AI 브리핑 = 국내/해외/코인 탭 × Gemini**(Claude 호출 제거). ~~ChatGPT~~ 10-01 사용자 결정으로 제거 — Gemini 하나만.
 4. **시장 탭 메뉴 5종**(stock.naver.com 번들 정적분석으로 API 확정): 산업 트렌드·실시간 랭킹·시장지표·테마 ETF·리서치.
 5. **PC 홈(≥1024px)에 위 5종 섹션 전부 노출**(네이버 홈 배치 순서) + 박스 크기·간격·정렬 통일.
 
 ### 다음 채팅이 가장 먼저 할 한 가지
-급한 일 없음. 1순위 **실기기 확인**(APK/모바일 브라우저): 새 홈·라이트/다크 토글·아코디언·차트 터치 호버·시장 탭 9항목 가로 스크롤. 2순위 **COMPLETENESS.md 4차 재점검**(스킬 `webapp-completeness-audit`).
+급한 일 없음. ✅ 실기기 확인 완료(10-01 사용자: 새 홈·목록 스크롤 추가·상세 차트). 다음 후보: §4 개선 여지(DXY 네이버 교체·인기 탭 실시간화) 또는 두 코인 엔진 은퇴 결정.
 
 ### 🔴 사용자가 직접 해야 할 것
-- 🔑 **Gemini·OpenAI 키 교체 권장** — 09-30 채팅에 평문으로 붙여넣음. 새로 발급해 주면 `.env.local` + `vercel env add … production`(stdin) 교체 후 재배포.
-- 💳 **ChatGPT 쓰려면 OpenAI 크레딧 충전**(무료 한도 없음). 충전하면 코드 변경 없이 ≤1시간 내 카드 표시. 충전 시 OpenAI 대시보드에서 월 한도 설정 권장.
+- 🔑 ~~Gemini·OpenAI 키 교체 권장~~ — 10-01 사용자 결정: **현재 Gemini 키 하나로 진행**(교체 안 함, 수용). OpenAI 키는 코드에서 안 씀(Vercel·`.env.local`에 남아 있어도 무해, 지우려면 사용자 확인 후).
+- ~~💳 ChatGPT 크레딧 충전~~ — ChatGPT 제거(10-01)로 해당 없음.
 - ✅ **Gemini 무료 보장 확인** — AI Studio에서 프로젝트 168924064536에 결제 계정 미연결인지(연결돼 있으면 과금 가능).
 - APK v1.0.1 폰 설치(이전부터) · 텔레그램 "kospi lab" 그룹에서 봇 내보내지 말 것 · 분석 페이지 잠금 해제(브라우저 1회, §6) · 비트겟 청산내역 손절가 실계정 확인.
 - ⏸ KRX API 키 재발급 — 사용자 보류(09-17), 수용한 리스크.
@@ -56,7 +56,7 @@
 |---|---|---|
 | 지수 레일 | 코스피·코스닥·USD·S&P500·나스닥·다우, 10초 갱신, 국내 스파크=당일 분봉(점선=전일), 해외=1개월 | `/api/home/indices` |
 | 중앙 보드 | 코스피/코스닥 · 1일/1개월/3개월/1년 · 라인/캔들 · **호버 십자선+툴팁** · 시장현황(실시간 상승/보합/하락·상하한) · 52주 · 투자자 · 프로그램매매 | `/api/home/board` |
-| AI 브리핑 | 국내/해외/코인 탭 × Gemini·ChatGPT(PC 나란히, 모바일 토글), 1시간 주기 | `/api/home/briefing` |
+| AI 브리핑 | 국내/해외/코인 탭 × Gemini(카드 1개), 1시간 주기 | `/api/home/briefing` |
 | 뉴스 | 해외 주요 뉴스(하단) · 최근 소식=국내(사이드) | `/api/news` |
 | 인기/관심 | 인기=KRX 전 거래일 거래대금 상위 · 관심=watchlist | `/api/home/status` |
 | 🆕 시장 섹션 5종 | 실시간 랭킹 → 산업 트렌드 → 리서치 → 테마 ETF → 환율·시장지표 — **모든 폭**(10-01), 섹션별 화면 800px 앞에서 지연 마운트 | `/api/naver/*` |
@@ -70,7 +70,7 @@
 
 ### "이상해 보이지만 정상"
 - 미국 지수·S&P 등 **한국 낮엔 '장마감'**(실시간 표기는 장중만). 시장지표 달러인덱스·WTI·국제금·은은 **'10분 지연'**(네이버 표기 그대로).
-- **ChatGPT 카드 = "OpenAI 크레딧 없음"**(키는 유효, 선불 0). Gemini가 과부하면 폴백 모델명(`gemini-3.1-flash-lite` 등)이 보이거나 **"○분 전 요약"**(직전 성공본) 표시.
+- Gemini가 과부하면 폴백 모델명(`gemini-3.1-flash-lite` 등)이 보이거나 **"○분 전 요약"**(직전 성공본) 표시. (ChatGPT 카드는 10-01 제거)
 - AI 브리핑은 **탭별 1시간에 한 번**만 새로 생성(무료 한도 보호) — 생성 시각이 안 바뀌어도 정상.
 - 인기 탭 가격은 **KRX 전 거래일 기준**(날짜 표기). 미국 테마 ETF는 **거래대금 순**, 코인 '인기'는 **거래대금 기준**(화면 명시).
 - 모바일: 차트 기본 펼침·해외 뉴스 기본 접힘. 시장 섹션 5종은 모바일 홈에도 있음(스크롤해 다가가야 로딩 — 첫 로딩엔 호출 0). 데스크탑(≥1024)은 아코디언 없이 항상 펼침.
@@ -105,15 +105,15 @@
 
 ## 4. 남은 작업
 ### 우선
-- [ ] **실기기 점검** — 새 홈·라이트/다크·아코디언·차트 터치 호버·시장 탭 9항목(헤드리스 500px만 봄, 사용자 폰 필요)
-- [ ] **COMPLETENESS.md 4차 재점검** — 3차(09-17) 이후 IA·디자인·홈·신규 메뉴 전부 미반영
-- [ ] **키 교체 후 재등록**(사용자 발급 대기) · ChatGPT는 크레딧 충전 대기
+- [x] **실기기 점검** — 10-01 사용자 확인(새 홈·목록 스크롤 추가·상세 차트)
+- [x] **COMPLETENESS.md 4차 재점검** — 09-30 완료(86%)
+- [x] ~~키 교체~~ — Gemini 현 키 유지 결정(10-01), ChatGPT 제거
 - [ ] **두 코인 엔진 은퇴 여부** — 사용자 결정 대기
 
 ### 개선 여지
 - [ ] 🆕 **거시 DXY를 네이버 `.DXY`로 교체 검토** — 09-30 `securityService/integration/indicators`에서 실시간 ICE 달러인덱스 확보(§12 트리거 충족). 코인 거시환경 등은 아직 FRED 광의 사용
 - [ ] 🆕 인기 탭(홈 사이드)을 네이버 실시간 인기(`aggregate/domesticStock?type=popular`)로 교체 — 현재 KRX 전 거래일
-- [ ] 🆕 옛 홈 부품(`MarketHero`·`WatchlistPreview`·`EventCalendar`·`HeroIndex`·`MarketStrip`·`EventList`) 미참조화 — 삭제는 사용자 결정 후
+- [x] 미참조 컴포넌트 14개 삭제(10-01, 90차) — AiCoach·ExchangeReconcile·IndexCards·KospiBar·MarketHero·RetroReport·SwipeRow·TradeAutopsy·Greeting·HeroIndex·EventCalendar·EventList·MarketStrip·WatchlistPreview. `lib/` 엔진·테스트·`/api/coach`·`/api/candles` 는 유지(git 이력으로 복구 가능)
 - [ ] 🆕 미국 섹터 우선주 코드(`BW PRA` 등) → `/overseas/` 상세 링크 미해결 가능
 - [ ] 기분 미기록 텔레그램 알림(§12) · 미청산 기분 승계 · 차트 색 점검 · `/assets` 30/90일 그래프 · 해외 시총 "—" · M-7/M-8 · `api/debug/naver` 제거 · 통합 테스트 · KRX 채권/파생 활용신청
 
@@ -150,7 +150,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 | `BITGET_API_KEY`/`SECRET`/`PASSPHRASE` | 읽기 전용 | 양쪽 + Actions Secrets |
 | `ANTHROPIC_API_KEY` | 종목·코인 분석 AI, 복기 코치(홈 브리핑엔 더 안 씀) | 양쪽 |
 | 🆕 `GEMINI_API_KEY` | 홈 AI 브리핑(무료 티어) | `.env.local` + Vercel production · 09-30 |
-| 🆕 `OPENAI_API_KEY` | 홈 AI 브리핑 ChatGPT(크레딧 0) | `.env.local` + Vercel production · 09-30 |
+| ~~`OPENAI_API_KEY`~~ | 코드에서 안 씀(10-01 ChatGPT 제거) | `.env.local` + Vercel production에 잔존(무해) |
 | 🆕 `GEMINI_MODEL`·`OPENAI_MODEL` | 모델 오버라이드(선택) | **미설정**(기본 `gemini-3.6-flash`·`gpt-5-mini`) |
 | `ECOS_API_KEY`·`FRED_API_KEY`·`CUSTOMS_API_KEY` | 한국은행·FRED·관세청 | 양쪽 |
 | `SUPABASE_URL`·`SUPABASE_SERVICE_ROLE_KEY` | 클라우드 동기화 | 양쪽 + Actions Secrets |
@@ -238,6 +238,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 - 🆕 **시장 메뉴 5종 = 시장 탭 하위**(하단 탭 추가 안 함 — 09-29 3탭 단순화 유지). 각 위젯 API는 Chrome 확장 미연결로 **번들 정적분석**(`_next` 66청크 + webpack lazy 해시맵·`2248` 별도 규칙, `\uXXXX` 디코딩)으로 확정.
 - 🆕 **홈 시장 섹션 5종**: ~~PC(≥1024)만 미마운트~~ → **10-01 '어떤 상황에서도 노출'로 모든 폭**(창을 줄이거나 배율 150% 노트북=CSS 960px에서 사라지던 문제). 대신 섹션별 지연 마운트(`LazyMount`, 800px 앞). 순서는 stock.naver.com `app/page` 청크의 위젯 배치(랭킹→산업→리서치→테마 ETF→지표). 메뉴 페이지와 **같은 섹션 컴포넌트 공유**(`home` 모드).
 - 🆕 목표주가·투자의견은 **애널리스트 의견으로만** 표기(앱 신호 아님 명시), 원문은 `finance.naver.com/research/*_read.naver?nid=` 링크.
+- 🆕 **10-01 결정 묶음**: ① 실기기 확인 완료 ② **Pretendard 웹폰트 안 씀** — 실측(4G) 화면당 조각 11~19개·300~500KB, 페이지 용량 약 2배(홈 408→847KB)·폰트 교체 밀림 증가 → 기기 기본 한글 폰트 유지(원래 `@import`가 빌드에서 빠져 적용된 적 없었음) ③ **AI 브리핑 Gemini 하나만**(ChatGPT 코드 제거, 키 교체 안 함) ④ **홈 섹션에도 출처·신호 아님 문구**(완성도 축 9) ⑤ **미참조 컴포넌트 14개 삭제**.
 - 하단 3탭(09-29)·분석 2단계·매매일지 코인선물 전용·텔레그램 알림 범위·Supabase 서비스롤 Actions 등록·해외 TOP 수록 종목 기준·IA 판단 등 이전 결정은 유지(CHANGELOG 66~74차).
 - 크론 스냅샷=data 브랜치(+vercel.json) · KRX 재발급 보류 · "무조건 수익" 거절 → 산수 기반.
 
@@ -283,7 +284,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 - 🆕 ❌ 네이버 홈 '오늘아침 라이브' 영상 — 소스 없음. 🆕 ❌ 토론(커뮤니티) 버튼 — 앱에 커뮤니티 없음.
 - 🆕 ❌ 해외 지수 분봉·환율 차트 — 네이버 API 빈 배열/404 → 해외는 1개월 일봉, 환율은 frankfurter.
 - 🆕 ❌ 미국 테마 ETF 1주 수익률 · 코인 '인기' — 필드 없음 → 거래대금 대체(명시).
-- 🆕 ⏸ ChatGPT 요약 — OpenAI 크레딧 0. 트리거: 사용자 충전 시 자동.
+- ~~⏸ ChatGPT 요약~~ — 10-01 제거 결정.
 - 🆕 ⏸ Chrome 확장(claude-in-chrome) 연결이 오락가락 → 네트워크 수집 대신 번들 정적분석. 연결돼도 **탭이 백그라운드면** rAF·스크린샷 멈춤.
 
 ---
@@ -296,7 +297,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 | 네이버 스타일 홈 | `components/home/naver/NaverHome`(지수 레일·보드·브리핑·뉴스·사이드) |
 | 지수 레일 / 큰 차트(보드) | `IndexRail` / `IndexBoard` |
 | 접기 기능 | `Fold`(스프링 아코디언, 모바일만) |
-| AI 브리핑 탭 | 국내/해외/코인 × Gemini·ChatGPT(`HomeBriefing`, `/api/home/briefing`) |
+| AI 브리핑 탭 | 국내/해외/코인 × Gemini(`HomeBriefing`, `/api/home/briefing`) |
 | 시장 메뉴 5종 / 네이버 기능 | 산업 트렌드·실시간 랭킹·시장지표·테마 ETF·리서치(`components/naver/sections/*`, `/api/naver/*`) |
 | PC 홈 섹션 = 홈 시장 섹션 | `PcMarketSections`(이름만 PC, 모든 폭) |
 | 박스형 모달 | 섹션 안 카드 박스(`.fin-card`) — 정렬은 `nv-*` 클래스 |
