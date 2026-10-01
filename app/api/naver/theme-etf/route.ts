@@ -18,5 +18,5 @@ export async function GET(req: Request) {
   const theme = sp.get('theme') && themes.some((t) => t.code === sp.get('theme')) ? sp.get('theme')! : (themes.find((t) => t.code === DEFAULT_THEME[region])?.code ?? themes[0]?.code ?? '');
   const etfs = theme ? await themeEtfs(region, theme, 8) : [];
   return NextResponse.json({ region, theme, themes, etfs, sortedBy: region === 'kr' ? '1주 수익률' : '거래대금', asOf: new Date().toISOString() },
-    { headers: naverCache('theme-etf', themes.length === 0, 's-maxage=10, stale-while-revalidate=10') });
+    { headers: naverCache('theme-etf', themes.length === 0, 's-maxage=10') });
 }

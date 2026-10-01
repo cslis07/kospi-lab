@@ -21,5 +21,5 @@ export async function GET(req: Request) {
   ]);
   const prices = Object.fromEntries([...px.entries()].map(([k, v]) => [k, { price: v.price, change: v.change, changeRate: v.changeRate }]));
   return NextResponse.json({ direction, goal, prices, analyst: { ...ind, industry, reports }, asOf: new Date().toISOString() },
-    { headers: naverCache('research', goal.sets.length === 0 && ind.industries.length === 0, 's-maxage=15, stale-while-revalidate=15') });
+    { headers: naverCache('research', goal.sets.length === 0 && ind.industries.length === 0, 's-maxage=15') });
 }

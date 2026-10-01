@@ -16,5 +16,5 @@ export async function GET(req: Request) {
   const coin = sp.get('coin') === 'BITHUMB' ? 'BITHUMB' : 'UPBIT';
   const [kr, us, etf, crypto] = await Promise.all([rankKrStocks(tab), rankUsStocks(tab), rankKrEtfs(tab), rankCoins(tab, coin)]);
   return NextResponse.json({ tab, coin, kr, us, etf, crypto, asOf: new Date().toISOString() },
-    { headers: naverCache('ranking', !kr.length && !us.length && !etf.length && !crypto.length, 's-maxage=5, stale-while-revalidate=5') });
+    { headers: naverCache('ranking', !kr.length && !us.length && !etf.length && !crypto.length, 's-maxage=5') });
 }

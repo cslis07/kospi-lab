@@ -14,5 +14,5 @@ export async function GET(req: Request) {
   const size = Math.min(20, Math.max(3, Number(sp.get('size')) || 3));
   const cards = await industryTrend(market, cat, period, size);
   return NextResponse.json({ market, cat, period, cards, asOf: new Date().toISOString() },
-    { headers: naverCache('industry', cards.length === 0, 's-maxage=10, stale-while-revalidate=10') });
+    { headers: naverCache('industry', cards.length === 0, 's-maxage=10') });
 }

@@ -8,5 +8,5 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const items = await marketIndicators();
   return NextResponse.json({ items, asOf: new Date().toISOString() },
-    { headers: naverCache('indicators', items.length === 0, 's-maxage=5, stale-while-revalidate=5') });
+    { headers: naverCache('indicators', items.length === 0, 's-maxage=5') });
 }
