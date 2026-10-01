@@ -84,10 +84,10 @@ const G = (key: string, label: string, color: string, qc: string, navIcon: strin
 
 export const MENU: MenuGroup[] = [
   // 홈 = 대시보드 단독(항목 1개 → 서브탭 없이 바로 진입). 오늘의 리스크는 삭제, 뉴스·매매 대원칙은 '더보기 도구'(EXTRAS)로 이동.
-  // 경제 캘린더(/calendar)는 홈 '주요 이벤트' 클릭으로 진입(tabExtra로 홈 탭 강조).
+  // 경제 캘린더(/calendar)는 '더보기 도구'(EXTRAS) — 진입점이던 홈 '주요 이벤트' 위젯이 09-30 홈 개편으로 빠져 길이 끊겼었다(10-01).
   G('home', '홈', 'c-blue', 'qc-blue', 'home', [
     { href: '/', icon: 'home', label: '대시보드', desc: '시장 요약·관심·이벤트' },
-  ], ['/calendar']),
+  ]),
   G('market', '시장', 'c-violet', 'qc-violet', 'domestic', [
     { href: '/domestic', icon: 'domestic', label: '국내', desc: 'KOSPI·KOSDAQ·등락 랭킹', alias: ['/krx'] },
     { href: '/overseas', icon: 'overseas', label: '해외', desc: '미국 등 글로벌' },
@@ -119,6 +119,7 @@ export const EXTRAS: MenuItem[] = [
   { href: '/journal',    icon: 'journal',    label: '매매일지',    desc: '거래소 대조·기분·손익 분해·CSV' },
   { href: '/alerts',     icon: 'bell',       label: '가격 알림',   desc: '흩어진 알림 한 화면 관리' },
   { href: '/news',       icon: 'news',       label: '뉴스',        desc: '시장 소식' },
+  { href: '/calendar',   icon: 'calendar',   label: '경제 캘린더', desc: 'FOMC·CPI·실적 등 주요 일정' },
   { href: '/principles', icon: 'principles', label: '매매 대원칙', desc: '지킬 3·피할 3' },
   { href: '/virtual',   icon: 'virtual',   label: '가상투자',    desc: '모의매매·백업' },
   { href: '/invest',    icon: 'invest',    label: '투자설계',    desc: '계좌·자산 추천' },
@@ -153,8 +154,6 @@ export function drillTitle(pathname: string): string {
   if (under(pathname, '/stock-analysis')) return '종목 분석';
   if (under(pathname, '/overseas-analysis')) return '해외 분석';
   if (under(pathname, '/coin-analysis')) return '코인선물 분석';
-  // 홈 '주요 이벤트' 클릭으로 진입(메뉴에서 숨김)
-  if (under(pathname, '/calendar')) return '경제 캘린더';
   return EXTRAS.find((e) => under(pathname, e.href))?.label ?? 'KOSPI LAB';
 }
 
