@@ -7,11 +7,11 @@
  */
 import { useState } from 'react';
 import useSWR from 'swr';
-import { fetcher, colorOf, signPct, Badge, Change, Seg, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, StockLink, fmtUsd, MoreLink } from '@/components/naver/ui';
+import { fetcher, colorOf, signPct, Badge, Change, Seg, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, StockLink, fmtUsd, MoreLink, Flash } from '@/components/naver/ui';
 
 interface TrendStock { code: string; name: string; logo?: string; price: number; change: number; changeRate: number }
 interface TrendCard { rank: number; code: string; name: string; changeRate: number; rising: number; flat: number; falling: number; stocks: TrendStock[] }
-interface Resp { market: 'kr' | 'us'; cat: string; period: string; cards: TrendCard[] }
+interface Resp { market: 'kr' | 'us'; cat: string; period: string; cards: TrendCard[]; asOf?: string }
 
 type Market = 'kr' | 'us';
 type Cat = 'industries' | 'themes';
@@ -54,7 +54,7 @@ function Card({ c, market }: { c: TrendCard; market: Market }) {
           </StockLink>
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <div className="tabular-nums" style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
-              {s.price ? (market === 'us' ? fmtUsd(s.price) : s.price.toLocaleString()) : '—'}
+              {s.price ? <Flash value={s.price}>{market === 'us' ? fmtUsd(s.price) : s.price.toLocaleString()}</Flash> : '—'}
             </div>
             <Change change={s.price ? s.change : undefined} rate={s.changeRate} currency={market === 'us' ? 'USD' : 'KRW'} small />
           </div>
@@ -70,12 +70,12 @@ export default function IndustrySection({ home = false }: { home?: boolean }) {
   const [period, setPeriod] = useState<Period>('daily');
   const [size, setSize] = useState(home ? 3 : 6);
   const key = `/api/naver/industry?market=${market}&cat=${cat}&period=${period}&size=${size}`;
-  const { data, error, isLoading } = useSWR<Resp>(key, fetcher, { refreshInterval: 60000, keepPreviousData: true });
+  const { data, error, isLoading } = useSWR<Resp>(key, fetcher, { refreshInterval: 15000, keepPreviousData: true });
   const cards = data?.cards ?? [];
 
   return (
     <div>
-      <SectionTitle big={home} title="산업 트렌드" sub={market === 'kr' ? '국내 업종·테마 등락률 순위' : '미국 섹터 등락률 순위'}
+      <SectionTitle big={home} title="산업 트렌드" live={data?.asOf ?? ''} every={15} sub={market === 'kr' ? '국내 업종·테마 등락률 순위' : '미국 섹터 등락률 순위'}
         right={<>
           <Seg<Period> value={period} onChange={setPeriod} options={[['daily', '일간'], ['weekly', '주간'], ['monthly', '월간']]} />
           {home && <MoreLink href="/industry" />}

@@ -10,13 +10,16 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { fetcher, colorOf, signPct, SectionTitle, SourceNote, Empty, fmtCount, MoreLink } from '@/components/naver/ui';
+import { fetcher, colorOf, signPct, SectionTitle, SourceNote, Empty, fmtCount, MoreLink, Flash, Change } from '@/components/naver/ui';
 
 interface Res { nid: string; title: string; writeDate: string; goalPrice: number; priceAtWriteDate: number; opinion: string; opinionType: string }
 interface GoalSet { itemCode: string; itemName: string; brokerName: string; goalPriceDiff: number; goalPriceDiffRate: number; latest: Res; prev: Res | null }
 interface Report { nid: string; title: string; brokerName: string; analystName: string; writeDate: string; readCount: number; url: string }
+interface Px { price: number; change: number; changeRate: number }
 interface Resp {
   direction: 'up' | 'down';
+  prices?: Record<string, Px>;
+  asOf?: string;
   goal: { writeDate: string; sets: GoalSet[] };
   analyst: { baseDate: string; industry: string; industries: { industry: string; name: string; count: number }[]; reports: Report[] };
 }
@@ -50,13 +53,22 @@ function ResBox({ r, first }: { r: Res; first: boolean }) {
   );
 }
 
-function GoalCard({ s, today }: { s: GoalSet; today: string }) {
+function GoalCard({ s, today, px }: { s: GoalSet; today: string; px?: Px }) {
   const rows = [s.latest, s.prev].filter(Boolean) as Res[];
   return (
     <div className="fin-card" style={{ padding: 18, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-      <Link prefetch={false} href={`/stock/${s.itemCode}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-        <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em' }}>{s.itemName}</span>
-        <span style={{ fontSize: 11.5, color: 'var(--faint)' }}>{s.itemCode}</span>
+      <Link prefetch={false} href={`/stock/${s.itemCode}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, textDecoration: 'none' }}>
+        <span style={{ minWidth: 0 }}>
+          <span style={{ display: 'block', fontSize: 16, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em' }}>{s.itemName}</span>
+          <span style={{ fontSize: 11.5, color: 'var(--faint)' }}>{s.itemCode}</span>
+        </span>
+        {/* 현재가는 실시간(리포트·목표가는 하루 몇 번 바뀜) — 네이버 카드처럼 오른쪽 위 */}
+        <span style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
+          <span className="tabular-nums" style={{ display: 'block', fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>
+            {px?.price ? <Flash value={px.price}>{px.price.toLocaleString()}원</Flash> : '—'}
+          </span>
+          {px?.price ? <Change rate={px.changeRate} small /> : null}
+        </span>
       </Link>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12, flex: 1 }}>
         {rows.map((r, i) => (
@@ -85,7 +97,7 @@ function GoalCard({ s, today }: { s: GoalSet; today: string }) {
 export default function ResearchSection({ home = false }: { home?: boolean }) {
   const [direction, setDirection] = useState<'up' | 'down'>('up');
   const [industry, setIndustry] = useState<string>('');
-  const { data, error, isLoading } = useSWR<Resp>(`/api/naver/research?direction=${direction}${industry ? `&industry=${industry}` : ''}`, fetcher, { keepPreviousData: true });
+  const { data, error, isLoading } = useSWR<Resp>(`/api/naver/research?direction=${direction}${industry ? `&industry=${industry}` : ''}`, fetcher, { refreshInterval: 30000, keepPreviousData: true });
   const a = data?.analyst;
   const sel = industry || a?.industry || '';
   const today = todayKst();
@@ -123,7 +135,7 @@ export default function ResearchSection({ home = false }: { home?: boolean }) {
 
   const goal = (
     <section className="nv-rs-col">
-      <SectionTitle big={home} title="목표주가 변화가 큰 종목 리서치" sub={!home && data?.goal.writeDate ? `${data.goal.writeDate} 기준` : undefined}
+      <SectionTitle big={home} title="목표주가 변화가 큰 종목 리서치" live={data?.asOf ?? ''} every={30} sub={!home && data?.goal.writeDate ? `${data.goal.writeDate} 기준` : undefined}
         right={home ? <MoreLink href="/research" /> : undefined} />
       {/* 네이버 배치처럼 제목 아래 칩 줄 — 왼쪽(산업 칩)과 같은 높이에서 박스가 시작된다 */}
       <div className="nv-chips" style={{ marginBottom: 12 }}>
@@ -134,7 +146,7 @@ export default function ResearchSection({ home = false }: { home?: boolean }) {
       {error ? <div className="fin-card"><Empty /></div> : (
         <div className="nv-rs-cards nv-fill">
           {(isLoading && !data ? Array.from({ length: 2 }) : sets).map((s, i) =>
-            s ? <GoalCard key={`${(s as GoalSet).itemCode}-${(s as GoalSet).brokerName}`} s={s as GoalSet} today={today} /> : <div key={i} className="skeleton" style={{ height: 320, borderRadius: 'var(--r)' }} />)}
+            s ? <GoalCard key={`${(s as GoalSet).itemCode}-${(s as GoalSet).brokerName}`} s={s as GoalSet} today={today} px={data?.prices?.[(s as GoalSet).itemCode]} /> : <div key={i} className="skeleton" style={{ height: 320, borderRadius: 'var(--r)' }} />)}
         </div>
       )}
       {data && data.goal.sets.length === 0 && <div className="fin-card"><Empty text={`오늘 목표주가 ${direction === 'up' ? '상향' : '하향'} 리포트가 없습니다.`} /></div>}

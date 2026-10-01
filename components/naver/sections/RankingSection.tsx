@@ -7,11 +7,11 @@
  */
 import { useState } from 'react';
 import useSWR from 'swr';
-import { fetcher, colorOf, Change, Seg, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, StockLink, fmtKrw, fmtUsdBig, fmtCount, fmtUsd, MoreLink } from '@/components/naver/ui';
+import { fetcher, colorOf, Change, Seg, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, StockLink, Flash, fmtKrw, fmtUsdBig, fmtCount, fmtUsd, MoreLink } from '@/components/naver/ui';
 
 type Tab = 'value' | 'popular' | 'up' | 'down' | 'cap' | 'volume';
 interface Row { code: string; name: string; price: number; change: number; changeRate: number; metric: number; metricLabel: string; href?: string }
-interface Resp { tab: Tab; coin: 'UPBIT' | 'BITHUMB'; kr: Row[]; us: Row[]; etf: Row[]; crypto: Row[] }
+interface Resp { tab: Tab; coin: 'UPBIT' | 'BITHUMB'; kr: Row[]; us: Row[]; etf: Row[]; crypto: Row[]; asOf?: string }
 
 const TABS: [Tab, string][] = [['value', '거래대금 상위'], ['popular', '인기 종목'], ['up', '상승'], ['down', '하락'], ['cap', '시가총액'], ['volume', '거래량 상위']];
 
@@ -43,7 +43,7 @@ function Column({ title, sub, rows, kind, right }: { title: string; sub?: string
           </StockLink>
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <div className="tabular-nums" style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>
-              {kind === 'usd' ? fmtUsd(r.price) : r.price >= 100 ? Math.round(r.price).toLocaleString() : r.price.toLocaleString()}
+              <Flash value={r.price}>{kind === 'usd' ? fmtUsd(r.price) : r.price >= 100 ? Math.round(r.price).toLocaleString() : r.price.toLocaleString()}</Flash>
             </div>
             <Change change={r.change} rate={r.changeRate} currency={kind === 'usd' ? 'USD' : 'KRW'} small />
           </div>
@@ -56,11 +56,11 @@ function Column({ title, sub, rows, kind, right }: { title: string; sub?: string
 export default function RankingSection({ home = false }: { home?: boolean }) {
   const [tab, setTab] = useState<Tab>('value');
   const [coin, setCoin] = useState<'UPBIT' | 'BITHUMB'>('UPBIT');
-  const { data, error } = useSWR<Resp>(`/api/naver/ranking?tab=${tab}&coin=${coin}`, fetcher, { refreshInterval: 20000, keepPreviousData: true });
+  const { data, error } = useSWR<Resp>(`/api/naver/ranking?tab=${tab}&coin=${coin}`, fetcher, { refreshInterval: 10000, keepPreviousData: true });
 
   return (
     <div>
-      <SectionTitle big={home} title="실시간 랭킹" sub="20초마다 갱신" right={home ? <MoreLink href="/ranking" /> : undefined} />
+      <SectionTitle big={home} title="실시간 랭킹" live={data?.asOf ?? ''} every={10} sub={home ? undefined : '10초마다 갱신'} right={home ? <MoreLink href="/ranking" /> : undefined} />
       <div className="nv-chips" style={{ marginBottom: 14 }}>
         {TABS.map(([k, l]) => <button key={k} type="button" className={`chip ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>)}
       </div>

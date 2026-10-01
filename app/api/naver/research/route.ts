@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { goalPriceChanged, analystIndustries, industryReports, naverCache } from '@/lib/naverStock';
+import { goalPriceChanged, analystIndustries, industryReports, krPrices, naverCache } from '@/lib/naverStock';
 
 /**
  * 리서치 — 두 위젯을 한 번에.
@@ -14,7 +14,12 @@ export async function GET(req: Request) {
   const direction = sp.get('direction') === 'down' ? 'down' : 'up';
   const [goal, ind] = await Promise.all([goalPriceChanged(direction, 10), analystIndustries(7, 6)]);
   const industry = sp.get('industry') || ind.industries[0]?.industry || '';
-  const reports = industry ? await industryReports(industry, 8) : [];
-  return NextResponse.json({ direction, goal, analyst: { ...ind, industry, reports }, asOf: new Date().toISOString() },
-    { headers: naverCache('research', goal.sets.length === 0 && ind.industries.length === 0, 's-maxage=600, stale-while-revalidate=86400') });
+  // 리포트·목표주가는 하루 몇 번 바뀜(서버 10~15분 캐시) — 카드의 현재가만 실시간으로 따로 붙인다
+  const [reports, px] = await Promise.all([
+    industry ? industryReports(industry, 8) : Promise.resolve([]),
+    krPrices(goal.sets.map((x) => x.itemCode)),
+  ]);
+  const prices = Object.fromEntries([...px.entries()].map(([k, v]) => [k, { price: v.price, change: v.change, changeRate: v.changeRate }]));
+  return NextResponse.json({ direction, goal, prices, analyst: { ...ind, industry, reports }, asOf: new Date().toISOString() },
+    { headers: naverCache('research', goal.sets.length === 0 && ind.industries.length === 0, 's-maxage=15, stale-while-revalidate=15') });
 }

@@ -246,6 +246,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 ## 11. ⛔ 하지 말 것
 - **시크릿 하드코딩 폴백 금지**(public 저장소, KRX 키가 이렇게 유출됨) · 🆕 **키 값을 로그·응답·커밋에 금지** — 커밋 전 `git diff --cached | grep -cE '<키 접두>'` 0 확인.
 - **`vercel env pull` 절대 금지**(로컬 전용 키 삭제). `vercel env add`만(stdin).
+- 🆕 **시장 섹션 시세 호출에 데이터 캐시(`nget` revalidate>0)·긴 CDN swr을 다시 걸지 말 것** — '실시간' 요구(10/01). 시세는 `LIVE`(no-store)+CDN 5~15초, 화면 10~30초 폴링. 리포트·테마 목록만 길게.
 - 🆕 **화면 폭 JS 판별(`useMediaQuery`)로 레이아웃을 바꾸지 말 것** — 정적 HTML은 폭을 모른다. 차이는 CSS 미디어쿼리, 훅은 동작용·초기값 모바일 기준(`ssrDefault`).
 - 🆕 **`useSearchParams`를 화면 본문 컴포넌트에 쓰지 말 것** — 정적 HTML에서 통째로 빠지고 Suspense 대체 화면만 나가 JS 후 밀린다. 강조 표시 정도면 마운트 후 `location.search`.
 - 🆕 **Recharts는 `next/dynamic`으로만** — 차트 파일에서 상수 하나만 import해도 라이브러리가 페이지 번들에 딸려 온다(`components/detail/chartLayout.ts`에 둘 것). 동적 상세로 가는 목록 링크는 `prefetch={false}`.

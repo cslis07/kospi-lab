@@ -986,6 +986,13 @@ a.fin-row:active { background: var(--surface-2); }
 .idx-live i { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); }
 .idx-live.on { color: var(--ok); }
 .idx-live.on i { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+/* 시장 섹션 실시간 표시 — 장중 점 맥박, 값 변경 시 반짝임(오름=빨강·내림=파랑, 한국 관행) */
+.nv-head .idx-live.on i { animation: nv-pulse 1.6s ease-in-out infinite; }
+@keyframes nv-pulse { 0%, 100% { box-shadow: 0 0 0 2px var(--ok-soft); } 50% { box-shadow: 0 0 0 5px transparent; } }
+.nv-flash { border-radius: 4px; transition: background-color .9s ease-out; }
+.nv-flash-up { background-color: color-mix(in srgb, var(--warn) 22%, transparent); transition: none; }
+.nv-flash-down { background-color: color-mix(in srgb, var(--accent) 22%, transparent); transition: none; }
+@media (prefers-reduced-motion: reduce) { .nv-head .idx-live.on i { animation: none; } }
 
 /* ══════════════════════════════════════════════════════════════
    네이버 시장 섹션(홈 PC · 메뉴 페이지 공용) — 박스 크기·간격·정렬 통일.

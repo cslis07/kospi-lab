@@ -8,11 +8,11 @@
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { fetcher, colorOf, signPct, Seg, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, fmtUsd, MoreLink } from '@/components/naver/ui';
+import { fetcher, colorOf, signPct, Seg, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, fmtUsd, MoreLink, Flash } from '@/components/naver/ui';
 
 interface Theme { code: string; name: string; large: string; count: number; return1d?: number; return3m?: number }
 interface Etf { code: string; name: string; price: number; change: number; changeRate: number; return1w?: number; return1m?: number; type: string; currency: 'KRW' | 'USD' }
-interface Resp { region: 'kr' | 'us'; theme: string; themes: Theme[]; etfs: Etf[]; sortedBy: string }
+interface Resp { region: 'kr' | 'us'; theme: string; themes: Theme[]; etfs: Etf[]; sortedBy: string; asOf?: string }
 
 function EtfCard({ e, rank }: { e: Etf; rank: number }) {
   const usd = e.currency === 'USD';
@@ -26,7 +26,7 @@ function EtfCard({ e, rank }: { e: Etf; rank: number }) {
       <div style={{ marginTop: 'auto', paddingTop: 4 }}>
         <div style={{ fontSize: 11, color: 'var(--faint)' }}>현재가</div>
         <div className="tabular-nums" style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>
-          {usd ? fmtUsd(e.price) : `${e.price.toLocaleString()}원`}{' '}
+          <Flash value={e.price}>{usd ? fmtUsd(e.price) : `${e.price.toLocaleString()}원`}</Flash>{' '}
           <span style={{ fontSize: 12.5, color: colorOf(e.changeRate) }}>({signPct(e.changeRate)})</span>
         </div>
       </div>
@@ -44,7 +44,7 @@ export default function ThemeEtfSection({ home = false }: { home?: boolean }) {
   const [region, setRegion] = useState<'kr' | 'us'>('kr');
   const [theme, setTheme] = useState('');
   const [large, setLarge] = useState('');
-  const { data, error, isLoading } = useSWR<Resp>(`/api/naver/theme-etf?region=${region}${theme ? `&theme=${theme}` : ''}`, fetcher, { keepPreviousData: true });
+  const { data, error, isLoading } = useSWR<Resp>(`/api/naver/theme-etf?region=${region}${theme ? `&theme=${theme}` : ''}`, fetcher, { refreshInterval: 15000, keepPreviousData: true });
 
   const larges = useMemo(() => [...new Set((data?.themes ?? []).map((t) => t.large))], [data?.themes]);
   const curLarge = large || data?.themes.find((t) => t.code === data.theme)?.large || larges[0] || '';
@@ -54,7 +54,7 @@ export default function ThemeEtfSection({ home = false }: { home?: boolean }) {
 
   return (
     <div>
-      <SectionTitle big={home} title="주목할 만한 테마 ETF" sub={data ? `${data.sortedBy} 순` : undefined}
+      <SectionTitle big={home} title="주목할 만한 테마 ETF" live={data?.asOf ?? ''} every={15} sub={data ? `${data.sortedBy} 순` : undefined}
         right={<>
           <Seg<'kr' | 'us'> value={region} onChange={(v) => { setRegion(v); setTheme(''); setLarge(''); }} options={[['kr', '국내'], ['us', '미국']]} />
           {home && <MoreLink href="/theme-etf" />}

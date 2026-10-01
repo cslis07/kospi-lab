@@ -6,7 +6,7 @@
  * 값 30초 갱신, 미니차트 = 최근 30거래일 종가. 상태: 실시간 / N분 지연 / 장마감.
  */
 import useSWR from 'swr';
-import { fetcher, colorOf, arrowOf, MiniLine, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, MoreLink } from '@/components/naver/ui';
+import { fetcher, colorOf, arrowOf, MiniLine, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, MoreLink, Flash } from '@/components/naver/ui';
 
 interface Q { code: string; name: string; cat: string; unit?: string; price: number; change: number; changeRate: number; status: string; spark: number[] }
 
@@ -30,7 +30,7 @@ function Card({ q, compact }: { q: Q; compact?: boolean }) {
         <span className={`idx-live${live ? ' on' : ''}`} style={{ marginLeft: 'auto' }}><i />{q.status}</span>
       </div>
       <div className="tabular-nums" style={{ fontFamily: 'var(--font-display)', fontSize: compact ? 18 : 20, fontWeight: 600, color: 'var(--ink)', marginTop: 6 }}>
-        {q.price ? fmt(q, q.price) : '—'}
+        {q.price ? <Flash value={q.price}>{fmt(q, q.price)}</Flash> : '—'}
         {q.unit === '%' && q.price ? <span style={{ fontSize: 12, marginLeft: 2 }}>%</span> : null}
       </div>
       <div className="tabular-nums" style={{ fontSize: 11.5, fontWeight: 700, color: colorOf(q.changeRate), marginTop: 1, whiteSpace: 'nowrap' }}>
@@ -42,7 +42,7 @@ function Card({ q, compact }: { q: Q; compact?: boolean }) {
 }
 
 export default function IndicatorsSection({ home = false }: { home?: boolean }) {
-  const { data, error } = useSWR<{ items: Q[] }>('/api/naver/indicators', fetcher, { refreshInterval: 30000, keepPreviousData: true });
+  const { data, error } = useSWR<{ items: Q[]; asOf?: string }>('/api/naver/indicators', fetcher, { refreshInterval: 10000, keepPreviousData: true });
   const by = new Map((data?.items ?? []).map((q) => [q.code, q]));
   // 응답이 왔는데 이 지표만 없으면(코드 변경 등) 스켈레톤을 끝없이 돌리지 않고 '없음' 카드로
   const slot = (c: string) => {
@@ -54,7 +54,7 @@ export default function IndicatorsSection({ home = false }: { home?: boolean }) 
 
   return (
     <div>
-      <SectionTitle big={home} title="환율 · 시장지표" sub={home ? undefined : '30초마다 갱신 · 미니차트 최근 30거래일'} right={home ? <MoreLink href="/indicators" /> : undefined} />
+      <SectionTitle big={home} title="환율 · 시장지표" live={data?.asOf ?? ''} every={10} sub={home ? undefined : '10초마다 갱신 · 미니차트 최근 30거래일'} right={home ? <MoreLink href="/indicators" /> : undefined} />
       {error ? <div className="fin-card"><Empty /></div> : data && !data.items.length ? <div className="fin-card"><Empty text={EMPTY_SOURCE} /></div> : home ? (
         <div className="nv-ind-home">{HOME_ORDER.map(slot)}</div>
       ) : GROUPS.map(([g, codes]) => (

@@ -20,9 +20,17 @@ const HEADERS = {
   Accept: 'application/json',
 };
 
+/**
+ * 시세성(가격·랭킹·지표) 호출 = LIVE(0) → 서버 데이터 캐시를 쓰지 않는다.
+ * Next 데이터 캐시는 만료 후에도 직전 값을 먼저 주고 뒤에서 갱신하므로, 몇 초짜리 revalidate 라도 한 주기씩 늦어진다.
+ * 동시 요청 합치기는 라우트의 짧은 CDN 캐시(5~15초)가 맡는다. 리포트·테마 목록처럼 하루에 몇 번 바뀌는 것만 revalidate.
+ */
+export const LIVE = 0;
+
 export async function nget<T = unknown>(path: string, revalidate = 60, timeoutMs = 9000): Promise<T | null> {
   try {
-    const res = await fetch(BASE + path, { headers: HEADERS, next: { revalidate }, signal: AbortSignal.timeout(timeoutMs) });
+    const cacheOpt = revalidate === LIVE ? { cache: 'no-store' as const } : { next: { revalidate } };
+    const res = await fetch(BASE + path, { headers: HEADERS, ...cacheOpt, signal: AbortSignal.timeout(timeoutMs) });
     if (!res.ok) { console.warn(`[naver] ${res.status} ${path.split('?')[0]}`); return null; }
     return (await res.json()) as T;
   } catch (e) {
@@ -70,7 +78,7 @@ export async function krPrices(codes: string[]): Promise<Map<string, { name: str
   if (!codes.length) return m;
   const q = codes.map((c) => `itemCodes=${encodeURIComponent(c)}`).join('&');
   const rows = await nget<{ itemCode: string; itemName: string; krx?: { currentPrice: string; changePrice: string; changeRate: string } }[]>(
-    `/stockSecurity/items/v2/domestic/prices?${q}&recurring=false`, 20);
+    `/stockSecurity/items/v2/domestic/prices?${q}&recurring=false`, LIVE);
   for (const r of rows ?? []) if (r.krx) m.set(r.itemCode, { name: r.itemName, price: n(r.krx.currentPrice), change: n(r.krx.changePrice), changeRate: r2(n(r.krx.changeRate)) });
   return m;
 }
@@ -81,7 +89,7 @@ export async function usPrices(codes: string[]): Promise<Map<string, { price: nu
   if (!codes.length) return m;
   const q = codes.map((c) => `itemCodes=${encodeURIComponent(c)}`).join('&');
   const obj = await nget<Record<string, { currentPrice: string; changePrice: string; changeRate: string; symbolCode?: string }>>(
-    `/stockSecurity/items/v1/foreign/prices?${q}`, 20);
+    `/stockSecurity/items/v1/foreign/prices?${q}`, LIVE);
   for (const [k, v] of Object.entries(obj ?? {})) m.set(k, { price: n(v.currentPrice), change: n(v.changePrice), changeRate: r2(n(v.changeRate)), symbol: v.symbolCode ?? k });
   return m;
 }
@@ -90,7 +98,7 @@ export async function industryTrend(market: 'kr' | 'us', category: 'industries' 
   const path = market === 'kr'
     ? `/stockSecurity/rankings/v2/domestic/${category}?${qs({ sortType: 'changeRate', size, period })}`
     : `/stockSecurity/rankings/v2/foreign/USA/sectors?${qs({ sortType: 'changeRate', size, period })}`;
-  const raw = await nget<{ items?: RawTrend[] }>(path, 60);
+  const raw = await nget<{ items?: RawTrend[] }>(path, LIVE);
   const items = raw?.items ?? [];
   const codes = [...new Set(items.flatMap((it) => (it.topByChangeRate ?? []).map((s) => s.code)))];
   const prices = market === 'kr' ? await krPrices(codes) : await usPrices(codes);
@@ -181,7 +189,7 @@ export interface IndicatorQuote {
 export async function marketIndicators(): Promise<IndicatorQuote[]> {
   const codes = INDICATORS.map((x) => x.code).join(',');
   const live = await nget<Record<string, string | number | null>[]>(
-    `/securityService/integration/indicators?indicatorCodes=${encodeURIComponent(codes)}`, 30);
+    `/securityService/integration/indicators?indicatorCodes=${encodeURIComponent(codes)}`, LIVE);
   const byCode = new Map((live ?? []).map((x) => [String(x.reutersCode), x]));
   // 미니차트 — 일별 종가 최근 30개(10분 캐시)
   const hist = await Promise.all(INDICATORS.map((d) =>
@@ -218,7 +226,7 @@ export async function themeEtfs(region: 'kr' | 'us', themeCode: string, size = 8
   if (region === 'kr') {
     // 국내: 테마(중분류) ETF → 1주 수익률 내림차순
     const d = await nget<Record<string, string>[]>(
-      `/domestic/market/home/notableETF?${qs({ middleCodeList: themeCode, orderType: 'up_etf', startIdx: 0, pageSize: 40 })}`, 300);
+      `/domestic/market/home/notableETF?${qs({ middleCodeList: themeCode, orderType: 'up_etf', startIdx: 0, pageSize: 40 })}`, LIVE);
     return (d ?? []).map((x) => ({
       code: x.itemcode, name: x.itemname, price: n(x.nowPrice), change: n(x.prevChangePrice), changeRate: r2(n(x.prevChangeRate)),
       return1w: r2(n(x.oneWeekEarnRate)), return1m: r2(n(x.oneMonthEarnRate)), type: x.etfType ?? '', currency: 'KRW' as const,
@@ -226,7 +234,7 @@ export async function themeEtfs(region: 'kr' | 'us', themeCode: string, size = 8
   }
   // 미국: 1주 수익률 필드가 없어 거래대금 순(정직하게 '거래대금 상위'로 표기)
   const d = await nget<{ items?: Record<string, string>[] }>(
-    `/stockSecurity/etfs/v2/foreign?${qs({ nationType: 'USA', middleCategoryCode: themeCode, sortType: 'tradingValue', sortDirection: 'desc', index: 0, size })}`, 300);
+    `/stockSecurity/etfs/v2/foreign?${qs({ nationType: 'USA', middleCategoryCode: themeCode, sortType: 'tradingValue', sortDirection: 'desc', index: 0, size })}`, LIVE);
   return (d?.items ?? []).map((x) => ({
     code: x.symbolCode ?? x.itemCode, name: x.itemName, price: n(x.currentPrice), change: n(x.changePrice), changeRate: r2(n(x.changeRate)),
     type: x.exchangeName ?? '', currency: 'USD' as const,
@@ -255,14 +263,14 @@ type KrRow = { itemCode: string; itemName: string; currentPrice: string; changeP
 export async function rankKrStocks(tab: RankTab, size = 10): Promise<RankRow[]> {
   if (tab === 'popular') {
     const d = await nget<{ items?: { itemCode: string; hitCount: string; price?: { itemName: string; krx?: Record<string, string> } }[] }>(
-      `/stockSecurity/aggregate/domesticStock?${qs({ type: 'popular', exchangeType: 'KRX', size })}`, 30);
+      `/stockSecurity/aggregate/domesticStock?${qs({ type: 'popular', exchangeType: 'KRX', size })}`, LIVE);
     return (d?.items ?? []).map((x) => ({
       code: x.itemCode, name: x.price?.itemName ?? x.itemCode, price: n(x.price?.krx?.currentPrice), change: n(x.price?.krx?.changePrice),
       changeRate: r2(n(x.price?.krx?.changeRate)), metric: n(x.hitCount), metricLabel: '조회', href: `/stock/${x.itemCode}`,
     }));
   }
   const d = await nget<{ items?: KrRow[] }>(
-    `/stockSecurity/aggregate/domesticStock?${qs({ type: 'listing', exchangeType: 'KRX', size, index: 0, listingType: KR_LISTING[tab] })}`, 30);
+    `/stockSecurity/aggregate/domesticStock?${qs({ type: 'listing', exchangeType: 'KRX', size, index: 0, listingType: KR_LISTING[tab] })}`, LIVE);
   return (d?.items ?? []).map((x) => ({
     code: x.itemCode, name: x.itemName, price: n(x.currentPrice), change: n(x.changePrice), changeRate: r2(n(x.changeRate)),
     metric: tab === 'cap' ? n(x.marketCap) : tab === 'volume' ? n(x.tradingVolume) : n(x.tradingValue), metricLabel: metricOf(tab), href: `/stock/${x.itemCode}`,
@@ -274,7 +282,7 @@ type UsRow = { symbolCode: string; reutersCode: string; itemName: string; curren
 export async function rankUsStocks(tab: RankTab, size = 10): Promise<RankRow[]> {
   if (tab === 'popular') {
     const d = await nget<{ items?: { itemCode: string; hitCount: string; price?: Record<string, string> }[] }>(
-      `/stockSecurity/aggregate/foreignStock?${qs({ type: 'popular', nationType: 'USA', size })}`, 30);
+      `/stockSecurity/aggregate/foreignStock?${qs({ type: 'popular', nationType: 'USA', size })}`, LIVE);
     return (d?.items ?? []).map((x) => {
       const sym = x.price?.symbolCode ?? x.itemCode.split('.')[0];
       return {
@@ -285,7 +293,7 @@ export async function rankUsStocks(tab: RankTab, size = 10): Promise<RankRow[]> 
   }
   const [sortType, sortDirection] = US_SORT[tab];
   const d = await nget<{ items?: UsRow[] }>(
-    `/stockSecurity/aggregate/foreignStock?${qs({ type: 'listing', nationType: 'USA', size, index: 0, sortType, sortDirection })}`, 30);
+    `/stockSecurity/aggregate/foreignStock?${qs({ type: 'listing', nationType: 'USA', size, index: 0, sortType, sortDirection })}`, LIVE);
   return (d?.items ?? []).map((x) => ({
     code: x.symbolCode, name: x.itemName, price: n(x.currentPrice), change: n(x.changePrice), changeRate: r2(n(x.changeRate)),
     metric: tab === 'cap' ? n(x.marketCap) : tab === 'volume' ? n(x.tradingVolume) : n(x.tradingValue), metricLabel: metricOf(tab),
@@ -299,7 +307,7 @@ export async function rankKrEtfs(tab: RankTab, size = 10): Promise<RankRow[]> {
   if (tab === 'popular') {
     // 인기 ETF 랭킹은 코드·조회수만 준다 → 이름·현재가는 일괄 시세로 보강
     const d = await nget<{ items?: { itemCode: string; hitCount: string }[] }>(
-      `/stockSecurity/rankings/v2/domestic/popular-etf?${qs({ size })}`, 60);
+      `/stockSecurity/rankings/v2/domestic/popular-etf?${qs({ size })}`, LIVE);
     const items = d?.items ?? [];
     const px = await krPrices(items.map((x) => x.itemCode));
     return items.map((x) => {
@@ -311,7 +319,7 @@ export async function rankKrEtfs(tab: RankTab, size = 10): Promise<RankRow[]> {
     });
   }
   const d = await nget<{ items?: EtfRow[] }>(
-    `/stockSecurity/etfs/v2/domestic?${qs({ listingType: ETF_LISTING[tab], index: 0, size })}`, 30);
+    `/stockSecurity/etfs/v2/domestic?${qs({ listingType: ETF_LISTING[tab], index: 0, size })}`, LIVE);
   return (d?.items ?? []).map((x) => ({
     code: x.itemCode, name: x.itemName, price: n(x.currentPrice), change: n(x.changePrice), changeRate: r2(n(x.changeRate)),
     metric: tab === 'cap' ? n(x.totalNetAssets) : tab === 'volume' ? n(x.tradingVolume) : n(x.tradingValue),
@@ -322,7 +330,7 @@ export async function rankKrEtfs(tab: RankTab, size = 10): Promise<RankRow[]> {
 type CoinRow = { nfTicker: string; krName: string; tradePrice: number; changeRate: number; changeValue: number; marketCap: number; accumulatedTradingValue: number; accumulatedTradingVolume: number };
 
 export async function rankCoins(tab: RankTab, exchange: 'UPBIT' | 'BITHUMB', size = 10): Promise<RankRow[]> {
-  const d = await nget<{ contents?: CoinRow[] }>(`/coin/rank/${exchange}?${qs({ sortType: COIN_SORT[tab], page: 1, pageSize: size })}`, 20);
+  const d = await nget<{ contents?: CoinRow[] }>(`/coin/rank/${exchange}?${qs({ sortType: COIN_SORT[tab], page: 1, pageSize: size })}`, LIVE);
   return (d?.contents ?? []).map((x) => ({
     code: x.nfTicker, name: x.krName, price: x.tradePrice, change: x.changeValue, changeRate: r2(x.changeRate),
     metric: tab === 'cap' ? x.marketCap : tab === 'volume' ? x.accumulatedTradingVolume : x.accumulatedTradingValue,

@@ -5,6 +5,7 @@
  * 색: 상승=빨강(--warn) · 하락=파랑(--accent) 한국 관행. 토큰만 사용(라이트/다크 자동).
  */
 import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 
 export const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); });
 
@@ -78,11 +79,12 @@ export function MiniLine({ points, rate, height = 34 }: { points: number[]; rate
   );
 }
 
-/** 섹션 제목. big = 홈(PC) 섹션용(네이버 증권 홈처럼 큰 부제목 + 넉넉한 아래 간격) */
-export function SectionTitle({ title, sub, right, big }: { title: string; sub?: string; right?: React.ReactNode; big?: boolean }) {
+/** 섹션 제목. big = 홈(PC) 섹션용(네이버 증권 홈처럼 큰 부제목 + 넉넉한 아래 간격). live = 응답 asOf → 실시간 배지 */
+export function SectionTitle({ title, sub, right, big, live, every }: { title: string; sub?: string; right?: React.ReactNode; big?: boolean; live?: string; every?: number }) {
   return (
     <div className="nv-head" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: big ? 14 : 12 }}>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: big ? 22 : 18, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em' }}>{title}</h2>
+      {live !== undefined && <LiveStamp asOf={live} every={every} />}
       {sub && <span style={{ fontSize: 12, color: 'var(--faint)' }}>{sub}</span>}
       {right && <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>{right}</div>}
     </div>
@@ -113,4 +115,42 @@ export function StockLink({ href, children }: { href?: string; children: React.R
   if (!href) return <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>{children}</div>;
   // 종목 행 링크는 미리 불러오지 않음 — 목록마다 수십 건의 서버 렌더(동적 상세 페이지) 요청이 생긴다
   return <Link prefetch={false} href={href} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1, textDecoration: 'none', color: 'inherit' }}>{children}</Link>;
+}
+
+/* ────────────────── 실시간 표시 ────────────────── */
+
+/** 한국 정규장(평일 09:00~15:30 KST) 여부 — 공휴일은 모름(배지에 '장중'이 떠도 값은 네이버 그대로) */
+export function krMarketOpen(now = Date.now()): boolean {
+  const k = new Date(now + 9 * 3600_000);
+  const wd = k.getUTCDay(), m = k.getUTCHours() * 60 + k.getUTCMinutes();
+  return wd >= 1 && wd <= 5 && m >= 540 && m <= 930;
+}
+
+/** ● 실시간 · 15:02:31 — 마지막 응답 시각. 장 밖이면 회색 점 + '장마감'(값은 계속 갱신) */
+export function LiveStamp({ asOf, every }: { asOf?: string; every?: number }) {
+  // 장중 여부는 마운트 후 계산(정적 HTML은 빌드 시각 기준이라 그대로 쓰면 하이드레이션 불일치)
+  const [open, setOpen] = useState(false);
+  useEffect(() => { setOpen(krMarketOpen()); }, [asOf]);
+  // KST HH:MM:SS (toLocaleTimeString 'ko-KR' 은 '9시 20분 18초'로 길어진다)
+  const t = asOf ? new Date(new Date(asOf).getTime() + 9 * 3600_000).toISOString().slice(11, 19) : '';
+  return (
+    <span className={`idx-live${open ? ' on' : ''}`} title={every ? `${every}초마다 자동 갱신` : undefined} style={{ fontSize: 11.5 }}>
+      <i />{open ? '실시간' : '장마감'}{t && <span className="tabular-nums" style={{ marginLeft: 4, fontWeight: 500, color: 'var(--faint)' }}>{t}</span>}
+    </span>
+  );
+}
+
+/** 값이 바뀌면 잠깐 반짝임(오르면 빨강·내리면 파랑, 네이버 시세판처럼). 첫 표시엔 반짝이지 않는다 */
+export function Flash({ value, children }: { value: number; children: React.ReactNode }) {
+  const prev = useRef(value);
+  const [dir, setDir] = useState<'' | 'up' | 'down'>('');
+  useEffect(() => {
+    if (prev.current === value) return;
+    const d = value > prev.current ? 'up' : 'down';
+    prev.current = value;
+    setDir(d);
+    const t = setTimeout(() => setDir(''), 900);
+    return () => clearTimeout(t);
+  }, [value]);
+  return <span className={dir ? `nv-flash nv-flash-${dir}` : 'nv-flash'}>{children}</span>;
 }
