@@ -59,7 +59,7 @@
 | AI 브리핑 | 국내/해외/코인 탭 × Gemini·ChatGPT(PC 나란히, 모바일 토글), 1시간 주기 | `/api/home/briefing` |
 | 뉴스 | 해외 주요 뉴스(하단) · 최근 소식=국내(사이드) | `/api/news` |
 | 인기/관심 | 인기=KRX 전 거래일 거래대금 상위 · 관심=watchlist | `/api/home/status` |
-| 🆕 PC 전용 섹션 | 실시간 랭킹 → 산업 트렌드 → 리서치 → 테마 ETF → 환율·시장지표(≥1024px만 마운트) | `/api/naver/*` |
+| 🆕 시장 섹션 5종 | 실시간 랭킹 → 산업 트렌드 → 리서치 → 테마 ETF → 환율·시장지표 — **모든 폭**(10-01), 섹션별 화면 800px 앞에서 지연 마운트 | `/api/naver/*` |
 
 ### 하단 3탭 + 시장 탭 9항목 (`lib/menu.ts` 단일 소스)
 - 홈 `/` · 시장(국내 `/domestic` · 해외 `/overseas` · 코인 `/coins` · 선물 `/futures` · 🆕 **산업 트렌드 `/industry` · 실시간 랭킹 `/ranking` · 시장지표 `/indicators` · 테마 ETF `/theme-etf` · 리서치 `/research`**) · 자산 `/assets`.
@@ -73,7 +73,7 @@
 - **ChatGPT 카드 = "OpenAI 크레딧 없음"**(키는 유효, 선불 0). Gemini가 과부하면 폴백 모델명(`gemini-3.1-flash-lite` 등)이 보이거나 **"○분 전 요약"**(직전 성공본) 표시.
 - AI 브리핑은 **탭별 1시간에 한 번**만 새로 생성(무료 한도 보호) — 생성 시각이 안 바뀌어도 정상.
 - 인기 탭 가격은 **KRX 전 거래일 기준**(날짜 표기). 미국 테마 ETF는 **거래대금 순**, 코인 '인기'는 **거래대금 기준**(화면 명시).
-- 모바일: 차트 기본 펼침·해외 뉴스 기본 접힘. **PC 섹션 5종은 모바일 홈에 없음**(시장 탭으로). 데스크탑(≥1024)은 아코디언 없이 항상 펼침.
+- 모바일: 차트 기본 펼침·해외 뉴스 기본 접힘. 시장 섹션 5종은 모바일 홈에도 있음(스크롤해 다가가야 로딩 — 첫 로딩엔 호출 0). 데스크탑(≥1024)은 아코디언 없이 항상 펼침.
 - 목표주가 투자의견은 증권사 표기(Buy/매수)를 **한국어로 통일**해 보여줌. 이전 세션 항목(테마 토글 없음 등)은 09-30 라이트 토글로 **무효**.
 
 ---
@@ -236,7 +236,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 - 🆕 **Gemini 키를 다른 프로젝트(histobio-supply)에서 복사하려다 권한 정책(자격증명 이동)으로 차단** → 사용자가 새 키를 직접 제공. 이후 키 교체 권장(채팅 평문).
 - 🆕 **뉴스 분리**: 최근 소식=국내(네이버), 하단=해외 주요 뉴스(중복 방지).
 - 🆕 **시장 메뉴 5종 = 시장 탭 하위**(하단 탭 추가 안 함 — 09-29 3탭 단순화 유지). 각 위젯 API는 Chrome 확장 미연결로 **번들 정적분석**(`_next` 66청크 + webpack lazy 해시맵·`2248` 별도 규칙, `\uXXXX` 디코딩)으로 확정.
-- 🆕 **PC 홈 섹션 5종**: PC(≥1024)만, CSS 숨김이 아니라 **미마운트**(모바일 API 호출 0). 순서는 stock.naver.com `app/page` 청크의 위젯 배치(랭킹→산업→리서치→테마 ETF→지표). 메뉴 페이지와 **같은 섹션 컴포넌트 공유**(`home` 모드).
+- 🆕 **홈 시장 섹션 5종**: ~~PC(≥1024)만 미마운트~~ → **10-01 '어떤 상황에서도 노출'로 모든 폭**(창을 줄이거나 배율 150% 노트북=CSS 960px에서 사라지던 문제). 대신 섹션별 지연 마운트(`LazyMount`, 800px 앞). 순서는 stock.naver.com `app/page` 청크의 위젯 배치(랭킹→산업→리서치→테마 ETF→지표). 메뉴 페이지와 **같은 섹션 컴포넌트 공유**(`home` 모드).
 - 🆕 목표주가·투자의견은 **애널리스트 의견으로만** 표기(앱 신호 아님 명시), 원문은 `finance.naver.com/research/*_read.naver?nid=` 링크.
 - 하단 3탭(09-29)·분석 2단계·매매일지 코인선물 전용·텔레그램 알림 범위·Supabase 서비스롤 Actions 등록·해외 TOP 수록 종목 기준·IA 판단 등 이전 결정은 유지(CHANGELOG 66~74차).
 - 크론 스냅샷=data 브랜치(+vercel.json) · KRX 재발급 보류 · "무조건 수익" 거절 → 산수 기반.
@@ -247,6 +247,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 - **시크릿 하드코딩 폴백 금지**(public 저장소, KRX 키가 이렇게 유출됨) · 🆕 **키 값을 로그·응답·커밋에 금지** — 커밋 전 `git diff --cached | grep -cE '<키 접두>'` 0 확인.
 - **`vercel env pull` 절대 금지**(로컬 전용 키 삭제). `vercel env add`만(stdin).
 - 🆕 **시장 섹션 시세 호출에 데이터 캐시(`nget` revalidate>0)·긴 CDN swr을 다시 걸지 말 것** — '실시간' 요구(10/01). 시세는 `LIVE`(no-store)+CDN 5~15초, 화면 10~30초 폴링. 리포트·테마 목록만 길게.
+- 🆕 **시장 섹션 5종을 화면 폭으로 숨기지 말 것**(10-01 '어떤 상황에서도 노출'). 768~1023px 헤더는 장 상태·USDT를 lg, 시계를 xl부터만(그 폭에서 넘쳤음).
 - 🆕 **화면 폭 JS 판별(`useMediaQuery`)로 레이아웃을 바꾸지 말 것** — 정적 HTML은 폭을 모른다. 차이는 CSS 미디어쿼리, 훅은 동작용·초기값 모바일 기준(`ssrDefault`).
 - 🆕 **`useSearchParams`를 화면 본문 컴포넌트에 쓰지 말 것** — 정적 HTML에서 통째로 빠지고 Suspense 대체 화면만 나가 JS 후 밀린다. 강조 표시 정도면 마운트 후 `location.search`.
 - 🆕 **Recharts는 `next/dynamic`으로만** — 차트 파일에서 상수 하나만 import해도 라이브러리가 페이지 번들에 딸려 온다(`components/detail/chartLayout.ts`에 둘 것). 동적 상세로 가는 목록 링크는 `prefetch={false}`.
@@ -297,7 +298,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 | 접기 기능 | `Fold`(스프링 아코디언, 모바일만) |
 | AI 브리핑 탭 | 국내/해외/코인 × Gemini·ChatGPT(`HomeBriefing`, `/api/home/briefing`) |
 | 시장 메뉴 5종 / 네이버 기능 | 산업 트렌드·실시간 랭킹·시장지표·테마 ETF·리서치(`components/naver/sections/*`, `/api/naver/*`) |
-| PC 홈 섹션 | `PcMarketSections`(≥1024px) |
+| PC 홈 섹션 = 홈 시장 섹션 | `PcMarketSections`(이름만 PC, 모든 폭) |
 | 박스형 모달 | 섹션 안 카드 박스(`.fin-card`) — 정렬은 `nv-*` 클래스 |
 | 더보기 도구 · 간단/분석 · 종목 비교 · 규율 알림 · kospi lab 방 · Copilot 디자인 · 기분 · 자산 허브 · 3모드/옛 엔진 · N차 · data 브랜치 | 이전과 동일(`EXTRAS`·`/screener`·크론 알림·텔레그램 그룹·다크 토큰·`lib/tradeMood`·`/assets`·`coinSignalModes`/`coinAnalysis`·CHANGELOG 차수·크론 스냅샷 브랜치) |
 
@@ -327,4 +328,4 @@ kospi-lab/
 ---
 
 ## 15. 다음 세션 시작 문구 (복붙용)
-> "KOSPI LAB(C:\Users\GB\Documents\kospi-lab) 이어서 할게. PROJECT_STATUS.md 읽고 §0 확인 — 깨끗하면 실기기 확인이나 COMPLETENESS 4차 재점검, 아니면 §4에서 고를게. 홈은 네이버 스타일 NaverHome(모바일·PC 공통, 모바일은 Fold 아코디언) + PC(≥1024)만 PcMarketSections 5종, 시장 탭 9항목(국내·해외·코인·선물·산업 트렌드·실시간 랭킹·시장지표·테마 ETF·리서치)은 lib/menu.ts, 네이버 데이터는 lib/naverStock.ts·lib/naverIndex.ts(비공식, icn1), 섹션 정렬은 globals.css nv-*(styled-jsx 금지). 테마는 다크 기본 + 라이트 토글(토큰만, 색 하드코딩 금지). AI 브리핑은 Gemini(3.6-flash, thinking minimal, 탭별 1시간 캐시)·ChatGPT(크레딧 0). 커밋은 경로 지정 add + 키 누출 grep 0 확인, 검증은 npm test(148)+tsc+build → next start 3456 + 헤드리스 Chrome."
+> "KOSPI LAB(C:\Users\GB\Documents\kospi-lab) 이어서 할게. PROJECT_STATUS.md 읽고 §0 확인 — 깨끗하면 실기기 확인이나 COMPLETENESS 4차 재점검, 아니면 §4에서 고를게. 홈은 네이버 스타일 NaverHome(모바일·PC 공통, 모바일은 Fold 아코디언) + 모든 폭 PcMarketSections 5종(지연 마운트), 시장 탭 9항목(국내·해외·코인·선물·산업 트렌드·실시간 랭킹·시장지표·테마 ETF·리서치)은 lib/menu.ts, 네이버 데이터는 lib/naverStock.ts·lib/naverIndex.ts(비공식, icn1), 섹션 정렬은 globals.css nv-*(styled-jsx 금지). 테마는 다크 기본 + 라이트 토글(토큰만, 색 하드코딩 금지). AI 브리핑은 Gemini(3.6-flash, thinking minimal, 탭별 1시간 캐시)·ChatGPT(크레딧 0). 커밋은 경로 지정 add + 키 누출 grep 0 확인, 검증은 npm test(148)+tsc+build → next start 3456 + 헤드리스 Chrome."

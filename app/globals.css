@@ -1008,8 +1008,12 @@ a.fin-row:active { background: var(--surface-2); }
 }
 
 /* 산업 트렌드 */
+/* 홈 시장 섹션 5종 — 모든 폭에서 노출, 섹션 간격만 폭별로 */
+.nv-home-secs { display: flex; flex-direction: column; gap: 56px; margin-top: 48px; }
+@media (max-width: 1023px) { .nv-home-secs { gap: 40px; margin-top: 36px; } }
+@media (max-width: 640px) { .nv-home-secs { gap: 32px; margin-top: 28px; } }
 .nv-it-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
-@media (max-width: 1023px) { .nv-it-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 860px) { .nv-it-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .nv-it-grid { grid-template-columns: 1fr; } }
 .nv-it-row { display: flex; align-items: center; gap: 10px; height: 56px; border-top: 1px solid var(--line-2); }
 
@@ -1025,6 +1029,8 @@ a.fin-row:active { background: var(--surface-2); }
 /* 리서치 — 홈: 좌 1 : 우 2, 두 열 같은 높이 / 목표주가 카드 2장 나란히 */
 .nv-rs-page { display: flex; flex-direction: column; gap: 32px; }
 .nv-rs-home { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 24px; align-items: stretch; }
+/* 중간 폭(작은 창·배율 노트북)에선 2단 안에 카드 2열이 끼여 종목명·가격이 잘렸다 → 위아래로 쌓는다 */
+@media (max-width: 1199px) { .nv-rs-home { grid-template-columns: 1fr; gap: 32px; } }
 .nv-rs-col { display: flex; flex-direction: column; min-width: 0; }
 .nv-rs-col > .nv-fill { flex: 1; }
 .nv-rs-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
@@ -1062,7 +1068,9 @@ html.light .nv-gc:hover { border-color: var(--accent); }
 /* 시장지표 */
 .nv-ind-home { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
 .nv-ind-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
-@media (max-width: 900px) { .nv-ind-home, .nv-ind-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1199px) { .nv-ind-home { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .nv-ind-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .nv-ind-home { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* 테마 ETF — 테마 목록 박스와 ETF 카드가 같은 높이 */
 .nv-te-wrap { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; align-items: stretch; }

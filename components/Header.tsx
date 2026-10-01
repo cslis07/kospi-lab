@@ -177,7 +177,8 @@ export default function Header() {
             </span>
           </Link>
           {/* 시장 상태 dot — md+ 에서만 표시 */}
-          <div className="hidden md:flex items-center gap-2 text-xs ml-2 pl-3 border-l border-[var(--border)]">
+          {/* 768~1023px(작은 창·배율 150% 노트북)에선 오른쪽 알약까지 다 담으면 화면 밖으로 넘쳤다 → 넓을 때만 */}
+          <div className="hidden lg:flex items-center gap-2 text-xs ml-2 pl-3 border-l border-[var(--border)]">
             <div className="flex items-center gap-1.5">
               <div className={`w-1.5 h-1.5 rounded-full ${isUsOpen ? 'bg-emerald-400 animate-pulse dot-live' : 'bg-gray-600'}`} />
               <span className="text-[var(--text-muted)] whitespace-nowrap" title={usLabel}>해외</span>
@@ -202,7 +203,7 @@ export default function Header() {
           {usdkrw && <FxPill label="USD" rate={usdkrw} />}
 
           {/* USDT/KRW (업비트) — md+ */}
-          {usdtkrw && <FxPill label="USDT" rate={usdtkrw} className="hidden md:flex" />}
+          {usdtkrw && <FxPill label="USDT" rate={usdtkrw} className="hidden lg:flex" />}
 
           {/* JPY/KRW — lg+ */}
           {jpykrw && (
@@ -218,7 +219,7 @@ export default function Header() {
           )}
 
           {/* 시계 — md+ */}
-          <div className="pill-shadow hidden md:flex items-center gap-1 text-xs text-[var(--text-muted)] font-mono border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
+          <div className="pill-shadow hidden xl:flex items-center gap-1 text-xs text-[var(--text-muted)] font-mono border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
             <Clock />
           </div>
 

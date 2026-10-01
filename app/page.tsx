@@ -21,7 +21,7 @@ function DashboardInner() {
   return (
     <>
       <NaverHome />
-      {/* PC(≥1024px) 전용 — 실시간 랭킹·산업 트렌드·리서치·테마 ETF·시장지표를 부제목 기준으로 모두 노출(모바일은 시장 탭 메뉴로) */}
+      {/* 모든 폭 — 실시간 랭킹·산업 트렌드·리서치·테마 ETF·시장지표를 부제목 기준으로 모두 노출(섹션별 지연 마운트) */}
       <PcMarketSections />
       {/* 이 도구의 역할 — 모바일 접기 / 데스크탑 전문 */}
       <details className="md:hidden fin-card px-4 py-3 mt-6 text-[11px] leading-relaxed text-[var(--text-muted)]">
