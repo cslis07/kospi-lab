@@ -1030,6 +1030,35 @@ a.fin-row:active { background: var(--surface-2); }
 .nv-rs-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
 @media (max-width: 760px) { .nv-rs-cards { grid-template-columns: 1fr; } }
 
+/* 목표주가 변화 카드(네이버 배치) — 카드 전체가 리포트 링크 */
+.nv-gc { display: flex; flex-direction: column; padding: 0; min-width: 0; text-decoration: none; color: inherit; overflow: hidden; transition: border-color .15s, box-shadow .15s; }
+.nv-gc:hover { border-color: var(--accent); }
+.nv-gc:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nv-gc-top { display: flex; align-items: center; gap: 12px; padding: 20px 20px 4px; }
+.nv-gc-name { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-gc-ind { font-size: 13px; color: var(--faint); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-gc-tl { list-style: none; margin: 0; padding: 14px 20px 18px; flex: 1; display: flex; flex-direction: column; gap: 14px; }
+.nv-gc-tl li { position: relative; padding-left: 22px; }
+/* 점: 최신 ● 진하게 · 이전 ○ 흐리게 */
+.nv-gc-tl li::before { content: ''; position: absolute; left: 0; top: 7px; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; }
+.nv-gc-tl li.latest::before { background: var(--ink); }
+.nv-gc-tl li.prev::before { border: 2px solid var(--faint); background: var(--surface); }
+/* 세로선: 점 아래에서 상자 끝까지 */
+.nv-gc-tl li::after { content: ''; position: absolute; left: 4px; top: 22px; bottom: 0; width: 1.5px; background: var(--line); }
+.nv-gc-date { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.nv-gc-date > b { font-size: 15px; font-weight: 700; color: var(--ink); }
+.nv-gc-tl li.prev .nv-gc-date > b { font-weight: 600; color: var(--ink-2); }
+.nv-gc-today { font-size: 10px; font-weight: 800; color: var(--ok); border: 1px solid var(--ok); border-radius: 5px; padding: 0 5px; }
+.nv-gc-box { display: grid; grid-template-columns: 1fr 1fr; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
+.nv-gc-sep { border-left: 1px solid var(--line); padding-left: 14px; }
+.nv-gc-k { font-size: 12px; color: var(--faint); }
+.nv-gc-broker { display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line-2); font-size: 13.5px; color: var(--muted); }
+/* 라이트: 카드(#f6f7f9)·상자(#eef1f5)가 거의 같은 색이라 구분이 안 됐다 → 카드는 흰 바탕+테두리, 상자는 옅은 회색(네이버 배치) */
+html.light .nv-gc { background: var(--bg); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+html.light .nv-gc-box { background: var(--surface); }
+html.light .nv-gc:hover { border-color: var(--accent); }
+@media (max-width: 420px) { .nv-gc-top { padding: 16px 16px 2px; } .nv-gc-tl { padding: 12px 16px 16px; } .nv-gc-broker { padding: 11px 16px; } .nv-gc-name { font-size: 17px; } }
+
 /* 시장지표 */
 .nv-ind-home { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
 .nv-ind-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: stretch; }

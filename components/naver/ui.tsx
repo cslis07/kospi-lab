@@ -44,9 +44,10 @@ export function Change({ change, rate, currency, small }: { change?: number; rat
 
 /** 종목 뱃지 — 로고 있으면 로고, 없으면 이름 첫 글자 원형 */
 export function Badge({ name, logo, size = 34 }: { name: string; logo?: string; size?: number }) {
-  if (logo) {
+  const [broken, setBroken] = useState(false);   // 로고가 없는 종목(404)은 이름 첫 글자로
+  if (logo && !broken) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt="" width={size} height={size} style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, background: 'var(--surface-2)', objectFit: 'cover' }} />;
+    return <img src={logo} alt="" width={size} height={size} onError={() => setBroken(true)} style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, background: 'var(--surface-2)', objectFit: 'cover' }} />;
   }
   const hue = [...name].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 360;
   return (

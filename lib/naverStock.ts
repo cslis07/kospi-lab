@@ -140,6 +140,30 @@ export async function goalPriceChanged(direction: 'up' | 'down', size = 10): Pro
   return { writeDate: d?.writeDate ?? '', sets };
 }
 
+/** 종목 로고(네이버 CDN, 네이버 API가 주는 itemLogoUrl 과 같은 규칙) */
+export const stockLogo = (code: string) => `https://ssl.pstatic.net/imgstock/fn/real/logo/stock/Stock${code}.svg`;
+/** 네이버 증권 기업 리포트 상세(목표주가 카드 클릭 시 이동) */
+export const researchUrl = (nid: string) => `https://stock.naver.com/research/company/${nid}`;
+
+/** 업종 코드 → 이름(79개 전체, 하루 캐시) — 업종 순위 API 를 size=100 으로 한 번 */
+export async function industryNameMap(): Promise<Map<string, string>> {
+  const d = await nget<{ items?: { code: string; name: string }[] }>(
+    `/stockSecurity/rankings/v2/domestic/industries?${qs({ sortType: 'changeRate', size: 100, period: 'daily' })}`, 86400);
+  return new Map((d?.items ?? []).map((x) => [String(x.code), x.name]));
+}
+
+/** 종목의 업종 코드(하루 캐시) — 모바일 증권 integration 응답의 industryCode */
+export async function stockIndustryCode(code: string): Promise<string> {
+  try {
+    const res = await fetch(`https://m.stock.naver.com/api/stock/${code}/integration`, {
+      headers: { ...HEADERS, Referer: 'https://m.stock.naver.com/' }, next: { revalidate: 86400 }, signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return '';
+    const j = (await res.json()) as { industryCode?: string | number };
+    return j.industryCode != null ? String(j.industryCode) : '';
+  } catch { return ''; }
+}
+
 export interface AnalystIndustry { industry: string; name: string; count: number; latest: string }
 export interface IndustryReport { nid: string; title: string; brokerName: string; analystName: string; writeDate: string; readCount: number; industryName: string; url: string }
 

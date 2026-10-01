@@ -9,11 +9,10 @@
  */
 import { useState } from 'react';
 import useSWR from 'swr';
-import Link from 'next/link';
-import { fetcher, colorOf, signPct, SectionTitle, SourceNote, Empty, fmtCount, MoreLink, Flash, Change } from '@/components/naver/ui';
+import { fetcher, colorOf, signPct, SectionTitle, SourceNote, Empty, fmtCount, MoreLink, Flash, Badge } from '@/components/naver/ui';
 
 interface Res { nid: string; title: string; writeDate: string; goalPrice: number; priceAtWriteDate: number; opinion: string; opinionType: string }
-interface GoalSet { itemCode: string; itemName: string; brokerName: string; goalPriceDiff: number; goalPriceDiffRate: number; latest: Res; prev: Res | null }
+interface GoalSet { itemCode: string; itemName: string; brokerName: string; goalPriceDiff: number; goalPriceDiffRate: number; latest: Res; prev: Res | null; logo?: string; industryName?: string; url?: string }
 interface Report { nid: string; title: string; brokerName: string; analystName: string; writeDate: string; readCount: number; url: string }
 interface Px { price: number; change: number; changeRate: number }
 interface Resp {
@@ -34,63 +33,73 @@ const OP_STYLE: Record<string, { bg: string; fg: string }> = {
 const OP_LABEL: Record<string, string> = { buy: '매수', strongbuy: '적극매수', sell: '매도', hold: '중립', neutral: '중립', marketperform: '중립', outperform: '매수' };
 const opLabel = (r: { opinion: string; opinionType: string }) => OP_LABEL[(r.opinionType || '').toLowerCase()] ?? r.opinion;
 
+/** 목표주가 | 기준가 2칸 상자(가운데 세로 구분선) — 네이버 카드 배치 */
 function ResBox({ r, first }: { r: Res; first: boolean }) {
   const op = OP_STYLE[r.opinionType] ?? { bg: 'var(--surface-2)', fg: 'var(--muted)' };
+  const size = first ? 19 : 16;
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '10px 12px', borderRadius: 'var(--r-sm)', background: 'var(--surface-2)' }}>
+    <div className="nv-gc-box">
       <div>
-        <div style={{ fontSize: 11, color: 'var(--faint)' }}>목표주가</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-          <b className="tabular-nums" style={{ fontSize: first ? 16 : 14, color: 'var(--ink)' }}>{r.goalPrice.toLocaleString()}원</b>
-          {r.opinion && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: op.bg, color: op.fg }}>{opLabel(r)}</span>}
+        <div className="nv-gc-k">목표주가</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+          <b className="tabular-nums" style={{ fontSize: size, fontWeight: first ? 800 : 600, color: first ? 'var(--ink)' : 'var(--ink-2)' }}>{r.goalPrice.toLocaleString()}원</b>
+          {r.opinion && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 5, background: op.bg, color: op.fg }}>{opLabel(r)}</span>}
         </div>
       </div>
-      <div>
-        <div style={{ fontSize: 11, color: 'var(--faint)' }}>작성일 기준가</div>
-        <div className="tabular-nums" style={{ fontSize: first ? 16 : 14, fontWeight: 600, color: 'var(--ink-2)', marginTop: 2 }}>{r.priceAtWriteDate ? `${r.priceAtWriteDate.toLocaleString()}원` : '—'}</div>
+      <div className="nv-gc-sep">
+        <div className="nv-gc-k">기준가</div>
+        <div className="tabular-nums" style={{ fontSize: size, fontWeight: 600, color: 'var(--ink-2)', marginTop: 4 }}>{r.priceAtWriteDate ? `${r.priceAtWriteDate.toLocaleString()}원` : '—'}</div>
       </div>
     </div>
   );
 }
 
+/**
+ * 목표주가 변화 카드 — stock.naver.com '목표주가 변화가 큰 종목 리서치' 배치.
+ * 로고·종목명·업종 | 현재가(실시간)·등락률 → 날짜 타임라인(최신 ● · 이전 ○, 세로선 연결) → 목표주가|기준가 상자 → 증권사.
+ * 카드 전체를 누르면 네이버 증권 리포트 상세(stock.naver.com/research/company/{nid})로 이동(새 탭).
+ */
 function GoalCard({ s, today, px }: { s: GoalSet; today: string; px?: Px }) {
   const rows = [s.latest, s.prev].filter(Boolean) as Res[];
   return (
-    <div className="fin-card" style={{ padding: 18, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-      <Link prefetch={false} href={`/stock/${s.itemCode}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, textDecoration: 'none' }}>
-        <span style={{ minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: 16, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em' }}>{s.itemName}</span>
-          <span style={{ fontSize: 11.5, color: 'var(--faint)' }}>{s.itemCode}</span>
-        </span>
-        {/* 현재가는 실시간(리포트·목표가는 하루 몇 번 바뀜) — 네이버 카드처럼 오른쪽 위 */}
-        <span style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
-          <span className="tabular-nums" style={{ display: 'block', fontSize: 16, fontWeight: 800, color: 'var(--ink)' }}>
+    <a className="fin-card nv-gc" href={s.url ?? `https://stock.naver.com/research/company/${s.latest.nid}`} target="_blank" rel="noopener noreferrer"
+      aria-label={`${s.itemName} ${s.brokerName} 리포트 — 네이버 증권에서 보기`} title={`“${s.latest.title}” — 네이버 증권에서 리포트 보기`}>
+      <div className="nv-gc-top">
+        <Badge name={s.itemName} logo={s.logo} size={44} />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="nv-gc-name">{s.itemName}</div>
+          <div className="nv-gc-ind">{s.industryName || s.itemCode}</div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div className="tabular-nums" style={{ fontSize: 19, fontWeight: 800, color: 'var(--ink)' }}>
             {px?.price ? <Flash value={px.price}>{px.price.toLocaleString()}원</Flash> : '—'}
-          </span>
-          {px?.price ? <Change rate={px.changeRate} small /> : null}
-        </span>
-      </Link>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12, flex: 1 }}>
+          </div>
+          {px?.price ? <div className="tabular-nums" style={{ fontSize: 12.5, fontWeight: 600, color: colorOf(px.changeRate), marginTop: 2 }}>{signPct(px.changeRate)}</div> : null}
+        </div>
+      </div>
+
+      <ol className="nv-gc-tl">
         {rows.map((r, i) => (
-          <div key={r.nid}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: i === 0 ? 'var(--ink)' : 'transparent', border: '1.5px solid var(--ink-2)' }} />
-              <b style={{ fontSize: 13, color: 'var(--ink)' }}>{kdate(r.writeDate)}</b>
-              {r.writeDate === today && <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--ok)', border: '1px solid var(--ok)', borderRadius: 5, padding: '0 5px' }}>TODAY</span>}
+          <li key={r.nid} className={i === 0 ? 'latest' : 'prev'}>
+            <div className="nv-gc-date">
+              <b>{kdate(r.writeDate)}</b>
+              {r.writeDate === today && <span className="nv-gc-today">TODAY</span>}
               {i === 0 && (
-                <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--faint)' }}>이전대비 <b className="tabular-nums" style={{ color: colorOf(s.goalPriceDiffRate) }}>{signPct(s.goalPriceDiffRate)}</b></span>
+                <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                  이전대비 <b className="tabular-nums" style={{ color: colorOf(s.goalPriceDiffRate), fontWeight: 800 }}>{signPct(s.goalPriceDiffRate)}</b>
+                </span>
               )}
             </div>
-            <a href={`https://finance.naver.com/research/company_read.naver?nid=${r.nid}`} target="_blank" rel="noopener noreferrer"
-              style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}>
-              “{r.title}”
-            </a>
             <ResBox r={r} first={i === 0} />
-          </div>
+          </li>
         ))}
+      </ol>
+
+      <div className="nv-gc-broker">
+        <Badge name={s.brokerName} size={22} />
+        <span>{s.brokerName}</span>
       </div>
-      <div style={{ fontSize: 12, color: 'var(--faint)', marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--line-2)' }}>{s.brokerName}</div>
-    </div>
+    </a>
   );
 }
 
