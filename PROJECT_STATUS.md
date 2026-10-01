@@ -26,7 +26,7 @@
 급한 일 없음. ✅ 실기기 확인 완료(10-01 사용자: 새 홈·목록 스크롤 추가·상세 차트). 다음 후보: §4 개선 여지(DXY 네이버 교체·인기 탭 실시간화) 또는 두 코인 엔진 은퇴 결정.
 
 ### 🔴 사용자가 직접 해야 할 것
-- 🔑 ~~Gemini·OpenAI 키 교체 권장~~ — 10-01 사용자 결정: **현재 Gemini 키 하나로 진행**(교체 안 함, 수용). OpenAI 키는 코드에서 안 씀(Vercel·`.env.local`에 남아 있어도 무해, 지우려면 사용자 확인 후).
+- 🔑 ~~Gemini·OpenAI 키 교체 권장~~ — 10-01 사용자 결정: **현재 Gemini 키 하나로 진행**(교체 안 함, 수용). OpenAI 키는 **10-01 삭제**(Vercel·`.env.local`).
 - ~~💳 ChatGPT 크레딧 충전~~ — ChatGPT 제거(10-01)로 해당 없음.
 - ✅ **Gemini 무료 보장 확인** — AI Studio에서 프로젝트 168924064536에 결제 계정 미연결인지(연결돼 있으면 과금 가능).
 - APK v1.0.1 폰 설치(이전부터) · 텔레그램 "kospi lab" 그룹에서 봇 내보내지 말 것 · 분석 페이지 잠금 해제(브라우저 1회, §6) · 비트겟 청산내역 손절가 실계정 확인.
@@ -150,7 +150,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 | `BITGET_API_KEY`/`SECRET`/`PASSPHRASE` | 읽기 전용 | 양쪽 + Actions Secrets |
 | `ANTHROPIC_API_KEY` | 종목·코인 분석 AI, 복기 코치(홈 브리핑엔 더 안 씀) | 양쪽 |
 | 🆕 `GEMINI_API_KEY` | 홈 AI 브리핑(무료 티어) | `.env.local` + Vercel production · 09-30 |
-| ~~`OPENAI_API_KEY`~~ | 코드에서 안 씀(10-01 ChatGPT 제거) | `.env.local` + Vercel production에 잔존(무해) |
+| ~~`OPENAI_API_KEY`~~ | 10-01 삭제(Vercel production + `.env.local`) — ChatGPT 제거 | — |
 | 🆕 `GEMINI_MODEL`·`OPENAI_MODEL` | 모델 오버라이드(선택) | **미설정**(기본 `gemini-3.6-flash`·`gpt-5-mini`) |
 | `ECOS_API_KEY`·`FRED_API_KEY`·`CUSTOMS_API_KEY` | 한국은행·FRED·관세청 | 양쪽 |
 | `SUPABASE_URL`·`SUPABASE_SERVICE_ROLE_KEY` | 클라우드 동기화 | 양쪽 + Actions Secrets |
@@ -158,7 +158,7 @@ gh api repos/cslis07/kospi-lab/commits/<sha>/status   # 배포 성공 확인
 - 키 등록은 값이 화면·로그에 안 남게 **파일에서 파이프(stdin, 끝 줄바꿈 제거)** → `vercel env add <KEY> production`. 환경변수 변경은 **재배포해야 적용**.
 
 ### git에 없는 필수 로컬 파일
-`.env.local`(17키) · `Documents\키스토어\kospi-lab-twa.jks` · `Documents\키스토어\kospilab-twa-manifest.json` · `Documents\KOSPILAB_v1.0.1.apk` · 🆕 `project-state.json`(다른 도구가 관리하는 로컬 진행 기록, gitignore — 지우지 말 것)
+`.env.local`(16키) · `Documents\키스토어\kospi-lab-twa.jks` · `Documents\키스토어\kospilab-twa-manifest.json` · `Documents\KOSPILAB_v1.0.1.apk` · 🆕 `project-state.json`(다른 도구가 관리하는 로컬 진행 기록, gitignore — 지우지 말 것)
 
 ### 게이트·리전·런타임
 - `middleware.ts` 게이트: `/api/bitget/*`·`/api/analyze`·`/api/stock-analysis`·`/api/coin-analysis`·`/api/debug/*`·`/api/sync`. 홈·네이버 라우트는 공개(의도).
