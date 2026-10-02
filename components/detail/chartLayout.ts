@@ -18,3 +18,6 @@ export function krChartHeight(o: { compare: boolean; showVol: boolean; showRSI: 
 
 /** 해외·코인 공용 PriceChart 카드 높이(로딩 자리) */
 export const PRICE_CHART_CARD_H = 372;
+
+/** 에쿼티 커브 카드 높이(로딩 자리 — 헤더 통계 + 차트) */
+export const EQUITY_CARD_H = 260;

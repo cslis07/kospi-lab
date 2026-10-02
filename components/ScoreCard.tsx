@@ -88,6 +88,21 @@ export default function ScoreCard({ title, href, sb, unit }: { title: string; hr
             </div>
           </div>
 
+          {/* 연속 승/패 스트릭 */}
+          {(sb.streak.maxWin > 0 || sb.streak.maxLoss > 0) && (
+            <div className="flex items-center gap-3 text-[10px] text-[var(--text-muted)] mt-2 tabular-nums">
+              <span>최대 연승 <b className="text-emerald-400">{sb.streak.maxWin}</b></span>
+              <span>최대 연패 <b className="text-red-400">{sb.streak.maxLoss}</b></span>
+              {sb.streak.current !== 0 && (
+                <span className="ml-auto">현재{' '}
+                  <b className={sb.streak.current > 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    {sb.streak.current > 0 ? `${sb.streak.current}연승` : `${-sb.streak.current}연패`}
+                  </b>
+                </span>
+              )}
+            </div>
+          )}
+
           {/* 규율 신호 */}
           {sb.openRatio > 0.3 && (
             <p className="text-[10px] text-amber-400 mt-2">

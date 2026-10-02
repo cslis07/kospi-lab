@@ -6,6 +6,7 @@
  *
  * 두 저널(코인·주식)의 공통 최소 형태만 받는다.
  */
+import { streaks, type StreakStat, type TradeResult } from './journalAnalytics';
 
 export interface JournalRow {
   ts: number;
@@ -45,6 +46,8 @@ export interface Scoreboard {
   windows: WindowStat[];    // 7일 / 30일 / 전체
   /** R 분포 히스토그램 (버킷) */
   rBuckets: { label: string; count: number }[];
+  /** 최대 연승·연패·현재 연속(시간순, 본전은 끊음) */
+  streak: StreakStat;
 }
 
 const DAY = 86_400_000;
@@ -106,5 +109,11 @@ export function scoreboard(rows: JournalRow[], now = Date.now()): Scoreboard {
       windowStat('전체', rows),
     ],
     rBuckets: buckets.map((b) => ({ label: b.label, count: rValues.filter(b.test).length })),
+    // 시간순(오래된 것 → 최신) 결과열로 연속 승/패를 센다. 결과 미입력(open)은 제외
+    streak: streaks(
+      [...closed]
+        .sort((a, b) => a.ts - b.ts)
+        .map((r) => r.result as TradeResult),
+    ),
   };
 }

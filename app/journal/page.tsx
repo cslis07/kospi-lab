@@ -17,6 +17,9 @@ import { MOODS, MOOD_BY_KEY, type MoodKey } from '@/lib/tradeMood';
 import { monthlyStats, moodStats, kstMonth } from '@/lib/tradeReport';
 import BreakdownTables from '@/components/BreakdownTables';
 import type { BreakItem } from '@/lib/tradeBreakdown';
+import EquityCurveLazy from '@/components/EquityCurveLazy';
+import CalendarHeatmap from '@/components/CalendarHeatmap';
+import { streaks, resultOf, type TradeValue } from '@/lib/journalAnalytics';
 import { toCsv, downloadCsv, kstDateTime as csvTime, kstStamp } from '@/lib/csv';
 import { fmtCoinPrice } from '@/lib/coins';
 import type { ClosedPosition } from '@/app/api/bitget/history/route';
@@ -37,6 +40,8 @@ interface OpenPosition {
 const openId = (p: OpenPosition) => `open-${p.symbol}-${p.side}`;
 
 const fmtPnl = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(2)}`;
+// 차트·달력용 금액 표기(부호는 컴포넌트가 붙임) — 큰 값은 천단위, 작은 값은 소수 2자리
+const fmtUsdt = (n: number) => (Math.abs(n) >= 1000 ? Math.round(n).toLocaleString() : String(Math.round(n * 100) / 100));
 const pnlColor = (n: number) => (n > 0 ? UP : n < 0 ? DOWN : 'var(--faint)');
 function fmtHold(ms: number | null): string {
   if (ms == null || ms <= 0) return '—';
@@ -135,6 +140,11 @@ export default function JournalPage() {
     win: p.netProfit > 0 ? true : p.netProfit < 0 ? false : null,
   })), [positions]);
 
+  // 자산 곡선·달력 히트맵 — 청산 시각 기준 실현손익(수수료·펀딩 반영 netProfit USDT)
+  const analyticsTrades: TradeValue[] = useMemo(() => positions.map((p) => ({ ts: p.closeTs, value: p.netProfit })), [positions]);
+  // 연속 승/패 — 청산 시간순(오래된 것 → 최신)
+  const streak = useMemo(() => streaks([...positions].sort((a, b) => a.closeTs - b.closeTs).map((p) => resultOf(p.netProfit))), [positions]);
+
   // CSV 내보내기 — 거래소 청산 내역 + 이 기기의 기분 기록(엑셀용 BOM·KST)
   const exportCsv = () => {
     const rows = [...positions].sort((a, b) => a.closeTs - b.closeTs).map((p) => {
@@ -227,6 +237,28 @@ export default function JournalPage() {
       {positions.length > 0 && (
         <BreakdownTables items={breakItems} unit="USDT" valueLabel="순손익" fmt={fmtPnl}
           sub={`최근 ${days}일 청산 ${positions.length}건 · 진입 시각(KST) 기준`} />
+      )}
+
+      {/* 자산 곡선 · 연속 승패 · 일별 손익 달력 — 청산 시각 기준 실현손익 */}
+      {positions.length > 0 && (
+        <>
+          {(streak.maxWin > 0 || streak.maxLoss > 0) && (
+            <div className="fin-card px-4 py-3 mb-3 flex items-center gap-4 text-[12px] flex-wrap">
+              <span className="font-bold text-[var(--text)]">연속 승/패</span>
+              <span className="text-[var(--text-muted)]">최대 연승 <b className="tabular-nums" style={{ color: 'var(--warn)' }}>{streak.maxWin}</b></span>
+              <span className="text-[var(--text-muted)]">최대 연패 <b className="tabular-nums" style={{ color: 'var(--accent-ink)' }}>{streak.maxLoss}</b></span>
+              {streak.current !== 0 && (
+                <span className="ml-auto text-[var(--text-muted)]">현재{' '}
+                  <b className="tabular-nums" style={{ color: streak.current > 0 ? 'var(--warn)' : 'var(--accent-ink)' }}>
+                    {streak.current > 0 ? `${streak.current}연승` : `${-streak.current}연패`}
+                  </b>
+                </span>
+              )}
+            </div>
+          )}
+          <EquityCurveLazy trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />
+          <CalendarHeatmap trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />
+        </>
       )}
 
       {/* ③ 월별 보고서 — 접힘 상태로 월 목록만, 월을 누르면 상세 펼침(청산 건만) */}
