@@ -121,6 +121,7 @@ export const EXTRAS: MenuItem[] = [
   { href: '/news',       icon: 'news',       label: '뉴스',        desc: '시장 소식' },
   { href: '/calendar',   icon: 'calendar',   label: '경제 캘린더', desc: 'FOMC·CPI·실적 등 주요 일정' },
   { href: '/principles', icon: 'principles', label: '매매 대원칙', desc: '지킬 3·피할 3' },
+  { href: '/study',      icon: 'insight',    label: '코인 기초 공부법', desc: '시황 기사 읽고 앱에서 확인하는 법' },
   { href: '/virtual',   icon: 'virtual',   label: '가상투자',    desc: '모의매매·백업' },
   { href: '/invest',    icon: 'invest',    label: '투자설계',    desc: '계좌·자산 추천' },
   { href: '/tax',       icon: 'tax',       label: '세제혜택',    desc: 'ISA·IRP·연금' },
@@ -164,7 +165,7 @@ export function drillTitle(pathname: string): string {
  */
 export const OWN_H1_ROUTES = [
   '/bitget', '/brokerage', '/crypto/', '/futures', '/growth', '/invest', '/journal', '/krx',
-  '/overseas/', '/overseas-analysis', '/principles', '/screener', '/simulate', '/stock/', '/tax', '/virtual',
+  '/overseas/', '/overseas-analysis', '/principles', '/screener', '/simulate', '/stock/', '/study', '/tax', '/virtual',
 ];
 export const pageOwnsH1 = (pathname: string) =>
   OWN_H1_ROUTES.some((r) => (r.endsWith('/') ? pathname.startsWith(r) : under(pathname, r)));
