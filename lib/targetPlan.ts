@@ -4,6 +4,8 @@
  * 도달 가능/불가를 판정한다. 무엇을 얼마나 바꿔야 하는지(레버)도 숫자로 낸다.
  * ⚠ 이 엔진은 방향을 맞히지 않는다. 수익률은 예측이 아니라 기대값×빈도×리스크의 곱이다.
  */
+import { edgeSummary } from './journalAnalytics';
+
 export interface TargetSettings { seedUsdt: number; monthlyTargetPct: number; riskPct: number; tradesPerMonth: number }
 export const DEFAULT_TARGET: TargetSettings = { seedUsdt: 1000, monthlyTargetPct: 5, riskPct: 1, tradesPerMonth: 20 };
 /** 회당 리스크 하드 상한 — 이 위로는 드로다운이 목표를 삼킨다 */
@@ -24,14 +26,15 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 export function measureEdge(rows: EdgeRow[], now = Date.now()): MeasuredEdge {
   const closed = rows.filter((r) => r.result !== 'open');
   const rs = closed.map((r) => r.resultR).filter((x): x is number => x != null);
-  const wins = rs.filter((x) => x > 0), losses = rs.filter((x) => x < 0);
+  const e = edgeSummary(rs); // 평균 익절/손절·기대값은 공용 정의(journalAnalytics)
+  // 승률은 R 부호가 아니라 기록한 결과(익절/손절) 기준 — R 없이 결과만 적은 매매도 승률엔 넣는다
   const decided = closed.filter((r) => r.result === 'win' || r.result === 'loss');
   const w = decided.filter((r) => r.result === 'win').length;
   return {
-    avgR: rs.length ? rs.reduce((a, v) => a + v, 0) / rs.length : null,
+    avgR: e.expectancy,
     winRate: decided.length ? (w / decided.length) * 100 : null,
-    avgWinR: wins.length ? wins.reduce((a, v) => a + v, 0) / wins.length : null,
-    avgLossR: losses.length ? Math.abs(losses.reduce((a, v) => a + v, 0) / losses.length) : null,
+    avgWinR: e.avgWin,
+    avgLossR: e.avgLoss,
     rCount: rs.length,
     tradesLast30d: closed.filter((r) => now - r.ts <= 30 * DAY).length,
   };

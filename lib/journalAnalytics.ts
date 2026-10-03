@@ -64,6 +64,51 @@ export function equityCurve(trades: TradeValue[]): EquityCurve {
   };
 }
 
+// ────────────────────────── 손익비·Profit Factor·기대값 ──────────────────────────
+
+export interface EdgeSummary {
+  n: number;                      // 값이 있는 매매 수
+  wins: number;                   // 값 > 0
+  losses: number;                 // 값 < 0 (0 = 본전은 둘 다 아님)
+  winRate: number | null;         // % = 승 ÷ (승 + 패)
+  avgWin: number | null;          // 평균 익절(양수)
+  avgLoss: number | null;         // 평균 손절(양수 크기)
+  /** 손익비 = 평균 익절 ÷ 평균 손절 */
+  payoff: number | null;
+  /** Profit Factor = 총이익 ÷ 총손실(크기). 1 초과 = 순이익. 손실이 없으면 null(정의 불가) */
+  profitFactor: number | null;
+  /** 기대값 = 건당 평균 결과(본전 포함) */
+  expectancy: number | null;
+  /** 이 손익비에서 본전이 되는 승률(%) = 평균 손절 ÷ (평균 익절 + 평균 손절) */
+  breakevenWinRate: number | null;
+  grossWin: number;
+  grossLoss: number;              // 크기(양수)
+}
+
+/**
+ * 결과값(USDT 손익 또는 R) 목록 → 손익비·Profit Factor·기대값 요약(참고: Edgewonk·TraderSync).
+ * 승률·평균·기대값이 같은 정의를 쓰도록 이 함수 하나로 계산한다(targetPlan.measureEdge 도 이걸 쓴다).
+ */
+export function edgeSummary(values: number[]): EdgeSummary {
+  const vs = values.filter((v) => Number.isFinite(v));
+  const win = vs.filter((v) => v > 0), loss = vs.filter((v) => v < 0);
+  const grossWin = win.reduce((a, v) => a + v, 0);
+  const grossLoss = Math.abs(loss.reduce((a, v) => a + v, 0));
+  const avgWin = win.length ? grossWin / win.length : null;
+  const avgLoss = loss.length ? grossLoss / loss.length : null;
+  const decided = win.length + loss.length;
+  return {
+    n: vs.length, wins: win.length, losses: loss.length,
+    winRate: decided ? (win.length / decided) * 100 : null,
+    avgWin, avgLoss,
+    payoff: avgWin != null && avgLoss ? avgWin / avgLoss : null,
+    profitFactor: grossLoss > 0 ? grossWin / grossLoss : null,
+    expectancy: vs.length ? vs.reduce((a, v) => a + v, 0) / vs.length : null,
+    breakevenWinRate: avgWin != null && avgLoss != null && avgWin + avgLoss > 0 ? (avgLoss / (avgWin + avgLoss)) * 100 : null,
+    grossWin, grossLoss,
+  };
+}
+
 // ────────────────────────── 연속 승/패 스트릭 ──────────────────────────
 
 export type TradeResult = 'win' | 'loss' | 'even';

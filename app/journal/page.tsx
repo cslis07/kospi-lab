@@ -23,7 +23,8 @@ import BreakdownTables from '@/components/BreakdownTables';
 import type { BreakItem } from '@/lib/tradeBreakdown';
 import EquityCurveLazy from '@/components/EquityCurveLazy';
 import CalendarHeatmap from '@/components/CalendarHeatmap';
-import { streaks, resultOf, type TradeValue } from '@/lib/journalAnalytics';
+import { streaks, resultOf, edgeSummary, kstDateKey, type TradeValue } from '@/lib/journalAnalytics';
+import EdgeSummaryCard from '@/components/EdgeSummaryCard';
 import { toCsv, downloadCsv, kstDateTime as csvTime, kstStamp } from '@/lib/csv';
 import { fmtCoinPrice } from '@/lib/coins';
 import type { ClosedPosition } from '@/app/api/bitget/history/route';
@@ -86,6 +87,7 @@ export default function JournalPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [selMonth, setSelMonth] = useState<string | null>(null); // 펼쳐진 월(null=전부 접힘)
+  const [selDay, setSelDay] = useState<string | null>(null);     // 달력에서 펼친 날짜(KST 'YYYY-MM-DD')
 
   // 기분 편집 시트 — 열린/청산 포지션 공통으로 { id, symbol } 을 편집한다
   const [editing, setEditing] = useState<{ id: string; symbol: string } | null>(null);
@@ -151,11 +153,16 @@ export default function JournalPage() {
   const breakItems: BreakItem[] = useMemo(() => positions.map((p) => ({
     ts: p.openTs || p.closeTs, symbol: p.symbol, label: coinName(p.symbol), value: p.netProfit,
     win: p.netProfit > 0 ? true : p.netProfit < 0 ? false : null,
+    holdMs: p.openTs && p.closeTs > p.openTs ? p.closeTs - p.openTs : null, // 보유시간 분해용
   })), [positions]);
 
   // 자산 곡선·달력 히트맵 — 청산 시각 기준 실현손익(수수료·펀딩 반영 netProfit USDT)
   const analyticsTrades: TradeValue[] = useMemo(() => positions.map((p) => ({ ts: p.closeTs, value: p.netProfit })), [positions]);
   // 연속 승/패 — 청산 시간순(오래된 것 → 최신)
+  // 성적 요약 — 승률·손익비·Profit Factor·기대값(순손익 USDT, 수수료·펀딩 반영)
+  const edge = useMemo(() => edgeSummary(positions.map((p) => p.netProfit)), [positions]);
+  // 달력에서 고른 날의 청산 매매(청산 시각 KST 기준 — 달력 색과 같은 기준)
+  const dayTrades = useMemo(() => (selDay ? positions.filter((p) => kstDateKey(p.closeTs) === selDay).sort((a, b) => a.closeTs - b.closeTs) : []), [positions, selDay]);
   const streak = useMemo(() => streaks([...positions].sort((a, b) => a.closeTs - b.closeTs).map((p) => resultOf(p.netProfit))), [positions]);
   // 셋업·실수 태그별 성적 — 로드된 청산 포지션 전체
   const setupStats = useMemo(() => tagStats(positions, tags, 'setup'), [positions, tags]);
@@ -278,8 +285,11 @@ export default function JournalPage() {
               )}
             </div>
           )}
+          <EdgeSummaryCard e={edge} unit="USDT" fmt={fmtUsdt} sub={`최근 ${days}일 청산 ${edge.n}건 · 순손익 USDT(수수료·펀딩 반영)`} />
           <EquityCurveLazy trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />
-          <CalendarHeatmap trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />
+          <CalendarHeatmap trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} selected={selDay} onSelect={setSelDay}
+            detail={<DayTrades date={selDay} trades={dayTrades} moods={moods} tags={tags} snapIds={snaps.ids}
+              onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelDay(null)} />} />
         </>
       )}
 
@@ -457,6 +467,39 @@ function TradeRow({ p, mood, tagset, hasSnap, border, onEdit }: { p: ClosedPosit
       </span>
       <span className="text-[13px] font-bold tabular-nums shrink-0" style={{ color: pnlColor(p.netProfit) }}>{fmtPnl(p.netProfit)}</span>
     </button>
+  );
+}
+
+/** 달력에서 고른 날의 청산 매매 — 기존 매매 행을 그대로 써서 누르면 기분·태그·스냅샷 편집 */
+function DayTrades({ date, trades, moods, tags, snapIds, onEdit, onClose }: {
+  date: string | null;
+  trades: ClosedPosition[];
+  moods: Record<string, TradeMood>;
+  tags: Record<string, { setups: string[]; mistakes: string[] }>;
+  snapIds: Set<string>;
+  onEdit: (p: ClosedPosition) => void;
+  onClose: () => void;
+}) {
+  if (!date) return null;
+  const sum = trades.reduce((a, p) => a + p.netProfit, 0);
+  const wins = trades.filter((p) => p.netProfit > 0).length;
+  const losses = trades.filter((p) => p.netProfit < 0).length;
+  return (
+    <div className="mt-3 rounded-xl border border-[var(--line-2)] overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-2)]">
+        <b className="text-[13px] text-[var(--text)]">{Number(date.slice(5, 7))}월 {Number(date.slice(8, 10))}일</b>
+        <span className="text-[11px] text-[var(--text-muted)] tabular-nums">{trades.length}건 · {wins}승 {losses}패</span>
+        <span className="ml-auto text-[13px] font-bold tabular-nums" style={{ color: pnlColor(sum) }}>{fmtPnl(sum)} USDT</span>
+        <button type="button" onClick={onClose} aria-label="날짜 상세 닫기" className="w-7 h-7 grid place-items-center rounded-lg text-[var(--text-muted)]">✕</button>
+      </div>
+      {trades.length === 0 ? (
+        <p className="px-3 py-3 text-[12px] text-[var(--text-muted)]">이 기간에 불러온 그날 청산 매매가 없습니다.</p>
+      ) : trades.map((p, j) => (
+        <TradeRow key={p.positionId} p={p} mood={moods[p.positionId]} tagset={tags[p.positionId]} hasSnap={snapIds.has(p.positionId)} border={j > 0}
+          onEdit={() => onEdit(p)} />
+      ))}
+      <p className="px-3 py-1.5 text-[10px] text-[var(--faint)] border-t border-[var(--line-2)]">청산 시각(KST) 기준 · 행을 누르면 기분·태그·스냅샷 기록</p>
+    </div>
   );
 }
 

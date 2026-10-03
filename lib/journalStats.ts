@@ -6,7 +6,7 @@
  *
  * 두 저널(코인·주식)의 공통 최소 형태만 받는다.
  */
-import { streaks, type StreakStat, type TradeResult } from './journalAnalytics';
+import { streaks, edgeSummary, type EdgeSummary, type StreakStat, type TradeResult } from './journalAnalytics';
 
 export interface JournalRow {
   ts: number;
@@ -48,6 +48,8 @@ export interface Scoreboard {
   rBuckets: { label: string; count: number }[];
   /** 최대 연승·연패·현재 연속(시간순, 본전은 끊음) */
   streak: StreakStat;
+  /** R 기록 매매의 손익비·Profit Factor(R 단위) */
+  edge: EdgeSummary;
 }
 
 const DAY = 86_400_000;
@@ -115,5 +117,6 @@ export function scoreboard(rows: JournalRow[], now = Date.now()): Scoreboard {
         .sort((a, b) => a.ts - b.ts)
         .map((r) => r.result as TradeResult),
     ),
+    edge: edgeSummary(rValues),
   };
 }

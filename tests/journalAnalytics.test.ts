@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import {
-  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary,
+  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary,
 } from '../lib/journalAnalytics';
 
 let passed = 0;
@@ -124,6 +124,32 @@ ok('monthSummary — 거래일·플러스/마이너스 일수·합계', () => {
   assert.equal(s.upDays, 1);
   assert.equal(s.downDays, 1);
   assert.equal(s.sum, 2);
+});
+
+ok('edgeSummary — 손익비·Profit Factor·기대값·손익분기 승률', () => {
+  // 익절 +30, +10 / 손절 −10, −10 / 본전 0
+  const e = edgeSummary([30, 10, -10, -10, 0]);
+  assert.equal(e.n, 5); assert.equal(e.wins, 2); assert.equal(e.losses, 2);
+  assert.equal(e.winRate, 50);              // 본전은 승률 분모에서 제외
+  assert.equal(e.avgWin, 20); assert.equal(e.avgLoss, 10);
+  assert.equal(e.payoff, 2);                // 20 ÷ 10
+  assert.equal(e.profitFactor, 2);          // 40 ÷ 20
+  assert.equal(e.expectancy, 4);            // 합계 20 ÷ 5건 (본전 포함)
+  assert.ok(Math.abs(e.breakevenWinRate! - 33.333) < 0.01); // 10 ÷ (20 + 10)
+});
+
+ok('edgeSummary — 손실이 없으면 PF·손익비는 정의 불가(null), 빈 입력은 0건', () => {
+  const e = edgeSummary([5, 3]);
+  assert.equal(e.profitFactor, null); assert.equal(e.payoff, null); assert.equal(e.winRate, 100);
+  const z = edgeSummary([]);
+  assert.equal(z.n, 0); assert.equal(z.expectancy, null); assert.equal(z.winRate, null);
+});
+
+ok('edgeSummary — PF<1이면 잃은 돈이 더 많다(손익비가 좋아도 승률이 낮으면)', () => {
+  const e = edgeSummary([30, -10, -10, -10, -10]); // 손익비 3, 승률 20%, 손익분기 25%
+  assert.equal(e.payoff, 3);
+  assert.ok(e.profitFactor! < 1);
+  assert.ok(e.winRate! < e.breakevenWinRate!);
 });
 
 console.log(`\n${passed} passed`);

@@ -39,7 +39,21 @@ export interface BreakItem {
   label?: string;          // 종목 표시명(없으면 symbol)
   value: number | null;    // 손익 또는 R
   win: boolean | null;     // null = 본전(승률 분모에는 포함, 승리 아님)
+  /** 보유 시간(청산 − 진입, ms). 모르면 없음 — 보유시간 분해에서 빠진다 */
+  holdMs?: number | null;
 }
+
+const MIN = 60_000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+/** 보유 시간 구간 — 스캘핑(15분 미만)부터 포지션(1주 이상)까지(참고: TraderSync 'Hold Time') */
+export const HOLD_BANDS: { to: number; label: string }[] = [
+  { to: 15 * MIN, label: '~15분 스캘핑' },
+  { to: HOUR, label: '15분~1시간' },
+  { to: 4 * HOUR, label: '1~4시간 단타' },
+  { to: DAY, label: '4~24시간 데이' },
+  { to: 7 * DAY, label: '1~7일 스윙' },
+  { to: Infinity, label: '7일+ 포지션' },
+];
+export const holdBandIndex = (ms: number) => HOLD_BANDS.findIndex((b) => ms < b.to);
 
 function bucket(items: BreakItem[], keyOf: (i: BreakItem) => { key: string; label: string; order: number }, thinAt: number): BreakRow[] {
   const map = new Map<string, BreakRow>();
@@ -72,6 +86,13 @@ export function byHourBand(items: BreakItem[], thinAt = THIN_SAMPLE): BreakRow[]
     const idx = HOUR_BANDS.findIndex((b) => hour >= b.from && hour < b.to);
     return { key: `h${idx}`, label: HOUR_BANDS[idx].label, order: idx };
   }, thinAt).sort((a, b) => a.order - b.order);
+}
+
+/** 보유 시간별 — 짧은 구간부터. 보유 시간을 모르는(또는 0 이하) 매매는 뺀다 */
+export function byHoldBand(items: BreakItem[], thinAt = THIN_SAMPLE): BreakRow[] {
+  const known = items.filter((i) => i.holdMs != null && i.holdMs > 0);
+  return bucket(known, (i) => { const idx = holdBandIndex(i.holdMs!); return { key: `hb${idx}`, label: HOLD_BANDS[idx].label, order: idx }; }, thinAt)
+    .sort((a, b) => a.order - b.order);
 }
 
 /** 종목별 — 건수 많은 순, 같으면 합계 큰 순 */

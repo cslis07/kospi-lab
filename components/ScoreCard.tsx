@@ -51,6 +51,20 @@ export default function ScoreCard({ title, href, sb, unit }: { title: string; hr
             </div>
           </div>
 
+          {/* 손익비·Profit Factor (R 기록 매매 기준) — 승률·기대값은 위 카드에 이미 있으므로 여기선 빼고 */}
+          {sb.edge.n > 0 && (
+            <div className="rounded-xl bg-white/[0.03] px-3 py-2 mb-3 text-[11px] text-[var(--text-muted)] tabular-nums leading-relaxed">
+              <span>손익비 <b className="text-[var(--text)]">{sb.edge.payoff != null ? sb.edge.payoff.toFixed(2) : '—'}</b></span>
+              {sb.edge.avgWin != null && sb.edge.avgLoss != null && (
+                <span className="opacity-80"> (평균 익절 {r(sb.edge.avgWin)} / 손절 −{sb.edge.avgLoss.toFixed(2)}R)</span>
+              )}
+              <span> · PF <b className={sb.edge.profitFactor != null && sb.edge.profitFactor >= 1 ? 'text-emerald-400' : 'text-[var(--text)]'}>
+                {sb.edge.profitFactor != null ? sb.edge.profitFactor.toFixed(2) : sb.edge.wins ? '손실 없음' : '—'}
+              </b></span>
+              {sb.edge.breakevenWinRate != null && <span> · 손익분기 승률 {sb.edge.breakevenWinRate.toFixed(0)}%</span>}
+            </div>
+          )}
+
           {/* 시간창별 */}
           <div className="mb-3">
             <table className="w-full text-[11px]">

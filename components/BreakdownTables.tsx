@@ -6,10 +6,11 @@
  * 표본 5건 미만 칸은 흐리게 — 몇 건짜리 '요일 효과'를 패턴으로 읽지 않게. 방향 예측이 아니라 복기용.
  */
 import { useMemo, useState } from 'react';
-import { byWeekday, byHourBand, bySymbol, THIN_SAMPLE, type BreakItem, type BreakRow } from '@/lib/tradeBreakdown';
+import { byWeekday, byHourBand, bySymbol, byHoldBand, THIN_SAMPLE, type BreakItem, type BreakRow } from '@/lib/tradeBreakdown';
 
-type Tab = 'wd' | 'hour' | 'sym';
-const TABS: [Tab, string][] = [['wd', '요일'], ['hour', '시간대'], ['sym', '종목']];
+type Tab = 'wd' | 'hour' | 'sym' | 'hold';
+const TABS: [Tab, string][] = [['wd', '요일'], ['hour', '시간대'], ['sym', '종목'], ['hold', '보유시간']];
+const HEAD: Record<Tab, string> = { wd: '요일', hour: '진입 시간(KST)', sym: '종목', hold: '보유 시간' };
 
 const color = (n: number) => (n > 0 ? 'var(--warn)' : n < 0 ? 'var(--accent)' : 'var(--faint)');
 
@@ -21,8 +22,14 @@ export default function BreakdownTables({ items, unit, valueLabel, fmt, title = 
   title?: string;
   sub?: string;
 }) {
-  const [tab, setTab] = useState<Tab>('wd');
-  const rows: BreakRow[] = useMemo(() => (tab === 'wd' ? byWeekday(items) : tab === 'hour' ? byHourBand(items) : bySymbol(items)), [items, tab]);
+  const [picked, setTab] = useState<Tab>('wd');
+  // 보유시간 탭은 진입·청산 시각을 아는 매매가 있을 때만(성과의 기록 R 에는 청산 시각이 없다)
+  const hasHold = useMemo(() => items.some((i) => i.holdMs != null && i.holdMs > 0), [items]);
+  const tab: Tab = picked === 'hold' && !hasHold ? 'wd' : picked;
+  const tabs = hasHold ? TABS : TABS.filter(([k]) => k !== 'hold');
+  const rows: BreakRow[] = useMemo(() => (
+    tab === 'wd' ? byWeekday(items) : tab === 'hour' ? byHourBand(items) : tab === 'hold' ? byHoldBand(items) : bySymbol(items)
+  ), [items, tab]);
   const maxAbs = Math.max(1e-9, ...rows.map((r) => Math.abs(r.sum)));
   const best = rows.filter((r) => !r.thin && r.valued).sort((a, b) => b.sum - a.sum)[0];
   const worst = rows.filter((r) => !r.thin && r.valued).sort((a, b) => a.sum - b.sum)[0];
@@ -33,7 +40,7 @@ export default function BreakdownTables({ items, unit, valueLabel, fmt, title = 
         <h2 className="text-sm font-bold text-[var(--text)]">{title}</h2>
         {sub && <span className="text-[10px] text-[var(--text-muted)]">{sub}</span>}
         <div className="seg ml-auto" role="tablist" aria-label="분해 기준">
-          {TABS.map(([k, l]) => (
+          {tabs.map(([k, l]) => (
             <button key={k} type="button" role="tab" aria-selected={tab === k} className={`seg-i ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>{l}</button>
           ))}
         </div>
@@ -45,7 +52,7 @@ export default function BreakdownTables({ items, unit, valueLabel, fmt, title = 
           <table className="w-full text-[12.5px] tabular-nums" style={{ minWidth: 440 }}>
             <thead>
               <tr className="text-[11px] text-[var(--text-muted)] border-b border-[var(--border)]">
-                <th className="text-left font-semibold px-3 py-2">{tab === 'wd' ? '요일' : tab === 'hour' ? '진입 시간(KST)' : '종목'}</th>
+                <th className="text-left font-semibold px-3 py-2">{HEAD[tab]}</th>
                 <th className="text-right font-semibold px-2 py-2">건수</th>
                 <th className="text-right font-semibold px-2 py-2">승률</th>
                 <th className="text-left font-semibold px-2 py-2 w-[34%]">{valueLabel} 합계</th>
@@ -78,6 +85,7 @@ export default function BreakdownTables({ items, unit, valueLabel, fmt, title = 
         <p className="text-[11px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
           {best && best.sum > 0 && <>가장 잘 된 {tab === 'sym' ? '종목' : '구간'}: <b className="text-[var(--text)]">{best.label}</b>({fmt(best.sum)} {unit}) · </>}
           {worst && worst.sum < 0 && <>가장 깎인 {tab === 'sym' ? '종목' : '구간'}: <b className="text-[var(--text)]">{worst.label}</b>({fmt(worst.sum)} {unit}) · </>}
+          {tab === 'hold' && <>보유 시간 = 청산 − 진입 · 평균 = 건당 기대값 · </>}
           흐린 칸은 {THIN_SAMPLE}건 미만이라 우연일 수 있습니다.
         </p>
       )}

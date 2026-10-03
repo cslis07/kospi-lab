@@ -5,7 +5,7 @@
  * 날짜별 실현손익 합계를 색으로 칠한다(이익=빨강 · 손실=파랑, 한국 관행). 색 짙기 = 그 달 최대 손익 대비.
  * 차트 라이브러리 없이 CSS 그리드(번들을 늘리지 않게 — HoldingsConcentration 과 같은 원칙).
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { aggregateDaily, monthList, monthDays, monthSummary, type TradeValue } from '@/lib/journalAnalytics';
 
 const UP = '255,68,51';    // --warn
@@ -23,10 +23,15 @@ function cellBg(pnl: number | null, maxAbs: number): string {
   return `rgba(${pnl > 0 ? UP : DOWN},${a.toFixed(2)})`;
 }
 
-export default function CalendarHeatmap({ trades, unit, fmt }: {
+export default function CalendarHeatmap({ trades, unit, fmt, selected, onSelect, detail }: {
   trades: TradeValue[];
   unit: string;
   fmt: (n: number) => string;
+  /** 펼친 날짜 'YYYY-MM-DD'(KST). onSelect 를 주면 거래 있는 날을 누를 수 있다 */
+  selected?: string | null;
+  onSelect?: (date: string | null) => void;
+  /** 선택한 날짜의 상세(그날 매매 목록) — 달력 바로 아래에 펼친다 */
+  detail?: ReactNode;
 }) {
   const byDate = useMemo(() => aggregateDaily(trades), [trades]);
   const months = useMemo(() => monthList(trades), [trades]);
@@ -50,7 +55,7 @@ export default function CalendarHeatmap({ trades, unit, fmt }: {
   return (
     <div className="fin-card p-4 sm:p-5 mb-3">
       <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-sm font-bold text-[var(--text)]">일별 손익 달력 <span className="text-[10px] font-normal text-[var(--text-muted)]">날짜별 실현손익</span></h2>
+        <h2 className="text-sm font-bold text-[var(--text)] break-keep">일별 손익 달력 <span className="text-[10px] font-normal text-[var(--text-muted)]">날짜별 실현손익</span></h2>
         <span className="flex-1" />
         <div className="flex items-center gap-1">
           <button type="button" onClick={() => setIdx((i) => Math.min(months.length - 1, i + 1))} disabled={idx >= months.length - 1}
@@ -82,17 +87,29 @@ export default function CalendarHeatmap({ trades, unit, fmt }: {
         {Array.from({ length: lead }).map((_, i) => <div key={`b${i}`} />)}
         {cells.map((c) => {
           const has = c.pnl != null;
-          return (
-            <div key={c.date} title={has ? `${c.date} · ${c.pnl! > 0 ? '+' : ''}${fmt(c.pnl!)} ${unit} · ${c.count}건` : c.date}
-              className="aspect-square rounded-md grid place-items-center text-[10px] leading-none tabular-nums"
-              style={{ background: cellBg(c.pnl, maxAbs) }}>
-              <span className={has ? 'font-semibold' : ''} style={{ color: has ? '#fff' : 'var(--faint)' }}>{c.day}</span>
-            </div>
-          );
+          const tip = has ? `${c.date} · ${c.pnl! > 0 ? '+' : ''}${fmt(c.pnl!)} ${unit} · ${c.count}건` : c.date;
+          const cls = 'aspect-square rounded-md grid place-items-center text-[10px] leading-none tabular-nums';
+          const label = <span className={has ? 'font-semibold' : ''} style={{ color: has ? '#fff' : 'var(--faint)' }}>{c.day}</span>;
+          if (has && onSelect) {
+            const on = selected === c.date;
+            return (
+              <button key={c.date} type="button" title={tip} aria-pressed={on}
+                aria-label={`${Number(c.date.slice(5, 7))}월 ${c.day}일 ${c.pnl! > 0 ? '+' : ''}${fmt(c.pnl!)} ${unit} ${c.count}건 — 그날 매매 보기`}
+                onClick={() => onSelect(on ? null : c.date)}
+                className={cls} style={{ background: cellBg(c.pnl, maxAbs), outline: on ? '2px solid var(--ink)' : undefined, outlineOffset: on ? 1 : undefined }}>
+                {label}
+              </button>
+            );
+          }
+          return <div key={c.date} title={tip} className={cls} style={{ background: cellBg(c.pnl, maxAbs) }}>{label}</div>;
         })}
       </div>
 
-      <div className="flex items-center gap-2 mt-3 text-[10px] text-[var(--faint)]">
+      {/* 선택한 날짜의 매매 — 같은 달을 보고 있을 때만 */}
+      {selected && selected.startsWith(ym) ? detail
+        : onSelect && sum.tradedDays > 0 && <p className="text-[11px] text-[var(--text-muted)] mt-2">색칠된 날짜를 누르면 그날 매매가 펼쳐집니다.</p>}
+
+      <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-3 text-[10px] text-[var(--faint)] whitespace-nowrap">
         <span>손실</span>
         <span className="inline-block w-4 h-3 rounded-sm" style={{ background: `rgba(${DOWN},0.8)` }} />
         <span className="inline-block w-4 h-3 rounded-sm" style={{ background: `rgba(${DOWN},0.3)` }} />

@@ -3,7 +3,7 @@
  * 실행: npm test
  */
 import assert from 'node:assert/strict';
-import { kstParts, byWeekday, byHourBand, bySymbol, type BreakItem } from '../lib/tradeBreakdown';
+import { kstParts, byWeekday, byHourBand, bySymbol, byHoldBand, holdBandIndex, type BreakItem } from '../lib/tradeBreakdown';
 import { csvCell, toCsv, kstDateTime } from '../lib/csv';
 import { concentration } from '../lib/concentration';
 import { checkAlert, alertDistancePct, isAlertOn } from '../lib/priceAlert';
@@ -105,6 +105,26 @@ ok('알림: 가까운 기준까지 거리(%)', () => {
   assert.equal(alertDistancePct({ above: 110, below: 50 }, 100), 10);
   assert.equal(alertDistancePct({ below: 95 }, 100), 5);
   assert.equal(alertDistancePct({}, 100), null);
+});
+
+ok('보유시간 분해 — 구간 경계·짧은 구간부터·보유시간 모르는 매매 제외', () => {
+  const M = 60_000, H = 60 * M, D = 24 * H;
+  assert.equal(holdBandIndex(14 * M), 0);  // 15분 미만 = 스캘핑
+  assert.equal(holdBandIndex(15 * M), 1);  // 경계는 다음 구간
+  assert.equal(holdBandIndex(3 * H), 2);
+  assert.equal(holdBandIndex(3 * D), 4);   // 1~7일 = 스윙
+  assert.equal(holdBandIndex(30 * D), 5);
+  const items: BreakItem[] = [
+    { ts: 0, symbol: 'A', value: 10, win: true, holdMs: 5 * M },
+    { ts: 0, symbol: 'A', value: -4, win: false, holdMs: 10 * M },
+    { ts: 0, symbol: 'A', value: 20, win: true, holdMs: 2 * D },
+    { ts: 0, symbol: 'A', value: 99, win: true, holdMs: null },   // 모름 → 제외
+    { ts: 0, symbol: 'A', value: 99, win: true },                  // 필드 없음 → 제외
+  ];
+  const rows = byHoldBand(items);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].key, 'hb0'); assert.equal(rows[0].count, 2); assert.equal(rows[0].sum, 6); assert.equal(rows[0].winRate, 50);
+  assert.equal(rows[1].key, 'hb4'); assert.equal(rows[1].avg, 20);
 });
 
 console.log(`\n${passed} passed`);
