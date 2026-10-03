@@ -3,7 +3,7 @@
  * 실행: npm test
  */
 import assert from 'node:assert/strict';
-import { kstParts, byWeekday, byHourBand, bySymbol, byHoldBand, holdBandIndex, type BreakItem } from '../lib/tradeBreakdown';
+import { kstParts, byWeekday, byHourBand, bySymbol, byHoldBand, holdBandIndex, bySide, type BreakItem } from '../lib/tradeBreakdown';
 import { csvCell, toCsv, kstDateTime } from '../lib/csv';
 import { concentration } from '../lib/concentration';
 import { checkAlert, alertDistancePct, isAlertOn } from '../lib/priceAlert';
@@ -125,6 +125,20 @@ ok('보유시간 분해 — 구간 경계·짧은 구간부터·보유시간 모
   assert.equal(rows.length, 2);
   assert.equal(rows[0].key, 'hb0'); assert.equal(rows[0].count, 2); assert.equal(rows[0].sum, 6); assert.equal(rows[0].winRate, 50);
   assert.equal(rows[1].key, 'hb4'); assert.equal(rows[1].avg, 20);
+});
+
+ok('방향 분해 — 롱 먼저, 승률·합계·평균, 방향 모르는 매매 제외', () => {
+  const items: BreakItem[] = [
+    { ts: 0, symbol: 'A', value: 10, win: true, side: 'short' },
+    { ts: 0, symbol: 'A', value: -4, win: false, side: 'long' },
+    { ts: 0, symbol: 'A', value: 6, win: true, side: 'long' },
+    { ts: 0, symbol: 'A', value: 99, win: true, side: null },   // 관망·주식 → 제외
+    { ts: 0, symbol: 'A', value: 99, win: true },
+  ];
+  const rows = bySide(items);
+  assert.deepEqual(rows.map((r) => r.key), ['long', 'short']);
+  assert.equal(rows[0].count, 2); assert.equal(rows[0].winRate, 50); assert.equal(rows[0].sum, 2); assert.equal(rows[0].avg, 1);
+  assert.equal(rows[1].count, 1); assert.equal(rows[1].sum, 10);
 });
 
 console.log(`\n${passed} passed`);

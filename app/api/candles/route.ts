@@ -9,7 +9,8 @@ async function handler(req: Request) {
   const symbol = (searchParams.get('symbol') ?? '').toUpperCase();
   const endTime = searchParams.get('endTime') ?? String(Date.now());
   const granularity = searchParams.get('granularity') ?? '1H';
-  const limit = Math.min(1000, Math.max(1, Number(searchParams.get('limit') ?? 200)));
+  // Bitget history-candles 는 한 번에 최대 200봉 — 그 이상을 보내면 40053 오류로 빈 결과가 온다(실측)
+  const limit = Math.min(200, Math.max(1, Number(searchParams.get('limit') ?? 200)));
   if (!/^[A-Z0-9]{5,20}$/.test(symbol)) return NextResponse.json({ error: 'bad symbol', candles: [] }, { status: 400 });
   if (!/^\d+$/.test(endTime)) return NextResponse.json({ error: 'bad endTime', candles: [] }, { status: 400 });
   if (!/^(1m|5m|15m|30m|1H|4H|6H|12H|1D)$/.test(granularity)) return NextResponse.json({ error: 'bad granularity', candles: [] }, { status: 400 });

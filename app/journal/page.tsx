@@ -25,6 +25,9 @@ import EquityCurveLazy from '@/components/EquityCurveLazy';
 import CalendarHeatmap from '@/components/CalendarHeatmap';
 import { streaks, resultOf, edgeSummary, kstDateKey, type TradeValue } from '@/lib/journalAnalytics';
 import EdgeSummaryCard from '@/components/EdgeSummaryCard';
+import CostCard from '@/components/CostCard';
+import ExcursionPanel from '@/components/ExcursionPanel';
+import { costBreakdown } from '@/lib/tradeCosts';
 import { toCsv, downloadCsv, kstDateTime as csvTime, kstStamp } from '@/lib/csv';
 import { fmtCoinPrice } from '@/lib/coins';
 import type { ClosedPosition } from '@/app/api/bitget/history/route';
@@ -154,6 +157,7 @@ export default function JournalPage() {
     ts: p.openTs || p.closeTs, symbol: p.symbol, label: coinName(p.symbol), value: p.netProfit,
     win: p.netProfit > 0 ? true : p.netProfit < 0 ? false : null,
     holdMs: p.openTs && p.closeTs > p.openTs ? p.closeTs - p.openTs : null, // 보유시간 분해용
+    side: p.side,                                                             // 롱/숏 분해용
   })), [positions]);
 
   // 자산 곡선·달력 히트맵 — 청산 시각 기준 실현손익(수수료·펀딩 반영 netProfit USDT)
@@ -161,6 +165,10 @@ export default function JournalPage() {
   // 연속 승/패 — 청산 시간순(오래된 것 → 최신)
   // 성적 요약 — 승률·손익비·Profit Factor·기대값(순손익 USDT, 수수료·펀딩 반영)
   const edge = useMemo(() => edgeSummary(positions.map((p) => p.netProfit)), [positions]);
+  // 비용 분석 — 수수료·펀딩이 손익에서 차지하는 비중
+  const costs = useMemo(() => costBreakdown(positions), [positions]);
+  // 편집 시트가 연 매매가 거래소 청산 매매면 MAE/MFE 를 보여 준다(현재 포지션 open-… 은 제외)
+  const editingPos = useMemo(() => (editing ? positions.find((p) => p.positionId === editing.id) ?? null : null), [editing, positions]);
   // 달력에서 고른 날의 청산 매매(청산 시각 KST 기준 — 달력 색과 같은 기준)
   const dayTrades = useMemo(() => (selDay ? positions.filter((p) => kstDateKey(p.closeTs) === selDay).sort((a, b) => a.closeTs - b.closeTs) : []), [positions, selDay]);
   const streak = useMemo(() => streaks([...positions].sort((a, b) => a.closeTs - b.closeTs).map((p) => resultOf(p.netProfit))), [positions]);
@@ -286,6 +294,7 @@ export default function JournalPage() {
             </div>
           )}
           <EdgeSummaryCard e={edge} unit="USDT" fmt={fmtUsdt} sub={`최근 ${days}일 청산 ${edge.n}건 · 순손익 USDT(수수료·펀딩 반영)`} />
+          <CostCard c={costs} fmt={fmtUsdt} sub={`최근 ${days}일 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
           <EquityCurveLazy trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />
           <CalendarHeatmap trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} selected={selDay} onSelect={setSelDay}
             detail={<DayTrades date={selDay} trades={dayTrades} moods={moods} tags={tags} snapIds={snaps.ids}
@@ -436,6 +445,12 @@ export default function JournalPage() {
         <div className="mb-4">
           {editing && <SnapshotField id={editing.id} has={snaps.ids.has(editing.id)} onSave={snaps.save} onRemove={snaps.remove} onLoad={snaps.load} />}
         </div>
+
+        {editingPos && (
+          <div className="mb-4">
+            <ExcursionPanel t={editingPos} />
+          </div>
+        )}
 
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={200}
           placeholder="메모(선택) — 왜 그렇게 들어갔나, 무엇을 배웠나"

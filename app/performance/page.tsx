@@ -44,7 +44,8 @@ export default function PerformancePage() {
 
   // 손익 분해 — 결과가 나온 기록만(R 기준). 요일·시간대는 기록(진입 판단) 시각 KST
   const breakItems: BreakItem[] = useMemo(() => [
-    ...coin.entries.filter((e) => e.result !== 'open').map((e) => ({ ts: e.ts, symbol: `C:${e.symbol}`, label: `${e.name || e.symbol} · 코인`, value: e.resultR, win: winOf(e.result) })),
+    ...coin.entries.filter((e) => e.result !== 'open').map((e) => ({ ts: e.ts, symbol: `C:${e.symbol}`, label: `${e.name || e.symbol} · 코인`, value: e.resultR, win: winOf(e.result),
+      side: e.direction === 'long' || e.direction === 'short' ? e.direction : null })),   // 주식(매수·축소)은 방향 없음
     ...stock.entries.filter((e) => e.result !== 'open').map((e) => ({ ts: e.ts, symbol: `S:${e.ticker}`, label: `${e.name || e.ticker} · 주식`, value: e.resultR, win: winOf(e.result) })),
   ], [coin.entries, stock.entries]);
 

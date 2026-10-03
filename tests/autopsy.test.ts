@@ -1,6 +1,6 @@
 /** 매매 해부·이벤트 대조 회귀 테스트. 실행: npm test */
 import assert from 'node:assert/strict';
-import { atr, analyzeTrade, type Candle } from '../lib/tradeAutopsy';
+import { atr, analyzeTrade, pickGranularity, tradeExcursion, type Candle } from '../lib/tradeAutopsy';
 import { eventsNear, SEED_EVENTS, type MarketEvent } from '../lib/marketEvents';
 
 let passed = 0;
@@ -85,6 +85,44 @@ ok('eventsNear scope: crypto 요청 시 stocks 전용 제외', () => {
     { ts: 2 * H, title: 'stocks', type: 'T', impact: 'high', scope: 'stocks' },
   ];
   assert.deepEqual(eventsNear(H, evs, 10 * H, 'crypto').map((e) => e.title).sort(), ['all', 'crypto']);
+});
+
+console.log('tradeAutopsy — 거래소 매매 MAE/MFE');
+const M = 60_000;
+ok('pickGranularity: 보유 구간 + 진입 전 30봉이 200봉 안에 드는 가장 촘촘한 봉', () => {
+  assert.deepEqual(pickGranularity(72 * M), { g: '1m', ms: M, limit: 72 + 1 + 30 });   // 72분 → 1분봉 103개
+  assert.equal(pickGranularity(10 * H).g, '5m');                                       // 600분 → 5분봉 121개
+  assert.equal(pickGranularity(28 * H).g, '15m');                                      // 1680분 → 15분봉 143개
+  assert.ok(pickGranularity(28 * H).limit <= 200);
+  assert.equal(pickGranularity(400 * 24 * H).g, '1D');                                 // 아주 길면 일봉(상한 200)
+  assert.equal(pickGranularity(400 * 24 * H).limit, 200);
+});
+// 1분봉: 진입 100(10:00) → 보유 중 저가 97·고가 106 → 청산 104(10:05)
+const T0 = 10 * H;
+const mins: Candle[] = [
+  { ts: T0 - M, o: 99, h: 120, l: 80, c: 100 },        // 진입 전 봉 — 겹치지 않으면 제외돼야 함
+  { ts: T0, o: 100, h: 101, l: 97, c: 99 },
+  { ts: T0 + M, o: 99, h: 106, l: 98, c: 105 },
+  { ts: T0 + 2 * M, o: 105, h: 105, l: 103, c: 104 },
+  { ts: T0 + 6 * M, o: 104, h: 130, l: 60, c: 104 },   // 청산 뒤 봉 — 제외돼야 함
+];
+ok('tradeExcursion 롱: MAE 3%·MFE 6%, 수량 2 → 6·12 USDT, 6% 중 4% 챙김(67%)', () => {
+  const e = tradeExcursion({ side: 'long', entry: 100, exit: 104, size: 2, openTs: T0, closeTs: T0 + 5 * M }, mins, M)!;
+  near(e.maePct, 3); near(e.mfePct, 6); near(e.maeUsdt, 6); near(e.mfeUsdt, 12);
+  near(e.exitPct, 4); assert.equal(e.capturePct, 67);
+  assert.equal(e.maeR, null);                                   // 손절가 없으면 R 없음(추측 금지)
+  assert.equal(e.bars, 3); assert.equal(e.rough, false);
+});
+ok('tradeExcursion 숏 + 손절가 → R 환산, 순행했다가 손실 청산이면 capture 음수', () => {
+  // 숏 100 진입, 손절 102(리스크 2). 보유 중 고가 106(역행 6=3R)·저가 97(순행 3=1.5R), 101 청산(−1)
+  const e = tradeExcursion({ side: 'short', entry: 100, exit: 101, size: 1, openTs: T0, closeTs: T0 + 5 * M, stop: 102 }, mins, M)!;
+  near(e.maeR!, 3); near(e.mfeR!, 1.5); near(e.exitPct, -1);
+  assert.equal(e.capturePct, -33);
+});
+ok('tradeExcursion: 봉 3개보다 짧은 보유는 근사(rough), 봉이 없으면 null', () => {
+  const e = tradeExcursion({ side: 'long', entry: 100, exit: 100.5, size: 1, openTs: T0 + 10_000, closeTs: T0 + 40_000 }, mins, M)!;
+  assert.equal(e.rough, true);
+  assert.equal(tradeExcursion({ side: 'long', entry: 100, exit: 101, size: 1, openTs: 0, closeTs: 1000 }, mins, M), null);
 });
 
 console.log(`\n${passed} passed`);

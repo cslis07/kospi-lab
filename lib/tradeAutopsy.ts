@@ -33,6 +33,88 @@ export function atr(candles: Candle[], period = 14): number | null {
   return last.reduce((a, v) => a + v, 0) / period;
 }
 
+/** 보유 구간 캔들의 최대 역행(adverse)·최대 순행(favor) — 가격 차이(0 이상). MAE/MFE 의 단일 정의 */
+export function priceExcursion(entry: number, long: boolean, held: Candle[]): { adverse: number; favor: number } | null {
+  if (!held.length) return null;
+  const minL = Math.min(...held.map((c) => c.l)), maxH = Math.max(...held.map((c) => c.h));
+  return {
+    adverse: Math.max(0, long ? entry - minL : maxH - entry),
+    favor: Math.max(0, long ? maxH - entry : entry - minL),
+  };
+}
+
+// ───────────── 거래소 청산 매매의 MAE/MFE (진입·청산 시각을 아는 경우) ─────────────
+
+/** Bitget history-candles 가 받는 봉 단위와 길이(ms). 한 번에 최대 200봉 */
+export const GRANULARITIES: [string, number][] = [
+  ['1m', 60_000], ['5m', 300_000], ['15m', 900_000], ['30m', 1_800_000],
+  ['1H', 3_600_000], ['4H', 14_400_000], ['12H', 43_200_000], ['1D', 86_400_000],
+];
+export const CANDLE_LIMIT = 200;
+/** 진입 전 봉(ATR·진입 위치 계산용) */
+export const LOOKBACK_BARS = 30;
+
+/** 보유 구간 + 진입 전 30봉이 200봉 안에 들어가는 가장 촘촘한 봉 단위 */
+export function pickGranularity(holdMs: number): { g: string; ms: number; limit: number } {
+  for (const [g, ms] of GRANULARITIES) {
+    const bars = Math.ceil(Math.max(holdMs, 1) / ms) + 1 + LOOKBACK_BARS;
+    if (bars <= CANDLE_LIMIT) return { g, ms, limit: bars };
+  }
+  const [g, ms] = GRANULARITIES[GRANULARITIES.length - 1];
+  return { g, ms, limit: CANDLE_LIMIT };
+}
+
+export interface ExcursionInput {
+  side: 'long' | 'short';
+  entry: number;         // 평균 진입가
+  exit: number;          // 평균 청산가
+  size: number;          // 수량(코인)
+  openTs: number;
+  closeTs: number;
+  stop?: number | null;  // 손절가(있을 때만 R 환산)
+}
+export interface Excursion {
+  maePct: number; mfePct: number;      // 진입가 대비 %
+  maeUsdt: number; mfeUsdt: number;    // 수량 × 가격 차이(수수료 전)
+  maeR: number | null; mfeR: number | null;
+  /** 청산 시점 순행 % (+ 유리하게 청산, − 불리하게 청산) */
+  exitPct: number;
+  /** 최대 순행 중 실제로 챙긴 비율 % (MFE 가 0이면 null). 음수 = 순행했다가 손실로 청산 */
+  capturePct: number | null;
+  bars: number;
+  /** 보유 시간이 봉 3개보다 짧아 봉 전체 범위가 섞인 근사 */
+  rough: boolean;
+}
+
+/**
+ * 거래소 청산 매매 하나의 MAE/MFE. 봉이 보유 구간과 겹치면 포함(진입·청산 봉은 봉 전체 범위 → 약간 과대 가능).
+ * 청산가는 실제로 거친 가격이므로 MAE/MFE 는 최소한 청산 시점의 역행/순행 이상이 되게 맞춘다.
+ */
+export function tradeExcursion(inp: ExcursionInput, candles: Candle[], barMs: number): Excursion | null {
+  const long = inp.side === 'long';
+  if (!(inp.entry > 0)) return null;
+  const held = candles.filter((c) => c.ts + barMs > inp.openTs && c.ts <= inp.closeTs);
+  const ex = priceExcursion(inp.entry, long, held);
+  if (!ex) return null;
+  const exitMove = long ? inp.exit - inp.entry : inp.entry - inp.exit; // + 유리
+  const adverse = Math.max(ex.adverse, -exitMove, 0);
+  const favor = Math.max(ex.favor, exitMove, 0);
+  const risk = inp.stop != null && inp.stop > 0 ? Math.abs(inp.entry - inp.stop) : 0;
+  const size = Number.isFinite(inp.size) ? Math.abs(inp.size) : 0;
+  return {
+    maePct: r2((adverse / inp.entry) * 100),
+    mfePct: r2((favor / inp.entry) * 100),
+    maeUsdt: r2(adverse * size),
+    mfeUsdt: r2(favor * size),
+    maeR: risk > 0 ? r2(adverse / risk) : null,
+    mfeR: risk > 0 ? r2(favor / risk) : null,
+    exitPct: r2((exitMove / inp.entry) * 100),
+    capturePct: favor > 0 ? Math.round((exitMove / favor) * 100) : null,
+    bars: held.length,
+    rough: inp.closeTs - inp.openTs < 3 * barMs,
+  };
+}
+
 export function analyzeTrade(inp: AutopsyInput, candles: Candle[], opts?: { forwardMs?: number; lookbackN?: number }): Autopsy {
   const cs = [...candles].sort((a, b) => a.ts - b.ts);
   const long = inp.direction === 'long';
@@ -56,12 +138,10 @@ export function analyzeTrade(inp: AutopsyInput, candles: Candle[], opts?: { forw
   const end = inp.exitTs ?? inp.entryTs + forwardMs;
   const fwd = cs.filter((c) => c.ts >= inp.entryTs && c.ts <= end);
   let maeR: number | null = null, mfeR: number | null = null;
-  if (fwd.length && risk > 0) {
-    const minL = Math.min(...fwd.map((c) => c.l)), maxH = Math.max(...fwd.map((c) => c.h));
-    const adverse = long ? inp.entry - minL : maxH - inp.entry;
-    const favor = long ? maxH - inp.entry : inp.entry - minL;
-    maeR = r2(Math.max(0, adverse) / risk);
-    mfeR = r2(Math.max(0, favor) / risk);
+  const ex = priceExcursion(inp.entry, long, fwd);
+  if (ex && risk > 0) {
+    maeR = r2(ex.adverse / risk);
+    mfeR = r2(ex.favor / risk);
   }
 
   const f: Finding[] = [];

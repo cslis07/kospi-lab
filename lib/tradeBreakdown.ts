@@ -41,6 +41,8 @@ export interface BreakItem {
   win: boolean | null;     // null = 본전(승률 분모에는 포함, 승리 아님)
   /** 보유 시간(청산 − 진입, ms). 모르면 없음 — 보유시간 분해에서 빠진다 */
   holdMs?: number | null;
+  /** 방향. 모르면(관망·주식 매수/축소 등) 없음 — 방향 분해에서 빠진다 */
+  side?: 'long' | 'short' | null;
 }
 
 const MIN = 60_000, HOUR = 60 * MIN, DAY = 24 * HOUR;
@@ -92,6 +94,13 @@ export function byHourBand(items: BreakItem[], thinAt = THIN_SAMPLE): BreakRow[]
 export function byHoldBand(items: BreakItem[], thinAt = THIN_SAMPLE): BreakRow[] {
   const known = items.filter((i) => i.holdMs != null && i.holdMs > 0);
   return bucket(known, (i) => { const idx = holdBandIndex(i.holdMs!); return { key: `hb${idx}`, label: HOLD_BANDS[idx].label, order: idx }; }, thinAt)
+    .sort((a, b) => a.order - b.order);
+}
+
+/** 방향별(롱·숏) — 롱 먼저. 방향을 모르는 매매는 뺀다(참고: TraderSync 'Long vs Short') */
+export function bySide(items: BreakItem[], thinAt = THIN_SAMPLE): BreakRow[] {
+  const known = items.filter((i) => i.side === 'long' || i.side === 'short');
+  return bucket(known, (i) => (i.side === 'long' ? { key: 'long', label: '롱', order: 0 } : { key: 'short', label: '숏', order: 1 }), thinAt)
     .sort((a, b) => a.order - b.order);
 }
 
