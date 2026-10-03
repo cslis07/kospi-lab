@@ -14,6 +14,8 @@ import Link from 'next/link';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { useTradeMood, type TradeMood } from '@/hooks/useTradeMood';
 import { useTradeTags } from '@/hooks/useTradeTags';
+import { useSnapshots } from '@/hooks/useSnapshots';
+import SnapshotField from '@/components/SnapshotField';
 import { MOODS, MOOD_BY_KEY, type MoodKey } from '@/lib/tradeMood';
 import { SETUPS, MISTAKES, SETUP_BY_KEY, MISTAKE_BY_KEY, tagStats, hasAnyTag, type TagStat, type TagMeta } from '@/lib/tradeTags';
 import { monthlyStats, moodStats, kstMonth } from '@/lib/tradeReport';
@@ -75,6 +77,7 @@ function Chevron({ open }: { open: boolean }) {
 export default function JournalPage() {
   const { moods, mounted, setMood, clearMood } = useTradeMood();
   const { tags, saveTags, clearTags } = useTradeTags();
+  const snaps = useSnapshots();
   const [days, setDays] = useState(30);
   const [positions, setPositions] = useState<ClosedPosition[]>([]);
   const [open, setOpen] = useState<OpenPosition[]>([]);
@@ -235,6 +238,7 @@ export default function JournalPage() {
                       {p.leverage > 0 && <span className="text-[10px] font-bold text-[var(--faint)]">{p.leverage}x</span>}
                       {meta && <span className="text-[11px]">{meta.emoji} {meta.label}</span>}
                       <TagEmojis set={tags[id]} />
+                      {snaps.ids.has(id) && <span className="text-[11px] text-[var(--faint)]" title="차트 이미지 있음">📎</span>}
                     </span>
                     <span className="block text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
                       진입 {fmtCoinPrice(p.openAvg)} · 현재 {fmtCoinPrice(p.markPrice)}{p.liqDistPct != null ? ` · 청산까지 ${p.liqDistPct.toFixed(1)}%` : ''}
@@ -356,7 +360,7 @@ export default function JournalPage() {
                         <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">거래내역 <span className="text-[10px] font-normal text-[var(--text-muted)]">행을 눌러 기분·태그 기록</span></h3>
                         <div className="rounded-xl border border-[var(--line-2)] overflow-hidden">
                           {trades.map((p, j) => (
-                            <TradeRow key={p.positionId} p={p} mood={moods[p.positionId]} tagset={tags[p.positionId]} border={j > 0}
+                            <TradeRow key={p.positionId} p={p} mood={moods[p.positionId]} tagset={tags[p.positionId]} hasSnap={snaps.ids.has(p.positionId)} border={j > 0}
                               onEdit={() => setEditing({ id: p.positionId, symbol: p.symbol })} />
                           ))}
                         </div>
@@ -419,10 +423,14 @@ export default function JournalPage() {
           ))}
         </div>
 
+        <div className="mb-4">
+          {editing && <SnapshotField id={editing.id} has={snaps.ids.has(editing.id)} onSave={snaps.save} onRemove={snaps.remove} onLoad={snaps.load} />}
+        </div>
+
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={200}
           placeholder="메모(선택) — 왜 그렇게 들어갔나, 무엇을 배웠나"
           className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[13px] text-[var(--text)] resize-none" />
-        <p className="text-[10px] text-[var(--faint)] mt-2">메모는 기분을 함께 고를 때 저장됩니다. 셋업·실수 태그는 기분 없이도 저장돼요.</p>
+        <p className="text-[10px] text-[var(--faint)] mt-2">메모는 기분을 함께 고를 때 저장됩니다. 셋업·실수 태그·차트 이미지는 기분 없이도 저장돼요(이미지는 이 기기에만).</p>
       </BottomSheet>
 
       {!mounted && <div className="skeleton h-40 mt-3" />}
@@ -430,7 +438,7 @@ export default function JournalPage() {
   );
 }
 
-function TradeRow({ p, mood, tagset, border, onEdit }: { p: ClosedPosition; mood?: TradeMood; tagset?: { setups: string[]; mistakes: string[] }; border: boolean; onEdit: () => void }) {
+function TradeRow({ p, mood, tagset, hasSnap, border, onEdit }: { p: ClosedPosition; mood?: TradeMood; tagset?: { setups: string[]; mistakes: string[] }; hasSnap?: boolean; border: boolean; onEdit: () => void }) {
   const meta = mood ? MOOD_BY_KEY.get(mood.mood) : null;
   return (
     <button type="button" onClick={onEdit}
@@ -441,6 +449,7 @@ function TradeRow({ p, mood, tagset, border, onEdit }: { p: ClosedPosition; mood
           <SideBadge side={p.side} />
           {meta && <span className="text-[11px]">{meta.emoji} {meta.label}</span>}
           <TagEmojis set={tagset} />
+          {hasSnap && <span className="text-[11px] text-[var(--faint)]" title="차트 이미지 있음">📎</span>}
         </span>
         <span className="block text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
           {kstDateTime(p.closeTs)} · {fmtCoinPrice(p.openAvg)} → {fmtCoinPrice(p.closeAvg)} · {fmtHold(p.closeTs - p.openTs)}

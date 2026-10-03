@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-03 (95차) — 매매 복기용 차트 스냅샷 이미지 첨부(이 기기 저장)
+
+- 사용자 신규 목록 마지막 항목(참고: Edgewonk·TradingView). 매매마다 진입/청산 당시 차트 캡처 1장을 붙여 복기한다.
+- **저장소**(`lib/snapshotStore`): 이미지는 용량이 커 localStorage 불가 → **IndexedDB**(`kospi-lab-snapshots`). 매매(positionId) 1장(교체식), 첨부 시 긴 변 1280px JPEG로 축소(용량 절감). 이 기기에만 저장되며 클라우드 동기화 제외. 브라우저 전용(SSR 가드).
+- **훅·UI**(`hooks/useSnapshots`, `components/SnapshotField`): 편집 바텀시트에 '차트 스냅샷' 필드 — 없으면 '차트 이미지 첨부'(갤러리·카메라), 있으면 썸네일+크게 보기(전체화면)·교체·삭제. 매매 행·현재 포지션에 📎 표식. object URL은 쓰고 해제.
+- 로컬 E2E(430px, 헤드리스 CDP): 시트에서 파일 업로드 → 썸네일·교체/삭제 노출, 시트 닫고 새로고침 후에도 📎 유지(IndexedDB persistence 확인), 깨끗한 프로필 격리(누수 없음) 확인. tsc 0 · build 0(테스트는 IndexedDB 특성상 CDP E2E로 대체).
+- 이로써 사용자 신규 목록 5종 완료(93차 자산곡선·히트맵·스트릭, 94차 셋업·실수 태그, 95차 차트 스냅샷).
+
 ## 2026-10-03 (94차) — 셋업·실수 태그 → 태그별 승률·기대값
 
 - 사용자 신규 목록 중 2차 첫 항목(참고: Edgewonk·TraderSync). "어떤 셋업이 돈이 되고 어떤 실수가 계좌를 깎나"를 태그로 되짚는다.
