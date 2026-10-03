@@ -13,7 +13,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { useTradeMood, type TradeMood } from '@/hooks/useTradeMood';
+import { useTradeTags } from '@/hooks/useTradeTags';
 import { MOODS, MOOD_BY_KEY, type MoodKey } from '@/lib/tradeMood';
+import { SETUPS, MISTAKES, SETUP_BY_KEY, MISTAKE_BY_KEY, tagStats, hasAnyTag, type TagStat, type TagMeta } from '@/lib/tradeTags';
 import { monthlyStats, moodStats, kstMonth } from '@/lib/tradeReport';
 import BreakdownTables from '@/components/BreakdownTables';
 import type { BreakItem } from '@/lib/tradeBreakdown';
@@ -72,6 +74,7 @@ function Chevron({ open }: { open: boolean }) {
 
 export default function JournalPage() {
   const { moods, mounted, setMood, clearMood } = useTradeMood();
+  const { tags, saveTags, clearTags } = useTradeTags();
   const [days, setDays] = useState(30);
   const [positions, setPositions] = useState<ClosedPosition[]>([]);
   const [open, setOpen] = useState<OpenPosition[]>([]);
@@ -85,12 +88,19 @@ export default function JournalPage() {
   const [editing, setEditing] = useState<{ id: string; symbol: string } | null>(null);
   const [pick, setPick] = useState<MoodKey | null>(null);
   const [note, setNote] = useState('');
+  const [selSetups, setSelSetups] = useState<string[]>([]);
+  const [selMistakes, setSelMistakes] = useState<string[]>([]);
   useEffect(() => {
     if (!editing) return;
     const cur = moods[editing.id];
     setPick(cur?.mood ?? null);
     setNote(cur?.note ?? '');
-  }, [editing, moods]);
+    const t = tags[editing.id];
+    setSelSetups(t?.setups ?? []);
+    setSelMistakes(t?.mistakes ?? []);
+  }, [editing, moods, tags]);
+  const toggle = (list: string[], set: (v: string[]) => void, key: string) =>
+    set(list.includes(key) ? list.filter((k) => k !== key) : [...list, key]);
 
   const load = useCallback(async (d: number) => {
     setBusy(true); setErr(null); setMsg(null);
@@ -144,22 +154,29 @@ export default function JournalPage() {
   const analyticsTrades: TradeValue[] = useMemo(() => positions.map((p) => ({ ts: p.closeTs, value: p.netProfit })), [positions]);
   // 연속 승/패 — 청산 시간순(오래된 것 → 최신)
   const streak = useMemo(() => streaks([...positions].sort((a, b) => a.closeTs - b.closeTs).map((p) => resultOf(p.netProfit))), [positions]);
+  // 셋업·실수 태그별 성적 — 로드된 청산 포지션 전체
+  const setupStats = useMemo(() => tagStats(positions, tags, 'setup'), [positions, tags]);
+  const mistakeStats = useMemo(() => tagStats(positions, tags, 'mistake'), [positions, tags]);
 
-  // CSV 내보내기 — 거래소 청산 내역 + 이 기기의 기분 기록(엑셀용 BOM·KST)
+  // CSV 내보내기 — 거래소 청산 내역 + 이 기기의 기분·태그 기록(엑셀용 BOM·KST)
   const exportCsv = () => {
     const rows = [...positions].sort((a, b) => a.closeTs - b.closeTs).map((p) => {
       const m = moods[p.positionId];
+      const tg = tags[p.positionId];
+      const setupLabels = (tg?.setups ?? []).map((k) => SETUP_BY_KEY.get(k)?.label ?? k).join(' / ');
+      const mistakeLabels = (tg?.mistakes ?? []).map((k) => MISTAKE_BY_KEY.get(k)?.label ?? k).join(' / ');
       return [csvTime(p.openTs), csvTime(p.closeTs), p.symbol, coinName(p.symbol), p.side === 'long' ? '롱' : '숏',
         p.openAvg, p.closeAvg, +p.netProfit.toFixed(4), +p.fee.toFixed(4), +p.funding.toFixed(4),
-        m ? MOOD_BY_KEY.get(m.mood)?.label ?? m.mood : '', m?.note ?? '', p.positionId];
+        m ? MOOD_BY_KEY.get(m.mood)?.label ?? m.mood : '', setupLabels, mistakeLabels, m?.note ?? '', p.positionId];
     });
     downloadCsv(`매매일지_코인선물_${days}일_${kstStamp()}.csv`, toCsv(
-      ['진입(KST)', '청산(KST)', '심볼', '이름', '방향', '진입가', '청산가', '순손익(USDT)', '수수료', '펀딩', '진입 기분', '메모', '포지션ID'], rows));
+      ['진입(KST)', '청산(KST)', '심볼', '이름', '방향', '진입가', '청산가', '순손익(USDT)', '수수료', '펀딩', '진입 기분', '셋업', '실수', '메모', '포지션ID'], rows));
   };
 
-  const saveMood = () => {
-    if (!editing || !pick) return;
-    setMood(editing.id, pick, note);
+  const saveAnnotation = () => {
+    if (!editing) return;
+    if (pick) setMood(editing.id, pick, note);
+    saveTags(editing.id, selSetups, selMistakes);
     setEditing(null);
   };
 
@@ -202,7 +219,7 @@ export default function JournalPage() {
       {/* 현재 포지션 (미청산) — 진입 당시 기분을 바로 기록 */}
       {open.length > 0 && (
         <section className="mb-5">
-          <h2 className="text-sm font-bold text-[var(--text)] mb-2">현재 포지션 <span className="text-[10px] font-normal text-[var(--text-muted)]">미청산 · 눌러서 진입 기분 기록</span></h2>
+          <h2 className="text-sm font-bold text-[var(--text)] mb-2">현재 포지션 <span className="text-[10px] font-normal text-[var(--text-muted)]">미청산 · 눌러서 기분·태그 기록</span></h2>
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
             {open.map((p, i) => {
               const id = openId(p);
@@ -217,6 +234,7 @@ export default function JournalPage() {
                       <SideBadge side={p.side} />
                       {p.leverage > 0 && <span className="text-[10px] font-bold text-[var(--faint)]">{p.leverage}x</span>}
                       {meta && <span className="text-[11px]">{meta.emoji} {meta.label}</span>}
+                      <TagEmojis set={tags[id]} />
                     </span>
                     <span className="block text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
                       진입 {fmtCoinPrice(p.openAvg)} · 현재 {fmtCoinPrice(p.markPrice)}{p.liqDistPct != null ? ` · 청산까지 ${p.liqDistPct.toFixed(1)}%` : ''}
@@ -259,6 +277,19 @@ export default function JournalPage() {
           <EquityCurveLazy trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />
           <CalendarHeatmap trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />
         </>
+      )}
+
+      {/* 셋업·실수 태그별 성적 — 어떤 셋업이 돈이 되고 어떤 실수가 깎나 */}
+      {positions.length > 0 && (setupStats.length > 0 || mistakeStats.length > 0) && (
+        <section className="mb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <TagStatTable title="셋업별 성적" sub="왜 들어갔나" stats={setupStats} />
+          <TagStatTable title="실수별 성적" sub="무엇을 잘못했나" stats={mistakeStats} />
+        </section>
+      )}
+      {positions.length > 0 && setupStats.length === 0 && mistakeStats.length === 0 && (
+        <p className="text-[11px] text-[var(--faint)] mb-5 px-1 leading-relaxed">
+          매매 행을 눌러 <b className="text-[var(--text-muted)]">셋업·실수 태그</b>를 달면 "어떤 셋업이 돈이 되고 어떤 실수가 깎나"가 여기 집계됩니다(참고: Edgewonk·TraderSync).
+        </p>
       )}
 
       {/* ③ 월별 보고서 — 접힘 상태로 월 목록만, 월을 누르면 상세 펼침(청산 건만) */}
@@ -320,12 +351,12 @@ export default function JournalPage() {
                         </div>
                       )}
 
-                      {/* 거래내역(그 달, 청산 성적) — 행을 눌러 기분 기록 */}
+                      {/* 거래내역(그 달, 청산 성적) — 행을 눌러 기분·태그 기록 */}
                       <div className="mt-4">
-                        <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">거래내역 <span className="text-[10px] font-normal text-[var(--text-muted)]">행을 눌러 기분 기록</span></h3>
+                        <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">거래내역 <span className="text-[10px] font-normal text-[var(--text-muted)]">행을 눌러 기분·태그 기록</span></h3>
                         <div className="rounded-xl border border-[var(--line-2)] overflow-hidden">
                           {trades.map((p, j) => (
-                            <TradeRow key={p.positionId} p={p} mood={moods[p.positionId]} border={j > 0}
+                            <TradeRow key={p.positionId} p={p} mood={moods[p.positionId]} tagset={tags[p.positionId]} border={j > 0}
                               onEdit={() => setEditing({ id: p.positionId, symbol: p.symbol })} />
                           ))}
                         </div>
@@ -347,24 +378,25 @@ export default function JournalPage() {
 
       <p className="text-[10px] text-[var(--text-muted)] mt-4 leading-relaxed">
         ※ 월별 보고서·손익은 <strong className="text-[var(--text)]">거래소가 청산한 포지션</strong>만 반영합니다(수수료·펀딩 포함). 현재 포지션의 미실현손익은 참고용이며 보고서에 넣지 않습니다.
-        기분 기록은 이 브라우저에만 저장되며 <Link href="/virtual" className="text-sky-400 hover:underline">가상투자·백업</Link>에서 관리합니다. 읽기 전용 조회이며 주문은 하지 않습니다.
+        기분·셋업·실수 태그는 이 브라우저에만 저장되며 <Link href="/virtual" className="text-sky-400 hover:underline">가상투자·백업</Link>에서 관리합니다. 읽기 전용 조회이며 주문은 하지 않습니다.
       </p>
 
-      {/* 기분 편집 시트 */}
-      <BottomSheet open={!!editing} onClose={() => setEditing(null)} title={editing ? `${coinName(editing.symbol)} · 진입 당시 기분` : ''}
+      {/* 기분·셋업·실수 편집 시트 */}
+      <BottomSheet open={!!editing} onClose={() => setEditing(null)} title={editing ? `${coinName(editing.symbol)} · 복기 기록` : ''}
         footer={
           <div className="flex items-center gap-2">
-            {editing && moods[editing.id] && (
-              <button type="button" onClick={() => { clearMood(editing.id); setEditing(null); }}
+            {editing && (moods[editing.id] || tags[editing.id]) && (
+              <button type="button" onClick={() => { clearMood(editing.id); clearTags(editing.id); setEditing(null); }}
                 className="px-3 py-2.5 rounded-xl border border-[var(--border)] text-[13px] text-red-400 font-semibold">삭제</button>
             )}
-            <button type="button" onClick={saveMood} disabled={!pick}
+            <button type="button" onClick={saveAnnotation} disabled={!editing}
               className="flex-1 px-3 py-2.5 rounded-xl bg-[var(--accent)] text-white text-[13px] font-bold disabled:opacity-40">저장</button>
           </div>
         }>
-        <div className="grid grid-cols-2 gap-2 mb-3">
+        <p className="text-[11px] font-bold text-[var(--text-muted)] mb-1.5">진입 당시 기분</p>
+        <div className="grid grid-cols-2 gap-2 mb-4">
           {MOODS.map((m) => (
-            <button key={m.key} type="button" onClick={() => setPick(m.key)}
+            <button key={m.key} type="button" onClick={() => setPick(pick === m.key ? null : m.key)}
               className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-[13px] font-semibold transition-colors ${
                 pick === m.key ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)]'
               }`}>
@@ -372,9 +404,25 @@ export default function JournalPage() {
             </button>
           ))}
         </div>
+
+        <p className="text-[11px] font-bold text-[var(--text-muted)] mb-1.5">셋업 <span className="font-normal">· 왜 들어갔나(여러 개 가능)</span></p>
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {SETUPS.map((t) => (
+            <TagChip key={t.key} meta={t} on={selSetups.includes(t.key)} onClick={() => toggle(selSetups, setSelSetups, t.key)} tone="setup" />
+          ))}
+        </div>
+
+        <p className="text-[11px] font-bold text-[var(--text-muted)] mb-1.5">실수 <span className="font-normal">· 무엇을 잘못했나(여러 개 가능)</span></p>
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {MISTAKES.map((t) => (
+            <TagChip key={t.key} meta={t} on={selMistakes.includes(t.key)} onClick={() => toggle(selMistakes, setSelMistakes, t.key)} tone="mistake" />
+          ))}
+        </div>
+
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={200}
           placeholder="메모(선택) — 왜 그렇게 들어갔나, 무엇을 배웠나"
           className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[13px] text-[var(--text)] resize-none" />
+        <p className="text-[10px] text-[var(--faint)] mt-2">메모는 기분을 함께 고를 때 저장됩니다. 셋업·실수 태그는 기분 없이도 저장돼요.</p>
       </BottomSheet>
 
       {!mounted && <div className="skeleton h-40 mt-3" />}
@@ -382,7 +430,7 @@ export default function JournalPage() {
   );
 }
 
-function TradeRow({ p, mood, border, onEdit }: { p: ClosedPosition; mood?: TradeMood; border: boolean; onEdit: () => void }) {
+function TradeRow({ p, mood, tagset, border, onEdit }: { p: ClosedPosition; mood?: TradeMood; tagset?: { setups: string[]; mistakes: string[] }; border: boolean; onEdit: () => void }) {
   const meta = mood ? MOOD_BY_KEY.get(mood.mood) : null;
   return (
     <button type="button" onClick={onEdit}
@@ -392,6 +440,7 @@ function TradeRow({ p, mood, border, onEdit }: { p: ClosedPosition; mood?: Trade
           <b className="text-[13px] text-[var(--text)]">{coinName(p.symbol)}</b>
           <SideBadge side={p.side} />
           {meta && <span className="text-[11px]">{meta.emoji} {meta.label}</span>}
+          <TagEmojis set={tagset} />
         </span>
         <span className="block text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
           {kstDateTime(p.closeTs)} · {fmtCoinPrice(p.openAvg)} → {fmtCoinPrice(p.closeAvg)} · {fmtHold(p.closeTs - p.openTs)}
@@ -399,6 +448,58 @@ function TradeRow({ p, mood, border, onEdit }: { p: ClosedPosition; mood?: Trade
       </span>
       <span className="text-[13px] font-bold tabular-nums shrink-0" style={{ color: pnlColor(p.netProfit) }}>{fmtPnl(p.netProfit)}</span>
     </button>
+  );
+}
+
+/** 행에 붙는 태그 표식 — 셋업(파랑)·실수(앰버) 이모지 알약 */
+function TagEmojis({ set }: { set?: { setups: string[]; mistakes: string[] } }) {
+  if (!hasAnyTag(set)) return null;
+  const items = [
+    ...set!.setups.map((k) => ({ k, e: SETUP_BY_KEY.get(k)?.emoji, c: 'var(--accent-ink)' })),
+    ...set!.mistakes.map((k) => ({ k, e: MISTAKE_BY_KEY.get(k)?.emoji, c: 'var(--amber)' })),
+  ].filter((x) => x.e);
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {items.map((x, i) => <span key={i} className="text-[11px]" style={{ color: x.c }}>{x.e}</span>)}
+    </span>
+  );
+}
+
+/** 편집 시트의 태그 선택 칩 — 켜지면 셋업=파랑, 실수=앰버 */
+function TagChip({ meta, on, onClick, tone }: { meta: TagMeta; on: boolean; onClick: () => void; tone: 'setup' | 'mistake' }) {
+  const color = tone === 'setup' ? 'var(--accent)' : 'var(--amber)';
+  return (
+    <button type="button" onClick={onClick}
+      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border text-[12px] font-semibold transition-colors"
+      style={on
+        ? { borderColor: color, background: `color-mix(in srgb, ${color} 14%, transparent)`, color: 'var(--text)' }
+        : { borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+      <span className="text-[13px]">{meta.emoji}</span>{meta.label}
+    </button>
+  );
+}
+
+/** 태그별 성적 표 — 건수·승률·순손익 */
+function TagStatTable({ title, sub, stats }: { title: string; sub: string; stats: TagStat[] }) {
+  return (
+    <div className="fin-card p-4">
+      <h3 className="text-[13px] font-bold text-[var(--text)] mb-2">{title} <span className="text-[10px] font-normal text-[var(--text-muted)]">{sub}</span></h3>
+      {stats.length === 0 ? (
+        <p className="text-[11px] text-[var(--faint)] py-2">아직 태그가 없습니다.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {stats.map((s) => (
+            <div key={s.key} className="flex items-center gap-2 text-[12.5px]">
+              <span className="min-w-0 flex-1 truncate">{s.emoji} {s.label}</span>
+              <span className="text-[var(--text-muted)] tabular-nums w-10 text-right">{s.count}건</span>
+              <span className="text-[var(--text-muted)] tabular-nums w-11 text-right">{s.winRate != null ? `${s.winRate.toFixed(0)}%` : '—'}</span>
+              <span className="font-bold tabular-nums w-20 text-right" style={{ color: s.netSum > 0 ? 'var(--warn)' : s.netSum < 0 ? 'var(--accent-ink)' : 'var(--text)' }}>{fmtPnl(s.netSum)}</span>
+            </div>
+          ))}
+          <p className="text-[10px] text-[var(--faint)] pt-1 leading-relaxed">한 매매에 태그가 여러 개면 각 태그에 모두 반영 · 순손익 USDT</p>
+        </div>
+      )}
+    </div>
   );
 }
 
