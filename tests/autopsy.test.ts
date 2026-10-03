@@ -1,6 +1,6 @@
 /** 매매 해부·이벤트 대조 회귀 테스트. 실행: npm test */
 import assert from 'node:assert/strict';
-import { atr, analyzeTrade, pickGranularity, tradeExcursion, type Candle } from '../lib/tradeAutopsy';
+import { atr, analyzeTrade, pickGranularity, tradeExcursion, excursionSummary, type Candle, type Excursion } from '../lib/tradeAutopsy';
 import { eventsNear, SEED_EVENTS, type MarketEvent } from '../lib/marketEvents';
 
 let passed = 0;
@@ -123,6 +123,21 @@ ok('tradeExcursion: 봉 3개보다 짧은 보유는 근사(rough), 봉이 없으
   const e = tradeExcursion({ side: 'long', entry: 100, exit: 100.5, size: 1, openTs: T0 + 10_000, closeTs: T0 + 40_000 }, mins, M)!;
   assert.equal(e.rough, true);
   assert.equal(tradeExcursion({ side: 'long', entry: 100, exit: 101, size: 1, openTs: 0, closeTs: 1000 }, mins, M), null);
+});
+ok('excursionSummary — 이익 매매 포착률·지켰으면 손실 아니었을 매매·손절가 넘은 역행', () => {
+  const ex = (o: Partial<Excursion>): Excursion => ({ maePct: 1, mfePct: 1, maeUsdt: 0, mfeUsdt: 0, maeR: null, mfeR: null, exitPct: 0, capturePct: null, bars: 5, rough: false, ...o });
+  const s = excursionSummary([
+    { ex: ex({ mfePct: 2, exitPct: 1, capturePct: 50 }), net: 5 },             // 이익, 50% 포착
+    { ex: ex({ mfePct: 2, exitPct: 1.8, capturePct: 90 }), net: 9 },           // 이익, 90%
+    { ex: ex({ mfePct: 0.8, exitPct: -0.5, capturePct: -62 }), net: -3 },      // 손실, 한때 +0.8% ≥ 최종 −0.5% → 지켰으면
+    { ex: ex({ mfePct: 0.2, exitPct: -1, capturePct: -500, maeR: 1.2 }), net: -6 }, // 손실, +0.2% < 1% → 아님 · 손절가 넘음
+    { ex: ex({ mfePct: 0.1, exitPct: -0.3, maeR: 0.6 }), net: -1 },            // 손실, 아님 · 손절가 안 넘음
+  ]);
+  assert.equal(s.n, 5); assert.equal(s.winners, 2); assert.equal(s.losers, 3);
+  near(s.winnersCapturePct!, 70);
+  assert.equal(s.gaveBack, 1);
+  assert.equal(s.withStop, 2); assert.equal(s.beyondStop, 1);
+  near(s.avgMaePct!, 1);
 });
 
 console.log(`\n${passed} passed`);

@@ -2,7 +2,7 @@
  * 비용 분석 카드 — 수수료·펀딩이 손익에서 차지하는 비중(참고: TraderSync 'Commissions & Fees').
  * 계산은 lib/tradeCosts(테스트 고정). 월 합계는 월별 보고서에 있으니 여기선 '비율'만.
  */
-import type { CostBreakdown } from '@/lib/tradeCosts';
+import type { CostBreakdown, HoldCostRow } from '@/lib/tradeCosts';
 
 const UP = 'var(--warn)';
 const DOWN = 'var(--accent-ink)';
@@ -18,7 +18,46 @@ function Row({ label, value, color, bold }: { label: string; value: string; colo
   );
 }
 
-export default function CostCard({ c, fmt, sub }: { c: CostBreakdown; fmt: (n: number) => string; sub?: string }) {
+/** 보유시간별 비용 — 짧은 매매에서 비용이 이익을 얼마나 먹나 */
+function HoldCostTable({ rows, fmt }: { rows: HoldCostRow[]; fmt: (n: number) => string }) {
+  const eaten = rows.filter((r) => r.eaten);
+  return (
+    <div className="mt-4">
+      <p className="text-[12px] font-bold text-[var(--text)] mb-1">보유시간별 비용 <span className="text-[10px] font-normal text-[var(--text-muted)]">짧게 자주 할수록 비용 몫이 커지나</span></p>
+      <div className="overflow-x-auto -mx-1">
+        <table className="w-full text-[11.5px] tabular-nums mx-1" style={{ minWidth: 300 }}>
+          <thead>
+            <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+              <th className="text-left font-semibold py-1">보유</th><th className="font-semibold">건</th>
+              <th className="font-semibold">매매손익</th><th className="font-semibold">비용</th><th className="font-semibold">순손익</th>
+              <th className="font-semibold">이익 중 비용</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} className="border-t border-[var(--line-2)] text-right" style={{ opacity: r.n < 5 ? 0.55 : 1 }} title={r.n < 5 ? `표본 ${r.n}건 — 5건 미만은 참고만` : undefined}>
+                <td className="text-left py-1.5 font-semibold text-[var(--text)] whitespace-nowrap">{r.label}</td>
+                <td className="text-[var(--text-muted)]">{r.n}</td>
+                <td style={{ color: tone(r.gross) }}>{signed(r.gross, fmt)}</td>
+                <td className="text-[var(--text-muted)]">{r.cost >= 0 ? '−' : '+'}{fmt(Math.abs(r.cost))}</td>
+                <td className="font-bold" style={{ color: tone(r.net) }}>{signed(r.net, fmt)}</td>
+                <td style={{ color: r.eaten ? 'var(--warn)' : 'var(--text)' }}>{r.costOfGrossPct == null ? '—' : `${Math.round(r.costOfGrossPct)}%`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[10.5px] text-[var(--text-muted)] mt-1 leading-relaxed">
+        {eaten.length > 0
+          ? <>매매로는 벌었는데 비용이 이익을 다 먹은 구간: <b style={{ color: 'var(--warn)' }}>{eaten.map((r) => r.label).join(', ')}</b>. </>
+          : null}
+        &lsquo;이익 중 비용&rsquo; = 구간 매매손익이 플러스일 때 그중 비용 비율(100% 이상이면 비용이 이익보다 큼). 흐린 줄은 5건 미만.
+      </p>
+    </div>
+  );
+}
+
+export default function CostCard({ c, fmt, sub, holdRows }: { c: CostBreakdown; fmt: (n: number) => string; sub?: string; holdRows?: HoldCostRow[] }) {
   if (c.n === 0) return null;
   const share = c.costOfGrossWinPct;
   const shareW = share == null ? 0 : Math.max(0, Math.min(100, share));
@@ -69,6 +108,8 @@ export default function CostCard({ c, fmt, sub }: { c: CostBreakdown; fmt: (n: n
           <p className="text-[9.5px] text-[var(--faint)]">체결 1회당</p>
         </div>
       </div>
+      {holdRows && holdRows.length > 1 && <HoldCostTable rows={holdRows} fmt={fmt} />}
+
       <p className="text-[10.5px] text-[var(--text-muted)] mt-2.5 leading-relaxed">
         실효 수수료율을 거래소 등급표의 메이커(지정가)·테이커(시장가) 요율과 비교해 보세요 — 테이커 쪽에 가깝다면 시장가 체결이 많다는 뜻입니다.
         보유가 짧고 자주 매매할수록 같은 요율이라도 이익에서 비용이 차지하는 몫이 커집니다.

@@ -23,11 +23,14 @@ import BreakdownTables from '@/components/BreakdownTables';
 import type { BreakItem } from '@/lib/tradeBreakdown';
 import EquityCurveLazy from '@/components/EquityCurveLazy';
 import CalendarHeatmap from '@/components/CalendarHeatmap';
-import { streaks, resultOf, edgeSummary, kstDateKey, type TradeValue } from '@/lib/journalAnalytics';
+import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, type TradeValue } from '@/lib/journalAnalytics';
 import EdgeSummaryCard from '@/components/EdgeSummaryCard';
 import CostCard from '@/components/CostCard';
 import ExcursionPanel from '@/components/ExcursionPanel';
-import { costBreakdown } from '@/lib/tradeCosts';
+import { costBreakdown, costByHoldBand } from '@/lib/tradeCosts';
+import AfterLossTable from '@/components/AfterLossTable';
+import ExcursionSummaryCard from '@/components/ExcursionSummaryCard';
+import { useRiskLimits } from '@/hooks/useRiskLimits';
 import { toCsv, downloadCsv, kstDateTime as csvTime, kstStamp } from '@/lib/csv';
 import { fmtCoinPrice } from '@/lib/coins';
 import type { ClosedPosition } from '@/app/api/bitget/history/route';
@@ -82,6 +85,7 @@ export default function JournalPage() {
   const { moods, mounted, setMood, clearMood } = useTradeMood();
   const { tags, saveTags, clearTags } = useTradeTags();
   const snaps = useSnapshots();
+  const { limits } = useRiskLimits(); // 서킷브레이커 연패 기준(사용자 설정) — 연패 분석 마지막 줄을 같은 선으로
   const [days, setDays] = useState(30);
   const [positions, setPositions] = useState<ClosedPosition[]>([]);
   const [open, setOpen] = useState<OpenPosition[]>([]);
@@ -167,6 +171,10 @@ export default function JournalPage() {
   const edge = useMemo(() => edgeSummary(positions.map((p) => p.netProfit)), [positions]);
   // 비용 분석 — 수수료·펀딩이 손익에서 차지하는 비중
   const costs = useMemo(() => costBreakdown(positions), [positions]);
+  const holdCosts = useMemo(() => costByHoldBand(positions), [positions]);
+  // 연패 직후 매매 — 진입 규모 = 수량 × 진입가
+  const streakCap = Math.min(5, Math.max(2, limits.maxConsecutiveLosses || 3));
+  const afterLoss = useMemo(() => afterLossStreaks(positions.map((p) => ({ openTs: p.openTs, closeTs: p.closeTs, value: p.netProfit, notional: p.size * p.openAvg })), streakCap), [positions, streakCap]);
   // 편집 시트가 연 매매가 거래소 청산 매매면 MAE/MFE 를 보여 준다(현재 포지션 open-… 은 제외)
   const editingPos = useMemo(() => (editing ? positions.find((p) => p.positionId === editing.id) ?? null : null), [editing, positions]);
   // 달력에서 고른 날의 청산 매매(청산 시각 KST 기준 — 달력 색과 같은 기준)
@@ -294,7 +302,9 @@ export default function JournalPage() {
             </div>
           )}
           <EdgeSummaryCard e={edge} unit="USDT" fmt={fmtUsdt} sub={`최근 ${days}일 청산 ${edge.n}건 · 순손익 USDT(수수료·펀딩 반영)`} />
-          <CostCard c={costs} fmt={fmtUsdt} sub={`최근 ${days}일 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
+          <CostCard c={costs} fmt={fmtUsdt} holdRows={holdCosts} sub={`최근 ${days}일 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
+          <AfterLossTable rows={afterLoss} fmt={fmtUsdt} breakerAt={limits.maxConsecutiveLosses} />
+          <ExcursionSummaryCard trades={positions} />
           <EquityCurveLazy trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />
           <CalendarHeatmap trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} selected={selDay} onSelect={setSelDay}
             detail={<DayTrades date={selDay} trades={dayTrades} moods={moods} tags={tags} snapIds={snaps.ids}

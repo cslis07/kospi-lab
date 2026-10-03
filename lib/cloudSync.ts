@@ -17,7 +17,8 @@ export const SYNC_PREFIX = 'kospi-lab-';
 /** 동기화 제외 — 메타 자신과 기기별 UI 상태(탭 위치가 기기 간에 튀면 성가시다) */
 // device-id 는 기기마다 달라야 한다(동기화되면 '어느 기기' 표시가 무너진다).
 // my-stocks-tab 은 기기별 UI 상태. sync-meta 는 이 계층의 내부 상태.
-export const SYNC_EXCLUDE = new Set(['kospi-lab-sync-meta', 'kospi-lab-my-stocks-tab', 'kospi-lab-device-id']);
+// excursions 는 캔들로 다시 계산되는 MAE/MFE 캐시(lib/excursionFetch) — '이 기기에만 저장'으로 안내하며, 올리면 동기화 용량만 쓴다.
+export const SYNC_EXCLUDE = new Set(['kospi-lab-sync-meta', 'kospi-lab-my-stocks-tab', 'kospi-lab-device-id', 'kospi-lab-excursions']);
 const META_KEY = 'kospi-lab-sync-meta';
 
 export interface SyncItem { id: string; data: unknown; updatedAt: number }

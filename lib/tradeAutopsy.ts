@@ -115,6 +115,39 @@ export function tradeExcursion(inp: ExcursionInput, candles: Candle[], barMs: nu
   };
 }
 
+export interface ExcursionSummary {
+  n: number;
+  avgMaePct: number | null;
+  avgMfePct: number | null;
+  /** 이익 매매가 최대 순행 중 평균 몇 % 를 챙겼나 */
+  winnersCapturePct: number | null;
+  winners: number;
+  losers: number;
+  /** 손실 매매 중, 한때 '최종 손실만큼 이상' 이익 중이던 매매(이익을 지켰다면 손실은 아니었을 매매) */
+  gaveBack: number;
+  /** 손절가가 있는 매매 수와, 그중 손절가를 넘어 역행(MAE ≥ 1R)한 수 */
+  withStop: number;
+  beyondStop: number;
+}
+
+/** 여러 매매의 MAE/MFE 요약(참고: Edgewonk 'MAE/MFE analysis'). net = 순손익(이익/손실 판정) */
+export function excursionSummary(list: { ex: Excursion; net: number }[]): ExcursionSummary {
+  const avg = (vs: number[]) => (vs.length ? vs.reduce((a, v) => a + v, 0) / vs.length : null);
+  const win = list.filter((x) => x.net > 0), loss = list.filter((x) => x.net < 0);
+  const stopped = list.filter((x) => x.ex.maeR != null);
+  return {
+    n: list.length,
+    avgMaePct: avg(list.map((x) => x.ex.maePct)),
+    avgMfePct: avg(list.map((x) => x.ex.mfePct)),
+    winnersCapturePct: avg(win.map((x) => x.ex.capturePct).filter((v): v is number => v != null)),
+    winners: win.length,
+    losers: loss.length,
+    gaveBack: loss.filter((x) => x.ex.mfePct > 0 && x.ex.mfePct >= Math.abs(x.ex.exitPct)).length,
+    withStop: stopped.length,
+    beyondStop: stopped.filter((x) => (x.ex.maeR ?? 0) >= 1).length,
+  };
+}
+
 export function analyzeTrade(inp: AutopsyInput, candles: Candle[], opts?: { forwardMs?: number; lookbackN?: number }): Autopsy {
   const cs = [...candles].sort((a, b) => a.ts - b.ts);
   const long = inp.direction === 'long';

@@ -7,6 +7,7 @@ import { kstParts, byWeekday, byHourBand, bySymbol, byHoldBand, holdBandIndex, b
 import { csvCell, toCsv, kstDateTime } from '../lib/csv';
 import { concentration } from '../lib/concentration';
 import { checkAlert, alertDistancePct, isAlertOn } from '../lib/priceAlert';
+import { SYNC_EXCLUDE, SYNC_PREFIX } from '../lib/cloudSync';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -125,6 +126,13 @@ ok('보유시간 분해 — 구간 경계·짧은 구간부터·보유시간 모
   assert.equal(rows.length, 2);
   assert.equal(rows[0].key, 'hb0'); assert.equal(rows[0].count, 2); assert.equal(rows[0].sum, 6); assert.equal(rows[0].winRate, 50);
   assert.equal(rows[1].key, 'hb4'); assert.equal(rows[1].avg, 20);
+});
+
+ok('클라우드 동기화 — MAE/MFE 캐시는 제외(이 기기에만), 태그·기분은 기기 간 동기화', () => {
+  assert.ok(SYNC_EXCLUDE.has('kospi-lab-excursions'));
+  for (const k of ['kospi-lab-trade-tags', 'kospi-lab-trade-mood', 'kospi-lab-coin-journal']) {
+    assert.ok(k.startsWith(SYNC_PREFIX) && !SYNC_EXCLUDE.has(k), k);
+  }
 });
 
 ok('방향 분해 — 롱 먼저, 승률·합계·평균, 방향 모르는 매매 제외', () => {

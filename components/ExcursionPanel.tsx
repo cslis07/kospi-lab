@@ -7,16 +7,13 @@
  * 손절가(거래소 SL 주문에서 복구)가 있을 때만 R 환산 + 손절 폭·진입 위치 진단 — 없으면 % · USDT 만(추측 금지).
  */
 import { useEffect, useState } from 'react';
-import { tradeExcursion, analyzeTrade, pickGranularity, type Candle, type Excursion, type Finding } from '@/lib/tradeAutopsy';
+import { analyzeTrade, type Excursion, type Finding } from '@/lib/tradeAutopsy';
+import { loadExcursion, fetchTradeCandles, type ExcursionTrade } from '@/lib/excursionFetch';
 
-export interface ExcursionTrade {
-  positionId: string; symbol: string; side: 'long' | 'short';
-  openAvg: number; closeAvg: number; size: number; openTs: number; closeTs: number;
-  netProfit: number; stop?: number;
-}
+export type { ExcursionTrade };
 interface Result { ex: Excursion; findings: Finding[]; g: string }
 
-// 같은 매매를 다시 열면 재요청하지 않는다(과거 캔들은 바뀌지 않음)
+// 같은 매매를 다시 열면 재계산하지 않는다(과거 캔들은 바뀌지 않음). 결과 자체는 excursionFetch 가 기기에 저장
 const cache = new Map<string, Result | 'empty'>();
 
 const UP = 'var(--warn)';
@@ -53,25 +50,25 @@ export default function ExcursionPanel({ t }: { t: ExcursionTrade }) {
   useEffect(() => {
     if (cache.has(t.positionId)) return;
     let alive = true;
-    const { g, ms, limit } = pickGranularity(t.closeTs - t.openTs);
-    const url = `/api/candles?symbol=${encodeURIComponent(t.symbol)}&granularity=${g}&endTime=${t.closeTs + ms}&limit=${limit}`;
-    fetch(url)
-      .then((r) => r.json() as Promise<{ candles?: Candle[]; error?: string }>)
-      .then((j) => {
-        const cs = j.candles ?? [];
-        const ex = tradeExcursion({ side: t.side, entry: t.openAvg, exit: t.closeAvg, size: t.size, openTs: t.openTs, closeTs: t.closeTs, stop: t.stop }, cs, ms);
-        let res: Result | 'empty' = 'empty';
-        if (ex) {
-          // 손절가가 있을 때만 손절 폭(ATR)·진입 위치 진단 — MAE/MFE 판정은 위 excursion 기준 하나로(숫자 두 벌 방지)
-          const structure = t.stop
-            ? analyzeTrade({ entry: t.openAvg, stop: t.stop, direction: t.side, entryTs: t.openTs, exitTs: t.closeTs }, cs)
-              .findings.filter((x) => ['stop-tight', 'stop-wide', 'stop-ok', 'chase', 'dip'].includes(x.key))
-            : [];
-          res = { ex, findings: [...excursionFindings(ex), ...structure], g };
+    (async () => {
+      // MAE/MFE: 요약 카드가 이미 계산해 기기에 저장했으면 그대로(캔들 요청 없음)
+      const ex = await loadExcursion(t);
+      let res: Result | 'empty' = 'empty';
+      let failed = false;
+      if (ex) {
+        // 손절가가 있을 때만 손절 폭(ATR)·진입 위치 진단 — 이건 캔들이 필요(메모리 캐시 공용). MAE/MFE 판정은 excursion 하나로
+        let structure: Finding[] = [];
+        if (t.stop) {
+          const { candles, error } = await fetchTradeCandles(t);
+          failed = !!error;
+          structure = analyzeTrade({ entry: t.openAvg, stop: t.stop, direction: t.side, entryTs: t.openTs, exitTs: t.closeTs }, candles)
+            .findings.filter((x) => ['stop-tight', 'stop-wide', 'stop-ok', 'chase', 'dip'].includes(x.key));
         }
-        if (!j.error) cache.set(t.positionId, res);
-        if (alive) setState({ loading: false, res, err: j.error && !ex ? '캔들을 불러오지 못했습니다' : undefined });
-      })
+        res = { ex, findings: [...excursionFindings(ex), ...structure], g: ex.g };
+        if (!failed) cache.set(t.positionId, res);
+      }
+      if (alive) setState({ loading: false, res, err: !ex ? '캔들을 불러오지 못했거나 보유 구간 캔들이 없습니다' : undefined });
+    })()
       .catch(() => { if (alive) setState({ loading: false, err: '캔들을 불러오지 못했습니다' }); });
     return () => { alive = false; };
     // 같은 매매면 다시 요청하지 않는다 — 부모가 다시 그릴 때마다 새 객체가 와도 positionId 로만 판단

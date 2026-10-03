@@ -134,6 +134,62 @@ export function streaks(seq: TradeResult[]): StreakStat {
   return { maxWin, maxLoss, current: cur };
 }
 
+// ────────────────────────── 연패 직후 매매(틸트 확인) ──────────────────────────
+
+export interface StreakTradeIn {
+  openTs: number;
+  closeTs: number;
+  value: number;            // 순손익
+  notional?: number | null; // 진입 규모(수량 × 진입가) — 연패 뒤 사이즈를 키웠나
+}
+export interface AfterStreakRow {
+  key: string;
+  label: string;
+  prior: number;            // 직전 연속 손실 수(cap 이상은 cap)
+  count: number;
+  wins: number;
+  winRate: number | null;   // % = 승 ÷ (승 + 패)
+  sum: number;
+  avg: number | null;       // 건당 기대값
+  avgNotional: number | null;
+  thin: boolean;
+}
+
+/**
+ * 연패 직후 매매의 성적(참고: Edgewonk 'Tiltmeter'). 각 매매에 대해 **그 진입 시점까지 청산된** 매매만 보고
+ * 가장 최근부터 연속 손실 수를 센다(본전·이익에서 끊김) — 동시에 들고 있던 포지션의 결과는 진입 때 몰랐으므로 넣지 않는다.
+ * 앞선 청산 매매가 하나도 없는 매매(맥락 없음)는 뺀다. 3연패 이상은 한 줄로(cap).
+ */
+export function afterLossStreaks(trades: StreakTradeIn[], cap = 3, thinAt = 5): AfterStreakRow[] {
+  const byClose = [...trades].filter((t) => Number.isFinite(t.value)).sort((a, b) => a.closeTs - b.closeTs);
+  const rows: AfterStreakRow[] = Array.from({ length: cap + 1 }, (_, k) => ({
+    key: `ls${k}`, prior: k,
+    label: k === 0 ? '직전 이익·본전 뒤' : k === cap ? `${cap}연패 이상 뒤` : `${k}연패 뒤`,
+    count: 0, wins: 0, winRate: null, sum: 0, avg: null, avgNotional: null, thin: true,
+  }));
+  const losses = new Array(rows.length).fill(0);
+  const notionalSum = new Array(rows.length).fill(0), notionalN = new Array(rows.length).fill(0);
+  for (const t of byClose) {
+    const known = byClose.filter((p) => p !== t && p.closeTs <= t.openTs);
+    if (!known.length) continue;
+    let streak = 0;
+    for (let i = known.length - 1; i >= 0 && known[i].value < 0; i--) streak++;
+    const k = Math.min(streak, cap);
+    const r = rows[k];
+    r.count++; r.sum += t.value;
+    if (t.value > 0) r.wins++; else if (t.value < 0) losses[k]++;
+    if (t.notional != null && Number.isFinite(t.notional) && t.notional > 0) { notionalSum[k] += t.notional; notionalN[k]++; }
+  }
+  rows.forEach((r, k) => {
+    const decided = r.wins + losses[k];
+    r.winRate = decided ? (r.wins / decided) * 100 : null;
+    r.avg = r.count ? r.sum / r.count : null;
+    r.avgNotional = notionalN[k] ? notionalSum[k] / notionalN[k] : null;
+    r.thin = r.count < thinAt;
+  });
+  return rows.filter((r) => r.count > 0);
+}
+
 /** 손익 값을 결과로 환산(+이익=win, −손실=loss, 0=even) */
 export function resultOf(value: number): TradeResult {
   return value > 0 ? 'win' : value < 0 ? 'loss' : 'even';

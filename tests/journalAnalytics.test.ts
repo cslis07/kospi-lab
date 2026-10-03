@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import {
-  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary,
+  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary, afterLossStreaks,
 } from '../lib/journalAnalytics';
 
 let passed = 0;
@@ -150,6 +150,40 @@ ok('edgeSummary — PF<1이면 잃은 돈이 더 많다(손익비가 좋아도 �
   assert.equal(e.payoff, 3);
   assert.ok(e.profitFactor! < 1);
   assert.ok(e.winRate! < e.breakevenWinRate!);
+});
+
+ok('afterLossStreaks — 진입 시점까지 청산된 결과로 연패 수, 첫 매매는 제외', () => {
+  // 시간순(진입·청산 겹치지 않음): A +5, B −2, C −3, D +4(2연패 뒤), E −1(직전 이익 뒤)
+  const t = (i: number, v: number, notional = 100) => ({ openTs: i * 10, closeTs: i * 10 + 5, value: v, notional });
+  const rows = afterLossStreaks([t(0, 5), t(1, -2), t(2, -3, 300), t(3, 4, 300), t(4, -1)]);
+  const by = Object.fromEntries(rows.map((r) => [r.prior, r]));
+  assert.equal(by[0].count, 2);          // B(직전 A 이익), E(직전 D 이익)
+  assert.equal(by[1].count, 1);          // C(직전 B 손실 1)
+  assert.equal(by[2].count, 1);          // D(B·C 2연패)
+  assert.equal(by[2].wins, 1); assert.equal(by[2].avg, 4);
+  assert.equal(by[0].winRate, 0);        // B −2, E −1
+  assert.equal(by[2].avgNotional, 300);  // 2연패 뒤 진입 규모
+  assert.ok(!rows.some((r) => r.count === 0)); // 빈 줄은 안 만든다
+});
+
+ok('afterLossStreaks — 아직 청산 안 된(겹친) 매매 결과는 연패에 넣지 않는다', () => {
+  // B 가 열려 있는 동안 C 진입 → C 진입 땐 B 결과를 몰랐다 → C 는 A(이익) 뒤
+  const rows = afterLossStreaks([
+    { openTs: 0, closeTs: 5, value: 5 },     // A
+    { openTs: 10, closeTs: 40, value: -9 },  // B (늦게 청산)
+    { openTs: 20, closeTs: 25, value: 1 },   // C — B 보유 중 진입
+  ]);
+  const by = Object.fromEntries(rows.map((r) => [r.prior, r]));
+  assert.equal(by[0].count, 2);   // B(A 뒤), C(A 뒤 — B 는 아직 모름)
+  assert.equal(by[1], undefined);
+});
+
+ok('afterLossStreaks — cap 이상 연패는 한 줄로', () => {
+  const t = (i: number, v: number) => ({ openTs: i * 10, closeTs: i * 10 + 5, value: v });
+  const rows = afterLossStreaks([t(0, 1), t(1, -1), t(2, -1), t(3, -1), t(4, -1), t(5, 2)], 3);
+  const last = rows.find((r) => r.prior === 3)!;
+  assert.equal(last.label, '3연패 이상 뒤');
+  assert.equal(last.count, 2);    // 3연패 뒤(−1), 4연패 뒤(+2)
 });
 
 console.log(`\n${passed} passed`);

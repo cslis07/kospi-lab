@@ -3,7 +3,7 @@
  * 비용 비중이 틀리면 "수수료가 내 이익을 얼마나 먹나"가 거짓이 된다. 부호 규칙(Bitget)과 비율을 고정한다.
  */
 import assert from 'node:assert/strict';
-import { costBreakdown, type CostPosition } from '../lib/tradeCosts';
+import { costBreakdown, costByHoldBand, type CostPosition } from '../lib/tradeCosts';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -45,6 +45,26 @@ ok('펀딩을 받으면 비용이 줄고, 이익이 없으면 비율은 null', (
   near(c.cost, -1);              // 수수료 1 냈지만 펀딩 2 받음 → 순비용 −1(이득)
   assert.equal(c.costOfGrossWinPct, null);
   assert.equal(costBreakdown([]).avgFee, null);
+});
+
+ok('보유시간별 비용 — 구간 묶음·비용 비율·비용이 이익을 다 먹은 구간', () => {
+  const M = 60_000;
+  const at = (holdMin: number, gross: number, fee: number): CostPosition => ({ ...pos(gross, fee, 0), openTs: 0, closeTs: holdMin * M });
+  const rows = costByHoldBand([
+    at(5, 3, -2), at(10, 1, -2),          // 스캘핑: 매매손익 +4, 비용 4 → 순 0 → 다 먹힘, 비용 비율 100%
+    at(120, 20, -2),                        // 1~4시간: +20, 비용 2 → 10%
+    { ...pos(9, -1, 0) },                   // 시각 없음 → 제외
+  ]);
+  assert.deepEqual(rows.map((r) => r.key), ['hb0', 'hb2']);
+  assert.equal(rows[0].n, 2); near(rows[0].gross, 4); near(rows[0].cost, 4); near(rows[0].net, 0);
+  near(rows[0].costOfGrossPct, 100); assert.equal(rows[0].eaten, true); near(rows[0].avgCost, 2);
+  near(rows[1].costOfGrossPct, 10); assert.equal(rows[1].eaten, false);
+});
+
+ok('보유시간별 비용 — 매매손익이 0 이하인 구간은 비율 null', () => {
+  const rows = costByHoldBand([{ ...pos(-5, -1, 0), openTs: 0, closeTs: 60_000 }]);
+  assert.equal(rows[0].costOfGrossPct, null);
+  assert.equal(rows[0].eaten, false);
 });
 
 console.log(`\n${passed} passed`);
