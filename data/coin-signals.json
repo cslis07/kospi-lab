@@ -1,6 +1,7 @@
 {
-  "updated": "2026-10-03T22:19:27.444Z",
-  "open": [
+  "updated": "2026-10-04T01:47:59.948Z",
+  "open": [],
+  "closed": [
     {
       "id": "XRPUSDT-scalp-1791045290908",
       "sym": "XRPUSDT",
@@ -14,10 +15,12 @@
       "price0": 1.4892,
       "ultra": false,
       "conf": 94,
-      "eq": 63
-    }
-  ],
-  "closed": [
+      "eq": 63,
+      "closeTs": 1791078477221,
+      "closePrice": 1.4877,
+      "outcome": "EXPIRE",
+      "r": 0.26
+    },
     {
       "id": "BTCUSDT-swing-1790664909195",
       "sym": "BTCUSDT",
@@ -458,9 +461,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 19,
-      "winRate": 58,
-      "avgR": 0.36
+      "n": 20,
+      "winRate": 55,
+      "avgR": 0.35
     },
     "swing": {
       "n": 4,
@@ -468,15 +471,15 @@
       "avgR": 2.21
     },
     "all": {
-      "n": 23,
-      "winRate": 65,
-      "avgR": 0.68
+      "n": 24,
+      "winRate": 63,
+      "avgR": 0.66
     }
   },
   "watch": {
     "ETHUSDT:liq": 1790779800029,
     "cb:warn:1790607600000": 1790665942361,
-    "ETHUSDT:liqCrit": 1791045290908,
-    "ETHUSDT:noplan": 1791045290908
+    "ETHUSDT:liqCrit": 1791078477221,
+    "ETHUSDT:noplan": 1791078477221
   }
 }
