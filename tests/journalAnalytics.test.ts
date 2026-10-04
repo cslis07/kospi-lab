@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import {
-  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary, afterLossStreaks,
+  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary, afterLossStreaks, tradesPerDay,
 } from '../lib/journalAnalytics';
 
 let passed = 0;
@@ -184,6 +184,23 @@ ok('afterLossStreaks — cap 이상 연패는 한 줄로', () => {
   const last = rows.find((r) => r.prior === 3)!;
   assert.equal(last.label, '3연패 이상 뒤');
   assert.equal(last.count, 2);    // 3연패 뒤(−1), 4연패 뒤(+2)
+});
+
+ok('tradesPerDay — 하루 매매 수로 버킷, 날 수·매매 수·승률·건당', () => {
+  const d = (day: number, h: number) => Date.UTC(2026, 0, day, h - 9); // KST day h시
+  // 1/1: 2건(1~2회), 1/2: 3건(3~4회), 1/3: 3건
+  const t = [
+    { ts: d(1, 10), value: 5 }, { ts: d(1, 11), value: -3 },
+    { ts: d(2, 9), value: 2 }, { ts: d(2, 10), value: 2 }, { ts: d(2, 11), value: -1 },
+    { ts: d(3, 9), value: -4 }, { ts: d(3, 10), value: -4 }, { ts: d(3, 11), value: 1 },
+  ];
+  const rows = tradesPerDay(t, 1);
+  const by = Object.fromEntries(rows.map((r) => [r.label, r]));
+  assert.equal(by['하루 1~2회'].days, 1); assert.equal(by['하루 1~2회'].count, 2); assert.equal(by['하루 1~2회'].sum, 2);
+  assert.equal(by['하루 3~4회'].days, 2); assert.equal(by['하루 3~4회'].count, 6);
+  assert.equal(by['하루 3~4회'].wins, 3);
+  assert.equal(by['하루 3~4회'].avg, (2 + 2 - 1 - 4 - 4 + 1) / 6);
+  assert.ok(!rows.some((r) => r.label === '하루 5회+')); // 5회+ 날 없으면 행 없음
 });
 
 console.log(`\n${passed} passed`);

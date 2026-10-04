@@ -6,11 +6,12 @@
  * 표본 5건 미만 칸은 흐리게 — 몇 건짜리 '요일 효과'를 패턴으로 읽지 않게. 방향 예측이 아니라 복기용.
  */
 import { useMemo, useState } from 'react';
-import { byWeekday, byHourBand, bySymbol, byHoldBand, bySide, THIN_SAMPLE, type BreakItem, type BreakRow } from '@/lib/tradeBreakdown';
+import { byWeekday, byHourBand, bySymbol, byHoldBand, bySide, byStopPresence, byNotionalQuartile, THIN_SAMPLE, type BreakItem, type BreakRow } from '@/lib/tradeBreakdown';
 
-type Tab = 'wd' | 'hour' | 'sym' | 'side' | 'hold';
-const TABS: [Tab, string][] = [['wd', '요일'], ['hour', '시간대'], ['sym', '종목'], ['side', '롱/숏'], ['hold', '보유시간']];
-const HEAD: Record<Tab, string> = { wd: '요일', hour: '진입 시간(KST)', sym: '종목', side: '방향', hold: '보유 시간' };
+type Tab = 'wd' | 'hour' | 'sym' | 'side' | 'hold' | 'stop' | 'size';
+const TABS: [Tab, string][] = [['wd', '요일'], ['hour', '시간대'], ['sym', '종목'], ['side', '롱/숏'], ['hold', '보유시간'], ['stop', '손절'], ['size', '규모']];
+const HEAD: Record<Tab, string> = { wd: '요일', hour: '진입 시간(KST)', sym: '종목', side: '방향', hold: '보유 시간', stop: '손절 주문', size: '진입 규모' };
+const UNIT_LABEL: Partial<Record<Tab, string>> = { sym: '종목', side: '방향', stop: '구분' };
 
 const color = (n: number) => (n > 0 ? 'var(--warn)' : n < 0 ? 'var(--accent)' : 'var(--faint)');
 
@@ -27,10 +28,15 @@ export default function BreakdownTables({ items, unit, valueLabel, fmt, title = 
   const hasHold = useMemo(() => items.some((i) => i.holdMs != null && i.holdMs > 0), [items]);
   // 롱/숏 탭은 방향을 아는 매매가 있을 때만(주식 매수·축소, 코인 관망 기록은 방향 없음)
   const hasSide = useMemo(() => items.some((i) => i.side === 'long' || i.side === 'short'), [items]);
-  const tab: Tab = (picked === 'hold' && !hasHold) || (picked === 'side' && !hasSide) ? 'wd' : picked;
-  const tabs = TABS.filter(([k]) => (k !== 'hold' || hasHold) && (k !== 'side' || hasSide));
+  // 손절 주문 유무·진입 규모를 아는 매매가 있을 때만(성과의 기록 R 에는 없다)
+  const hasStop = useMemo(() => items.some((i) => i.hasStop === true || i.hasStop === false), [items]);
+  const hasSize = useMemo(() => items.filter((i) => i.notional != null && i.notional > 0).length >= 4, [items]);
+  const avail: Record<Tab, boolean> = { wd: true, hour: true, sym: true, side: hasSide, hold: hasHold, stop: hasStop, size: hasSize };
+  const tab: Tab = avail[picked] ? picked : 'wd';
+  const tabs = TABS.filter(([k]) => avail[k]);
   const rows: BreakRow[] = useMemo(() => (
-    tab === 'wd' ? byWeekday(items) : tab === 'hour' ? byHourBand(items) : tab === 'hold' ? byHoldBand(items) : tab === 'side' ? bySide(items) : bySymbol(items)
+    tab === 'wd' ? byWeekday(items) : tab === 'hour' ? byHourBand(items) : tab === 'hold' ? byHoldBand(items)
+      : tab === 'side' ? bySide(items) : tab === 'stop' ? byStopPresence(items) : tab === 'size' ? byNotionalQuartile(items) : bySymbol(items)
   ), [items, tab]);
   const maxAbs = Math.max(1e-9, ...rows.map((r) => Math.abs(r.sum)));
   const best = rows.filter((r) => !r.thin && r.valued).sort((a, b) => b.sum - a.sum)[0];
@@ -88,9 +94,11 @@ export default function BreakdownTables({ items, unit, valueLabel, fmt, title = 
       </div>
       {(best || worst) && rows.length > 1 && (
         <p className="text-[11px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
-          {best && best.sum > 0 && <>가장 잘 된 {tab === 'sym' ? '종목' : tab === 'side' ? '방향' : '구간'}: <b className="text-[var(--text)]">{best.label}</b>({fmt(best.sum)} {unit}) · </>}
-          {worst && worst.sum < 0 && <>가장 깎인 {tab === 'sym' ? '종목' : tab === 'side' ? '방향' : '구간'}: <b className="text-[var(--text)]">{worst.label}</b>({fmt(worst.sum)} {unit}) · </>}
+          {best && best.sum > 0 && <>가장 잘 된 {UNIT_LABEL[tab] ?? '구간'}: <b className="text-[var(--text)]">{best.label}</b>({fmt(best.sum)} {unit}) · </>}
+          {worst && worst.sum < 0 && <>가장 깎인 {UNIT_LABEL[tab] ?? '구간'}: <b className="text-[var(--text)]">{worst.label}</b>({fmt(worst.sum)} {unit}) · </>}
           {tab === 'hold' && <>보유 시간 = 청산 − 진입 · 평균 = 건당 기대값 · </>}
+          {tab === 'size' && <>진입 규모 = 수량 × 진입가(내 매매 분위수) · </>}
+          {tab === 'stop' && <>거래소 손절 주문 유무 — <b className="text-[var(--text)]">손절 건 매매의 손실이 많은 건 손절이 작동해 끊었다는 뜻일 수 있습니다(손절이 나쁘다는 뜻 아님)</b> · </>}
           흐린 칸은 {THIN_SAMPLE}건 미만이라 우연일 수 있습니다.
         </p>
       )}

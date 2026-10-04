@@ -190,6 +190,64 @@ export function afterLossStreaks(trades: StreakTradeIn[], cap = 3, thinAt = 5): 
   return rows.filter((r) => r.count > 0);
 }
 
+// ────────────────────────── 하루 매매 횟수별 성적(과매매) ──────────────────────────
+
+export interface DayCountTrade { ts: number; value: number } // ts = 진입 시각
+export interface TradesPerDayRow {
+  key: string;
+  label: string;
+  order: number;
+  days: number;             // 이 빈도에 해당하는 날 수
+  count: number;            // 그 날들의 매매 수
+  wins: number;
+  winRate: number | null;   // % (승/(승+패))
+  sum: number;
+  avg: number | null;       // 매매 건당 기대값
+  thin: boolean;            // 날 수 5 미만
+}
+
+/** 하루 매매 횟수 버킷 경계(이상~미만, 마지막은 상한 없음) */
+export const TRADES_PER_DAY_BANDS: { from: number; to: number; label: string }[] = [
+  { from: 1, to: 3, label: '하루 1~2회' },
+  { from: 3, to: 5, label: '하루 3~4회' },
+  { from: 5, to: Infinity, label: '하루 5회+' },
+];
+
+/**
+ * 하루 매매 횟수별 성적(참고: TraderSync '과매매'). 진입 시각(KST)으로 그 날의 매매 수를 세고,
+ * 각 매매를 '그날 매매가 몇 번이었나' 버킷에 넣어 묶는다 → 많이 한 날의 매매가 실제로 더 나빴는지 본다.
+ */
+export function tradesPerDay(trades: DayCountTrade[], thinAt = 5): TradesPerDayRow[] {
+  const byDate = new Map<string, DayCountTrade[]>();
+  for (const t of trades) {
+    const k = kstDateKey(t.ts);
+    const arr = byDate.get(k);
+    if (arr) arr.push(t); else byDate.set(k, [t]);
+  }
+  const bandOf = (n: number) => TRADES_PER_DAY_BANDS.findIndex((b) => n >= b.from && n < b.to);
+  const agg = new Map<number, { days: Set<string>; items: DayCountTrade[] }>();
+  for (const [date, list] of byDate) {
+    const b = bandOf(list.length);
+    if (b < 0) continue;
+    const a = agg.get(b) ?? { days: new Set<string>(), items: [] as DayCountTrade[] };
+    a.days.add(date); a.items.push(...list);
+    agg.set(b, a);
+  }
+  return [...agg.entries()].sort((x, y) => x[0] - y[0]).map(([b, a]) => {
+    const vals = a.items.map((i) => i.value).filter((v) => Number.isFinite(v));
+    const wins = vals.filter((v) => v > 0).length, losses = vals.filter((v) => v < 0).length;
+    const decided = wins + losses;
+    const sum = vals.reduce((s, v) => s + v, 0);
+    return {
+      key: `tpd${b}`, label: TRADES_PER_DAY_BANDS[b].label, order: b,
+      days: a.days.size, count: a.items.length, wins,
+      winRate: decided ? (wins / decided) * 100 : null,
+      sum, avg: a.items.length ? sum / a.items.length : null,
+      thin: a.days.size < thinAt,
+    };
+  });
+}
+
 /** 손익 값을 결과로 환산(+이익=win, −손실=loss, 0=even) */
 export function resultOf(value: number): TradeResult {
   return value > 0 ? 'win' : value < 0 ? 'loss' : 'even';

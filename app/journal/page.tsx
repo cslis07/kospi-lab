@@ -23,7 +23,8 @@ import BreakdownTables from '@/components/BreakdownTables';
 import type { BreakItem } from '@/lib/tradeBreakdown';
 import EquityCurveLazy from '@/components/EquityCurveLazy';
 import CalendarHeatmap from '@/components/CalendarHeatmap';
-import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, type TradeValue } from '@/lib/journalAnalytics';
+import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, tradesPerDay, type TradeValue } from '@/lib/journalAnalytics';
+import TradesPerDayCard from '@/components/TradesPerDayCard';
 import EdgeSummaryCard from '@/components/EdgeSummaryCard';
 import CostCard from '@/components/CostCard';
 import ExcursionPanel from '@/components/ExcursionPanel';
@@ -162,6 +163,8 @@ export default function JournalPage() {
     win: p.netProfit > 0 ? true : p.netProfit < 0 ? false : null,
     holdMs: p.openTs && p.closeTs > p.openTs ? p.closeTs - p.openTs : null, // 보유시간 분해용
     side: p.side,                                                             // 롱/숏 분해용
+    hasStop: p.stop != null,                                                  // 손절 주문 유무 분해용
+    notional: p.size * p.openAvg,                                             // 진입 규모 분해용
   })), [positions]);
 
   // 자산 곡선·달력 히트맵 — 청산 시각 기준 실현손익(수수료·펀딩 반영 netProfit USDT)
@@ -169,6 +172,8 @@ export default function JournalPage() {
   // 연속 승/패 — 청산 시간순(오래된 것 → 최신)
   // 성적 요약 — 승률·손익비·Profit Factor·기대값(순손익 USDT, 수수료·펀딩 반영)
   const edge = useMemo(() => edgeSummary(positions.map((p) => p.netProfit)), [positions]);
+  // 하루 매매 횟수별 — 진입 시각(KST) 기준 과매매 확인
+  const perDay = useMemo(() => tradesPerDay(positions.map((p) => ({ ts: p.openTs || p.closeTs, value: p.netProfit }))), [positions]);
   // 비용 분석 — 수수료·펀딩이 손익에서 차지하는 비중
   const costs = useMemo(() => costBreakdown(positions), [positions]);
   const holdCosts = useMemo(() => costByHoldBand(positions), [positions]);
@@ -303,6 +308,7 @@ export default function JournalPage() {
           )}
           <EdgeSummaryCard e={edge} unit="USDT" fmt={fmtUsdt} sub={`최근 ${days}일 청산 ${edge.n}건 · 순손익 USDT(수수료·펀딩 반영)`} />
           <CostCard c={costs} fmt={fmtUsdt} holdRows={holdCosts} sub={`최근 ${days}일 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
+          <TradesPerDayCard rows={perDay} fmt={fmtUsdt} />
           <AfterLossTable rows={afterLoss} fmt={fmtUsdt} breakerAt={limits.maxConsecutiveLosses} />
           <ExcursionSummaryCard trades={positions} />
           <EquityCurveLazy trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />

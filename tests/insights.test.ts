@@ -3,7 +3,7 @@
  * 실행: npm test
  */
 import assert from 'node:assert/strict';
-import { kstParts, byWeekday, byHourBand, bySymbol, byHoldBand, holdBandIndex, bySide, type BreakItem } from '../lib/tradeBreakdown';
+import { kstParts, byWeekday, byHourBand, bySymbol, byHoldBand, holdBandIndex, bySide, byStopPresence, byNotionalQuartile, type BreakItem } from '../lib/tradeBreakdown';
 import { csvCell, toCsv, kstDateTime } from '../lib/csv';
 import { concentration } from '../lib/concentration';
 import { checkAlert, alertDistancePct, isAlertOn } from '../lib/priceAlert';
@@ -147,6 +147,31 @@ ok('방향 분해 — 롱 먼저, 승률·합계·평균, 방향 모르는 매�
   assert.deepEqual(rows.map((r) => r.key), ['long', 'short']);
   assert.equal(rows[0].count, 2); assert.equal(rows[0].winRate, 50); assert.equal(rows[0].sum, 2); assert.equal(rows[0].avg, 1);
   assert.equal(rows[1].count, 1); assert.equal(rows[1].sum, 10);
+});
+
+ok('손절 유무 분해 — 걸어둠 먼저, 모르는 매매 제외', () => {
+  const items: BreakItem[] = [
+    { ts: 0, symbol: 'A', value: 10, win: true, hasStop: false },
+    { ts: 0, symbol: 'A', value: -4, win: false, hasStop: true },
+    { ts: 0, symbol: 'A', value: 6, win: true, hasStop: true },
+    { ts: 0, symbol: 'A', value: 99, win: true },   // 모름 → 제외
+  ];
+  const rows = byStopPresence(items);
+  assert.deepEqual(rows.map((r) => r.key), ['stop', 'nostop']);
+  assert.equal(rows[0].count, 2); assert.equal(rows[0].sum, 2); assert.equal(rows[0].winRate, 50);
+  assert.equal(rows[1].count, 1); assert.equal(rows[1].sum, 10);
+});
+
+ok('진입 규모 분위수 — 하위25%~상위25%, 4건 미만이면 빈 배열', () => {
+  const mk = (n: number, v: number): BreakItem => ({ ts: 0, symbol: 'A', value: v, win: v > 0, notional: n });
+  // 규모 100,200,...,800 → q1=300(idx2), q2=500(idx4), q3=700(idx6)
+  const items = [100, 200, 300, 400, 500, 600, 700, 800].map((n, i) => mk(n, i % 2 ? 5 : -5));
+  const rows = byNotionalQuartile(items, 1);
+  assert.deepEqual(rows.map((r) => r.order), [0, 1, 2, 3]);
+  assert.equal(rows[0].count, 2); // 100,200 < 300
+  assert.equal(rows[3].count, 2); // 700,800 >= 700
+  assert.ok(rows[0].label.includes('작은'));
+  assert.equal(byNotionalQuartile([mk(1, 1), mk(2, 1), mk(3, 1)]).length, 0); // 4건 미만
 });
 
 console.log(`\n${passed} passed`);

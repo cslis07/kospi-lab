@@ -43,6 +43,10 @@ export interface BreakItem {
   holdMs?: number | null;
   /** 방향. 모르면(관망·주식 매수/축소 등) 없음 — 방향 분해에서 빠진다 */
   side?: 'long' | 'short' | null;
+  /** 거래소에 손절 주문을 걸어 뒀는지(복구된 손절가 유무). 모르면 없음 — 손절 분해에서 빠진다 */
+  hasStop?: boolean | null;
+  /** 진입 규모(수량 × 진입가). 모르면 없음 — 규모 분해에서 빠진다 */
+  notional?: number | null;
 }
 
 const MIN = 60_000, HOUR = 60 * MIN, DAY = 24 * HOUR;
@@ -102,6 +106,31 @@ export function bySide(items: BreakItem[], thinAt = THIN_SAMPLE): BreakRow[] {
   const known = items.filter((i) => i.side === 'long' || i.side === 'short');
   return bucket(known, (i) => (i.side === 'long' ? { key: 'long', label: '롱', order: 0 } : { key: 'short', label: '숏', order: 1 }), thinAt)
     .sort((a, b) => a.order - b.order);
+}
+
+/** 손절 주문 유무별 — 걸어 둔 매매 먼저. 모르는 매매는 뺀다(참고: Edgewonk) */
+export function byStopPresence(items: BreakItem[], thinAt = THIN_SAMPLE): BreakRow[] {
+  const known = items.filter((i) => i.hasStop === true || i.hasStop === false);
+  return bucket(known, (i) => (i.hasStop
+    ? { key: 'stop', label: '손절 걸어둠', order: 0 }
+    : { key: 'nostop', label: '손절 없이', order: 1 }), thinAt)
+    .sort((a, b) => a.order - b.order);
+}
+
+/** 진입 규모 분위수(작은 25% ~ 큰 25%)별 — 계좌 규모와 무관하게 '내 매매 중 크게 건 쪽'을 본다(참고: TraderSync) */
+export function byNotionalQuartile(items: BreakItem[], thinAt = THIN_SAMPLE): BreakRow[] {
+  const vals = items.map((i) => i.notional).filter((x): x is number => x != null && x > 0).sort((a, b) => a - b);
+  if (vals.length < 4) return [];                      // 분위수로 나눌 만큼 안 모임
+  const q = (f: number) => vals[Math.min(vals.length - 1, Math.floor(vals.length * f))];
+  const q1 = q(0.25), q2 = q(0.5), q3 = q(0.75);
+  const band = (n: number) => (n < q1 ? 0 : n < q2 ? 1 : n < q3 ? 2 : 3);
+  const money = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(Math.round(n)));
+  const edges = [`~${money(q1)}`, `${money(q1)}~${money(q2)}`, `${money(q2)}~${money(q3)}`, `${money(q3)}~`];
+  const names = ['작은(하위25%)', '중하', '중상', '큰(상위25%)'];
+  return bucket(items.filter((i) => i.notional != null && i.notional > 0), (i) => {
+    const b = band(i.notional!);
+    return { key: `nq${b}`, label: `${names[b]} ${edges[b]}`, order: b };
+  }, thinAt).sort((a, b) => a.order - b.order);
 }
 
 /** 종목별 — 건수 많은 순, 같으면 합계 큰 순 */
