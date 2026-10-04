@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-04T07:46:00.951Z",
+  "updated": "2026-10-04T13:41:07.586Z",
   "open": [],
   "closed": [
     {
@@ -479,7 +479,7 @@
   "watch": {
     "ETHUSDT:liq": 1790779800029,
     "cb:warn:1790607600000": 1790665942361,
-    "ETHUSDT:liqCrit": 1791078477221,
-    "ETHUSDT:noplan": 1791078477221
+    "ETHUSDT:liqCrit": 1791121265150,
+    "ETHUSDT:noplan": 1791121265150
   }
 }
