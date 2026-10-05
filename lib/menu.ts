@@ -56,6 +56,7 @@ export const ICON: Record<string, string> = {
   guide:      'M12 6C10 4.7 7 4.2 4 4.7V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.7C17 4.2 14 4.7 12 6ZM12 6v14.5',
   principles: 'M7 3h8l3 3v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1M15 3v3h3M8.5 11.5l1.5 1.5 3-3M8.5 16.5l1.5 1.5 3-3',
   insight:    'M9 18h6M10 21h4M8.5 14a5.5 5.5 0 1 1 7 0c-.8.7-1.5 1.4-1.5 2.5h-4c0-1.1-.7-1.8-1.5-2.5Z',
+  sunrise:    'M3 18h18M6.5 18a5.5 5.5 0 0 1 11 0M12 4.5v2M5.2 7.7l1.4 1.4M18.8 7.7l-1.4 1.4M2.5 13.5h2M19.5 13.5h2',
 };
 
 export const DASHBOARD: MenuItem = { href: '/', label: '대시보드', icon: 'home' };
@@ -113,6 +114,7 @@ export const MENU: MenuGroup[] = [
  *  ※ KRX 시장(/krx)·성장주 발굴(/growth)은 중복이라 제거: KRX는 시장›국내 "전체보기"로,
  *    성장주 스크리닝은 분석›스크리너로 대체된다. */
 export const EXTRAS: MenuItem[] = [
+  { href: '/brief',      icon: 'sunrise',    label: '모닝 브리핑',  desc: '증시별 거시·금리·유가·뉴스 아침 정리' },
   { href: '/my-stocks',  icon: 'star',       label: '관심종목',    desc: '국내·해외·코인 저장 목록' },
   { href: '/screener',   icon: 'screener',   label: '종목 비교',   desc: '여러 종목 재무 비교', alias: ['/growth'] },
   { href: '/report',     icon: 'report',     label: '리포트',      desc: '증권사 리포트' },
@@ -179,4 +181,4 @@ export const FLAT: FlatMenuItem[] = [
 export const BY_HREF = new Map(FLAT.map((f) => [f.href, f]));
 
 /** 방문 데이터 없을 때 기본 '자주 쓰는' — 손이 가는 자동 데이터 위주 */
-export const DEFAULT_QUICK = ['/assets', '/my-stocks', '/journal', '/coin-analysis'];
+export const DEFAULT_QUICK = ['/brief', '/assets', '/my-stocks', '/journal', '/coin-analysis'];

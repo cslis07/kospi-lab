@@ -1,0 +1,29 @@
+name: brief-warm
+
+# 모닝 브리핑 미리 생성·CDN 데우기 — 매일 07:30 KST(22:30 UTC).
+# /api/brief 는 온디맨드 생성(Gemini) + CDN 캐시라, 아침에 한 번 불러두면
+# 사용자가 열 때 즉시 뜬다. 공개 라우트라 시크릿 불필요.
+
+on:
+  schedule:
+    - cron: '30 22 * * *' # 07:30 KST
+  workflow_dispatch:
+
+concurrency:
+  group: brief-warm
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Warm morning brief (coin·kr·us)
+        env:
+          BASE: https://kospi-lab.vercel.app
+        run: |
+          for m in coin kr us; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 70 "$BASE/api/brief?market=$m" || echo "000")
+            echo "brief?market=$m -> $code"
+          done
+          # 페이지 셸도 한 번 데운다
+          curl -s -o /dev/null --max-time 30 "$BASE/brief" || true
