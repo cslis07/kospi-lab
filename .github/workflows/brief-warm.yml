@@ -1,8 +1,8 @@
 name: brief-warm
 
-# 모닝 브리핑 미리 생성·CDN 데우기 — 매일 07:30 KST(22:30 UTC).
-# /api/brief 는 온디맨드 생성(Gemini) + CDN 캐시라, 아침에 한 번 불러두면
-# 사용자가 열 때 즉시 뜬다. 공개 라우트라 시크릿 불필요.
+# 모닝 브리핑 미리 생성·CDN 데우기 + 텔레그램 발송 — 매일 07:30 KST(22:30 UTC).
+# /api/brief 는 온디맨드 생성(Gemini) + CDN 캐시라, 아침에 한 번 불러두면 사용자가 열 때 즉시 뜬다.
+# 데운 뒤 그 결과를 "kospi lab" 그룹으로 보낸다(scripts/briefTelegram.mts, coinTrack 과 같은 봇).
 
 on:
   schedule:
@@ -17,6 +17,11 @@ jobs:
   warm:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Warm morning brief (coin·kr·us)
         env:
           BASE: https://kospi-lab.vercel.app
@@ -30,3 +35,12 @@ jobs:
           done
           # 페이지 셸도 한 번 데운다
           curl -s -o /dev/null --max-time 30 "$BASE/brief" || true
+
+      - name: Send to Telegram
+        env:
+          BRIEF_BASE: https://kospi-lab.vercel.app
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          KL_TELEGRAM_BOT_TOKEN: ${{ secrets.KL_TELEGRAM_BOT_TOKEN }}
+          KL_TELEGRAM_CHAT_ID: ${{ secrets.KL_TELEGRAM_CHAT_ID }}
+        run: npx --yes tsx scripts/briefTelegram.mts
