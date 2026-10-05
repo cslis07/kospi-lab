@@ -13,7 +13,7 @@ const TABS: { key: BriefMarket; label: string; emoji: string }[] = [
 ];
 
 const SOURCES: Record<BriefMarket, string> = {
-  coin: 'FRED(美 금리·WTI) · 네이버 금융(환율) · 뉴스(CNBC·연준·네이버 등)',
+  coin: 'FRED(美 금리·WTI) · 네이버 금융(환율) · 뉴스(CoinDesk·Cointelegraph·Decrypt·The Block 등 해외 코인 매체 + 네이버)',
   kr: '네이버 금융(코스피·환율) · FRED(유가·美 금리) · 네이버 증권 뉴스',
   us: '네이버 금융(S&P·나스닥·다우) · FRED(美 금리·WTI) · 뉴스(CNBC·연준 등)',
 };
