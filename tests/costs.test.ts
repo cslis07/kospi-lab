@@ -3,7 +3,7 @@
  * 비용 비중이 틀리면 "수수료가 내 이익을 얼마나 먹나"가 거짓이 된다. 부호 규칙(Bitget)과 비율을 고정한다.
  */
 import assert from 'node:assert/strict';
-import { costBreakdown, costByHoldBand, type CostPosition } from '../lib/tradeCosts';
+import { costBreakdown, costByHoldBand, cashFlow, type CostPosition } from '../lib/tradeCosts';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -65,6 +65,34 @@ ok('보유시간별 비용 — 매매손익이 0 이하인 구간은 비율 null
   const rows = costByHoldBand([{ ...pos(-5, -1, 0), openTs: 0, closeTs: 60_000 }]);
   assert.equal(rows[0].costOfGrossPct, null);
   assert.equal(rows[0].eaten, false);
+});
+
+ok('출금 — 도착 금액 = 보낸 금액 − 수수료 (212→210.5 · 60→58.5 · 85→83.5, 실계좌 사례)', () => {
+  const w = [
+    { ts: 3, coin: 'USDT', size: 85, fee: -1.5 },   // Bitget 은 fee 를 음수로 준다
+    { ts: 2, coin: 'USDT', size: 60, fee: -1.5 },
+    { ts: 1, coin: 'USDT', size: 212, fee: 1.5 },   // 부호가 달라도 절댓값
+  ];
+  const c = cashFlow(w, [], 500);
+  assert.deepEqual(c.list.map((m) => m.arrive), [83.5, 58.5, 210.5]); // 최신순
+  near(c.withdrawn, 357); near(c.withdrawFees, 4.5); near(c.arrived, 352.5);
+  near(c.arrivedOfNetPct, 70.5); near(c.netAfterWithdrawFees, 495.5);
+});
+
+ok('출금 — USDT 만 집계, 입금·순출금, 순손익 0 이하면 비율 null', () => {
+  const c = cashFlow(
+    [{ ts: 1, coin: 'USDT', size: 100, fee: 1 }, { ts: 2, coin: 'BTC', size: 0.01, fee: 0 }],
+    [{ ts: 1, coin: 'USDT', size: 300, fee: 0 }, { ts: 2, coin: 'ETH', size: 1, fee: 0 }],
+    -20,
+  );
+  assert.equal(c.nWithdraw, 1); assert.equal(c.nDeposit, 1);
+  near(c.deposited, 300); near(c.netOut, -200);
+  assert.equal(c.arrivedOfNetPct, null);
+});
+
+ok('출금 — 내역이 없으면 0', () => {
+  const c = cashFlow([], [], 10);
+  assert.equal(c.nWithdraw, 0); near(c.arrived, 0); near(c.arrivedOfNetPct, 0);
 });
 
 console.log(`\n${passed} passed`);

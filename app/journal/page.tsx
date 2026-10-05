@@ -28,7 +28,7 @@ import TradesPerDayCard from '@/components/TradesPerDayCard';
 import EdgeSummaryCard from '@/components/EdgeSummaryCard';
 import CostCard from '@/components/CostCard';
 import ExcursionPanel from '@/components/ExcursionPanel';
-import { costBreakdown, costByHoldBand } from '@/lib/tradeCosts';
+import { costBreakdown, costByHoldBand, cashFlow, type CashMove } from '@/lib/tradeCosts';
 import AfterLossTable from '@/components/AfterLossTable';
 import ExcursionSummaryCard from '@/components/ExcursionSummaryCard';
 import { useRiskLimits } from '@/hooks/useRiskLimits';
@@ -90,6 +90,7 @@ export default function JournalPage() {
   const [days, setDays] = useState(30);
   const [positions, setPositions] = useState<ClosedPosition[]>([]);
   const [open, setOpen] = useState<OpenPosition[]>([]);
+  const [moves, setMoves] = useState<{ withdrawals: CashMove[]; deposits: CashMove[] } | null>(null); // 입출금(비용 분석 '출금')
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -118,10 +119,18 @@ export default function JournalPage() {
   const load = useCallback(async (d: number) => {
     setBusy(true); setErr(null); setMsg(null);
     try {
-      const [hRes, pRes] = await Promise.all([
+      const [hRes, pRes, tRes] = await Promise.all([
         fetch(`/api/bitget/history?days=${d}`),
         fetch('/api/bitget/positions').catch(() => null),
+        fetch(`/api/bitget/transfers?days=${d}`).catch(() => null),
       ]);
+
+      // 입출금 — best-effort(지갑 읽기 권한이 없으면 출금 블록만 숨김)
+      let mv: { withdrawals: CashMove[]; deposits: CashMove[] } | null = null;
+      if (tRes && tRes.ok) {
+        try { const tj = await tRes.json() as { withdrawals?: CashMove[]; deposits?: CashMove[]; error?: string }; if (!tj.error && Array.isArray(tj.withdrawals)) mv = { withdrawals: tj.withdrawals, deposits: tj.deposits ?? [] }; } catch { /* 무시 */ }
+      }
+      setMoves(mv);
 
       // 현재 열린 포지션 — best-effort(잠금·권한 문제는 아래 history 에러로 안내)
       let openList: OpenPosition[] = [];
@@ -177,6 +186,7 @@ export default function JournalPage() {
   // 비용 분석 — 수수료·펀딩이 손익에서 차지하는 비중
   const costs = useMemo(() => costBreakdown(positions), [positions]);
   const holdCosts = useMemo(() => costByHoldBand(positions), [positions]);
+  const cash = useMemo(() => (moves ? cashFlow(moves.withdrawals, moves.deposits, costs.net) : null), [moves, costs.net]);
   // 연패 직후 매매 — 진입 규모 = 수량 × 진입가
   const streakCap = Math.min(5, Math.max(2, limits.maxConsecutiveLosses || 3));
   const afterLoss = useMemo(() => afterLossStreaks(positions.map((p) => ({ openTs: p.openTs, closeTs: p.closeTs, value: p.netProfit, notional: p.size * p.openAvg })), streakCap), [positions, streakCap]);
@@ -307,7 +317,7 @@ export default function JournalPage() {
             </div>
           )}
           <EdgeSummaryCard e={edge} unit="USDT" fmt={fmtUsdt} sub={`최근 ${days}일 청산 ${edge.n}건 · 순손익 USDT(수수료·펀딩 반영)`} />
-          <CostCard c={costs} fmt={fmtUsdt} holdRows={holdCosts} sub={`최근 ${days}일 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
+          <CostCard c={costs} fmt={fmtUsdt} holdRows={holdCosts} cash={cash} sub={`최근 ${days}일 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
           <TradesPerDayCard rows={perDay} fmt={fmtUsdt} />
           <AfterLossTable rows={afterLoss} fmt={fmtUsdt} breakerAt={limits.maxConsecutiveLosses} />
           <ExcursionSummaryCard trades={positions} />

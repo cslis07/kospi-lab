@@ -62,6 +62,50 @@ export function costBreakdown(ps: CostPosition[]): CostBreakdown {
   };
 }
 
+/* ── 입출금(실제로 손에 쥔 돈) ───────────────────────
+ * 순손익은 거래소 안의 숫자고, 출금해서 도착한 금액이 '실제로 손에 쥔 돈'이다.
+ * 도착 금액 = 보낸 금액 − 출금 수수료(예: 212 − 1.5 = 210.5 USDT, 받는 거래소 입금액과 일치).
+ * ⚠ 출금에는 수익뿐 아니라 입금했던 원금 회수도 섞일 수 있어 입금 합계를 함께 보여 준다. */
+export interface CashMove { ts: number; coin: string; size: number; fee: number }
+export interface CashFlow {
+  nWithdraw: number;
+  /** 보낸 금액 합 */
+  withdrawn: number;
+  /** 출금 수수료 합(양수) */
+  withdrawFees: number;
+  /** 도착 금액 합 = 보낸 금액 − 수수료 */
+  arrived: number;
+  nDeposit: number;
+  deposited: number;
+  /** 순출금 = 보낸 금액 − 입금(양수 = 계좌에서 빠져나간 돈이 더 많음) */
+  netOut: number;
+  /** 순손익 대비 도착 금액 % (순손익이 0 이하면 null) */
+  arrivedOfNetPct: number | null;
+  /** 출금 수수료까지 뺀 순손익 */
+  netAfterWithdrawFees: number;
+  /** 도착 금액 포함 출금 목록(최신순) */
+  list: (CashMove & { arrive: number })[];
+}
+
+/** USDT 입출금만 집계(다른 코인은 환산 기준이 없어 제외). fee 는 부호 무관하게 절댓값으로 본다. */
+export function cashFlow(withdrawals: CashMove[], deposits: CashMove[], net: number): CashFlow {
+  const usdt = (m: CashMove) => m.coin === 'USDT' && Number.isFinite(m.size) && m.size > 0;
+  const w = withdrawals.filter(usdt).map((m) => ({ ...m, fee: Math.abs(m.fee) || 0 }));
+  const d = deposits.filter(usdt);
+  const withdrawn = w.reduce((a, m) => a + m.size, 0);
+  const withdrawFees = w.reduce((a, m) => a + m.fee, 0);
+  const arrived = withdrawn - withdrawFees;
+  const deposited = d.reduce((a, m) => a + m.size, 0);
+  return {
+    nWithdraw: w.length, withdrawn, withdrawFees, arrived,
+    nDeposit: d.length, deposited,
+    netOut: withdrawn - deposited,
+    arrivedOfNetPct: net > 0 ? (arrived / net) * 100 : null,
+    netAfterWithdrawFees: net - withdrawFees,
+    list: w.map((m) => ({ ...m, arrive: m.size - m.fee })).sort((a, b) => b.ts - a.ts),
+  };
+}
+
 export interface HoldCostRow {
   key: string;
   label: string;

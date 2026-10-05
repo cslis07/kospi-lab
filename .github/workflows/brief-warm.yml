@@ -24,6 +24,9 @@ jobs:
           for m in coin kr us; do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 70 "$BASE/api/brief?market=$m" || echo "000")
             echo "brief?market=$m -> $code"
+            # 과거 통계(6시간 캐시)·실시간 수치도 함께
+            curl -s -o /dev/null --max-time 40 "$BASE/api/brief/edge?market=$m" || true
+            curl -s -o /dev/null --max-time 20 "$BASE/api/brief/macro?market=$m" || true
           done
           # 페이지 셸도 한 번 데운다
           curl -s -o /dev/null --max-time 30 "$BASE/brief" || true

@@ -2,7 +2,7 @@
  * 비용 분석 카드 — 수수료·펀딩이 손익에서 차지하는 비중(참고: TraderSync 'Commissions & Fees').
  * 계산은 lib/tradeCosts(테스트 고정). 월 합계는 월별 보고서에 있으니 여기선 '비율'만.
  */
-import type { CostBreakdown, HoldCostRow } from '@/lib/tradeCosts';
+import type { CostBreakdown, HoldCostRow, CashFlow } from '@/lib/tradeCosts';
 
 const UP = 'var(--warn)';
 const DOWN = 'var(--accent-ink)';
@@ -57,7 +57,50 @@ function HoldCostTable({ rows, fmt }: { rows: HoldCostRow[]; fmt: (n: number) =>
   );
 }
 
-export default function CostCard({ c, fmt, sub, holdRows }: { c: CostBreakdown; fmt: (n: number) => string; sub?: string; holdRows?: HoldCostRow[] }) {
+/** 출금 — 순손익 중 실제로 거래소 밖으로 나가 손에 쥔 돈(도착 금액 = 보낸 금액 − 출금 수수료) */
+function CashBlock({ cash, net, fmt }: { cash: CashFlow; net: number; fmt: (n: number) => string }) {
+  const md = (ts: number) => { const d = new Date(ts + 9 * 3600_000); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
+  const pct = cash.arrivedOfNetPct;
+  return (
+    <div className="mt-4 pt-3 border-t border-[var(--line-2)]">
+      <p className="text-[12px] font-bold text-[var(--text)] mb-1">출금 <span className="text-[10px] font-normal text-[var(--text-muted)]">실제로 손에 쥔 돈 · 같은 기간 USDT</span></p>
+      {cash.nWithdraw === 0 ? (
+        <p className="text-[11.5px] text-[var(--text-muted)] py-1">이 기간에 출금한 내역이 없습니다.</p>
+      ) : (
+        <>
+          <Row label={`보낸 금액 (${cash.nWithdraw}건)`} value={`${fmt(cash.withdrawn)} USDT`} />
+          <Row label="출금 수수료" value={`−${fmt(cash.withdrawFees)} USDT`} color={DOWN} />
+          <Row label="도착 금액 (받는 곳 입금 기준)" value={`${fmt(cash.arrived)} USDT`} bold />
+          <p className="text-[11.5px] text-[var(--text-muted)] mt-1.5 leading-relaxed tabular-nums">
+            {pct == null
+              ? <>이 기간 순손익이 플러스가 아니라 출금액은 원금(또는 이전 기간 수익)에서 나간 돈입니다. </>
+              : pct <= 100
+                ? <>순손익 {signed(net, fmt)} 중 <b className="text-[var(--text)]">{Math.round(pct)}%</b>를 출금해 손에 쥐었습니다. </>
+                : <>도착 금액이 이 기간 순손익({signed(net, fmt)})보다 <b className="text-[var(--text)]">{fmt(cash.arrived - net)} USDT 많습니다</b> — 그만큼은 원금이나 이전 기간 수익에서 나간 돈입니다. </>}
+            출금 수수료까지 빼면 순손익은 {signed(cash.netAfterWithdrawFees, fmt)} USDT.
+          </p>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {cash.list.slice(0, 8).map((m) => (
+              <span key={m.ts} className="text-[11px] tabular-nums rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[var(--text)]" title={`보낸 ${m.size} − 수수료 ${m.fee}`}>
+                {md(m.ts)} · <b>{fmt(m.arrive)}</b>
+              </span>
+            ))}
+            {cash.list.length > 8 && <span className="text-[11px] text-[var(--text-muted)] py-0.5">외 {cash.list.length - 8}건</span>}
+          </div>
+        </>
+      )}
+      <p className="text-[10.5px] text-[var(--text-muted)] mt-2 leading-relaxed tabular-nums">
+        같은 기간 입금 {cash.nDeposit}건 {fmt(cash.deposited)} USDT —{' '}
+        {cash.netOut >= 0
+          ? <>넣은 돈보다 <b className="text-[var(--text)]">{fmt(cash.netOut)} USDT 더 뺐습니다</b>(순출금).</>
+          : <>뺀 돈보다 <b className="text-[var(--text)]">{fmt(-cash.netOut)} USDT 더 넣었습니다</b>(순입금).</>}
+        {' '}출금에는 수익뿐 아니라 입금했던 원금 회수도 섞일 수 있습니다.
+      </p>
+    </div>
+  );
+}
+
+export default function CostCard({ c, fmt, sub, holdRows, cash }: { c: CostBreakdown; fmt: (n: number) => string; sub?: string; holdRows?: HoldCostRow[]; cash?: CashFlow | null }) {
   if (c.n === 0) return null;
   const share = c.costOfGrossWinPct;
   const shareW = share == null ? 0 : Math.max(0, Math.min(100, share));
@@ -72,6 +115,9 @@ export default function CostCard({ c, fmt, sub, holdRows }: { c: CostBreakdown; 
       <Row label="수수료" value={`${signed(c.fees, fmt)} USDT`} color={tone(c.fees)} />
       <Row label={`펀딩 (${c.funding >= 0 ? '받음' : '냄'})`} value={`${signed(c.funding, fmt)} USDT`} color={tone(c.funding)} />
       <Row label="순손익" value={`${signed(c.net, fmt)} USDT`} color={tone(c.net)} bold />
+      {cash && cash.nWithdraw > 0 && (
+        <Row label="└ 이 중 출금해 손에 쥔 돈" value={`${fmt(cash.arrived)} USDT`} />
+      )}
 
       {share != null && (
         <div className="mt-3">
@@ -109,6 +155,7 @@ export default function CostCard({ c, fmt, sub, holdRows }: { c: CostBreakdown; 
         </div>
       </div>
       {holdRows && holdRows.length > 1 && <HoldCostTable rows={holdRows} fmt={fmt} />}
+      {cash && <CashBlock cash={cash} net={c.net} fmt={fmt} />}
 
       <p className="text-[10.5px] text-[var(--text-muted)] mt-2.5 leading-relaxed">
         실효 수수료율을 거래소 등급표의 메이커(지정가)·테이커(시장가) 요율과 비교해 보세요 — 테이커 쪽에 가깝다면 시장가 체결이 많다는 뜻입니다.
