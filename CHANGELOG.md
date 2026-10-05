@@ -8,6 +8,7 @@
 - 증시별 거시 수치(전부 실데이터): **코인**=美 10Y/2Y 국채금리·WTI 유가·원달러 / **국내**=코스피·코스닥·원달러·유가·美금리 / **해외**=S&P·나스닥·다우·美금리·유가.
   - 금리·유가는 **FRED 신규 연동**(`lib/brief.ts fredLatest`, DGS10·DGS2·DCOILWTICO, `_usCpiFred` 패턴), 지수·환율은 기존 네이버(`naverIndex`). 상승=빨강·하락=파랑, 각 수치에 "왜 중요한지(일반적 경향)" 한 줄.
 - 뉴스: 시장별 관련 헤드라인(네이버+해외 RSS, 키워드 필터) + **전쟁·지정학** 별도 섹션. 지정학은 국가명만으론 안 잡고 **분쟁 맥락어 중심**(Russia 전염병 기사 오탐 제거). 금리/유가/지정학 태그·원문 링크.
+- **코인 탭 뉴스 = 해외 코인 전문 매체 우선**(CoinDesk·Cointelegraph·Decrypt·The Block RSS, 최신순 혼합 `fetchCryptoNews`): 기존 일반 금융 RSS엔 코인 기사가 드물어 코인 탭이 국내로만 차던 문제 해결(사용자 지적 "해외가 더 공신력·빠름"). 코인 키워드도 확장(coinbase·defi·token·온체인 등).
 - AI 요약(Gemini, 방향 예측·매매 금지 프롬프트) + 오늘~3일 변동성 일정(`CALENDAR_EVENTS`).
 - 아침 **07:30 KST 크론 `brief-warm.yml`**이 3개 시장을 미리 생성·CDN 데움(온디맨드 생성 + CDN 2h 캐시 + 6h stale 폴백, 사용자 대기 제거).
 - 배선: `lib/menu.ts` EXTRAS(아이콘 sunrise)·홈 `DEFAULT_QUICK`·`sitemap`. 순수함수 `tests/brief.test.ts` 18케이스. 검증: npm test·build 통과 + 로컬 3456 실데이터(FRED·네이버·뉴스·Gemini 전부 동작) + 헤드리스 390px(오버플로0·콘솔0).

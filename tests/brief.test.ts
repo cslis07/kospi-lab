@@ -56,6 +56,19 @@ ok('pickNews: 태그가 각 항목에 매겨진다', () => {
   const r = pickNews([news('연준 금리 인상 경계')], 'us');
   assert.equal(r[0].tag, 'rate');
 });
+ok('pickNews(coin): 해외 코인 전문 매체 영어 제목도 잡고, 무관 영어는 제외', () => {
+  const items = [
+    news('Bitcoin dips below $60K as ETF outflows mount'),
+    news('Coinbase lists new token amid DeFi surge'),
+    news('Ethereum staking yields climb'),
+    news('Apple earnings beat expectations'),       // 코인 무관 → 제외
+  ];
+  const t = pickNews(items, 'coin', 8).map((n) => n.title);
+  assert.ok(t.includes('Bitcoin dips below $60K as ETF outflows mount'));
+  assert.ok(t.includes('Coinbase lists new token amid DeFi surge'));
+  assert.ok(t.includes('Ethereum staking yields climb'));
+  assert.ok(!t.includes('Apple earnings beat expectations'));
+});
 ok('pickNews(kr): 코스피·환율 관련', () => {
   const r = pickNews([news('코스피 외국인 순매수 전환'), news('비트코인 급등')], 'kr');
   assert.deepEqual(r.map((n) => n.title), ['코스피 외국인 순매수 전환']);

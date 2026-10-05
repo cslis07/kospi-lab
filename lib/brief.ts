@@ -8,6 +8,7 @@
  * 재사용: FRED(금리·유가)·naverIndex(지수·환율)·newsFeeds(뉴스)·calendarEvents(일정)·llmBriefing(Gemini).
  *   순수 가공 함수(pickNews·warNews·tagOf·todayEvents·buildBriefPrompt·fmt*)는 tests/brief.test.ts 로 고정.
  */
+import Parser from 'rss-parser';
 import type { NewsItem, CalendarEvent } from '@/lib/types';
 import { worldIndexLive, krIndexLive, usdKrwLive } from '@/lib/naverIndex';
 
@@ -44,7 +45,7 @@ export const OIL_RE = /유가|원유|석유|정유|감산|증산|OPEC|WTI|브렌
 export const RATE_RE = /금리|국채|수익률|연준|FOMC|기준금리|인플레|물가|CPI|PCE|고용|실업|긴축|완화|\bfed\b|yield|treasury|\brate\b|inflation|jobs|payroll/i;
 
 const MARKET_RE: Record<BriefMarket, RegExp> = {
-  coin: /bitcoin|crypto|ether|btc|eth|xrp|solana|stablecoin|비트코인|코인|가상자산|이더리움|리플|솔라나|암호화폐|스테이블|블록체인|SEC|ETF|금리|국채|유가|전쟁|지정학|연준|fed|규제/i,
+  coin: /bitcoin|crypto|ether(?:eum)?|\bbtc\b|\beth\b|\bxrp\b|solana|\bsol\b|stablecoin|coinbase|binance|token|defi|\bnft\b|altcoin|doge|staking|halving|onchain|on-chain|wallet|비트코인|코인|가상자산|이더리움|리플|솔라나|암호화폐|스테이블|블록체인|거래소|토큰|알트코인|도지|스테이킹|반감기|온체인|지갑|채굴|SEC|ETF|금리|국채|유가|전쟁|지정학|연준|fed|규제/i,
   kr: /코스피|코스닥|환율|원\/달러|원달러|반도체|수출|무역|한국은행|금통위|삼성|하이닉스|외국인|기관|유가|금리|국채|증시/i,
   us: /S&P|S&P\s?500|나스닥|다우|월가|wall\s?st|연준|fed|FOMC|금리|국채|yield|treasury|유가|oil|전쟁|지정학|실업|고용|CPI|인플레|엔비디아|nvidia|애플|apple|테슬라|tesla|증시|stocks/i,
 };
@@ -54,6 +55,43 @@ export function tagOf(title: string): NewsTag {
   if (OIL_RE.test(title)) return 'oil';
   if (RATE_RE.test(title)) return 'rate';
   return null;
+}
+
+/* ── 코인 전용 해외 피드 (공신력·속도) ───────────────
+ * 일반 금융 RSS(CNBC·블룸버그)엔 코인 기사가 드물어 코인 탭이 국내로만 찼던 문제 해결.
+ * CoinDesk·Cointelegraph·Decrypt·The Block — 전부 Vercel(미국 IP)에서 동작, 0.3~0.4초. */
+const CRYPTO_RSS: { name: string; url: string }[] = [
+  { name: 'CoinDesk', url: 'https://www.coindesk.com/arc/outboundfeeds/rss' },
+  { name: 'Cointelegraph', url: 'https://cointelegraph.com/rss' },
+  { name: 'Decrypt', url: 'https://decrypt.co/feed' },
+  { name: 'The Block', url: 'https://www.theblock.co/rss.xml' },
+];
+const cryptoParser = new Parser({
+  timeout: 8000,
+  headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RSSBot/1.0)', Accept: 'application/rss+xml, application/xml, text/xml, */*' },
+});
+
+/** 코인 전문 해외 매체 헤드라인(원문 영어). 실패 소스는 건너뛴다. */
+export async function fetchCryptoNews(perFeed = 8): Promise<NewsItem[]> {
+  const jobs = CRYPTO_RSS.map(async (s) => {
+    try {
+      const feed = await cryptoParser.parseURL(s.url);
+      return feed.items.slice(0, perFeed).map((it) => ({
+        title: it.title?.trim() ?? '',
+        link: it.link ?? '',
+        pubDate: it.pubDate ?? it.isoDate,
+        source: s.name,
+        category: 'international' as const,
+      })).filter((i) => i.title && i.link);
+    } catch {
+      return [] as NewsItem[];
+    }
+  });
+  const res = await Promise.allSettled(jobs);
+  const items = res.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+  // 최신순 — 한 매체 쏠림 방지 + "빠른(신선한)" 뉴스 우선
+  items.sort((a, b) => (b.pubDate ? new Date(b.pubDate).getTime() : 0) - (a.pubDate ? new Date(a.pubDate).getTime() : 0));
+  return items;
 }
 
 const dedupeByTitle = (items: NewsItem[]): NewsItem[] => {

@@ -3,7 +3,7 @@ import { fetchNews, fetchNaverMainNews } from '@/lib/newsFeeds';
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 import { geminiBrief } from '@/lib/llmBriefing';
 import {
-  marketMacro, pickNews, warNews, todayEvents, buildBriefPrompt,
+  marketMacro, pickNews, warNews, todayEvents, buildBriefPrompt, fetchCryptoNews,
   type BriefMarket, type BriefData, type BriefAi,
 } from '@/lib/brief';
 import type { NewsItem } from '@/lib/types';
@@ -31,12 +31,16 @@ const lastAi = new Map<BriefMarket, { ai: BriefAi; at: number }>();
 const within = <T,>(p: Promise<T>, ms: number, fb: T): Promise<T> =>
   Promise.race([p.catch(() => fb), new Promise<T>((r) => setTimeout(() => r(fb), ms))]);
 
-async function collectNews(): Promise<NewsItem[]> {
-  const [intl, kr] = await Promise.all([
+async function collectNews(market: BriefMarket): Promise<NewsItem[]> {
+  const [intl, kr, crypto] = await Promise.all([
     within(fetchNews('international', 50), 6000, [] as NewsItem[]),
     within(fetchNaverMainNews(30), 5000, [] as NewsItem[]),
+    market === 'coin' ? within(fetchCryptoNews(8), 6000, [] as NewsItem[]) : Promise.resolve([] as NewsItem[]),
   ]);
-  return [...kr, ...intl];
+  // 코인: 해외 코인 전문 매체 우선(공신력·속도) → 일반 해외 → 국내 보충
+  if (market === 'coin') return [...crypto, ...intl, ...kr];
+  if (market === 'us') return [...intl, ...kr];       // 해외증시: 해외 우선
+  return [...kr, ...intl];                             // 국내증시: 국내 우선
 }
 
 /** AI 실패 시 직전 성공본으로 대체(6시간 이내), 성공본은 기록 */
@@ -54,7 +58,7 @@ async function generate(market: BriefMarket): Promise<BriefData> {
   const deadline = Date.now() + 50_000;
   const [macro, allNews] = await Promise.all([
     marketMacro(market).catch(() => []),
-    collectNews(),
+    collectNews(market),
   ]);
   const news = pickNews(allNews, market, 8);
   const war = warNews(allNews, 4);
