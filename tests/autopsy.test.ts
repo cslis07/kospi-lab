@@ -1,6 +1,6 @@
 /** 매매 해부·이벤트 대조 회귀 테스트. 실행: npm test */
 import assert from 'node:assert/strict';
-import { atr, analyzeTrade, pickGranularity, tradeExcursion, excursionSummary, type Candle, type Excursion } from '../lib/tradeAutopsy';
+import { atr, analyzeTrade, pickGranularity, tradeExcursion, excursionSummary, isGaveBack, peakPrice, type Candle, type Excursion } from '../lib/tradeAutopsy';
 import { eventsNear, SEED_EVENTS, type MarketEvent } from '../lib/marketEvents';
 
 let passed = 0;
@@ -138,6 +138,18 @@ ok('excursionSummary — 이익 매매 포착률·지켰으면 손실 아니었�
   assert.equal(s.gaveBack, 1);
   assert.equal(s.withStop, 2); assert.equal(s.beyondStop, 1);
   near(s.avgMaePct!, 1);
+});
+
+ok('isGaveBack: 손실 매매 중 한때 최종 손실폭 이상 이익이던 것만', () => {
+  const ex = (mfePct: number, exitPct: number) => ({ mfePct, exitPct } as Excursion);
+  assert.equal(isGaveBack(ex(0.8, -0.5), -3), true);    // +0.8% 까지 갔다가 −0.5% 로 청산
+  assert.equal(isGaveBack(ex(0.3, -0.5), -3), false);   // 순행이 손실폭보다 작음
+  assert.equal(isGaveBack(ex(0.8, 0.2), 5), false);     // 이익 매매는 대상 아님
+  assert.equal(isGaveBack(ex(0, -0.5), -3), false);     // 한 번도 유리한 적 없음
+});
+ok('peakPrice: 롱은 진입가 위, 숏은 진입가 아래', () => {
+  assert.ok(Math.abs(peakPrice(2000, 'long', 1) - 2020) < 1e-9);
+  assert.ok(Math.abs(peakPrice(2000, 'short', 1) - 1980) < 1e-9);
 });
 
 console.log(`\n${passed} passed`);

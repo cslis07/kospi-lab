@@ -53,6 +53,12 @@ const openId = (p: OpenPosition) => `open-${p.symbol}-${p.side}`;
 
 const fmtPnl = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(2)}`;
 // 차트·달력용 금액 표기(부호는 컴포넌트가 붙임) — 큰 값은 천단위, 작은 값은 소수 2자리
+/** 조회 기간을 날짜로 — "최근 30일"만 쓰면 연간 합계로 오해하기 쉽다 */
+function periodLabel(days: number): string {
+  const d = (ms: number) => { const x = new Date(ms + 9 * 3600_000); return `${x.getUTCFullYear()}.${x.getUTCMonth() + 1}.${x.getUTCDate()}`; };
+  const now = Date.now();
+  return `${d(now - days * 86_400_000)}~${d(now)}(최근 ${days}일)`;
+}
 const fmtUsdt = (n: number) => (Math.abs(n) >= 1000 ? Math.round(n).toLocaleString() : String(Math.round(n * 100) / 100));
 const pnlColor = (n: number) => (n > 0 ? UP : n < 0 ? DOWN : 'var(--faint)');
 function fmtHold(ms: number | null): string {
@@ -317,7 +323,7 @@ export default function JournalPage() {
             </div>
           )}
           <EdgeSummaryCard e={edge} unit="USDT" fmt={fmtUsdt} sub={`최근 ${days}일 청산 ${edge.n}건 · 순손익 USDT(수수료·펀딩 반영)`} />
-          <CostCard c={costs} fmt={fmtUsdt} holdRows={holdCosts} cash={cash} sub={`최근 ${days}일 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
+          <CostCard c={costs} fmt={fmtUsdt} holdRows={holdCosts} cash={cash} sub={`${periodLabel(days)} 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
           <TradesPerDayCard rows={perDay} fmt={fmtUsdt} />
           <AfterLossTable rows={afterLoss} fmt={fmtUsdt} breakerAt={limits.maxConsecutiveLosses} />
           <ExcursionSummaryCard trades={positions} />

@@ -6,10 +6,13 @@
  * 결과는 이 기기에 저장(lib/excursionFetch)되므로 다음 방문엔 새 매매만 계산한다. 계산은 lib/tradeAutopsy(테스트 고정).
  */
 import { useEffect, useMemo, useState } from 'react';
-import { excursionSummary, type Excursion } from '@/lib/tradeAutopsy';
+import { excursionSummary, isGaveBack, peakPrice, type Excursion } from '@/lib/tradeAutopsy';
 import { cachedExcursion, loadExcursions, type ExcursionTrade } from '@/lib/excursionFetch';
 
 const MAX = 60; // 한 번에 계산할 최대 매매 수(최근 순)
+/** 가격 — 거래소 값 그대로(큰 값은 소수 2자리, 작은 값은 유효숫자 유지) */
+const px = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: n >= 1000 ? 2 : n >= 1 ? 4 : 6 });
+const kstStamp = (ts: number) => { const d = new Date(ts + 9 * 3600_000); return `${d.getUTCMonth() + 1}/${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
 
 export default function ExcursionSummaryCard({ trades }: { trades: ExcursionTrade[] }) {
   const recent = useMemo(() => [...trades].sort((a, b) => b.closeTs - a.closeTs).slice(0, MAX), [trades]);
@@ -35,6 +38,11 @@ export default function ExcursionSummaryCard({ trades }: { trades: ExcursionTrad
 
   const list = recent.filter((t) => done.has(t.positionId)).map((t) => ({ ex: done.get(t.positionId)!, net: t.netProfit }));
   const s = excursionSummary(list);
+  // '지켰으면 손실 아니었을 매매' 건별 — 진입가·가장 유리했던 가격·청산가(거래소 체결 평균가 그대로)
+  const gave = recent
+    .filter((t) => done.has(t.positionId) && isGaveBack(done.get(t.positionId)!, t.netProfit))
+    .map((t) => { const ex = done.get(t.positionId)!; return { t, ex, peak: peakPrice(t.openAvg, t.side, ex.mfePct) }; });
+  const [showGave, setShowGave] = useState(false);
   if (!recent.length) return null;
 
   return (
@@ -52,6 +60,51 @@ export default function ExcursionSummaryCard({ trades }: { trades: ExcursionTrad
             sub={`손실 ${s.losers}건 중 · 한때 최종 손실 이상 이익 중`} warn={s.gaveBack > 0} />
           <Tile label="평균 최대 역행(MAE)" value={s.avgMaePct != null ? `−${s.avgMaePct.toFixed(2)}%` : '—'} sub="진입가 대비" color="var(--accent-ink)" />
           <Tile label="평균 최대 순행(MFE)" value={s.avgMfePct != null ? `+${s.avgMfePct.toFixed(2)}%` : '—'} sub="진입가 대비" color="var(--warn)" />
+        </div>
+      )}
+      {gave.length > 0 && (
+        <div className="mb-2.5">
+          <button type="button" onClick={() => setShowGave((v) => !v)}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface-2)] text-[12px] font-semibold text-[var(--text)]">
+            <span>지켰으면 손실 아니었을 매매 {gave.length}건 — 진입가·청산가 보기</span>
+            <span className="text-[var(--text-muted)]">{showGave ? '접기 ▲' : '펼치기 ▼'}</span>
+          </button>
+          {showGave && (
+            <>
+              <div className="overflow-x-auto mt-1.5 rounded-xl border border-[var(--line-2)]">
+                <table className="w-full text-[11.5px] tabular-nums" style={{ minWidth: 470 }}>
+                  <thead>
+                    <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+                      <th className="text-left font-semibold px-2.5 py-1.5">청산(KST) · 종목</th>
+                      <th className="font-semibold px-2">진입가</th>
+                      <th className="font-semibold px-2">가장 유리했던 가격</th>
+                      <th className="font-semibold px-2">청산가</th>
+                      <th className="font-semibold px-2.5">순손익</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gave.map(({ t, ex, peak }) => (
+                      <tr key={t.positionId} className="border-t border-[var(--line-2)] text-right">
+                        <td className="text-left px-2.5 py-1.5 whitespace-nowrap">
+                          <span className="text-[var(--text-muted)]">{kstStamp(t.closeTs)}</span>{' '}
+                          <b className="text-[var(--text)]">{t.symbol.replace('USDT', '')}</b>{' '}
+                          <span style={{ color: t.side === 'long' ? 'var(--warn)' : 'var(--accent-ink)' }}>{t.side === 'long' ? '롱' : '숏'}</span>
+                        </td>
+                        <td className="px-2 text-[var(--text)]">{px(t.openAvg)}</td>
+                        <td className="px-2" style={{ color: 'var(--warn)' }}>{px(peak)}<span className="block text-[10px]">+{ex.mfePct.toFixed(2)}%{ex.rough ? ' 근사' : ''}</span></td>
+                        <td className="px-2 text-[var(--text)]">{px(t.closeAvg)}<span className="block text-[10px] text-[var(--accent-ink)]">{ex.exitPct >= 0 ? '+' : ''}{ex.exitPct.toFixed(2)}%</span></td>
+                        <td className="px-2.5 font-bold" style={{ color: 'var(--accent-ink)' }}>{t.netProfit.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[10.5px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+                진입가·청산가는 거래소 체결 평균가 그대로입니다. &lsquo;가장 유리했던 가격&rsquo;은 보유 중 봉의 고가(롱)·저가(숏) 기준이라 실제 체결 가능 가격과 조금 다를 수 있습니다.
+                이 매매들은 한때 최종 손실폭보다 크게 이익 중이었습니다 — 그 구간에서 손절을 본전으로 올렸다면 손실은 피할 수 있었습니다(사후 확인이며, 그렇게 하면 이긴 매매가 일찍 잘리는 경우도 생깁니다).
+              </p>
+            </>
+          )}
         </div>
       )}
       {s.withStop > 0 && (

@@ -36,6 +36,13 @@ export interface BacktestResult {
   avgR: number | null;     // 1R 익절/-1R 손절 기준 기대값
   longSignals: number;
   shortSignals: number;
+  /** 방향·점수(|score|≥45)는 충족했지만 진입 게이트에서 막힌 평가 횟수 — "왜 한쪽 신호가 0건인가"의 근거 */
+  blocked: {
+    long: { total: number; counterTrend: number };
+    short: { total: number; counterTrend: number };
+  };
+  /** 평가 시점 중 엔진 방향이 롱/숏/관망이었던 횟수(점수 ±20 기준) */
+  leanCounts: { long: number; short: number; wait: number };
   trades: BacktestTrade[]; // 최근 순
 }
 
@@ -68,6 +75,8 @@ export function backtestEngine(
   const warmup = 80;       // 지표 안정화 구간
   let openUntil = -1;      // 진행 중 트레이드가 있으면 그 청산 인덱스까지 스킵
   let openCount = 0;
+  const blocked = { long: { total: 0, counterTrend: 0 }, short: { total: 0, counterTrend: 0 } };
+  const leanCounts = { long: 0, short: 0, wait: 0 };
 
   for (let i = warmup; i < c5m.length - 1; i += stepBars) {
     if (i <= openUntil) continue;
@@ -97,6 +106,11 @@ export function backtestEngine(
     }
     const v = buildVerdict(h1, m15, m5, fundingRate, null, fib, zones, null, extras);
 
+    leanCounts[v.direction]++;
+    if (v.direction !== 'wait' && !v.entryOk && Math.abs(v.score) >= 45) {
+      blocked[v.direction].total++;
+      if (v.regime?.aligned === false) blocked[v.direction].counterTrend++; // 상위 추세(4H·1D) 역행이라 차단
+    }
     if (!v.entryOk || v.direction === 'wait') continue;
 
     // 진입 → 이후 봉으로 결과 판정
@@ -134,6 +148,7 @@ export function backtestEngine(
     avgR: closed > 0 ? (wins - losses) / closed : null,
     longSignals: trades.filter((t) => t.direction === 'long').length,
     shortSignals: trades.filter((t) => t.direction === 'short').length,
+    blocked, leanCounts,
     trades: trades.slice(-10).reverse(),
   };
 }

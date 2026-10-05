@@ -94,6 +94,8 @@ interface AnalysisData {
     signals: number; wins: number; losses: number; open: number;
     winRate: number | null; avgR: number | null;
     longSignals: number; shortSignals: number;
+    blocked?: { long: { total: number; counterTrend: number }; short: { total: number; counterTrend: number } };
+    leanCounts?: { long: number; short: number; wait: number };
     trades: { ts: number; direction: 'long' | 'short'; score: number; entry: number; stop: number; target: number; result: 'win' | 'loss'; bars: number }[];
   };
   verdict: {
@@ -237,6 +239,89 @@ function ScoreGauge({ score }: { score: number }) {
   );
 }
 
+/**
+ * 시간대 한 칸의 조건들을 롱 쪽/숏 쪽/중립으로 나눈다 — "어느 쪽 조건이 더 많이 갖춰졌나"의 체크리스트.
+ * ⚠ 조건이 한쪽에 많다고 그 방향이 이긴다는 뜻이 아니다(이 조건 조합은 측정상 우위 없음, 49.7%).
+ */
+function tfBias(tf: TF): { long: string[]; short: string[]; neutral: string[]; lean: 'long' | 'short' | 'mixed' } {
+  const L: string[] = [], S: string[] = [], N: string[] = [];
+  if (tf.structure === '상승') L.push('구조: 고점·저점이 함께 높아짐');
+  else if (tf.structure === '하락') S.push('구조: 고점·저점이 함께 낮아짐');
+  else N.push('구조: 횡보(고점·저점 방향이 엇갈림)');
+  if (tf.emaAlign === '정배열') L.push('EMA20이 EMA60 위(정배열)');
+  else if (tf.emaAlign === '역배열') S.push('EMA20이 EMA60 아래(역배열)');
+  else N.push('EMA 혼조');
+  (tf.priceVsEma20 === 'above' ? L : S).push(`가격이 EMA20 ${tf.priceVsEma20 === 'above' ? '위' : '아래'}`);
+  if (tf.priceVsVwap) (tf.priceVsVwap === 'above' ? L : S).push(`가격이 VWAP(당일 평균 체결가) ${tf.priceVsVwap === 'above' ? '위' : '아래'}`);
+  const r = tf.rsi.toFixed(0);
+  if (tf.rsi >= 70) N.push(`RSI ${r} 과열 — 롱 추격 주의`);
+  else if (tf.rsi <= 30) N.push(`RSI ${r} 침체 — 숏 추격 주의`);
+  else if (tf.rsi >= 55) L.push(`RSI ${r}(50 위 = 매수 힘 우세)`);
+  else if (tf.rsi <= 45) S.push(`RSI ${r}(50 아래 = 매도 힘 우세)`);
+  else N.push(`RSI ${r} 중립(45~55)`);
+  if (tf.macd.hist > 0) L.push(tf.macd.histSlope < 0 ? 'MACD 양(+)이지만 줄어드는 중 — 상승 힘 약화' : 'MACD 양(+)·커지는 중');
+  else if (tf.macd.hist < 0) S.push(tf.macd.histSlope > 0 ? 'MACD 음(−)이지만 줄어드는 중 — 하락 힘 약화' : 'MACD 음(−)·커지는 중');
+  else N.push('MACD 0 부근');
+  const d = L.length - S.length;
+  return { long: L, short: S, neutral: N, lean: d >= 2 ? 'long' : d <= -2 ? 'short' : 'mixed' };
+}
+const LEAN_KO = { long: '롱 쪽 조건 우세', short: '숏 쪽 조건 우세', mixed: '엇갈림(한쪽 우세 아님)' } as const;
+const LEAN_CLS = { long: 'text-emerald-400', short: 'text-red-400', mixed: 'text-amber-400' } as const;
+
+/** 세 시간대를 합쳐 "지금 롱/숏 어느 쪽 조건이 갖춰졌나"를 풀어 쓴다 */
+function TFSummary({ h1, m15, m5, verdict }: { h1: TF; m15: TF; m5: TF; verdict: AnalysisData['verdict'] }) {
+  const b = { h1: tfBias(h1), m15: tfBias(m15), m5: tfBias(m5) };
+  const leans = [b.h1.lean, b.m15.lean, b.m5.lean];
+  const all = (x: 'long' | 'short') => leans.every((l) => l === x);
+  let head: string, cls: string;
+  if (all('long')) { head = '세 시간대 모두 롱 쪽 조건이 더 많이 갖춰져 있습니다'; cls = 'text-emerald-400'; }
+  else if (all('short')) { head = '세 시간대 모두 숏 쪽 조건이 더 많이 갖춰져 있습니다'; cls = 'text-red-400'; }
+  else if (b.h1.lean !== 'mixed' && (b.m15.lean === b.h1.lean || b.m5.lean === b.h1.lean) && !leans.includes(b.h1.lean === 'long' ? 'short' : 'long')) {
+    head = `큰 방향(1시간봉)과 하위 시간대 일부가 ${b.h1.lean === 'long' ? '롱' : '숏'} 쪽 — 완전히 정렬되진 않았습니다`; cls = LEAN_CLS[b.h1.lean];
+  } else { head = '시간대끼리 엇갈립니다 — 지금은 롱·숏 어느 쪽도 조건이 갖춰졌다고 보기 어렵습니다'; cls = 'text-amber-400'; }
+  const notes: string[] = [];
+  if (h1.emaAlign === '정배열' && h1.priceVsEma20 === 'below') notes.push('1시간봉 EMA는 아직 정배열인데 가격이 EMA20 아래로 내려왔습니다 — 상승 추세 안의 눌림인지, 추세가 꺾이는 시작인지 아직 가려지지 않은 자리입니다.');
+  if (h1.emaAlign === '역배열' && h1.priceVsEma20 === 'above') notes.push('1시간봉 EMA는 역배열인데 가격이 EMA20 위로 올라왔습니다 — 하락 추세 안의 반등인지, 추세 전환 시작인지 아직 가려지지 않은 자리입니다.');
+  if (m5.macd.hist < 0 && m5.macd.histSlope > 0 && b.m15.lean === 'short') notes.push('5분봉 MACD 음(−)이 줄어드는 중 — 단기 하락 힘이 약해지고 있어 지금 숏 추격은 반등에 걸리기 쉽습니다.');
+  if (m5.macd.hist > 0 && m5.macd.histSlope < 0 && b.m15.lean === 'long') notes.push('5분봉 MACD 양(+)이 줄어드는 중 — 단기 상승 힘이 약해지고 있어 지금 롱 추격은 눌림에 걸리기 쉽습니다.');
+  // 더 큰 시간대(4H·1D)와 엇갈리면 엔진 종합 점수가 깎인다 — 조건 수와 엔진 판정이 다른 이유
+  const rg = verdict.regime;
+  if (rg && all('short') && (rg.h4 === 'up' || rg.d1 === 'up')) notes.push(`더 큰 시간대(${rg.label})는 상승입니다 — 숏은 큰 흐름을 거스르는 쪽이라, 아래 조건이 숏에 많아도 엔진 종합 점수는 깎이고 진입은 차단됩니다.`);
+  if (rg && all('long') && (rg.h4 === 'down' || rg.d1 === 'down')) notes.push(`더 큰 시간대(${rg.label})는 하락입니다 — 롱은 큰 흐름을 거스르는 쪽이라, 아래 조건이 롱에 많아도 엔진 종합 점수는 깎이고 진입은 차단됩니다.`);
+  if (m5.volumeRatio < 0.8) notes.push(`5분봉 거래량이 평균의 ${m5.volumeRatio.toFixed(1)}배로 적습니다 — 지금 움직임에 참여자가 적어 신뢰가 낮습니다.`);
+  if (m15.volumeRatio >= 1.5) notes.push(`15분봉 거래량이 평균의 ${m15.volumeRatio.toFixed(1)}배 — 직전 15분 움직임에는 참여자가 많았습니다.`);
+  const row = (name: string, role: string, x: ReturnType<typeof tfBias>) => (
+    <div className="flex items-baseline gap-2 text-xs flex-wrap">
+      <span className="w-[92px] shrink-0 text-[var(--text-muted)]">{name} <span className="opacity-70">{role}</span></span>
+      <span className={`font-bold ${LEAN_CLS[x.lean]}`}>{LEAN_KO[x.lean]}</span>
+      <span className="tabular-nums text-[var(--text-muted)]">롱 {x.long.length} · 숏 {x.short.length} · 중립 {x.neutral.length}</span>
+    </div>
+  );
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <h3 className="text-sm font-bold text-[var(--text)] mb-1">롱·숏 어느 쪽 조건이 갖춰졌나 <span className="text-[10px] font-normal text-[var(--text-muted)]">아래 세 시간대 종합</span></h3>
+      <p className={`text-[13px] font-bold mb-2 ${cls}`}>{head}</p>
+      <div className="space-y-1 mb-2">
+        {row('1시간봉', '큰 방향', b.h1)}
+        {row('15분봉', '구조', b.m15)}
+        {row('5분봉', '타이밍', b.m5)}
+      </div>
+      {notes.length > 0 && (
+        <ul className="space-y-1 mb-2">
+          {notes.map((n, i) => <li key={i} className="text-[11.5px] leading-relaxed text-[var(--text)] flex gap-1.5"><span className="text-amber-400 shrink-0">·</span><span>{n}</span></li>)}
+        </ul>
+      )}
+      <p className="text-[11.5px] text-[var(--text-muted)] leading-relaxed">
+        엔진 종합: <b className="text-[var(--text)]">{verdict.direction === 'long' ? '롱' : verdict.direction === 'short' ? '숏' : '관망'} ({verdict.score > 0 ? '+' : ''}{verdict.score})</b> — {verdict.entryNote}
+      </p>
+      <p className="text-[10.5px] text-[var(--text-muted)] opacity-80 leading-relaxed mt-1.5">
+        읽는 법: 1시간봉으로 큰 방향을 정하고, 15분봉에서 그 방향의 구조가 유지되는지, 5분봉에서 들어갈 타이밍을 봅니다. 세 개가 같은 쪽일 때만 &lsquo;정렬&rsquo;입니다.
+        ⚠ 조건이 한쪽에 많다는 건 체크리스트 결과일 뿐 그 방향이 이긴다는 뜻이 아닙니다(이 조건 조합은 측정상 승률 49.7%로 우위가 확인되지 않았습니다).
+      </p>
+    </div>
+  );
+}
+
 function TFCard({ tf }: { tf: TF }) {
   const rows: { k: string; v: string; tone?: 'pos' | 'neg' | 'warn' }[] = [
     { k: '시장구조', v: tf.structure, tone: tf.structure === '상승' ? 'pos' : tf.structure === '하락' ? 'neg' : undefined },
@@ -250,6 +335,7 @@ function TFCard({ tf }: { tf: TF }) {
     { k: '거래량(확정봉)', v: `평균 ${tf.volumeRatio.toFixed(1)}배`, tone: tf.volumeRatio >= 1.5 ? 'pos' : tf.volumeRatio < 0.8 ? 'warn' : undefined },
   ];
   const title = tf.tf === '1H' ? '1시간봉 · 방향' : tf.tf === '15m' ? '15분봉 · 구조' : '5분봉 · 타이밍';
+  const bias = tfBias(tf);
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <div className="flex items-center justify-between mb-3">
@@ -265,6 +351,16 @@ function TFCard({ tf }: { tf: TF }) {
             }`}>{r.v}</span>
           </div>
         ))}
+      </div>
+      {/* 이 시간대에서 롱/숏 어느 쪽 조건이 더 갖춰졌나 */}
+      <div className="mt-3 pt-3 border-t border-[var(--border)]">
+        <p className="text-xs">
+          <b className={LEAN_CLS[bias.lean]}>{LEAN_KO[bias.lean]}</b>
+          <span className="text-[var(--text-muted)] tabular-nums"> · 롱 {bias.long.length} / 숏 {bias.short.length} / 중립 {bias.neutral.length}</span>
+        </p>
+        {bias.long.length > 0 && <p className="text-[10.5px] leading-relaxed mt-1"><span className="text-emerald-400 font-semibold">롱 쪽</span> <span className="text-[var(--text-muted)]">{bias.long.join(' · ')}</span></p>}
+        {bias.short.length > 0 && <p className="text-[10.5px] leading-relaxed mt-1"><span className="text-red-400 font-semibold">숏 쪽</span> <span className="text-[var(--text-muted)]">{bias.short.join(' · ')}</span></p>}
+        {bias.neutral.length > 0 && <p className="text-[10.5px] leading-relaxed mt-1"><span className="text-[var(--text)] font-semibold">중립</span> <span className="text-[var(--text-muted)]">{bias.neutral.join(' · ')}</span></p>}
       </div>
     </div>
   );
@@ -1229,6 +1325,9 @@ export default function CoinAnalysisPage() {
           {/* 오더북 유동성 */}
           {data.orderbook && <OrderbookPanel ob={data.orderbook} price={data.price} digits={priceDigits} />}
 
+          {/* 롱·숏 조건 종합 */}
+          <TFSummary h1={{ ...data.timeframes.h1, tf: '1H' }} m15={{ ...data.timeframes.m15, tf: '15m' }} m5={{ ...data.timeframes.m5, tf: '5m' }} verdict={data.verdict} />
+
           {/* 타임프레임 3분할 */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <TFCard tf={{ ...data.timeframes.h1, tf: '1H' }} />
@@ -1339,12 +1438,35 @@ export default function CoinAnalysisPage() {
                       </div>
                     ))}
                   </div>
+                  <div className="mb-2 rounded-lg border border-sky-500/30 bg-sky-500/[0.06] p-2.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                    <p>
+                      <b className="text-[var(--text)]">아래 표는 &lsquo;지금 방향&rsquo;이 아니라 과거 신호 기록입니다.</b>{' '}
+                      지난 {Math.round(data.backtest.spanHours)}시간 동안 엔진 조건을 통과했던 가상 진입을 최신순으로 나열한 것이고, 방향은 <b className="text-[var(--text)]">그 시각 당시</b>의 판정입니다
+                      (손절가가 진입가 아래면 롱, 위면 숏).
+                    </p>
+                    <p className="mt-1">
+                      지금 엔진 방향: <b className={data.verdict.direction === 'long' ? 'text-emerald-400' : data.verdict.direction === 'short' ? 'text-red-400' : 'text-amber-400'}>
+                        {data.verdict.direction === 'long' ? '롱' : data.verdict.direction === 'short' ? '숏' : '관망'} ({data.verdict.score > 0 ? '+' : ''}{data.verdict.score})
+                      </b>{' '}· 진입 조건 {data.verdict.entryOk ? '충족' : '미충족'}
+                    </p>
+                    {data.backtest.leanCounts && data.backtest.blocked && (
+                      <p className="mt-1">
+                        이 기간 엔진이 기울었던 횟수 — 롱 {data.backtest.leanCounts.long} · 숏 {data.backtest.leanCounts.short} · 관망 {data.backtest.leanCounts.wait}회(포지션이 없을 때 15분마다 평가).
+                        {data.backtest.shortSignals === 0 && data.backtest.longSignals > 0 && (
+                          <> <b className="text-[var(--text)]">숏 신호가 0건인 이유:</b> 숏 쪽으로 점수가 충분했던(−45 이하) 평가 {data.backtest.blocked.short.total}회 중 {data.backtest.blocked.short.counterTrend}회는 상위 추세(4H·1D)를 거스르는 진입이라 차단됐습니다{data.backtest.blocked.short.total > data.backtest.blocked.short.counterTrend ? ' — 나머지는 5분 트리거 미확인·목표까지 여유 부족 등으로 통과하지 못했습니다' : ''}. 즉 숏이 불리해서가 아니라, 엔진이 큰 흐름을 거스르는 진입을 막도록 설계돼 있어서입니다.</>
+                        )}
+                        {data.backtest.longSignals === 0 && data.backtest.shortSignals > 0 && (
+                          <> <b className="text-[var(--text)]">롱 신호가 0건인 이유:</b> 롱 쪽으로 점수가 충분했던(+45 이상) 평가 {data.backtest.blocked.long.total}회 중 {data.backtest.blocked.long.counterTrend}회는 상위 추세(4H·1D)를 거스르는 진입이라 차단됐습니다{data.backtest.blocked.long.total > data.backtest.blocked.long.counterTrend ? ' — 나머지는 5분 트리거 미확인·목표까지 여유 부족 등으로 통과하지 못했습니다' : ''}. 즉 롱이 불리해서가 아니라, 엔진이 큰 흐름을 거스르는 진입을 막도록 설계돼 있어서입니다.</>
+                        )}
+                      </p>
+                    )}
+                  </div>
                   <div className="max-h-32 overflow-y-auto rounded-lg border border-[var(--border)]">
                     <table className="w-full text-[10px] tabular-nums">
                       <thead>
                         <tr className="text-[var(--text-muted)] bg-[var(--bg)] sticky top-0">
                           <th className="text-left px-2 py-1 font-medium">시각</th>
-                          <th className="text-left px-2 py-1 font-medium">방향</th>
+                          <th className="text-left px-2 py-1 font-medium">당시 방향(점수)</th>
                           <th className="text-right px-2 py-1 font-medium">진입가</th>
                           <th className="text-right px-2 py-1 font-medium">손절가</th>
                           <th className="text-right px-2 py-1 font-medium">보유</th>
@@ -1388,11 +1510,19 @@ export default function CoinAnalysisPage() {
                       {z.kind === 'resistance' ? '저항' : '지지'}
                     </span>
                     <span className="font-bold tabular-nums text-[var(--text)]">${fmtP(z.price, priceDigits)}</span>
-                    <span className="text-[10px] text-[var(--text-muted)]">터치 {z.touches}회</span>
+                    <span className="text-[10px] text-[var(--text-muted)]">터치 {z.touches}회 · <b className={z.touches >= 6 ? 'text-[var(--text)]' : ''}>{z.touches >= 6 ? '강함' : z.touches >= 3 ? '보통' : '약함'}</b></span>
                   </div>
                 ))}
                 {!data.zones.length && <p className="text-xs text-[var(--text-muted)]">식별된 구간 없음</p>}
               </div>
+              {data.zones.length > 0 && (
+                <div className="mt-2.5 text-[10.5px] leading-relaxed text-[var(--text-muted)] space-y-1">
+                  <p><b className="text-[var(--text)]">터치</b> = 최근 15분봉에서 이 가격대에 고점·저점(꺾인 자리)이 생긴 횟수.</p>
+                  <p><b className="text-[var(--text)]">많을수록(6회+)</b> 많은 사람이 의식하는 가격 — 닿으면 반응(멈춤·되돌림)이 나올 가능성이 크고 손절·목표 기준으로 쓰기 좋습니다. 다만 같은 자리를 여러 번 두드릴수록 대기 주문이 소진돼 <b className="text-[var(--text)]">결국 뚫릴 가능성도 커지고</b>, 뚫리면 움직임이 큽니다.</p>
+                  <p><b className="text-[var(--text)]">적을수록(2회)</b> 우연히 겹친 자리일 수 있는 약한 참고선 — 쉽게 지나칠 수 있으니 이것만 믿고 손절을 바짝 대지 마세요.</p>
+                  <p>뚫린 저항은 지지로, 깨진 지지는 저항으로 역할이 바뀌는 경우가 많습니다. 서로 가까운 구간은 하나의 넓은 띠로 보세요.</p>
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">

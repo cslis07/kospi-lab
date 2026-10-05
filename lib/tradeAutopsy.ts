@@ -130,6 +130,15 @@ export interface ExcursionSummary {
   beyondStop: number;
 }
 
+/** 손실로 끝났지만 보유 중 한때 '최종 손실폭 이상' 이익 중이던 매매인가(요약의 gaveBack 과 같은 정의) */
+export function isGaveBack(ex: Excursion, net: number): boolean {
+  return net < 0 && ex.mfePct > 0 && ex.mfePct >= Math.abs(ex.exitPct);
+}
+/** 보유 중 가장 유리했던 가격 — 롱은 진입가 위, 숏은 진입가 아래(MFE % 로 환산, 봉 고저 기준 근사) */
+export function peakPrice(entry: number, side: 'long' | 'short', mfePct: number): number {
+  return side === 'long' ? entry * (1 + mfePct / 100) : entry * (1 - mfePct / 100);
+}
+
 /** 여러 매매의 MAE/MFE 요약(참고: Edgewonk 'MAE/MFE analysis'). net = 순손익(이익/손실 판정) */
 export function excursionSummary(list: { ex: Excursion; net: number }[]): ExcursionSummary {
   const avg = (vs: number[]) => (vs.length ? vs.reduce((a, v) => a + v, 0) / vs.length : null);
@@ -142,7 +151,7 @@ export function excursionSummary(list: { ex: Excursion; net: number }[]): Excurs
     winnersCapturePct: avg(win.map((x) => x.ex.capturePct).filter((v): v is number => v != null)),
     winners: win.length,
     losers: loss.length,
-    gaveBack: loss.filter((x) => x.ex.mfePct > 0 && x.ex.mfePct >= Math.abs(x.ex.exitPct)).length,
+    gaveBack: loss.filter((x) => isGaveBack(x.ex, x.net)).length,
     withStop: stopped.length,
     beyondStop: stopped.filter((x) => (x.ex.maeR ?? 0) >= 1).length,
   };
