@@ -4,9 +4,10 @@
  * 배포된 공개 API(/api/brief·/api/brief/edge)에서 3개 증시 요약·지표·뉴스를 받아
  * "kospi lab" 그룹으로 보낸다(coinTrack 과 같은 봇·채팅). 앱 코드는 import 하지 않아 독립적.
  *
- * 설계(2026-10-06 사용자 피드백): "아침에 딱 보면 시장을 안다" — 맨 위 【한눈에】 4줄(3증시 방향+핵심
- *   숫자 + 공통 거시 한 줄)로 즉시 파악, 아래는 증시별 한 줄 요약 + 코인 수급/과거통계 + 뉴스 1건으로 압축.
- *   같은 숫자를 두 번 쓰지 않는다(공통 거시는 한눈에에만). 매매 신호 아님.
+ * 설계(2026-10-06 사용자 피드백 2차): "가격 알림이 아니라 가격에 영향 줄 뉴스를 정리해 달라" +
+ *   "맨 위에 시장지표(유가·美국채금리·달러환율) 블록".
+ *   → ① 📊 시장지표(공통 거시) 맨 위 ② 증시별 = 한 줄 핵심 + 영향 뉴스 2~3건(원문 링크).
+ *   같은 숫자 중복 금지. 과거 통계는 급변+유의일 때만 1줄. 매매 신호 아님.
  *
  * 토큰: KL_TELEGRAM_BOT_TOKEN||TELEGRAM_BOT_TOKEN · KL_TELEGRAM_CHAT_ID||TELEGRAM_CHAT_ID.
  */
@@ -30,41 +31,50 @@ async function getJson<T>(path: string): Promise<T | null> {
   } catch { return null; }
 }
 
-const mget = (b: Brief | null, key: string) => b?.macro.find((m) => m.key === key) || null;
-const arrow = (ch: number | null) => (ch == null ? '·' : ch > 0 ? '▲' : ch < 0 ? '▼' : '─');
-
-/** 【한눈에】 한 줄 — 이모지 + 이름 + 방향 + 핵심 숫자 */
-function snapLine(emoji: string, name: string, state: string, nums: string): string {
-  return `${emoji} <b>${name}</b>  ${state}  ${nums}`;
-}
-
-/** 어젯밤 요인이 급변 + 과거 '유의'였던 경우만 한 줄(가장 강한 1건) */
+/** 급변+과거 '유의'였던 경우만 1줄(가장 강한 1건) */
 function edgeLine(e: Edge | null): string | null {
   if (!e?.rows?.length) return null;
   for (const r of e.rows) {
     if (r.verdict !== 'significant') continue;
     if (!e.latest.find((x) => x.factor === r.factor && x.bucket === r.bucket)) continue;
     const gap = r.intra && r.intra.verdict !== 'significant' ? '*' : '';
-    return `📊 어젯밤 ${esc(r.label)} ${r.bucket === 'surge' ? '급등' : '급락'} → 다음날 ${esc(e.target)} 상승 <b>${Math.round(r.upRate)}%</b>(평소 ${Math.round(r.baseRate)}%)${gap}`;
+    return `📊 어젯밤 ${esc(r.label)} ${r.bucket === 'surge' ? '급등' : '급락'} → 과거 다음날 ${esc(e.target)} 상승 <b>${Math.round(r.upRate)}%</b>(평소 ${Math.round(r.baseRate)}%)${gap}`;
   }
   return null;
 }
 
-function topNews(b: Brief): string | null {
-  const n = b.news[0];
-  if (!n) return null;
-  return `📰 <a href="${esc(n.link)}">${esc(n.title)}</a> <i>${esc(n.source)}</i>`;
+/** 영향 뉴스 n건 — 관련도·매체·신선도순(API rankNews). tag(금리/유가/지정학)는 앞에 아이콘으로.
+ * 같은 사건(다른 매체 중복: 엔비디아 6조달러 등)은 핵심어 3개 이상 겹치면 한 건만. */
+const TAG_ICON: Record<string, string> = { war: '⚠️', oil: '🛢', rate: '💵' };
+const TOPIC_STOP = new Set('속보 단독 종합 마켓뷰 투자 투자360 사상 최고 최고가 신고가 경신 전망 코스피 코스닥 나스닥 다우 다우존스 증시 시장 오늘 내년 올해 관련 분석 목표가 유력 이틀째 사흘째 기록 돌파 상승 하락 마감 개장 눈앞 목전 nvidia bitcoin crypto market markets stocks shares record high rally rallies tech news wrap the and for with to of in on as at'.split(' '));
+const topicTokens = (t: string) => new Set(t.replace(/[^가-힣a-z0-9]/gi, ' ').toLowerCase().split(/\s+/).filter((w) => w.length >= 2 && !TOPIC_STOP.has(w)));
+function sameTopic(a: Set<string>, b: Set<string>): boolean {
+  let sh = 0; for (const w of b) if (a.has(w)) sh++;
+  return sh >= 2; // 핵심어(종목·사건) 2개 이상 겹치면 같은 사건
+}
+function newsLines(b: Brief, n: number): string[] {
+  const out: string[] = [];
+  const picked: Set<string>[] = [];
+  for (const it of b.news) {
+    if (out.length >= n) break;
+    const tok = topicTokens(it.title);
+    if (picked.some((p) => sameTopic(p, tok))) continue; // 같은 사건 중복 제거
+    picked.push(tok);
+    const ic = it.tag && TAG_ICON[it.tag] ? TAG_ICON[it.tag] : '·';
+    out.push(`${ic} <a href="${esc(it.link)}">${esc(it.title)}</a> <i>${esc(it.source)}</i>`);
+  }
+  return out;
 }
 
-/** 증시별 압축 섹션: 한 줄 요약 + (코인 수급/과거통계) + 뉴스 1건 (+ 일정) */
-function section(emoji: string, name: string, b: Brief | null, e: Edge | null, extra?: string | null): string {
-  const L = [`${emoji} <b>${name}</b>`];
+/** 증시별 섹션: 헤더(이름·대표가) + 한 줄 핵심 + (추가줄) + 뉴스 2~3건 + 과거통계 + 일정 */
+function section(emoji: string, name: string, headerRight: string, b: Brief | null, e: Edge | null, nNews: number, extra?: string | null): string {
+  const L = [`${emoji} <b>${name}</b>${headerRight ? `  ·  ${headerRight}` : ''}`];
   if (!b) { L.push('<i>불러오지 못했습니다</i>'); return L.join('\n'); }
   if (b.ai.headline) L.push(esc(b.ai.headline));
-  else L.push(`<i>AI 요약 생성 실패${b.ai.error ? ` (${esc(b.ai.error)})` : ''}</i>`);
+  else if (b.ai.error) L.push(`<i>요약 실패 (${esc(b.ai.error)})</i>`);
   if (extra) L.push(extra);
+  L.push(...newsLines(b, nNews));
   const el = edgeLine(e); if (el) L.push(el);
-  const nw = topNews(b); if (nw) L.push(nw);
   const ev = b.events.find((x) => x.importance === 'high') || b.events[0];
   if (ev) L.push(`🗓 ${esc(ev.date.slice(5))} ${esc(ev.title)}`);
   return L.join('\n');
@@ -78,52 +88,45 @@ async function main() {
     getJson<Brief>('/api/brief?market=coin'), getJson<Brief>('/api/brief?market=kr'), getJson<Brief>('/api/brief?market=us'),
     getJson<Edge>('/api/brief/edge?market=coin'), getJson<Edge>('/api/brief/edge?market=kr'), getJson<Edge>('/api/brief/edge?market=us'),
   ]);
+  // 지표는 세 응답 어디서든 찾는다(美2Y는 해외 응답에만, 환율은 코인·국내에만)
+  const all = [coin, kr, us].filter(Boolean) as Brief[];
+  const mget = (key: string) => { for (const b of all) { const m = b.macro.find((x) => x.key === key); if (m) return m; } return null; };
+  const fmtCh = (m: MacroNum | null) => (m == null || m.change == null ? '' : Math.abs(m.change) < 0.005 ? '(보합)' : `(${esc(m.changeText)})`);
 
   const kst = new Date(Date.now() + 9 * 3600_000);
   const dow = ['일', '월', '화', '수', '목', '금', '토'][kst.getUTCDay()];
   const head = `📰 <b>모닝 브리핑</b> · ${kst.getUTCMonth() + 1}/${kst.getUTCDate()}(${dow}) ${String(kst.getUTCHours()).padStart(2, '0')}:${String(kst.getUTCMinutes()).padStart(2, '0')}`;
 
-  // ── 【한눈에】 ──
-  const snap: string[] = ['<b>【한눈에】</b>'];
-  // 코인: BTC 방향(24h, ±1%)
-  const btc = mget(coin, 'btc');
-  if (btc) {
-    const c = btc.change;
-    const [a, w] = c == null ? ['·', ''] : c >= 1 ? ['▲', '강세'] : c <= -1 ? ['▼', '약세'] : ['─', '보합'];
-    snap.push(snapLine('🪙', '코인', `${a} ${w}`, `BTC ${esc(btc.value)} (${esc(btc.changeText.replace(' 24h', ''))})`));
-  }
-  // 국내: 개장 전 — 코스피(전일 종가) + 환율(거의 실시간)
-  const kospi = mget(kr, 'kospi'), fx = mget(kr, 'usdkrw');
-  if (kospi || fx) {
-    const parts = [kospi ? `코스피 ${esc(kospi.value)}` : '', fx ? `환율 ${esc(fx.value)}(${esc(fx.changeText)})` : ''].filter(Boolean).join(' · ');
-    snap.push(snapLine('🇰🇷', '국내', '개장 전', parts));
-  }
-  // 해외: 간밤 마감 — S&P·나스닥 등락
-  const sp = mget(us, 'sp500'), nq = mget(us, 'nasdaq');
-  if (sp || nq) {
-    const w = sp?.change == null ? '마감' : sp.change > 0 ? '상승마감' : sp.change < 0 ? '하락마감' : '보합마감';
-    const parts = [sp ? `S&amp;P ${esc(sp.changeText)}` : '', nq ? `나스닥 ${esc(nq.changeText)}` : ''].filter(Boolean).join(' · ');
-    snap.push(snapLine('🇺🇸', '해외', `${arrow(sp?.change ?? null)} ${w}`, parts));
-  }
-  // 공통 거시 — 한 줄(코인 응답에서 추출). 美10Y·유가·달러·VIX
-  const g = (k: string, lab: string) => { const m = mget(coin, k); return m ? `${lab} ${esc(m.value)}` : null; };
-  const macroBits = [g('us10y', '美10Y'), g('wti', '유가'), g('dxy', '달러'), g('vix', 'VIX')].filter(Boolean);
-  if (macroBits.length) snap.push(`🌐 <b>거시</b>  ${macroBits.join(' · ')}`);
+  // ── 📊 시장지표 (유가·美국채금리·달러환율·VIX) ──
+  const wti = mget('wti'), y10 = mget('us10y'), y2 = mget('us2y'), dxy = mget('dxy'), fx = mget('usdkrw'), vix = mget('vix');
+  const ind = ['📊 <b>시장지표</b>'];
+  if (wti) ind.push(`🛢 WTI 유가  <b>${esc(wti.value)}</b> ${fmtCh(wti)}`);
+  if (y10 || y2) ind.push(`💵 美 국채금리  ${[y10 && `10Y <b>${esc(y10.value)}</b>${fmtCh(y10)}`, y2 && `2Y ${esc(y2.value)}${fmtCh(y2)}`].filter(Boolean).join(' · ')}`);
+  if (dxy || fx) ind.push(`💱 달러  ${[dxy && `달러인덱스 <b>${esc(dxy.value)}</b>${fmtCh(dxy)}`, fx && `원/달러 <b>${esc(fx.value)}</b>${fmtCh(fx)}`].filter(Boolean).join(' · ')}`);
+  if (vix) ind.push(`😨 VIX  <b>${esc(vix.value)}</b> ${fmtCh(vix)}`);
 
-  // ── 코인 수급 한 줄(코인 고유 지표만) ──
-  const etf = mget(coin, 'etf'), fng = mget(coin, 'fng'), fund = mget(coin, 'funding');
-  const flow = [etf ? `ETF ${esc(etf.value)}` : '', fng ? `공포탐욕 ${esc(fng.value)}` : '', fund ? `펀딩 ${esc(fund.changeText)}` : ''].filter(Boolean).join(' · ');
+  // ── 증시별 대표가(헤더 오른쪽, 작게) ──
+  const btc = mget('btc');
+  const coinHdr = btc ? `BTC ${esc(btc.value)} ${esc(btc.changeText.replace(' 24h', ''))}` : '';
+  const kospi = coin && kr ? kr.macro.find((x) => x.key === 'kospi') : null;
+  const krHdr = kospi ? `코스피 ${esc(kospi.value)} · 개장 전` : '개장 전';
+  const sp = us?.macro.find((x) => x.key === 'sp500'), nq = us?.macro.find((x) => x.key === 'nasdaq');
+  const usHdr = [sp && `S&amp;P ${esc(sp.changeText)}`, nq && `나스닥 ${esc(nq.changeText)}`].filter(Boolean).join(' · ') + (sp || nq ? ' · 마감' : '');
+
+  // 코인 수급 한 줄(코인 고유)
+  const etf = mget('etf'), fng = mget('fng'), fund = mget('funding');
+  const flow = [etf && `ETF ${esc(etf.value)}`, fng && `공포탐욕 ${esc(fng.value)}`, fund && `펀딩 ${esc(fund.changeText)}`].filter(Boolean).join(' · ');
 
   const sections = [
-    section('🪙', '코인', coin, coinE, flow ? `💰 ${flow}` : null),
-    section('🇰🇷', '국내증시', kr, krE),
-    section('🇺🇸', '해외증시', us, usE),
+    section('🪙', '코인', coinHdr, coin, coinE, 3, flow ? `💰 ${flow}` : null),
+    section('🇰🇷', '국내증시', krHdr, kr, krE, 3),
+    section('🇺🇸', '해외증시', usHdr, us, usE, 3),
   ];
 
   const gapNote = [coinE, krE, usE].some((e) => edgeLine(e)?.includes('*')) ? '* 장중(시가→종가)은 우연 범위 — 시가 갭에 이미 반영\n' : '';
   const foot = `${gapNote}📊 과거 통계는 다음날 보장 아님 · <b>맥락 참고용, 매매 신호 아님</b>\n🔗 ${BASE}/brief`;
 
-  const text = [head, snap.join('\n'), ...sections, foot].join('\n\n');
+  const text = [head, ind.join('\n'), ...sections, foot].join('\n\n');
 
   if (DRY) { console.log(`[DRY] ${text.length}자 (한도 4096)\n----\n${text}\n----`); return; }
 
