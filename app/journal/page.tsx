@@ -17,10 +17,12 @@ import { useTradeTags } from '@/hooks/useTradeTags';
 import { useSnapshots } from '@/hooks/useSnapshots';
 import SnapshotField from '@/components/SnapshotField';
 import { MOODS, MOOD_BY_KEY, type MoodKey } from '@/lib/tradeMood';
-import { SETUPS, MISTAKES, SETUP_BY_KEY, MISTAKE_BY_KEY, tagStats, hasAnyTag, type TagStat, type TagMeta } from '@/lib/tradeTags';
+import { SETUPS, MISTAKES, SETUP_BY_KEY, MISTAKE_BY_KEY, tagStats, convictionStats, CONVICTIONS, hasAnyTag, type TagStat, type TagMeta } from '@/lib/tradeTags';
 import { monthlyStats, moodStats, kstMonth } from '@/lib/tradeReport';
 import BreakdownTables from '@/components/BreakdownTables';
-import type { BreakItem } from '@/lib/tradeBreakdown';
+import { weekdayHourHeatmap, type BreakItem } from '@/lib/tradeBreakdown';
+import WeekdayHourHeatmap from '@/components/WeekdayHourHeatmap';
+import ConvictionCard from '@/components/ConvictionCard';
 import EquityCurveLazy from '@/components/EquityCurveLazy';
 import CalendarHeatmap from '@/components/CalendarHeatmap';
 import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, tradesPerDay, type TradeValue } from '@/lib/journalAnalytics';
@@ -110,6 +112,7 @@ export default function JournalPage() {
   const [note, setNote] = useState('');
   const [selSetups, setSelSetups] = useState<string[]>([]);
   const [selMistakes, setSelMistakes] = useState<string[]>([]);
+  const [selConv, setSelConv] = useState<number | null>(null);
   useEffect(() => {
     if (!editing) return;
     const cur = moods[editing.id];
@@ -117,6 +120,7 @@ export default function JournalPage() {
     setNote(cur?.note ?? '');
     const t = tags[editing.id];
     setSelSetups(t?.setups ?? []);
+    setSelConv(t?.conviction ?? null);
     setSelMistakes(t?.mistakes ?? []);
   }, [editing, moods, tags]);
   const toggle = (list: string[], set: (v: string[]) => void, key: string) =>
@@ -202,6 +206,8 @@ export default function JournalPage() {
   const dayTrades = useMemo(() => (selDay ? positions.filter((p) => kstDateKey(p.closeTs) === selDay).sort((a, b) => a.closeTs - b.closeTs) : []), [positions, selDay]);
   const streak = useMemo(() => streaks([...positions].sort((a, b) => a.closeTs - b.closeTs).map((p) => resultOf(p.netProfit))), [positions]);
   // 셋업·실수 태그별 성적 — 로드된 청산 포지션 전체
+  const heatmap = useMemo(() => weekdayHourHeatmap(breakItems), [breakItems]);
+  const convStats = useMemo(() => convictionStats(positions, tags), [positions, tags]);
   const setupStats = useMemo(() => tagStats(positions, tags, 'setup'), [positions, tags]);
   const mistakeStats = useMemo(() => tagStats(positions, tags, 'mistake'), [positions, tags]);
 
@@ -223,7 +229,7 @@ export default function JournalPage() {
   const saveAnnotation = () => {
     if (!editing) return;
     if (pick) setMood(editing.id, pick, note);
-    saveTags(editing.id, selSetups, selMistakes);
+    saveTags(editing.id, selSetups, selMistakes, selConv);
     setEditing(null);
   };
 
@@ -305,6 +311,11 @@ export default function JournalPage() {
           sub={`최근 ${days}일 청산 ${positions.length}건 · 진입 시각(KST) 기준`} />
       )}
 
+      {/* 요일 × 시간대 히트맵 — 어느 요일·시간에 벌고 잃었나 */}
+      {positions.length > 0 && heatmap.cells.length > 0 && (
+        <WeekdayHourHeatmap h={heatmap} fmt={fmtPnl} sub={`최근 ${days}일 · 진입 시각(KST) 기준`} />
+      )}
+
       {/* 자산 곡선 · 연속 승패 · 일별 손익 달력 — 청산 시각 기준 실현손익 */}
       {positions.length > 0 && (
         <>
@@ -345,6 +356,11 @@ export default function JournalPage() {
         <p className="text-[11px] text-[var(--faint)] mb-5 px-1 leading-relaxed">
           매매 행을 눌러 <b className="text-[var(--text-muted)]">셋업·실수 태그</b>를 달면 "어떤 셋업이 돈이 되고 어떤 실수가 깎나"가 여기 집계됩니다(참고: Edgewonk·TraderSync).
         </p>
+      )}
+
+      {/* 확신(신뢰도 1~5)별 성적 */}
+      {positions.length > 0 && convStats.length > 0 && (
+        <ConvictionCard rows={convStats} fmt={fmtUsdt} sub={`최근 ${days}일 · 확신 매긴 ${convStats.reduce((a, r) => a + r.count, 0)}건`} />
       )}
 
       {/* ③ 월별 보고서 — 접힘 상태로 월 목록만, 월을 누르면 상세 펼침(청산 건만) */}
@@ -471,6 +487,18 @@ export default function JournalPage() {
         <div className="flex flex-wrap gap-1.5 mb-4">
           {MISTAKES.map((t) => (
             <TagChip key={t.key} meta={t} on={selMistakes.includes(t.key)} onClick={() => toggle(selMistakes, setSelMistakes, t.key)} tone="mistake" />
+          ))}
+        </div>
+
+        <p className="text-[11px] font-bold text-[var(--text-muted)] mb-1.5">확신(신뢰도) <span className="font-normal">· 진입 당시 얼마나 확신했나</span></p>
+        <div className="flex gap-1.5 mb-4">
+          {CONVICTIONS.map((c) => (
+            <button key={c.level} type="button" onClick={() => setSelConv(selConv === c.level ? null : c.level)}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl border text-[11px] font-semibold transition-colors ${
+                selConv === c.level ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)]'
+              }`}>
+              <span className="text-[16px]">{c.emoji}</span>{c.level}
+            </button>
           ))}
         </div>
 

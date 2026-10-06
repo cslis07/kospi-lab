@@ -3,7 +3,7 @@
  * 한 매매가 여러 태그에 반영되는 집계·승률·순손익이 틀리면 "어떤 셋업이 돈이 되나"가 거짓이 된다.
  */
 import assert from 'node:assert/strict';
-import { tagStats, hasAnyTag, SETUPS, MISTAKES } from '../lib/tradeTags';
+import { tagStats, hasAnyTag, convictionStats, SETUPS, MISTAKES } from '../lib/tradeTags';
 import type { TradePosition } from '../lib/tradeReport';
 
 let passed = 0;
@@ -66,6 +66,34 @@ ok('hasAnyTag', () => {
   assert.equal(hasAnyTag({ setups: ['breakout'], mistakes: [] }), true);
   assert.equal(hasAnyTag({ setups: [], mistakes: [] }), false);
   assert.equal(hasAnyTag(undefined), false);
+});
+
+ok('확신별 성적 — 레벨 오름차순, 승률·평균', () => {
+  const positions = [pos('a', 10), pos('b', -4), pos('c', 6), pos('d', 8)];
+  const tags = {
+    a: { setups: [], mistakes: [], conviction: 5 },
+    b: { setups: [], mistakes: [], conviction: 5 },
+    c: { setups: [], mistakes: [], conviction: 3 },
+    d: { setups: [], mistakes: [] }, // 확신 없음 → 제외
+  };
+  const s = convictionStats(positions, tags);
+  assert.deepEqual(s.map((x) => x.level), [3, 5]);
+  const five = s.find((x) => x.level === 5)!;
+  assert.equal(five.count, 2); assert.equal(five.wins, 1); assert.equal(five.winRate, 50);
+  assert.equal(five.netSum, 6); assert.equal(five.avg, 3);
+  const three = s.find((x) => x.level === 3)!;
+  assert.equal(three.count, 1); assert.equal(three.winRate, 100);
+});
+
+ok('확신 — 범위 밖(0·6)·누락은 제외', () => {
+  const positions = [pos('a', 1), pos('b', 2), pos('c', 3)];
+  const s = convictionStats(positions, { a: { setups: [], mistakes: [], conviction: 0 }, b: { setups: [], mistakes: [], conviction: 6 } });
+  assert.equal(s.length, 0);
+});
+
+ok('hasAnyTag — 확신만 있어도 true', () => {
+  assert.equal(hasAnyTag({ setups: [], mistakes: [], conviction: 4 }), true);
+  assert.equal(hasAnyTag({ setups: [], mistakes: [] }), false);
 });
 
 console.log(`\n${passed} passed`);

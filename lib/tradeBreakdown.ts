@@ -85,6 +85,45 @@ export function byWeekday(items: BreakItem[], thinAt = THIN_SAMPLE): BreakRow[] 
     .sort((a, b) => a.order - b.order);
 }
 
+/* ── 요일 × 시간대 교차 히트맵(참고: TraderSync 'Day & Time') ───────────────
+ * "어느 요일 어느 시간대에 벌고 잃었나"를 한눈에. value(순손익)가 있는 매매만 합계에 넣는다. */
+export interface HeatCell { wd: number; band: number; n: number; net: number; wins: number; winRate: number | null }
+export interface Heatmap {
+  cells: HeatCell[];     // 매매가 1건 이상인 (요일,시간대) 칸만
+  weekdays: number[];    // 등장한 요일(월→일 순)
+  bands: number[];       // 등장한 시간대 인덱스(이른 시간부터)
+  maxAbsNet: number;     // 색 농도 기준(칸 순손익 절댓값 최대)
+  best: HeatCell | null; // 표본 THIN_SAMPLE 이상 중 순손익 최대
+  worst: HeatCell | null;// 표본 THIN_SAMPLE 이상 중 순손익 최소
+}
+const wdOrder = (wd: number) => (wd === 0 ? 7 : wd);
+export function weekdayHourHeatmap(items: BreakItem[], thinAt = THIN_SAMPLE): Heatmap {
+  const map = new Map<string, BreakItem[]>();
+  for (const it of items) {
+    const { wd, hour } = kstParts(it.ts);
+    const band = HOUR_BANDS.findIndex((b) => hour >= b.from && hour < b.to);
+    if (band < 0) continue;
+    const k = `${wd}-${band}`;
+    const arr = map.get(k); if (arr) arr.push(it); else map.set(k, [it]);
+  }
+  const cells: HeatCell[] = [];
+  for (const [k, list] of map) {
+    const [wd, band] = k.split('-').map(Number);
+    const valued = list.filter((i) => Number.isFinite(i.value));
+    const net = valued.reduce((a, i) => a + (i.value as number), 0);
+    const wins = list.filter((i) => i.win === true).length;
+    const decided = list.filter((i) => i.win !== null).length;
+    cells.push({ wd, band, n: list.length, net, wins, winRate: decided ? (wins / decided) * 100 : null });
+  }
+  const weekdays = [...new Set(cells.map((c) => c.wd))].sort((a, b) => wdOrder(a) - wdOrder(b));
+  const bands = [...new Set(cells.map((c) => c.band))].sort((a, b) => a - b);
+  const maxAbsNet = cells.reduce((m, c) => Math.max(m, Math.abs(c.net)), 0);
+  const eligible = cells.filter((c) => c.n >= thinAt);
+  const best = eligible.length ? eligible.reduce((a, c) => (c.net > a.net ? c : a)) : null;
+  const worst = eligible.length ? eligible.reduce((a, c) => (c.net < a.net ? c : a)) : null;
+  return { cells, weekdays, bands, maxAbsNet, best, worst };
+}
+
 /** 시간대별(KST 4시간 단위) — 이른 시간부터 */
 export function byHourBand(items: BreakItem[], thinAt = THIN_SAMPLE): BreakRow[] {
   return bucket(items, (i) => {

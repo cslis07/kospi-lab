@@ -5,12 +5,15 @@
  * 청산 손익을 시간순으로 누적한 곡선과, 그 아래 '수면 아래(underwater)' 낙폭 띠를 함께 보여준다.
  * 색은 한국 관행(이익=빨강 · 손실=파랑), 낙폭 띠는 경고 빨강. Recharts 는 지연 로딩으로만 불러온다(EquityCurveLazy).
  */
-import { useId, useMemo } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
+import { useEffect, useId, useMemo, useState } from 'react';
+import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
 import { equityCurve, type TradeValue } from '@/lib/journalAnalytics';
 
 const UP = '#ff4433';     // 이익(상승) — 한국 관행
 const DOWN = '#1c6cff';   // 손실(하락)
+const GOAL = '#f0a500';   // 월 목표선(앰버)
+const DAY = 86_400_000;
+const TARGET_KEY = 'kospi-lab-monthly-target'; // 월 목표(USDT) — 기기 간 동기화됨(사용자 목표)
 
 const tick = (v: string) => v.slice(5).replace('-', '/'); // 'YYYY-MM-DD' → 'MM/DD'
 
@@ -21,8 +24,18 @@ export default function EquityCurve({ trades, unit, fmt }: {
 }) {
   const gid = useId().replace(/:/g, '');
   const eq = useMemo(() => equityCurve(trades), [trades]);
-  const data = useMemo(() => eq.points.map((p, i) => ({ ...p, i, under: -p.drawdown })), [eq.points]);
+
+  // 월 목표(선택) — 입금 정보가 없어 '순손익 기준'. 목표선 = 시작 시점 0에서 월 목표만큼 선형 증가
+  const [target, setTarget] = useState<number>(0);
+  useEffect(() => { try { const v = Number(localStorage.getItem(TARGET_KEY)); if (Number.isFinite(v) && v > 0) setTarget(v); } catch { /* 무시 */ } }, []);
+  const onTarget = (v: number) => { setTarget(v); try { v > 0 ? localStorage.setItem(TARGET_KEY, String(v)) : localStorage.removeItem(TARGET_KEY); } catch { /* 무시 */ } };
+
+  const startTs = eq.points[0]?.ts ?? 0;
+  const goalAt = (ts: number) => (target > 0 ? (target * (ts - startTs)) / (30 * DAY) : null);
+  const data = useMemo(() => eq.points.map((p, i) => ({ ...p, i, under: -p.drawdown, target: goalAt(p.ts) })), [eq.points, target]); // eslint-disable-line react-hooks/exhaustive-deps
   const lineColor = eq.finalCum >= 0 ? UP : DOWN;
+  const goalFinal = eq.points.length ? goalAt(eq.points[eq.points.length - 1].ts) : null;
+  const paceDelta = goalFinal != null ? eq.finalCum - goalFinal : null;
 
   if (data.length < 2) {
     return (
@@ -38,6 +51,24 @@ export default function EquityCurve({ trades, unit, fmt }: {
   return (
     <div className="fin-card p-4 sm:p-5 mb-3">
       <Head finalCum={eq.finalCum} mdd={eq.maxDrawdown} n={eq.tradeCount} unit={unit} fmt={fmt} />
+
+      {/* 월 목표선 설정 + 목표 대비 페이스 */}
+      <div className="flex items-center gap-2 flex-wrap mb-2 text-[11px]">
+        <span className="text-[var(--text-muted)]">월 목표</span>
+        <span className="inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] overflow-hidden">
+          <input type="number" inputMode="numeric" value={target || ''} placeholder="예: 500" onChange={(e) => onTarget(Math.max(0, Number(e.target.value) || 0))}
+            className="w-[76px] bg-transparent px-2 py-1 text-[12px] text-[var(--text)] tabular-nums outline-none" />
+          <span className="px-1.5 text-[10px] text-[var(--text-muted)]">{unit}/월</span>
+        </span>
+        {target > 0 && paceDelta != null ? (
+          <span className="tabular-nums" style={{ color: paceDelta >= 0 ? 'var(--warn)' : 'var(--accent-ink)' }}>
+            목표선 대비 <b>{paceDelta >= 0 ? '+' : '−'}{fmt(Math.abs(paceDelta))}</b> {paceDelta >= 0 ? '초과' : '미달'}
+            <span className="text-[var(--text-muted)]"> · 목표 누적 {fmt(goalFinal ?? 0)}</span>
+          </span>
+        ) : (
+          <span className="text-[var(--faint)]">월 목표를 넣으면 곡선에 <span style={{ color: GOAL }}>목표선</span>이 겹쳐집니다(순손익 기준)</span>
+        )}
+      </div>
 
       <ResponsiveContainer width="100%" height={150}>
         <AreaChart data={data} margin={{ top: 5, right: 6, left: 2, bottom: 0 }}>
@@ -58,12 +89,14 @@ export default function EquityCurve({ trades, unit, fmt }: {
               <div className="bg-gray-900 border border-white/10 rounded-lg px-3 py-2 text-xs space-y-0.5">
                 <p className="text-gray-400">{p.date.replace(/-/g, '.')}</p>
                 <p className="text-white font-semibold">누적 {fmt(p.cum)}</p>
+                {p.target != null && <p style={{ color: GOAL }}>목표선 {fmt(p.target)} ({p.cum - p.target >= 0 ? '+' : '−'}{fmt(Math.abs(p.cum - p.target))})</p>}
                 <p style={{ color: p.value >= 0 ? UP : DOWN }}>이 거래 {p.value >= 0 ? '+' : ''}{fmt(p.value)}</p>
                 {p.drawdown > 0 && <p style={{ color: UP }}>낙폭 −{fmt(p.drawdown)}</p>}
               </div>
             );
           }} />
           <Area type="monotone" dataKey="cum" stroke={lineColor} strokeWidth={1.8} fill={`url(#eq${gid})`} dot={false} isAnimationActive={false} />
+          {target > 0 && <Line type="linear" dataKey="target" stroke={GOAL} strokeWidth={1.4} strokeDasharray="5 4" dot={false} isAnimationActive={false} />}
         </AreaChart>
       </ResponsiveContainer>
 

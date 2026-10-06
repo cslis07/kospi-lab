@@ -36,8 +36,18 @@ export const MISTAKE_BY_KEY = new Map(MISTAKES.map((t) => [t.key, t]));
 
 export type TagKind = 'setup' | 'mistake';
 
-/** 한 매매에 붙은 태그(셋업·실수 각각 여러 개) */
-export interface TradeTagSet { setups: string[]; mistakes: string[] }
+/** 한 매매에 붙은 태그(셋업·실수 각각 여러 개) + 진입 당시 확신(신뢰도) 1~5 */
+export interface TradeTagSet { setups: string[]; mistakes: string[]; conviction?: number }
+
+/** 진입 확신(신뢰도) 1~5 — 참고: Edgewonk 'Conviction'. 확신과 실제 결과가 맞는지 복기용 */
+export const CONVICTIONS: { level: number; label: string; emoji: string }[] = [
+  { level: 1, label: '매우 낮음', emoji: '🥶' },
+  { level: 2, label: '낮음',     emoji: '😕' },
+  { level: 3, label: '보통',     emoji: '😐' },
+  { level: 4, label: '높음',     emoji: '🙂' },
+  { level: 5, label: '매우 높음', emoji: '🔥' },
+];
+export const convictionLabel = (lv: number) => CONVICTIONS.find((c) => c.level === lv)?.label ?? `${lv}`;
 
 export interface TagStat {
   key: string;
@@ -87,7 +97,48 @@ export function tagStats(
   return out.sort((a, b) => b.count - a.count || b.netSum - a.netSum);
 }
 
-/** 태그가 하나라도 있으면 true(행 표식용) */
+/** 태그가 하나라도 있으면 true(행 표식용) — 확신만 매긴 매매도 포함 */
 export function hasAnyTag(set: TradeTagSet | undefined): boolean {
-  return !!set && (set.setups.length > 0 || set.mistakes.length > 0);
+  return !!set && (set.setups.length > 0 || set.mistakes.length > 0 || set.conviction != null);
+}
+
+export interface ConvictionStat {
+  level: number;
+  label: string;
+  emoji: string;
+  count: number;
+  wins: number;
+  winRate: number | null; // %
+  netSum: number;
+  avg: number | null;     // 건당 평균 순손익
+}
+
+/**
+ * 확신(1~5)별 성적 — 확신을 매긴 매매만. 레벨 오름차순.
+ * "확신이 높을수록 실제로 잘됐나"(과신·과소평가 점검). 방향 예측 아님 — 자기 판단 보정용.
+ */
+export function convictionStats(
+  positions: TradePosition[],
+  tagsById: Record<string, TradeTagSet | undefined>,
+): ConvictionStat[] {
+  const byLevel = new Map<number, TradePosition[]>();
+  for (const p of positions) {
+    const lv = tagsById[p.positionId]?.conviction;
+    if (lv == null || lv < 1 || lv > 5) continue;
+    const arr = byLevel.get(lv); if (arr) arr.push(p); else byLevel.set(lv, [p]);
+  }
+  return [...byLevel.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([level, list]) => {
+      const meta = CONVICTIONS.find((c) => c.level === level)!;
+      const wins = list.filter((p) => p.netProfit > 0).length;
+      const decided = list.filter((p) => p.netProfit !== 0).length;
+      const netSum = list.reduce((a, p) => a + p.netProfit, 0);
+      return {
+        level, label: meta.label, emoji: meta.emoji,
+        count: list.length, wins,
+        winRate: decided ? (wins / decided) * 100 : null,
+        netSum, avg: list.length ? netSum / list.length : null,
+      };
+    });
 }

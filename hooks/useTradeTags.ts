@@ -23,12 +23,13 @@ export function useTradeTags() {
     } catch { /* 무시 */ }
   }, []);
 
-  /** 셋업·실수 배열을 통째로 저장(둘 다 비면 삭제) */
-  const saveTags = useCallback((id: string, setups: string[], mistakes: string[]) => {
+  /** 셋업·실수·확신(1~5)을 통째로 저장(모두 비면 삭제) */
+  const saveTags = useCallback((id: string, setups: string[], mistakes: string[], conviction?: number | null) => {
     setTags((prev) => {
       const next = { ...prev };
-      if (!setups.length && !mistakes.length) delete next[id];
-      else next[id] = { setups, mistakes, ts: Date.now() };
+      const conv = conviction != null && conviction >= 1 && conviction <= 5 ? conviction : undefined;
+      if (!setups.length && !mistakes.length && conv == null) delete next[id];
+      else next[id] = { setups, mistakes, ...(conv != null ? { conviction: conv } : {}), ts: Date.now() };
       try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* 무시 */ }
       return next;
     });

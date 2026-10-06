@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-06 (106차) — 매매일지 복기 3종(요일×시간대 히트맵·월 목표선·확신별 성적)
+
+project-state nextActions 3건 구현(참고: TraderSync·Edgewonk). 전부 순수함수+테스트 고정 → 헤드리스 실데이터 검증.
+- **요일 × 시간대 히트맵**(`lib/tradeBreakdown.weekdayHourHeatmap` + `components/WeekdayHourHeatmap`): 진입 시각(KST) 요일×4시간대 교차표, 칸별 순손익·건수·승률. 색=이익 빨강·손실 파랑, 농도=금액. 표본 5건 이상 중 최고/최악 칸 안내. 참고 TraderSync 'Day & Time'.
+- **자산 곡선 월 목표선**(`components/EquityCurve`): 월 목표(USDT) 입력 → 시작 시점 0에서 선형 증가하는 목표선(점선 앰버)을 곡선에 겹치고 "목표선 대비 ±N 초과/미달 · 목표 누적" 페이스 표시. 목표값은 기기 간 동기화(`kospi-lab-monthly-target`). 참고 Edgewonk.
+- **확신(신뢰도 1~5)별 성적**(`lib/tradeTags.convictionStats`·`CONVICTIONS` + `components/ConvictionCard` + 복기 시트 1~5 셀렉터): 확신별 건수·승률·건당·순손익 + "확신이 높을수록 실제로 잘됐나"(과신 점검) 판정. `useTradeTags.saveTags`에 conviction 추가. 참고 Edgewonk Conviction.
+- 검증: 테스트 brief 40·tags 13·breakdown 3(신규)·전체 통과·tsc 0·build, 헤드리스 390px(실 positionId에 확신 시드·목표 500 시드, `/api/sync` 차단 읽기 전용) — 히트맵·확신표·목표선 렌더·오버플로0·콘솔0.
+
 ## 2026-10-06 (105차) — 모닝 브리핑 텔레그램 발송
 
 - 아침 07:30 KST 크론(`brief-warm.yml`)이 브리핑을 데운 뒤, 3증시(코인·국내·해외) 요약·핵심 지표·주요 뉴스·과거 통계 하이라이트를 **텔레그램 "kospi lab" 그룹**으로 보낸다(`scripts/briefTelegram.mts`, coinTrack 과 같은 봇/채팅 — `KL_TELEGRAM_CHAT_ID`·`TELEGRAM_BOT_TOKEN`).
