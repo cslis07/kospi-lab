@@ -22,6 +22,10 @@ export interface StockJournalEntry {
   result: 'open' | 'win' | 'loss' | 'even';
   resultR: number | null;
   memo: string;
+  // 복기 태그(선택) — 셋업·실수·확신(1~5). 성과 복기 교차표용
+  setups?: string[];
+  mistakes?: string[];
+  conviction?: number;
 }
 
 const KEY = 'kospi-lab-stock-journal';

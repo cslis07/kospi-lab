@@ -27,6 +27,10 @@ export interface JournalEntry {
   riskPct?: number | null;    // 1회 허용손실 %
   notionUsdt?: number | null; // 계획 노션
   memo: string;
+  // 복기 태그(선택) — 셋업·실수·확신(1~5). 성과 복기 교차표용. [[tradeTags]] 와 같은 키 체계
+  setups?: string[];
+  mistakes?: string[];
+  conviction?: number;
 }
 
 const KEY = 'kospi-lab-coin-journal';

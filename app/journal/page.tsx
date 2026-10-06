@@ -282,6 +282,20 @@ export default function JournalPage() {
         </p>
       </div>
 
+      {/* 복기 사용법 — 접힘(처음 쓰는 사람용) */}
+      <details className="mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+        <summary className="cursor-pointer select-none px-4 py-2.5 text-[12px] font-semibold text-[var(--text)] flex items-center gap-2">
+          <span>📖 복기 사용법</span>
+          <span className="text-[10px] font-normal text-[var(--text-muted)]">기록 → 태그 → 복기, 3단계</span>
+        </summary>
+        <div className="px-4 pb-3 pt-0 text-[11.5px] text-[var(--text-muted)] leading-relaxed space-y-1.5 border-t border-[var(--line-2)]">
+          <p className="pt-2"><b className="text-[var(--text)]">① 기록은 자동</b> — 거래소 청산 내역·실현손익(수수료·펀딩 반영)을 그대로 불러옵니다. 적을 필요 없습니다.</p>
+          <p><b className="text-[var(--text)]">② 태그·확신 입력</b> — 매매 행(또는 달력·히트맵 칸·분해 표 행을 펼친 뒤 그 안의 행)을 누르면 <b className="text-[var(--text)]">셋업(왜 들어갔나)·실수·확신(1~5)·기분</b>을 남길 수 있습니다. 이게 쌓여야 아래 복기가 켜집니다.</p>
+          <p><b className="text-[var(--text)]">③ 복기 읽는 법</b> — <b className="text-[var(--text)]">요일×시간대 히트맵</b>·<b className="text-[var(--text)]">손익 분해 표</b>의 칸·행을 누르면 그 구간 매매와 태그 분포가 펼쳐집니다. <b className="text-[var(--text)]">셋업×확신</b>은 어떤 셋업에서 확신이 맞았나, <b className="text-[var(--text)]">실수×확신</b>은 과신 중 저지른 실수를, <b className="text-[var(--text)]">확신 보정</b> 한 줄은 종합 판정을 보여 줍니다.</p>
+          <p className="text-[var(--faint)]">전부 과거 기록 복기이며 방향 예측·매매 신호가 아닙니다. 태그·확신은 이 기기에 저장(선택 시 기기 간 동기화)됩니다.</p>
+        </div>
+      </details>
+
       {/* 기간 + 가져오기 */}
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
         <div className="flex items-center gap-1.5">
@@ -671,6 +685,20 @@ function BucketTrades({ title, trades, moods, tags, snapIds, onEdit, onClose, no
   const sum = trades.reduce((a, p) => a + p.netProfit, 0);
   const wins = trades.filter((p) => p.netProfit > 0).length;
   const losses = trades.filter((p) => p.netProfit < 0).length;
+  // 이 구간만 CSV 내보내기 — 전체 내보내기와 같은 열(엑셀 BOM·KST·수식 주입 방지)
+  const exportBucket = () => {
+    const rows = trades.map((p) => {
+      const m = moods[p.positionId]; const tg = tags[p.positionId];
+      const setupLabels = (tg?.setups ?? []).map((k) => SETUP_BY_KEY.get(k)?.label ?? k).join(' / ');
+      const mistakeLabels = (tg?.mistakes ?? []).map((k) => MISTAKE_BY_KEY.get(k)?.label ?? k).join(' / ');
+      return [csvTime(p.openTs), csvTime(p.closeTs), p.symbol, coinName(p.symbol), p.side === 'long' ? '롱' : '숏',
+        p.openAvg, p.closeAvg, +p.netProfit.toFixed(4), +p.fee.toFixed(4), +p.funding.toFixed(4),
+        m ? MOOD_BY_KEY.get(m.mood)?.label ?? m.mood : '', setupLabels, mistakeLabels, m?.note ?? '', p.positionId];
+    });
+    const safe = title.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_');
+    downloadCsv(`매매일지_${safe}_${kstStamp()}.csv`, toCsv(
+      ['진입(KST)', '청산(KST)', '심볼', '이름', '방향', '진입가', '청산가', '순손익(USDT)', '수수료', '펀딩', '진입 기분', '셋업', '실수', '메모', '포지션ID'], rows));
+  };
   // 이 구간에 어떤 셋업·실수가 많았나(태그 분포)
   const dist = tagDistribution(trades, tags);
   const chips = [
@@ -683,6 +711,10 @@ function BucketTrades({ title, trades, moods, tags, snapIds, onEdit, onClose, no
         <b className="text-[13px] text-[var(--text)]">{title}</b>
         <span className="text-[11px] text-[var(--text-muted)] tabular-nums">{trades.length}건 · {wins}승 {losses}패</span>
         <span className="ml-auto text-[13px] font-bold tabular-nums" style={{ color: pnlColor(sum) }}>{fmtPnl(sum)} USDT</span>
+        {trades.length > 0 && (
+          <button type="button" onClick={exportBucket} title="이 구간 매매만 CSV로 저장"
+            className="px-2 py-0.5 rounded-md border border-[var(--line-2)] text-[10px] text-[var(--text-muted)] hover:text-[var(--text)]">CSV</button>
+        )}
         <button type="button" onClick={onClose} aria-label="상세 닫기" className="w-7 h-7 grid place-items-center rounded-lg text-[var(--text-muted)]">✕</button>
       </div>
       {chips.length > 0 && (
