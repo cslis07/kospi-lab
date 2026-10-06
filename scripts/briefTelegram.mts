@@ -61,7 +61,7 @@ function newsLines(b: Brief, n: number): string[] {
     if (picked.some((p) => sameTopic(p, tok))) continue; // 같은 사건 중복 제거
     picked.push(tok);
     const ic = it.tag && TAG_ICON[it.tag] ? TAG_ICON[it.tag] : '·';
-    out.push(`${ic} <a href="${esc(it.link)}">${esc(it.title)}</a> <i>${esc(it.source)}</i>`);
+    out.push(`${ic} <a href="${esc(it.link)}">${esc(it.title)}</a>`);
   }
   return out;
 }
