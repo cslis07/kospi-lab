@@ -175,6 +175,101 @@ export const convictionBySetup = (positions: TradePosition[], tagsById: Record<s
 export const convictionByMistake = (positions: TradePosition[], tagsById: Record<string, TradeTagSet | undefined>) =>
   convictionByTag(positions, tagsById, 'mistake');
 
+/* ── 확신 보정 종합(참고: Edgewonk) — 확신별·셋업×확신·실수×확신을 묶어 한 줄 코칭 ── */
+export type ConvictionVerdict = 'calibrated' | 'overconfident' | 'underconfident' | 'mixed' | 'insufficient';
+export interface ConvictionCoaching {
+  verdict: ConvictionVerdict;
+  text: string;
+  /** 근거 수치 */
+  tagged: number;              // 확신 매긴 매매 수
+  highWinRate: number | null;  // 확신 4~5 승률
+  lowWinRate: number | null;   // 확신 1~3 승률
+  mistakeAvgConv: number | null; // 실수 매매의 평균 확신(높으면 과신)
+}
+
+/**
+ * 확신이 결과와 맞는 편인지 / 과신 경향인지 한 줄로. 확신을 매긴 매매가 8건 미만이면 insufficient.
+ * 신호: ①확신↑일수록 건당 성적↑(calibrated) ②확신 4~5가 1~3보다 못함(over) ③셋업 calibration good−poor ④실수의 평균 확신 높음(over).
+ * 방향 예측 아님 — 자기 확신 보정용.
+ */
+export function convictionCoaching(
+  positions: TradePosition[],
+  tagsById: Record<string, TradeTagSet | undefined>,
+): ConvictionCoaching {
+  const levels = convictionStats(positions, tagsById);
+  const tagged = levels.reduce((a, r) => a + r.count, 0);
+  const high = levels.filter((r) => r.level >= HIGH_CONVICTION);
+  const low = levels.filter((r) => r.level < HIGH_CONVICTION);
+  const agg = (rows: ConvictionStat[]) => {
+    const n = rows.reduce((a, r) => a + r.count, 0);
+    const w = rows.reduce((a, r) => a + r.wins, 0);
+    const net = rows.reduce((a, r) => a + r.netSum, 0);
+    return { n, winRate: n ? (w / n) * 100 : null, avg: n ? net / n : null };
+  };
+  const hi = agg(high), lo = agg(low);
+
+  // 셋업 calibration
+  const setups = convictionBySetup(positions, tagsById);
+  const goodN = setups.filter((s) => s.calibration === 'good').length;
+  const poorN = setups.filter((s) => s.calibration === 'poor').length;
+
+  // 실수의 평균 확신(가중)
+  const mistakes = convictionByMistake(positions, tagsById);
+  const mN = mistakes.reduce((a, m) => a + m.count, 0);
+  const mistakeAvgConv = mN ? mistakes.reduce((a, m) => a + m.avgConviction * m.count, 0) / mN : null;
+
+  if (tagged < 8) {
+    return { verdict: 'insufficient', tagged, highWinRate: hi.winRate, lowWinRate: lo.winRate, mistakeAvgConv,
+      text: `확신을 매긴 매매가 ${tagged}건뿐 — 확신이 결과와 맞는지 보려면 더 쌓여야 합니다(8건+).` };
+  }
+
+  let over = 0, cal = 0;
+  if (hi.avg != null && lo.avg != null && hi.n >= 3 && lo.n >= 3) { if (hi.avg >= lo.avg) cal += 2; else over += 2; }
+  cal += goodN; over += poorN;
+  if (mistakeAvgConv != null && mN >= 3 && mistakeAvgConv >= 3.6) over += 1;
+
+  let verdict: ConvictionVerdict;
+  if (over > cal) verdict = 'overconfident';
+  else if (cal > over) verdict = 'calibrated';
+  else verdict = 'mixed';
+
+  const hw = hi.winRate != null ? `${Math.round(hi.winRate)}%` : '—';
+  const lw = lo.winRate != null ? `${Math.round(lo.winRate)}%` : '—';
+  const base = `확신 4~5 승률 ${hw} vs 1~3 ${lw}`;
+  let text: string;
+  if (verdict === 'calibrated') {
+    text = `확신이 결과와 대체로 맞는 편입니다 — ${base}. 확신 높은 자리에 더 무게를 둘 근거가 있습니다(사이징은 리스크 한도 안에서).`;
+  } else if (verdict === 'overconfident') {
+    const mc = mistakeAvgConv != null && mN >= 3 && mistakeAvgConv >= 3.6 ? ` · 실수 매매 평균 확신 ${mistakeAvgConv.toFixed(1)}(과신 중 저지른 실수 잦음)` : '';
+    text = `과신 경향이 보입니다 — ${base}${mc}. 확신이 셀 때일수록 추격·오버사이징을 점검하세요.`;
+  } else {
+    text = `확신과 결과가 일관되지 않습니다 — ${base}. 확신 기준(무엇을 보고 확신을 높였나)을 다시 정리할 여지가 있습니다.`;
+  }
+  return { verdict, text, tagged, highWinRate: hi.winRate, lowWinRate: lo.winRate, mistakeAvgConv };
+}
+
+/* ── 버킷(히트맵 칸·분해 행)의 셋업·실수 태그 분포 — 드릴다운에 "이 구간엔 어떤 셋업/실수가 많았나" ── */
+export interface TagCount { key: string; label: string; emoji: string; count: number }
+export interface TagDistribution { setups: TagCount[]; mistakes: TagCount[] }
+
+/** 주어진 매매들의 셋업·실수 태그 빈도(많은 순). 정의에 없는 키는 버린다. */
+export function tagDistribution(
+  positions: TradePosition[],
+  tagsById: Record<string, TradeTagSet | undefined>,
+): TagDistribution {
+  const tally = (meta: Map<string, TagMeta>, pick: (s: TradeTagSet) => string[] | undefined): TagCount[] => {
+    const m = new Map<string, number>();
+    for (const p of positions) {
+      const set = tagsById[p.positionId];
+      if (!set) continue;
+      for (const k of new Set(pick(set) ?? [])) if (meta.has(k)) m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return [...m.entries()].map(([key, count]) => { const t = meta.get(key)!; return { key, label: t.label, emoji: t.emoji, count }; })
+      .sort((a, b) => b.count - a.count);
+  };
+  return { setups: tally(SETUP_BY_KEY, (s) => s.setups), mistakes: tally(MISTAKE_BY_KEY, (s) => s.mistakes) };
+}
+
 export interface ConvictionStat {
   level: number;
   label: string;

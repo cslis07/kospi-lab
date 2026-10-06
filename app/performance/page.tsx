@@ -4,7 +4,7 @@
  * 자산 › 성과 — 매매일지에 기록된 청산 결과만으로 계산한 실제 성적(승률·기대값·실현손익·주간 추이).
  * 예측·신호가 아니다. 기록·복기·거래소 대조는 관리 › 매매일지에서 한다.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useCoinJournal } from '@/hooks/useCoinJournal';
 import { useStockJournal } from '@/hooks/useStockJournal';
@@ -12,11 +12,12 @@ import { scoreboard } from '@/lib/journalStats';
 import ScoreCard from '@/components/ScoreCard';
 import WeeklyReview from '@/components/WeeklyReview';
 import { ICON } from '@/lib/menu';
-import BreakdownTables from '@/components/BreakdownTables';
-import type { BreakItem } from '@/lib/tradeBreakdown';
+import BreakdownTables, { type BreakRowSel } from '@/components/BreakdownTables';
+import { rowKeyOf, type BreakItem } from '@/lib/tradeBreakdown';
 import { toCsv, downloadCsv, kstDateTime, kstStamp } from '@/lib/csv';
 
 const fmtR = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(2)}R`;
+const RCOLOR = (n: number) => (n > 0 ? 'var(--warn)' : n < 0 ? 'var(--accent-ink)' : 'var(--faint)');
 const RESULT_KO: Record<string, string> = { open: '미청산', win: '익절', loss: '손절', even: '본전' };
 const winOf = (r: string) => (r === 'win' ? true : r === 'loss' ? false : null);
 
@@ -43,11 +44,25 @@ export default function PerformancePage() {
   const ready = coin.mounted || stock.mounted;
 
   // 손익 분해 — 결과가 나온 기록만(R 기준). 요일·시간대는 기록(진입 판단) 시각 KST
-  const breakItems: BreakItem[] = useMemo(() => [
-    ...coin.entries.filter((e) => e.result !== 'open').map((e) => ({ ts: e.ts, symbol: `C:${e.symbol}`, label: `${e.name || e.symbol} · 코인`, value: e.resultR, win: winOf(e.result),
-      side: e.direction === 'long' || e.direction === 'short' ? e.direction : null })),   // 주식(매수·축소)은 방향 없음
-    ...stock.entries.filter((e) => e.result !== 'open').map((e) => ({ ts: e.ts, symbol: `S:${e.ticker}`, label: `${e.name || e.ticker} · 주식`, value: e.resultR, win: winOf(e.result) })),
+  // 행 드릴다운(참고: /journal)을 위해 BreakItem 과 표시 메타를 함께 들고 있는다.
+  const entryRows = useMemo(() => [
+    ...coin.entries.filter((e) => e.result !== 'open').map((e) => ({
+      bi: { ts: e.ts, symbol: `C:${e.symbol}`, label: `${e.name || e.symbol} · 코인`, value: e.resultR, win: winOf(e.result),
+        side: (e.direction === 'long' || e.direction === 'short' ? e.direction : null) as 'long' | 'short' | null } as BreakItem,
+      disp: { ts: e.ts, name: `${e.name || e.symbol} · 코인`, dir: e.direction === 'long' ? '롱' : e.direction === 'short' ? '숏' : '관망', resultR: e.resultR, result: e.result },
+    })),
+    ...stock.entries.filter((e) => e.result !== 'open').map((e) => ({
+      bi: { ts: e.ts, symbol: `S:${e.ticker}`, label: `${e.name || e.ticker} · 주식`, value: e.resultR, win: winOf(e.result) } as BreakItem,
+      disp: { ts: e.ts, name: `${e.name || e.ticker} · 주식`, dir: e.stance === 'buy' ? '매수' : e.stance === 'reduce' ? '축소' : '중립', resultR: e.resultR, result: e.result },
+    })),
   ], [coin.entries, stock.entries]);
+  const breakItems: BreakItem[] = useMemo(() => entryRows.map((r) => r.bi), [entryRows]);
+
+  const [selRow, setSelRow] = useState<BreakRowSel | null>(null);
+  const rowEntries = useMemo(() => {
+    if (!selRow) return [];
+    return entryRows.filter((r) => rowKeyOf(selRow.tab, r.bi) === selRow.key).sort((a, b) => a.disp.ts - b.disp.ts);
+  }, [selRow, entryRows]);
 
   // CSV 내보내기 — 두 매매일지(코인·주식) 전체 기록. 이 기기의 기록이 원본이므로 백업용으로도 쓸 수 있다
   const exportCsv = () => {
@@ -83,7 +98,24 @@ export default function PerformancePage() {
 
       {ready && breakItems.length > 0 && (
         <BreakdownTables items={breakItems} unit="R" valueLabel="R" fmt={fmtR}
-          sub={`결과 입력 ${breakItems.length}건 · 기록 시각(KST) 기준 · R은 손절을 계획한 매매만`} />
+          sub={`결과 입력 ${breakItems.length}건 · 기록 시각(KST) 기준 · R은 손절을 계획한 매매만`}
+          selectedRow={selRow} onSelectRow={setSelRow}
+          renderDetail={() => (
+            <div className="mt-3 rounded-xl border border-[var(--line-2)] overflow-hidden">
+              <div className="px-3 py-2 bg-[var(--surface-2)] text-[12px] text-[var(--text-muted)]">이 구간 기록 {rowEntries.length}건 (기록 시각 KST)</div>
+              {rowEntries.length === 0 ? (
+                <p className="px-3 py-3 text-[12px] text-[var(--text-muted)]">해당 기록이 없습니다.</p>
+              ) : rowEntries.map((r, i) => (
+                <div key={i} className={`px-3 py-2 flex items-center gap-2 text-[12px] ${i > 0 ? 'border-t border-[var(--line-2)]' : ''}`}>
+                  <span className="text-[var(--text)] font-semibold truncate max-w-[45%]">{r.disp.name}</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">{r.disp.dir}</span>
+                  <span className="text-[10px] text-[var(--text-muted)] tabular-nums">{kstDateTime(r.disp.ts).slice(0, 11)}</span>
+                  <span className="ml-auto text-[11px]" style={{ color: r.disp.result === 'win' ? 'var(--warn)' : r.disp.result === 'loss' ? 'var(--accent-ink)' : 'var(--faint)' }}>{RESULT_KO[r.disp.result] ?? r.disp.result}</span>
+                  <span className="text-[12px] font-bold tabular-nums w-[64px] text-right" style={{ color: RCOLOR(r.disp.resultR ?? 0) }}>{r.disp.resultR == null ? '—' : fmtR(r.disp.resultR)}</span>
+                </div>
+              ))}
+            </div>
+          )} />
       )}
 
       {ready && (

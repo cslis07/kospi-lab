@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-07 (110차) — 확신 보정 종합 한 줄 + 드릴다운 태그 분포 + /performance 행 드릴다운
+
+project-state nextActions 3건 구현(참고: Edgewonk). 순수함수+테스트 고정 → 헤드리스 실데이터 검증.
+- **확신 보정 종합 한 줄**(`lib/tradeTags.convictionCoaching` + /journal 코칭 카드): 확신별 성적·셋업×확신·실수×확신을 묶어 **"확신이 결과와 맞는 편(🎯 calibrated) / 과신 경향(⚠️ overconfident) / 일관되지 않음 / 표본 부족"**을 한 줄로. 근거는 확신 4~5 vs 1~3 승률 + 셋업 calibration good−poor + 실수 매매의 평균 확신(높으면 과신). 8건 미만이면 "더 쌓여야" 안내.
+- **드릴다운 태그 분포**(`lib/tradeTags.tagDistribution` + `BucketTrades`): 히트맵 칸·분해 표 행을 펼쳤을 때 그 구간 매매의 **셋업·실수 태그 빈도**(🚀 돌파 3 · 🏃 추격 2 …)를 칩으로 함께 표시 — "이 요일/시간/종목엔 어떤 셋업·실수가 많았나".
+- **/performance 행 드릴다운**(검토 결과): 확신 교차 표는 R-기록 매매일지(`useCoinJournal`/`useStockJournal`)에 셋업·실수·확신 태그가 없어 **적용 불가**로 결론(태그는 코인선물 Bitget 포지션 전용). 대신 /performance의 R 손익 분해 표에도 **행 클릭 → 그 구간 기록 목록(날짜·방향·결과·R)** 드릴다운을 붙여 /journal 과 동작을 통일.
+- 검증: 테스트 tags 17(신규 convictionCoaching·tagDistribution 포함)·전체 통과·tsc 0·build. 헤드리스 390px(태그·확신 시드, `/api/sync` 차단) — 확신 보정 한 줄·드릴다운 태그 분포 칩·행/칸 드릴다운 확인.
+
 ## 2026-10-06 (109차) — 손익 분해 표 행 드릴다운 + 실수×확신 교차
 
 project-state nextActions 2건 구현(참고: TraderSync·Edgewonk). 순수함수+테스트 고정 → 헤드리스 실데이터 검증.

@@ -3,7 +3,7 @@
  * 한 매매가 여러 태그에 반영되는 집계·승률·순손익이 틀리면 "어떤 셋업이 돈이 되나"가 거짓이 된다.
  */
 import assert from 'node:assert/strict';
-import { tagStats, hasAnyTag, convictionStats, convictionBySetup, convictionByMistake, SETUPS, MISTAKES } from '../lib/tradeTags';
+import { tagStats, hasAnyTag, convictionStats, convictionBySetup, convictionByMistake, convictionCoaching, tagDistribution, SETUPS, MISTAKES } from '../lib/tradeTags';
 import type { TradePosition } from '../lib/tradeReport';
 
 let passed = 0;
@@ -150,6 +150,51 @@ ok('convictionByMistake: 실수+확신 둘 다 있는 매매만, 평균 확신·
   assert.ok(Math.abs(ch.avgConviction - 4.5) < 1e-9); // 확신 5,4 → 평균 4.5(과신 중 저지른 실수)
   assert.equal(ch.high.count, 2); // 둘 다 확신 4+
   assert.equal(ch.netSum, -6);    // -10+4
+});
+
+/* ── convictionCoaching (확신 보정 종합 한 줄) ── */
+ok('convictionCoaching: 8건 미만이면 insufficient', () => {
+  const positions = [pos('a', 5), pos('b', -3)];
+  const tags = { a: { setups: [], mistakes: [], conviction: 5 }, b: { setups: [], mistakes: [], conviction: 2 } };
+  const c = convictionCoaching(positions, tags);
+  assert.equal(c.verdict, 'insufficient');
+  assert.equal(c.tagged, 2);
+});
+ok('convictionCoaching: 확신 높을수록 이기면 calibrated', () => {
+  // 확신 5 = 6건 전부 이익, 확신 2 = 6건 전부 손실 → 확신이 결과와 맞음
+  const positions = Array.from({ length: 12 }, (_, i) => pos(String(i), i < 6 ? 10 : -5));
+  const tags: Record<string, { setups: string[]; mistakes: string[]; conviction: number }> = {};
+  for (let i = 0; i < 6; i++) tags[String(i)] = { setups: ['breakout'], mistakes: [], conviction: 5 };
+  for (let i = 6; i < 12; i++) tags[String(i)] = { setups: ['breakout'], mistakes: [], conviction: 2 };
+  const c = convictionCoaching(positions, tags);
+  assert.equal(c.verdict, 'calibrated');
+  assert.equal(c.highWinRate, 100);
+  assert.equal(c.lowWinRate, 0);
+});
+ok('convictionCoaching: 확신 높은데 더 못하면 overconfident', () => {
+  // 확신 5 = 6건 손실, 확신 2 = 6건 이익 → 과신
+  const positions = Array.from({ length: 12 }, (_, i) => pos(String(i), i < 6 ? -8 : 7));
+  const tags: Record<string, { setups: string[]; mistakes: string[]; conviction: number }> = {};
+  for (let i = 0; i < 6; i++) tags[String(i)] = { setups: ['breakout'], mistakes: ['chase'], conviction: 5 };
+  for (let i = 6; i < 12; i++) tags[String(i)] = { setups: ['pullback'], mistakes: [], conviction: 2 };
+  const c = convictionCoaching(positions, tags);
+  assert.equal(c.verdict, 'overconfident');
+  assert.ok(c.text.includes('과신'));
+});
+
+/* ── tagDistribution (버킷 태그 분포) ── */
+ok('tagDistribution: 셋업·실수 빈도 많은 순', () => {
+  const positions = [pos('a', 1), pos('b', 2), pos('c', 3)];
+  const tags = {
+    a: { setups: ['breakout', 'trend'], mistakes: ['chase'] },
+    b: { setups: ['breakout'], mistakes: ['chase'] },
+    c: { setups: ['pullback'], mistakes: [] },
+  };
+  const d = tagDistribution(positions, tags);
+  assert.equal(d.setups[0].key, 'breakout'); // 2건으로 최다
+  assert.equal(d.setups[0].count, 2);
+  assert.equal(d.mistakes[0].key, 'chase');
+  assert.equal(d.mistakes[0].count, 2);
 });
 
 console.log(`\n${passed} passed`);

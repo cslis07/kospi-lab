@@ -17,7 +17,7 @@ import { useTradeTags } from '@/hooks/useTradeTags';
 import { useSnapshots } from '@/hooks/useSnapshots';
 import SnapshotField from '@/components/SnapshotField';
 import { MOODS, MOOD_BY_KEY, type MoodKey } from '@/lib/tradeMood';
-import { SETUPS, MISTAKES, SETUP_BY_KEY, MISTAKE_BY_KEY, tagStats, convictionStats, convictionBySetup, convictionByMistake, CONVICTIONS, hasAnyTag, type TagStat, type TagMeta } from '@/lib/tradeTags';
+import { SETUPS, MISTAKES, SETUP_BY_KEY, MISTAKE_BY_KEY, tagStats, convictionStats, convictionBySetup, convictionByMistake, convictionCoaching, tagDistribution, CONVICTIONS, hasAnyTag, type TagStat, type TagMeta } from '@/lib/tradeTags';
 import { monthlyStats, moodStats, kstMonth } from '@/lib/tradeReport';
 import BreakdownTables from '@/components/BreakdownTables';
 import { weekdayHourHeatmap, kstParts, bandOf, rowKeyOf, notionalQuartileEdges, HOUR_BANDS, HOLD_BANDS, WEEKDAYS, type BreakItem } from '@/lib/tradeBreakdown';
@@ -228,6 +228,7 @@ export default function JournalPage() {
   const convStats = useMemo(() => convictionStats(positions, tags), [positions, tags]);
   const convBySetup = useMemo(() => convictionBySetup(positions, tags), [positions, tags]);
   const convByMistake = useMemo(() => convictionByMistake(positions, tags), [positions, tags]);
+  const coaching = useMemo(() => convictionCoaching(positions, tags), [positions, tags]);
   const setupStats = useMemo(() => tagStats(positions, tags, 'setup'), [positions, tags]);
   const mistakeStats = useMemo(() => tagStats(positions, tags, 'mistake'), [positions, tags]);
   // 히트맵 칸 드릴다운 — 선택한 요일×시간대에 '진입'한 청산 매매(집계와 같은 진입 시각·KST 기준)
@@ -405,6 +406,25 @@ export default function JournalPage() {
           매매 행을 눌러 <b className="text-[var(--text-muted)]">셋업·실수 태그</b>를 달면 "어떤 셋업이 돈이 되고 어떤 실수가 깎나"가 여기 집계됩니다(참고: Edgewonk·TraderSync).
         </p>
       )}
+
+      {/* 확신 보정 종합 한 줄 — 확신별·셋업×확신·실수×확신을 묶은 코칭 */}
+      {positions.length > 0 && convStats.length > 0 && (() => {
+        const style = coaching.verdict === 'calibrated' ? 'border-emerald-500/40 bg-emerald-500/5'
+          : coaching.verdict === 'overconfident' ? 'border-amber-500/40 bg-amber-500/5'
+          : 'border-[var(--border)] bg-[var(--surface-2)]';
+        const emoji = coaching.verdict === 'calibrated' ? '🎯' : coaching.verdict === 'overconfident' ? '⚠️' : coaching.verdict === 'insufficient' ? '📊' : '🤔';
+        return (
+          <div className={`rounded-2xl border p-4 mb-3 ${style}`}>
+            <div className="flex items-start gap-2">
+              <span className="text-base leading-none mt-0.5">{emoji}</span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-[var(--text)] mb-0.5">확신 보정 <span className="font-normal text-[var(--text-muted)]">— 확신이 결과와 맞는 편인가</span></p>
+                <p className="text-[12px] text-[var(--text)] leading-relaxed">{coaching.text}</p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 확신(신뢰도 1~5)별 성적 */}
       {positions.length > 0 && convStats.length > 0 && (
@@ -651,6 +671,12 @@ function BucketTrades({ title, trades, moods, tags, snapIds, onEdit, onClose, no
   const sum = trades.reduce((a, p) => a + p.netProfit, 0);
   const wins = trades.filter((p) => p.netProfit > 0).length;
   const losses = trades.filter((p) => p.netProfit < 0).length;
+  // 이 구간에 어떤 셋업·실수가 많았나(태그 분포)
+  const dist = tagDistribution(trades, tags);
+  const chips = [
+    ...dist.setups.map((t) => ({ ...t, c: 'var(--accent-ink)' })),
+    ...dist.mistakes.map((t) => ({ ...t, c: 'var(--amber)' })),
+  ];
   return (
     <div className="mt-3 rounded-xl border border-[var(--line-2)] overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-2)]">
@@ -659,6 +685,16 @@ function BucketTrades({ title, trades, moods, tags, snapIds, onEdit, onClose, no
         <span className="ml-auto text-[13px] font-bold tabular-nums" style={{ color: pnlColor(sum) }}>{fmtPnl(sum)} USDT</span>
         <button type="button" onClick={onClose} aria-label="상세 닫기" className="w-7 h-7 grid place-items-center rounded-lg text-[var(--text-muted)]">✕</button>
       </div>
+      {chips.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap px-3 py-1.5 border-b border-[var(--line-2)] bg-[var(--bg-card)]">
+          <span className="text-[10px] text-[var(--text-muted)]">태그 분포</span>
+          {chips.map((t) => (
+            <span key={t.key} className="inline-flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded-md border border-[var(--line-2)]" style={{ color: t.c }}>
+              {t.emoji} {t.label} <b className="tabular-nums">{t.count}</b>
+            </span>
+          ))}
+        </div>
+      )}
       {trades.length === 0 ? (
         <p className="px-3 py-3 text-[12px] text-[var(--text-muted)]">이 구간에 해당하는 청산 매매가 없습니다.</p>
       ) : trades.map((p, j) => (
