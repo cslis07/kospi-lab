@@ -118,9 +118,9 @@ async function main() {
   const flow = [etf && `ETF ${esc(etf.value)}`, fng && `공포탐욕 ${esc(fng.value)}`, fund && `펀딩 ${esc(fund.changeText)}`].filter(Boolean).join(' · ');
 
   const sections = [
-    section('🪙', '코인', coinHdr, coin, coinE, 3, flow ? `💰 ${flow}` : null),
-    section('🇰🇷', '국내증시', krHdr, kr, krE, 3),
-    section('🇺🇸', '해외증시', usHdr, us, usE, 3),
+    section('🪙', '코인', coinHdr, coin, coinE, 5, flow ? `💰 ${flow}` : null),
+    section('🇰🇷', '국내증시', krHdr, kr, krE, 5),
+    section('🇺🇸', '해외증시', usHdr, us, usE, 5),
   ];
 
   const gapNote = [coinE, krE, usE].some((e) => edgeLine(e)?.includes('*')) ? '* 장중(시가→종가)은 우연 범위 — 시가 갭에 이미 반영\n' : '';
