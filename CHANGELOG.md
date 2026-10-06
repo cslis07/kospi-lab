@@ -2,6 +2,12 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-06 (105차) — 모닝 브리핑 텔레그램 발송
+
+- 아침 07:30 KST 크론(`brief-warm.yml`)이 브리핑을 데운 뒤, 3증시(코인·국내·해외) 요약·핵심 지표·주요 뉴스·과거 통계 하이라이트를 **텔레그램 "kospi lab" 그룹**으로 보낸다(`scripts/briefTelegram.mts`, coinTrack 과 같은 봇/채팅 — `KL_TELEGRAM_CHAT_ID`·`TELEGRAM_BOT_TOKEN`).
+- 내용: 증시별 headline + bullets 3 + 지표 한 줄 + 전쟁/지정학·뉴스 링크 + 오늘 일정. 과거 통계는 요인이 어젯밤 급변하고 과거 '유의'였던 경우만 "다음날 상승 N%(평소 M%)" 한 줄(시가 갭 반영 주의 포함). "매매 신호 아님" 고정.
+- `BRIEF_TG_DRY=1` 로 토큰 없이 메시지만 미리볼 수 있음. 수동 실행(`gh workflow run brief-warm.yml`)으로 발송 확인(ok=true, 3,282자/4,096).
+
 ## 2026-10-06 (104차) — 분석·매매일지 읽기 쉬움 5건(사용자 질문에서 나온 것)
 
 - **MAE/MFE 요약 › 지켰으면 손실 아니었을 매매**: 건수만 있던 것을 **건별 목록**(청산 시각·종목·방향·진입가·가장 유리했던 가격·청산가·순손익)으로 펼쳐 볼 수 있게. 진입가·청산가는 거래소 체결 평균가 그대로(`lib/tradeAutopsy.isGaveBack`·`peakPrice`).
