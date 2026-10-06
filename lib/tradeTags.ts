@@ -102,6 +102,79 @@ export function hasAnyTag(set: TradeTagSet | undefined): boolean {
   return !!set && (set.setups.length > 0 || set.mistakes.length > 0 || set.conviction != null);
 }
 
+/** 확신 4~5 = 높음, 1~3 = 낮음 (셋업×확신 교차의 두 묶음) */
+export const HIGH_CONVICTION = 4;
+
+export interface ConvSplit { count: number; wins: number; winRate: number | null; netSum: number; avg: number | null }
+export interface SetupConvictionStat {
+  key: string; label: string; emoji: string;
+  count: number;             // 셋업 + 확신 둘 다 있는 매매
+  avgConviction: number;     // 평균 확신(1~5)
+  winRate: number | null; netSum: number; avg: number | null;
+  high: ConvSplit;           // 확신 4~5
+  low: ConvSplit;            // 확신 1~3
+  /** 표본 충분(high·low 각 3건+)일 때만: 확신 높을 때가 실제로 더 좋았나 */
+  calibration: 'good' | 'poor' | null;
+}
+
+function split(list: TradePosition[]): ConvSplit {
+  const wins = list.filter((p) => p.netProfit > 0).length;
+  const decided = list.filter((p) => p.netProfit !== 0).length;
+  const netSum = list.reduce((a, p) => a + p.netProfit, 0);
+  return { count: list.length, wins, winRate: decided ? (wins / decided) * 100 : null, netSum, avg: list.length ? netSum / list.length : null };
+}
+
+/**
+ * 태그 × 확신 교차(참고: Edgewonk) — 셋업/실수 태그별로 확신 높음(4~5)/낮음(1~3) 성적을 비교.
+ * 태그와 확신을 **둘 다** 매긴 매매만. calibration: 양쪽 3건+ 일 때 확신 높을 때 건당 성적이 더 좋았는지.
+ * 방향 예측 아님 — 자기 확신이 결과와 맞는지 복기용. 건수 많은 순.
+ */
+export function convictionByTag(
+  positions: TradePosition[],
+  tagsById: Record<string, TradeTagSet | undefined>,
+  kind: TagKind,
+): SetupConvictionStat[] {
+  const meta = kind === 'setup' ? SETUP_BY_KEY : MISTAKE_BY_KEY;
+  const byTag = new Map<string, { list: TradePosition[]; convSum: number }>();
+  for (const p of positions) {
+    const set = tagsById[p.positionId];
+    const lv = set?.conviction;
+    const keys = kind === 'setup' ? set?.setups : set?.mistakes;
+    if (lv == null || lv < 1 || lv > 5 || !keys?.length) continue;
+    for (const k of new Set(keys)) {
+      if (!meta.has(k)) continue;
+      const e = byTag.get(k);
+      if (e) { e.list.push(p); e.convSum += lv; } else byTag.set(k, { list: [p], convSum: lv });
+    }
+  }
+
+  const out: SetupConvictionStat[] = [];
+  for (const [key, { list, convSum }] of byTag) {
+    const m = meta.get(key)!;
+    const high = split(list.filter((p) => (tagsById[p.positionId]!.conviction as number) >= HIGH_CONVICTION));
+    const low = split(list.filter((p) => (tagsById[p.positionId]!.conviction as number) < HIGH_CONVICTION));
+    const whole = split(list);
+    const calibration: SetupConvictionStat['calibration'] =
+      high.count >= 3 && low.count >= 3 && high.avg != null && low.avg != null
+        ? (high.avg >= low.avg ? 'good' : 'poor')
+        : null;
+    out.push({
+      key, label: m.label, emoji: m.emoji,
+      count: list.length, avgConviction: convSum / list.length,
+      winRate: whole.winRate, netSum: whole.netSum, avg: whole.avg,
+      high, low, calibration,
+    });
+  }
+  return out.sort((a, b) => b.count - a.count || b.netSum - a.netSum);
+}
+
+/** 셋업 × 확신 — "어떤 셋업에서 확신이 잘 맞았나" */
+export const convictionBySetup = (positions: TradePosition[], tagsById: Record<string, TradeTagSet | undefined>) =>
+  convictionByTag(positions, tagsById, 'setup');
+/** 실수 × 확신 — "어떤 실수가 어떤 확신대에서 나왔나"(평균 확신 높은 실수 = 과신 중 저지른 실수) */
+export const convictionByMistake = (positions: TradePosition[], tagsById: Record<string, TradeTagSet | undefined>) =>
+  convictionByTag(positions, tagsById, 'mistake');
+
 export interface ConvictionStat {
   level: number;
   label: string;

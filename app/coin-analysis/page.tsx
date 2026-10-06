@@ -89,6 +89,18 @@ interface AnalysisData {
   dvol: { value: number; change24h: number | null } | null;
   dominance: { btc: number; eth: number; mcapChange24h: number } | null;
   event: { title: string; hoursUntil: number; date: string } | null;
+  macro?: {
+    bias: 'long' | 'short' | 'mixed';
+    strength: '강' | '보통' | '약';
+    dirs: { us10: 'up' | 'down' | 'flat'; dxy: 'up' | 'down' | 'flat'; realYield: 'up' | 'down' | 'flat' };
+    headline: string; note: string;
+    votes: { riskOff: number; riskOn: number; known: number };
+    values: {
+      us10: { label: string; value: string; changeText: string; source: string; asOf: string | null } | null;
+      dxy: { label: string; value: string; changeText: string; source: string; asOf: string | null } | null;
+      realYield: { value: number; changePp: number | null; date: string } | null;
+    };
+  } | null;
   backtest: {
     fromTs: number; toTs: number; spanHours: number;
     signals: number; wins: number; losses: number; open: number;
@@ -1096,6 +1108,43 @@ export default function CoinAnalysisPage() {
             </ul>
             <p className="text-[10px] text-[var(--text-muted)] mt-2.5 opacity-60">수급·파생·뉴스 신호 기반 자동 추정 — 정확한 인과가 아닌 참고용 해석입니다.</p>
           </div>
+
+          {/* 거시 배경 (금리·달러·실질금리) — 교육자료 프레임, 배경 환경일 뿐 매매 신호 아님 */}
+          {data.macro && data.macro.values && (data.macro.values.us10 || data.macro.values.dxy) && (() => {
+            const m = data.macro;
+            const arrow = (d: 'up' | 'down' | 'flat') => d === 'up' ? '↑' : d === 'down' ? '↓' : '→';
+            // 이 페이지는 상승=emerald 관례. 단, 금리·달러 '상승'은 위험자산엔 악재라
+            // 화살표는 방향만 중립색으로 표시하고, 좋고 나쁨은 아래 순풍/맞바람 배지가 전한다.
+            const biasStyle = m.bias === 'long' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5'
+              : m.bias === 'short' ? 'text-red-400 border-red-500/30 bg-red-500/5'
+              : 'text-[var(--text-muted)] border-[var(--border)] bg-white/5';
+            const biasLabel = m.bias === 'long' ? '순풍 · 롱 우호 환경' : m.bias === 'short' ? '맞바람 · 숏 우호 환경' : '엇갈림 · 방향 확인';
+            const vals = [
+              m.values.us10 && { k: m.values.us10.label, v: m.values.us10.value, c: m.values.us10.changeText, d: m.dirs.us10 },
+              m.values.dxy && { k: m.values.dxy.label, v: m.values.dxy.value, c: m.values.dxy.changeText, d: m.dirs.dxy },
+              m.values.realYield && { k: '美 10년 실질금리', v: `${m.values.realYield.value.toFixed(2)}%`, c: m.values.realYield.changePp != null ? `${m.values.realYield.changePp >= 0 ? '+' : ''}${m.values.realYield.changePp.toFixed(2)}%p` : '—', d: m.dirs.realYield },
+            ].filter(Boolean) as { k: string; v: string; c: string; d: 'up' | 'down' | 'flat' }[];
+            return (
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <h3 className="text-sm font-bold text-[var(--text)]">🌐 거시 배경 — 금리·달러</h3>
+                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ml-auto ${biasStyle}`}>{biasLabel} · 강도 {m.strength}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {vals.map((x) => (
+                    <div key={x.k} className="rounded-xl border border-[var(--border)] bg-white/[0.02] p-2.5">
+                      <p className="text-[10px] text-[var(--text-muted)] leading-tight">{x.k}</p>
+                      <p className="text-sm font-bold tabular-nums text-[var(--text)] mt-0.5">{x.v} <span className="text-[var(--text-muted)]">{arrow(x.d)}</span></p>
+                      <p className="text-[10px] tabular-nums text-[var(--text-muted)]">{x.c}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-[var(--text)] leading-relaxed">{m.headline}</p>
+                <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">{m.note}</p>
+                <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-60">10년물·실질금리·DXY가 같은 방향이면 그 방향이 위험자산에 뚜렷한 바람 — 배경 환경일 뿐 매매 신호가 아닙니다. (<a href="/study/macro" className="underline hover:text-[var(--text)]">금리·달러와 코인 공부법 ›</a>)</p>
+              </div>
+            );
+          })()}
 
           {/* 종합 판단 */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">

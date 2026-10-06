@@ -17,12 +17,14 @@ import { useTradeTags } from '@/hooks/useTradeTags';
 import { useSnapshots } from '@/hooks/useSnapshots';
 import SnapshotField from '@/components/SnapshotField';
 import { MOODS, MOOD_BY_KEY, type MoodKey } from '@/lib/tradeMood';
-import { SETUPS, MISTAKES, SETUP_BY_KEY, MISTAKE_BY_KEY, tagStats, convictionStats, CONVICTIONS, hasAnyTag, type TagStat, type TagMeta } from '@/lib/tradeTags';
+import { SETUPS, MISTAKES, SETUP_BY_KEY, MISTAKE_BY_KEY, tagStats, convictionStats, convictionBySetup, convictionByMistake, CONVICTIONS, hasAnyTag, type TagStat, type TagMeta } from '@/lib/tradeTags';
 import { monthlyStats, moodStats, kstMonth } from '@/lib/tradeReport';
 import BreakdownTables from '@/components/BreakdownTables';
-import { weekdayHourHeatmap, type BreakItem } from '@/lib/tradeBreakdown';
-import WeekdayHourHeatmap from '@/components/WeekdayHourHeatmap';
+import { weekdayHourHeatmap, kstParts, bandOf, rowKeyOf, notionalQuartileEdges, HOUR_BANDS, HOLD_BANDS, WEEKDAYS, type BreakItem } from '@/lib/tradeBreakdown';
+import WeekdayHourHeatmap, { type HeatSel } from '@/components/WeekdayHourHeatmap';
 import ConvictionCard from '@/components/ConvictionCard';
+import SetupConvictionCard from '@/components/SetupConvictionCard';
+import type { BreakRowSel } from '@/components/BreakdownTables';
 import EquityCurveLazy from '@/components/EquityCurveLazy';
 import CalendarHeatmap from '@/components/CalendarHeatmap';
 import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, tradesPerDay, type TradeValue } from '@/lib/journalAnalytics';
@@ -44,6 +46,20 @@ const COIN_NAME: Record<string, string> = {
   BTCUSDT: '비트코인', ETHUSDT: '이더리움', XRPUSDT: '리플', SOLUSDT: '솔라나',
 };
 const coinName = (s: string) => COIN_NAME[s] ?? s.replace(/USDT$/, '');
+
+const SIZE_NAMES = ['작은(하위25%)', '중하', '중상', '큰(상위25%)'];
+/** 손익 분해 표 행 key → 사람이 읽는 라벨(드릴다운 제목용) */
+function rowLabel(sel: BreakRowSel): string {
+  const { tab, key } = sel;
+  if (tab === 'wd') return `${WEEKDAYS[Number(key.slice(2))]}요일`;
+  if (tab === 'hour') return HOUR_BANDS[Number(key.slice(1))]?.label ?? key;
+  if (tab === 'hold') return HOLD_BANDS[Number(key.slice(2))]?.label ?? key;
+  if (tab === 'sym') return coinName(key);
+  if (tab === 'side') return key === 'long' ? '롱' : '숏';
+  if (tab === 'stop') return key === 'stop' ? '손절 걸어둠' : '손절 없이';
+  if (tab === 'size') return `규모 ${SIZE_NAMES[Number(key.slice(2))] ?? key}`;
+  return key;
+}
 
 /** 현재 열린 포지션(/api/bitget/positions) — positionId가 없어 기분 키는 open-심볼-방향 */
 interface OpenPosition {
@@ -105,6 +121,8 @@ export default function JournalPage() {
   const [loaded, setLoaded] = useState(false);
   const [selMonth, setSelMonth] = useState<string | null>(null); // 펼쳐진 월(null=전부 접힘)
   const [selDay, setSelDay] = useState<string | null>(null);     // 달력에서 펼친 날짜(KST 'YYYY-MM-DD')
+  const [selCell, setSelCell] = useState<HeatSel | null>(null);  // 히트맵에서 펼친 요일×시간대 칸
+  const [selRow, setSelRow] = useState<BreakRowSel | null>(null); // 손익 분해 표에서 펼친 행
 
   // 기분 편집 시트 — 열린/청산 포지션 공통으로 { id, symbol } 을 편집한다
   const [editing, setEditing] = useState<{ id: string; symbol: string } | null>(null);
@@ -208,8 +226,28 @@ export default function JournalPage() {
   // 셋업·실수 태그별 성적 — 로드된 청산 포지션 전체
   const heatmap = useMemo(() => weekdayHourHeatmap(breakItems), [breakItems]);
   const convStats = useMemo(() => convictionStats(positions, tags), [positions, tags]);
+  const convBySetup = useMemo(() => convictionBySetup(positions, tags), [positions, tags]);
+  const convByMistake = useMemo(() => convictionByMistake(positions, tags), [positions, tags]);
   const setupStats = useMemo(() => tagStats(positions, tags, 'setup'), [positions, tags]);
   const mistakeStats = useMemo(() => tagStats(positions, tags, 'mistake'), [positions, tags]);
+  // 히트맵 칸 드릴다운 — 선택한 요일×시간대에 '진입'한 청산 매매(집계와 같은 진입 시각·KST 기준)
+  const cellTrades = useMemo(() => {
+    if (!selCell) return [];
+    return positions.filter((p) => {
+      const { wd, hour } = kstParts(p.openTs || p.closeTs);
+      return wd === selCell.wd && bandOf(hour) === selCell.band;
+    }).sort((a, b) => (a.openTs || a.closeTs) - (b.openTs || b.closeTs));
+  }, [selCell, positions]);
+  // 손익 분해 표 행 드릴다운 — breakItems 와 같은 rowKeyOf 로 그 행 매매만(규모 탭은 분위수 경계 공유)
+  const sizeEdges = useMemo(() => notionalQuartileEdges(breakItems), [breakItems]);
+  const rowTrades = useMemo(() => {
+    if (!selRow) return [];
+    return positions.filter((p) => {
+      const it: BreakItem = { ts: p.openTs || p.closeTs, symbol: p.symbol, value: p.netProfit, win: null,
+        holdMs: p.openTs && p.closeTs > p.openTs ? p.closeTs - p.openTs : null, side: p.side, hasStop: p.stop != null, notional: p.size * p.openAvg };
+      return rowKeyOf(selRow.tab, it, sizeEdges) === selRow.key;
+    }).sort((a, b) => (a.openTs || a.closeTs) - (b.openTs || b.closeTs));
+  }, [selRow, positions, sizeEdges]);
 
   // CSV 내보내기 — 거래소 청산 내역 + 이 기기의 기분·태그 기록(엑셀용 BOM·KST)
   const exportCsv = () => {
@@ -305,15 +343,25 @@ export default function JournalPage() {
         </section>
       )}
 
-      {/* 손익 분해 — 요일·시간대·종목별(청산 건, 수수료·펀딩 반영 순손익) */}
+      {/* 손익 분해 — 요일·시간대·종목별(청산 건). 행을 누르면 그 구간 매매가 펼쳐짐 */}
       {positions.length > 0 && (
         <BreakdownTables items={breakItems} unit="USDT" valueLabel="순손익" fmt={fmtPnl}
-          sub={`최근 ${days}일 청산 ${positions.length}건 · 진입 시각(KST) 기준`} />
+          sub={`최근 ${days}일 청산 ${positions.length}건 · 진입 시각(KST) 기준`}
+          selectedRow={selRow} onSelectRow={setSelRow}
+          renderDetail={(sel) => (
+            <BucketTrades title={rowLabel(sel)} trades={rowTrades} moods={moods} tags={tags} snapIds={snaps.ids}
+              note="행을 누르면 기분·태그·스냅샷 기록"
+              onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelRow(null)} />
+          )} />
       )}
 
-      {/* 요일 × 시간대 히트맵 — 어느 요일·시간에 벌고 잃었나 */}
+      {/* 요일 × 시간대 히트맵 — 어느 요일·시간에 벌고 잃었나 (칸 클릭 → 그 칸 매매 드릴다운) */}
       {positions.length > 0 && heatmap.cells.length > 0 && (
-        <WeekdayHourHeatmap h={heatmap} fmt={fmtPnl} sub={`최근 ${days}일 · 진입 시각(KST) 기준`} />
+        <WeekdayHourHeatmap h={heatmap} fmt={fmtPnl} sub={`최근 ${days}일 · 진입 시각(KST) 기준`}
+          selected={selCell} onSelect={(c) => setSelCell((cur) => (cur && cur.wd === c.wd && cur.band === c.band ? null : c))}
+          detail={<BucketTrades title={selCell ? `${WEEKDAYS[selCell.wd]}요일 ${HOUR_BANDS[selCell.band].label}` : null} trades={cellTrades}
+            moods={moods} tags={tags} snapIds={snaps.ids} note="진입 시각(KST) 기준 · 행을 누르면 기분·태그·스냅샷 기록"
+            onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelCell(null)} />} />
       )}
 
       {/* 자산 곡선 · 연속 승패 · 일별 손익 달력 — 청산 시각 기준 실현손익 */}
@@ -361,6 +409,16 @@ export default function JournalPage() {
       {/* 확신(신뢰도 1~5)별 성적 */}
       {positions.length > 0 && convStats.length > 0 && (
         <ConvictionCard rows={convStats} fmt={fmtUsdt} sub={`최근 ${days}일 · 확신 매긴 ${convStats.reduce((a, r) => a + r.count, 0)}건`} />
+      )}
+
+      {/* 셋업 × 확신 교차 — 어떤 셋업에서 확신이 잘 맞았나 */}
+      {positions.length > 0 && convBySetup.length > 0 && (
+        <SetupConvictionCard rows={convBySetup} fmt={fmtUsdt} sub={`최근 ${days}일 · 셋업+확신 둘 다 매긴 매매`} />
+      )}
+
+      {/* 실수 × 확신 교차 — 어떤 실수가 어떤 확신대에서 나왔나(과신 점검) */}
+      {positions.length > 0 && convByMistake.length > 0 && (
+        <SetupConvictionCard kind="mistake" rows={convByMistake} fmt={fmtUsdt} sub={`최근 ${days}일 · 실수+확신 둘 다 매긴 매매`} />
       )}
 
       {/* ③ 월별 보고서 — 접힘 상태로 월 목록만, 월을 누르면 상세 펼침(청산 건만) */}
@@ -574,6 +632,40 @@ function DayTrades({ date, trades, moods, tags, snapIds, onEdit, onClose }: {
           onEdit={() => onEdit(p)} />
       ))}
       <p className="px-3 py-1.5 text-[10px] text-[var(--faint)] border-t border-[var(--line-2)]">청산 시각(KST) 기준 · 행을 누르면 기분·태그·스냅샷 기록</p>
+    </div>
+  );
+}
+
+/** 선택한 버킷(히트맵 칸·분해 표 행)에 속한 매매 목록 — 기존 TradeRow 재사용, 누르면 편집 */
+function BucketTrades({ title, trades, moods, tags, snapIds, onEdit, onClose, note }: {
+  title: string | null;
+  trades: ClosedPosition[];
+  moods: Record<string, TradeMood>;
+  tags: Record<string, { setups: string[]; mistakes: string[] }>;
+  snapIds: Set<string>;
+  onEdit: (p: ClosedPosition) => void;
+  onClose: () => void;
+  note?: string;
+}) {
+  if (!title) return null;
+  const sum = trades.reduce((a, p) => a + p.netProfit, 0);
+  const wins = trades.filter((p) => p.netProfit > 0).length;
+  const losses = trades.filter((p) => p.netProfit < 0).length;
+  return (
+    <div className="mt-3 rounded-xl border border-[var(--line-2)] overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-2)]">
+        <b className="text-[13px] text-[var(--text)]">{title}</b>
+        <span className="text-[11px] text-[var(--text-muted)] tabular-nums">{trades.length}건 · {wins}승 {losses}패</span>
+        <span className="ml-auto text-[13px] font-bold tabular-nums" style={{ color: pnlColor(sum) }}>{fmtPnl(sum)} USDT</span>
+        <button type="button" onClick={onClose} aria-label="상세 닫기" className="w-7 h-7 grid place-items-center rounded-lg text-[var(--text-muted)]">✕</button>
+      </div>
+      {trades.length === 0 ? (
+        <p className="px-3 py-3 text-[12px] text-[var(--text-muted)]">이 구간에 해당하는 청산 매매가 없습니다.</p>
+      ) : trades.map((p, j) => (
+        <TradeRow key={p.positionId} p={p} mood={moods[p.positionId]} tagset={tags[p.positionId]} hasSnap={snapIds.has(p.positionId)} border={j > 0}
+          onEdit={() => onEdit(p)} />
+      ))}
+      <p className="px-3 py-1.5 text-[10px] text-[var(--faint)] border-t border-[var(--line-2)]">{note ?? '행을 누르면 기분·태그·스냅샷 기록'}</p>
     </div>
   );
 }

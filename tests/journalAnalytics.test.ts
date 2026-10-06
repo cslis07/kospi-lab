@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import {
-  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary, afterLossStreaks, tradesPerDay,
+  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary, afterLossStreaks, tradesPerDay, goalLine,
 } from '../lib/journalAnalytics';
 
 let passed = 0;
@@ -201,6 +201,28 @@ ok('tradesPerDay — 하루 매매 수로 버킷, 날 수·매매 수·승률·�
   assert.equal(by['하루 3~4회'].wins, 3);
   assert.equal(by['하루 3~4회'].avg, (2 + 2 - 1 - 4 - 4 + 1) / 6);
   assert.ok(!rows.some((r) => r.label === '하루 5회+')); // 5회+ 날 없으면 행 없음
+});
+
+/* ── goalLine (월 목표선) ── */
+ok('goalLine linear: 30일 지점에서 정확히 target, 시작점 0', () => {
+  const DAY = 86_400_000; const start = Date.UTC(2026, 0, 1);
+  const g = goalLine([start, start + 15 * DAY, start + 30 * DAY], 500, 'linear');
+  assert.equal(g[0], 0);
+  assert.ok(Math.abs((g[1] as number) - 250) < 1e-6);
+  assert.ok(Math.abs((g[2] as number) - 500) < 1e-6);
+});
+ok('goalLine stepped: 달력 월(KST)마다 target 누적 계단', () => {
+  const start = Date.UTC(2026, 0, 10) - 9 * 3600_000; // KST 2026-01-10
+  const feb = Date.UTC(2026, 1, 3) - 9 * 3600_000;     // KST 2026-02-03
+  const mar = Date.UTC(2026, 2, 20) - 9 * 3600_000;    // KST 2026-03-20
+  const g = goalLine([start, feb, mar], 500, 'stepped');
+  assert.equal(g[0], 500);   // 1월(0번째 달) → 1×target
+  assert.equal(g[1], 1000);  // 2월 → 2×target
+  assert.equal(g[2], 1500);  // 3월 → 3×target
+});
+ok('goalLine: target 0 이하면 전부 null', () => {
+  assert.deepEqual(goalLine([1, 2, 3], 0, 'linear'), [null, null, null]);
+  assert.deepEqual(goalLine([], 500, 'stepped'), []);
 });
 
 console.log(`\n${passed} passed`);

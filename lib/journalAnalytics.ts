@@ -314,3 +314,28 @@ export function monthSummary(cells: DayCell[]): { tradedDays: number; upDays: nu
   }
   return { tradedDays, upDays, downDays, sum };
 }
+
+/** 월 목표선 모드 — 선형(30일 환산 연속) vs 계단식(달력 월 경계마다 목표만큼 누적) */
+export type GoalMode = 'linear' | 'stepped';
+
+/**
+ * 자산 곡선에 겹칠 월 목표선 값(각 포인트 ts 에 대응). target<=0 이면 전부 null.
+ *  - linear: 시작 시점 0 에서 30일당 target 만큼 선형 증가(기존 방식).
+ *  - stepped: 달력 월(KST) 경계 기준 누적 — 이 달 말까지 target, k번째 달 말까지 k×target(계단).
+ * 입금 정보가 없어 '순손익 기준'. 순수 함수(테스트 고정).
+ */
+export function goalLine(tsList: number[], target: number, mode: GoalMode): (number | null)[] {
+  if (!(target > 0) || !tsList.length) return tsList.map(() => null);
+  const start = tsList[0];
+  if (mode === 'linear') {
+    const DAY = 86_400_000;
+    return tsList.map((ts) => (target * (ts - start)) / (30 * DAY));
+  }
+  const kst = (ts: number) => new Date(ts + 9 * 3600_000);
+  const s = kst(start);
+  return tsList.map((ts) => {
+    const d = kst(ts);
+    const mi = (d.getUTCFullYear() - s.getUTCFullYear()) * 12 + (d.getUTCMonth() - s.getUTCMonth());
+    return (mi + 1) * target;
+  });
+}

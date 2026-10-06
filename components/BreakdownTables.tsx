@@ -5,23 +5,28 @@
  * 매매일지(거래소 실현손익, USDT)·성과(기록 R) 공용. 계산은 lib/tradeBreakdown(테스트 고정).
  * 표본 5건 미만 칸은 흐리게 — 몇 건짜리 '요일 효과'를 패턴으로 읽지 않게. 방향 예측이 아니라 복기용.
  */
-import { useMemo, useState } from 'react';
-import { byWeekday, byHourBand, bySymbol, byHoldBand, bySide, byStopPresence, byNotionalQuartile, THIN_SAMPLE, type BreakItem, type BreakRow } from '@/lib/tradeBreakdown';
+import { useMemo, useState, type ReactNode } from 'react';
+import { byWeekday, byHourBand, bySymbol, byHoldBand, bySide, byStopPresence, byNotionalQuartile, THIN_SAMPLE, type BreakItem, type BreakRow, type BreakTab } from '@/lib/tradeBreakdown';
 
-type Tab = 'wd' | 'hour' | 'sym' | 'side' | 'hold' | 'stop' | 'size';
+type Tab = BreakTab;
+export interface BreakRowSel { tab: BreakTab; key: string }
 const TABS: [Tab, string][] = [['wd', '요일'], ['hour', '시간대'], ['sym', '종목'], ['side', '롱/숏'], ['hold', '보유시간'], ['stop', '손절'], ['size', '규모']];
 const HEAD: Record<Tab, string> = { wd: '요일', hour: '진입 시간(KST)', sym: '종목', side: '방향', hold: '보유 시간', stop: '손절 주문', size: '진입 규모' };
 const UNIT_LABEL: Partial<Record<Tab, string>> = { sym: '종목', side: '방향', stop: '구분' };
 
 const color = (n: number) => (n > 0 ? 'var(--warn)' : n < 0 ? 'var(--accent)' : 'var(--faint)');
 
-export default function BreakdownTables({ items, unit, valueLabel, fmt, title = '손익 분해', sub }: {
+export default function BreakdownTables({ items, unit, valueLabel, fmt, title = '손익 분해', sub, selectedRow, onSelectRow, renderDetail }: {
   items: BreakItem[];
   unit: string;                       // 'USDT' · 'R'
   valueLabel: string;                 // '순손익' · 'R'
   fmt: (n: number) => string;         // 부호 포함 표시
   title?: string;
   sub?: string;
+  /** 행 드릴다운(참고: TraderSync) — 선택 행·클릭 핸들러·그 행 매매 목록. 탭 전환 시 선택 해제 */
+  selectedRow?: BreakRowSel | null;
+  onSelectRow?: (sel: BreakRowSel | null) => void;
+  renderDetail?: (sel: BreakRowSel) => ReactNode;
 }) {
   const [picked, setTab] = useState<Tab>('wd');
   // 보유시간 탭은 진입·청산 시각을 아는 매매가 있을 때만(성과의 기록 R 에는 청산 시각이 없다)
@@ -51,7 +56,7 @@ export default function BreakdownTables({ items, unit, valueLabel, fmt, title = 
         <div className="ml-auto max-w-full overflow-x-auto">
           <div className="seg w-max" role="tablist" aria-label="분해 기준">
             {tabs.map(([k, l]) => (
-              <button key={k} type="button" role="tab" aria-selected={tab === k} className={`seg-i !px-2.5 whitespace-nowrap ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>{l}</button>
+              <button key={k} type="button" role="tab" aria-selected={tab === k} className={`seg-i !px-2.5 whitespace-nowrap ${tab === k ? 'on' : ''}`} onClick={() => { setTab(k); onSelectRow?.(null); }}>{l}</button>
             ))}
           </div>
         </div>
@@ -71,10 +76,17 @@ export default function BreakdownTables({ items, unit, valueLabel, fmt, title = 
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.key} className="border-b border-[var(--border)] last:border-0" style={{ opacity: r.thin ? 0.55 : 1 }}
-                  title={r.thin ? `표본 ${r.count}건 — ${THIN_SAMPLE}건 미만은 참고만` : undefined}>
-                  <td className="px-3 py-2 font-semibold text-[var(--text)] whitespace-nowrap max-w-[140px] truncate">{r.label}</td>
+              {rows.map((r) => {
+                const sel = !!selectedRow && selectedRow.tab === tab && selectedRow.key === r.key;
+                const clickable = !!onSelectRow;
+                return (
+                <tr key={r.key} className={`border-b border-[var(--border)] last:border-0 ${clickable ? 'cursor-pointer active:bg-[var(--surface-2)]' : ''}`}
+                  style={{ opacity: r.thin ? 0.55 : 1, background: sel ? 'var(--surface-2)' : undefined }}
+                  {...(clickable ? { role: 'button', tabIndex: 0, 'aria-pressed': sel,
+                    onClick: () => onSelectRow!(sel ? null : { tab, key: r.key }),
+                    onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectRow!(sel ? null : { tab, key: r.key }); } } } : {})}
+                  title={r.thin ? `표본 ${r.count}건 — ${THIN_SAMPLE}건 미만은 참고만${clickable ? ' · 눌러서 매매 보기' : ''}` : clickable ? '눌러서 이 구간 매매 보기' : undefined}>
+                  <td className="px-3 py-2 font-semibold text-[var(--text)] whitespace-nowrap max-w-[140px] truncate">{sel ? '▾ ' : ''}{r.label}</td>
                   <td className="px-2 py-2 text-right text-[var(--text-muted)]">{r.count}</td>
                   <td className="px-2 py-2 text-right">{r.winRate == null ? '—' : `${r.winRate.toFixed(0)}%`}</td>
                   <td className="px-2 py-2">
@@ -87,9 +99,13 @@ export default function BreakdownTables({ items, unit, valueLabel, fmt, title = 
                   </td>
                   <td className="px-3 py-2 text-right" style={{ color: r.avg == null ? 'var(--faint)' : color(r.avg) }}>{r.avg == null ? '—' : fmt(r.avg)}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
+        )}
+        {selectedRow && selectedRow.tab === tab && renderDetail && (
+          <div className="px-2 pb-2">{renderDetail(selectedRow)}</div>
         )}
       </div>
       {(best || worst) && rows.length > 1 && (

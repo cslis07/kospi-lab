@@ -7,12 +7,11 @@
  */
 import { useEffect, useId, useMemo, useState } from 'react';
 import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
-import { equityCurve, type TradeValue } from '@/lib/journalAnalytics';
+import { equityCurve, goalLine, type GoalMode, type TradeValue } from '@/lib/journalAnalytics';
 
 const UP = '#ff4433';     // 이익(상승) — 한국 관행
 const DOWN = '#1c6cff';   // 손실(하락)
 const GOAL = '#f0a500';   // 월 목표선(앰버)
-const DAY = 86_400_000;
 const TARGET_KEY = 'kospi-lab-monthly-target'; // 월 목표(USDT) — 기기 간 동기화됨(사용자 목표)
 
 const tick = (v: string) => v.slice(5).replace('-', '/'); // 'YYYY-MM-DD' → 'MM/DD'
@@ -25,16 +24,16 @@ export default function EquityCurve({ trades, unit, fmt }: {
   const gid = useId().replace(/:/g, '');
   const eq = useMemo(() => equityCurve(trades), [trades]);
 
-  // 월 목표(선택) — 입금 정보가 없어 '순손익 기준'. 목표선 = 시작 시점 0에서 월 목표만큼 선형 증가
+  // 월 목표(선택) — 입금 정보가 없어 '순손익 기준'. 선형(30일 환산) 또는 계단식(달력 월 경계 누적) 중 선택
   const [target, setTarget] = useState<number>(0);
+  const [mode, setMode] = useState<GoalMode>('linear');
   useEffect(() => { try { const v = Number(localStorage.getItem(TARGET_KEY)); if (Number.isFinite(v) && v > 0) setTarget(v); } catch { /* 무시 */ } }, []);
   const onTarget = (v: number) => { setTarget(v); try { v > 0 ? localStorage.setItem(TARGET_KEY, String(v)) : localStorage.removeItem(TARGET_KEY); } catch { /* 무시 */ } };
 
-  const startTs = eq.points[0]?.ts ?? 0;
-  const goalAt = (ts: number) => (target > 0 ? (target * (ts - startTs)) / (30 * DAY) : null);
-  const data = useMemo(() => eq.points.map((p, i) => ({ ...p, i, under: -p.drawdown, target: goalAt(p.ts) })), [eq.points, target]); // eslint-disable-line react-hooks/exhaustive-deps
+  const goals = useMemo(() => goalLine(eq.points.map((p) => p.ts), target, mode), [eq.points, target, mode]);
+  const data = useMemo(() => eq.points.map((p, i) => ({ ...p, i, under: -p.drawdown, target: goals[i] })), [eq.points, goals]);
   const lineColor = eq.finalCum >= 0 ? UP : DOWN;
-  const goalFinal = eq.points.length ? goalAt(eq.points[eq.points.length - 1].ts) : null;
+  const goalFinal = goals.length ? goals[goals.length - 1] : null;
   const paceDelta = goalFinal != null ? eq.finalCum - goalFinal : null;
 
   if (data.length < 2) {
@@ -60,13 +59,24 @@ export default function EquityCurve({ trades, unit, fmt }: {
             className="w-[76px] bg-transparent px-2 py-1 text-[12px] text-[var(--text)] tabular-nums outline-none" />
           <span className="px-1.5 text-[10px] text-[var(--text-muted)]">{unit}/월</span>
         </span>
+        {target > 0 && (
+          <span className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden" role="group" aria-label="목표선 방식">
+            {([['linear', '선형'], ['stepped', '계단식']] as const).map(([m, lbl]) => (
+              <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={mode === m}
+                className="px-2 py-1 text-[11px] font-semibold transition-colors"
+                style={mode === m ? { background: GOAL, color: '#1a1205' } : { color: 'var(--text-muted)' }}>
+                {lbl}
+              </button>
+            ))}
+          </span>
+        )}
         {target > 0 && paceDelta != null ? (
           <span className="tabular-nums" style={{ color: paceDelta >= 0 ? 'var(--warn)' : 'var(--accent-ink)' }}>
             목표선 대비 <b>{paceDelta >= 0 ? '+' : '−'}{fmt(Math.abs(paceDelta))}</b> {paceDelta >= 0 ? '초과' : '미달'}
             <span className="text-[var(--text-muted)]"> · 목표 누적 {fmt(goalFinal ?? 0)}</span>
           </span>
         ) : (
-          <span className="text-[var(--faint)]">월 목표를 넣으면 곡선에 <span style={{ color: GOAL }}>목표선</span>이 겹쳐집니다(순손익 기준)</span>
+          <span className="text-[var(--faint)]">월 목표를 넣으면 곡선에 <span style={{ color: GOAL }}>목표선</span>이 겹쳐집니다(순손익 기준 · 선형=30일 환산, 계단식=달력 월 누적)</span>
         )}
       </div>
 
@@ -96,7 +106,7 @@ export default function EquityCurve({ trades, unit, fmt }: {
             );
           }} />
           <Area type="monotone" dataKey="cum" stroke={lineColor} strokeWidth={1.8} fill={`url(#eq${gid})`} dot={false} isAnimationActive={false} />
-          {target > 0 && <Line type="linear" dataKey="target" stroke={GOAL} strokeWidth={1.4} strokeDasharray="5 4" dot={false} isAnimationActive={false} />}
+          {target > 0 && <Line type={mode === 'stepped' ? 'stepAfter' : 'linear'} dataKey="target" stroke={GOAL} strokeWidth={1.4} strokeDasharray="5 4" dot={false} isAnimationActive={false} />}
         </AreaChart>
       </ResponsiveContainer>
 

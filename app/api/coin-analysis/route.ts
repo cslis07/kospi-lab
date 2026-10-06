@@ -10,6 +10,8 @@ import { getEtfFlows, etfBiasFor } from '@/lib/etfFlow';
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 import { BITGET_BASE, fetchBitgetFuturesTickers } from '@/lib/bitget';
 import { claudeBriefing, resolveBriefingModel, BriefingResult } from '@/lib/anthropic';
+import { coinMacroRates } from '@/lib/brief';
+import { readMacroBias, macroPromptBlock, type MacroContext } from '@/lib/coinMacroContext';
 import { TtlCache } from '@/lib/cache';
 
 export const maxDuration = 30;
@@ -462,7 +464,7 @@ const _aiCache = new TtlCache<string>(AI_TTL);
 async function aiBriefing(
   symbol: string, name: string, price: number,
   verdictSummary: string, tfSummary: string, newsTitles: string[],
-  moveSummary: string, modelId: string,
+  moveSummary: string, macroSummary: string, modelId: string,
 ): Promise<BriefingResult> {
   const cacheKey = `${symbol}:${modelId}`;
   const cached = _aiCache.get(cacheKey);
@@ -470,6 +472,7 @@ async function aiBriefing(
 
   const prompt = `당신은 코인 선물 단타 교육 자료를 기반으로 차트를 해설하는 분석 도우미입니다.
 방법론: ①1시간봉 방향→15분봉 구조→5분봉 타이밍 순서 ②EMA/VWAP은 방향 필터 ③거래량 미동반 돌파 불신 ④RSI는 추세 내 눌림 확인용(30/70 역매매 금지) ⑤손절은 ATR·구조 기반, 레버리지는 낮게(2~5배) ⑥펀딩 쏠림은 체제 신호.
+거시 배경(교육자료): 10년물·실질금리·DXY 가 같은 방향이면 그 방향이 위험자산에 뚜렷한 바람 — 같이 오르면 숏 우호(맞바람), 같이 내리면 롱 우호(순풍). 단독 매수·매도 신호는 아니며, 맞바람이면 레버리지·사이즈를 줄이는 맥락으로만 쓴다.
 
 ## ${name}(${symbol}) 현재 데이터
 현재가: $${price}
@@ -481,14 +484,18 @@ ${verdictSummary}
 ## 현재 가격 흐름·수급 신호
 ${moveSummary}
 
+## 거시 배경(금리·달러·실질금리)
+${macroSummary}
+
 ## 최신 뉴스 헤드라인
 ${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(뉴스 수집 실패)'}
 
 ## 요청 (각 항목을 "【제목】" 줄로 시작)
 【지금 왜 움직이나】 현재 ${name}이(가) 오르/내리는 이유를 위 수급 신호와 뉴스를 근거로 2~3문장으로 추정. 확실하지 않으면 "추정"임을 명시.
 【뉴스 동향】 가격에 영향 줄 이슈 위주 1~2문장.
+【거시 배경】 위 금리·달러·실질금리가 지금 코인에 순풍인지 맞바람인지, 왜 금리가 움직이는지(완화 기대 vs 재정·수급)를 1~2문장. 매매 권유가 아니라 환경 설명으로.
 【차트 해석】 룰 엔진 판정에 동의/보완 관점 2~3문장.
-【리스크 점검】 이 자리에서 진입한다면 무엇이 어긋나면 틀린 것인지(무효화 조건), 손절을 어디에 둬야 하는지, 어떤 시나리오가 가장 위험한지 2~3문장.
+【리스크 점검】 이 자리에서 진입한다면 무엇이 어긋나면 틀린 것인지(무효화 조건), 손절을 어디에 둬야 하는지, 어떤 시나리오가 가장 위험한지 2~3문장. 거시 배경이 맞바람이면 그 점도 한 번 짚어 줄 것.
 
 작성 규칙:
 - 한국어로 작성.
@@ -513,7 +520,7 @@ export async function GET(req: NextRequest) {
   const briefingModel = resolveBriefingModel(req.nextUrl.searchParams.get('model')).id;
 
   try {
-    const [c1hFull, c15mFull, c5mFull, c4hFull, c1dFull, funding, tickers, news, longShort, fundingHist, fearGreed, takerFlow, positionLS, oiHist, dvol, dominance, orderbook] = await Promise.all([
+    const [c1hFull, c15mFull, c5mFull, c4hFull, c1dFull, funding, tickers, news, longShort, fundingHist, fearGreed, takerFlow, positionLS, oiHist, dvol, dominance, orderbook, macroRates] = await Promise.all([
       fetchCandles(symbol, '1H', 250),
       fetchCandles(symbol, '15m', 500),
       fetchCandles(symbol, '5m', 1000),
@@ -531,6 +538,7 @@ export async function GET(req: NextRequest) {
       fetchDvol(),
       fetchDominance(),
       fetchOrderbook(symbol).catch(() => null),
+      coinMacroRates().catch(() => null),
     ]);
     // 실시간 분석은 최근 200봉, 백테스트는 전체 사용
     const c1h = c1hFull.slice(-200);
@@ -691,6 +699,39 @@ export async function GET(req: NextRequest) {
       (dvol ? `\nBTC DVOL(옵션 내재변동성): ${dvol.value.toFixed(1)}${dvol.change24h !== null ? ` (24h ${dvol.change24h > 0 ? '+' : ''}${dvol.change24h.toFixed(1)})` : ''}` : '') +
       (event ? `\n임박 이벤트: ${event.title} (약 ${Math.round(event.hoursUntil)}시간 후)` : '');
 
+    // ── 거시 배경(교육자료 프레임: 10년물·실질금리·DXY 가 같은 방향인지 확인) ──
+    // 배경 환경일 뿐 매매 신호가 아니므로 룰 엔진 점수에는 넣지 않고 화면·AI 맥락으로만 쓴다.
+    const realYieldChangePp = macroRates?.realYield && macroRates.realYield.prev != null
+      ? Math.round((macroRates.realYield.value - macroRates.realYield.prev) * 100) / 100 : null;
+    const macroCtx: MacroContext = readMacroBias({
+      us10ChangePp: macroRates?.us10?.change ?? null,
+      dxyChangePct: macroRates?.dxy?.change ?? null,
+      realYieldChangePp,
+    });
+    const macroValueLines: string[] = [];
+    if (macroRates?.us10) macroValueLines.push(`${macroRates.us10.label}: ${macroRates.us10.value} (${macroRates.us10.changeText})`);
+    if (macroRates?.dxy) macroValueLines.push(`${macroRates.dxy.label}: ${macroRates.dxy.value} (${macroRates.dxy.changeText})`);
+    if (macroRates?.realYield) macroValueLines.push(
+      `美 10년 실질금리(TIPS): ${macroRates.realYield.value.toFixed(2)}%` +
+      `${realYieldChangePp != null ? ` (${realYieldChangePp >= 0 ? '+' : ''}${realYieldChangePp.toFixed(2)}%p)` : ''} · ${macroRates.realYield.date}`,
+    );
+    const macroSummary = macroPromptBlock(macroCtx, macroValueLines);
+    const macro = {
+      bias: macroCtx.bias, strength: macroCtx.strength, dirs: macroCtx.dirs,
+      headline: macroCtx.headline, note: macroCtx.note, votes: macroCtx.votes,
+      values: {
+        us10: macroRates?.us10
+          ? { label: macroRates.us10.label, value: macroRates.us10.value, changeText: macroRates.us10.changeText, source: macroRates.us10.source, asOf: macroRates.us10.asOf ?? null }
+          : null,
+        dxy: macroRates?.dxy
+          ? { label: macroRates.dxy.label, value: macroRates.dxy.value, changeText: macroRates.dxy.changeText, source: macroRates.dxy.source, asOf: macroRates.dxy.asOf ?? null }
+          : null,
+        realYield: macroRates?.realYield
+          ? { value: macroRates.realYield.value, changePp: realYieldChangePp, date: macroRates.realYield.date }
+          : null,
+      },
+    };
+
     // ── coin-signal 이식: SCALP·SWING·POSITION 3모드 진입 엔진 ──
     const etfFlows = await getEtfFlows().catch(() => null);
     const coinTag = symbol.replace('USDT', '');
@@ -702,7 +743,7 @@ export async function GET(req: NextRequest) {
       eventHoursUntil: event ? event.hoursUntil : null,
     });
 
-    const ai = await aiBriefing(symbol, coin.name, price, verdictSummary, tfSummary, news.map((n) => n.title), moveSummary, briefingModel);
+    const ai = await aiBriefing(symbol, coin.name, price, verdictSummary, tfSummary, news.map((n) => n.title), moveSummary, macroSummary, briefingModel);
 
     // 소스별 수집 성공/실패 — 파생·수급 데이터는 거래소가 데이터센터 IP 를 차단하면
     // 조용히 빈 값으로 떨어진다(§6). 판정이 어떤 결측 위에서 나왔는지 화면에 공시한다.
@@ -749,6 +790,7 @@ export async function GET(req: NextRequest) {
       dominance,
       orderbook,
       event,
+      macro,
       backtest,
       verdict,
       modes,

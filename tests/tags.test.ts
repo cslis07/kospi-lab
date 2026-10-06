@@ -3,7 +3,7 @@
  * 한 매매가 여러 태그에 반영되는 집계·승률·순손익이 틀리면 "어떤 셋업이 돈이 되나"가 거짓이 된다.
  */
 import assert from 'node:assert/strict';
-import { tagStats, hasAnyTag, convictionStats, SETUPS, MISTAKES } from '../lib/tradeTags';
+import { tagStats, hasAnyTag, convictionStats, convictionBySetup, convictionByMistake, SETUPS, MISTAKES } from '../lib/tradeTags';
 import type { TradePosition } from '../lib/tradeReport';
 
 let passed = 0;
@@ -94,6 +94,62 @@ ok('확신 — 범위 밖(0·6)·누락은 제외', () => {
 ok('hasAnyTag — 확신만 있어도 true', () => {
   assert.equal(hasAnyTag({ setups: [], mistakes: [], conviction: 4 }), true);
   assert.equal(hasAnyTag({ setups: [], mistakes: [] }), false);
+});
+
+/* ── convictionBySetup (셋업 × 확신 교차) ── */
+ok('convictionBySetup: 셋업+확신 둘 다 있는 매매만, 높음/낮음 분리', () => {
+  const positions = [pos('a', 10), pos('b', -4), pos('c', 8), pos('d', -2), pos('e', 6)];
+  const tags = {
+    a: { setups: ['breakout'], mistakes: [], conviction: 5 },
+    b: { setups: ['breakout'], mistakes: [], conviction: 2 },
+    c: { setups: ['breakout'], mistakes: [], conviction: 4 },
+    d: { setups: ['breakout'], mistakes: [], conviction: 1 },
+    e: { setups: ['breakout'], mistakes: [], conviction: 5 },
+  };
+  const [bo] = convictionBySetup(positions, tags);
+  assert.equal(bo.key, 'breakout');
+  assert.equal(bo.count, 5);
+  assert.equal(bo.high.count, 3);   // 확신 5,4,5
+  assert.equal(bo.low.count, 2);    // 확신 2,1
+  assert.equal(bo.high.netSum, 24); // 10+8+6
+  assert.equal(bo.low.netSum, -6);  // -4-2
+  assert.ok(Math.abs(bo.avgConviction - 17 / 5) < 1e-9);
+});
+ok('convictionBySetup: 확신 없거나 셋업 없으면 제외', () => {
+  const positions = [pos('a', 10), pos('b', 5), pos('c', -3)];
+  const tags = {
+    a: { setups: ['trend'], mistakes: [], conviction: 4 }, // 포함
+    b: { setups: ['trend'], mistakes: [] },                 // 확신 없음 → 제외
+    c: { setups: [], mistakes: ['chase'], conviction: 3 },  // 셋업 없음 → 제외
+  };
+  const rows = convictionBySetup(positions, tags);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].count, 1);
+});
+ok('convictionBySetup: calibration 은 양쪽 3건+ 일 때만, 높을 때 더 좋으면 good', () => {
+  const positions = Array.from({ length: 6 }, (_, i) => pos(String(i), i < 3 ? 10 : -5));
+  const tags: Record<string, { setups: string[]; mistakes: string[]; conviction: number }> = {};
+  // 0,1,2 = 확신 5 이익 / 3,4,5 = 확신 2 손실 → 확신 높을수록 좋음 = good
+  [0, 1, 2].forEach((i) => (tags[String(i)] = { setups: ['pullback'], mistakes: [], conviction: 5 }));
+  [3, 4, 5].forEach((i) => (tags[String(i)] = { setups: ['pullback'], mistakes: [], conviction: 2 }));
+  const [r] = convictionBySetup(positions, tags);
+  assert.equal(r.calibration, 'good');
+});
+
+/* ── convictionByMistake (실수 × 확신) ── */
+ok('convictionByMistake: 실수+확신 둘 다 있는 매매만, 평균 확신·건당', () => {
+  const positions = [pos('a', -10), pos('b', 4), pos('c', -8)];
+  const tags = {
+    a: { setups: [], mistakes: ['chase'], conviction: 5 },  // 과신 중 추격
+    b: { setups: [], mistakes: ['chase'], conviction: 4 },
+    c: { setups: ['breakout'], mistakes: [], conviction: 3 }, // 실수 없음 → 제외
+  };
+  const [ch] = convictionByMistake(positions, tags);
+  assert.equal(ch.key, 'chase');
+  assert.equal(ch.count, 2);
+  assert.ok(Math.abs(ch.avgConviction - 4.5) < 1e-9); // 확신 5,4 → 평균 4.5(과신 중 저지른 실수)
+  assert.equal(ch.high.count, 2); // 둘 다 확신 4+
+  assert.equal(ch.netSum, -6);    // -10+4
 });
 
 console.log(`\n${passed} passed`);

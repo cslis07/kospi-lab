@@ -2,6 +2,29 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-06 (109차) — 손익 분해 표 행 드릴다운 + 실수×확신 교차
+
+project-state nextActions 2건 구현(참고: TraderSync·Edgewonk). 순수함수+테스트 고정 → 헤드리스 실데이터 검증.
+- **손익 분해 표 행 클릭 → 드릴다운**(`components/BreakdownTables` + `lib/tradeBreakdown.rowKeyOf`·`notionalQuartileEdges`): 요일·시간대·종목·롱숏·보유시간·손절·규모 어느 탭이든 행을 누르면 그 구간에 해당하는 청산 매매가 펼쳐지고, 행을 눌러 바로 기분·태그 편집(108차 히트맵 칸 드릴다운과 같은 `BucketTrades`로 통일). 규모 탭은 분위수 경계(`notionalQuartileEdges`)를 표와 공유해 버킷이 어긋나지 않음. 탭 전환 시 선택 해제.
+- **실수 × 확신 교차**(`lib/tradeTags.convictionByMistake` + `SetupConvictionCard kind="mistake"`): 실수 태그별로 확신 높음(4~5)/낮음(1~3) 건수와 순손익을 집계해 "어떤 실수가 어떤 확신대에서 나왔나"를 본다. **평균 확신이 높은 실수(⚠️)는 확신이 셀 때(과신) 저지른 실수**라 더 위험하다고 표기. 셋업×확신(`convictionBySetup`)과 공용 엔진(`convictionByTag`).
+- 검증: 테스트 breakdown 8·tags 13(신규 rowKeyOf·convictionByMistake 포함)·전체 통과·tsc 0·build. 헤드리스 390px(실 positionId에 셋업·실수·확신 시드, `/api/sync` 차단 읽기 전용) — **분해 표 행 클릭→드릴다운·실수×확신 카드 렌더 확인**.
+
+## 2026-10-06 (108차) — 매매일지 복기 심화 3종(히트맵 칸 드릴다운·셋업×확신·목표선 계단식)
+
+project-state nextActions 3건 구현(참고: TraderSync·Edgewonk). 전부 순수함수+테스트 고정 → 헤드리스 실데이터 검증.
+- **히트맵 칸 클릭 → 드릴다운**(`components/WeekdayHourHeatmap` + `lib/tradeBreakdown.bandOf`): 요일×시간대 칸을 누르면 그 칸에 진입한 매매 목록이 펼쳐짐(집계와 같은 진입 시각·KST·`bandOf` 공용). 참고 TraderSync drill-down.
+- **셋업 × 확신 교차**(`lib/tradeTags.convictionBySetup` + `components/SetupConvictionCard`): 셋업별로 확신 높음(4~5)/낮음(1~3) 건당 성적을 비교, 양쪽 3건+면 **calibration 판정**(✅ 확신 높을 때 더 좋음=확신이 맞음 / ⚠️ 과신 가능). 참고 Edgewonk.
+- **자산 곡선 월 목표선 계단식 토글**(`components/EquityCurve` + `lib/journalAnalytics.goalLine`): 기존 선형(30일 환산)에 더해 **계단식**(달력 월 경계마다 목표 누적 — 1달째 목표, 2달째 2×목표, Recharts `stepAfter`) 선택. 토글은 목표값 입력 시 노출.
+- 검증: 테스트 breakdown·tags·journalAnalytics(신규 bandOf·convictionBySetup·goalLine)·전체 통과·tsc 0·build. 헤드리스 390px(실 positionId·태그 시드, `/api/sync` 차단) — 세 카드 렌더·히트맵 칸 클릭→드릴다운 확인.
+
+## 2026-10-06 (107차) — 코인 거시 배경(10년물·DXY·실질금리) + 공부법 보강
+
+사용자 제공 교육자료(미국 10년물·DXY·코인 정리)를 반영. **배경 환경일 뿐 매매 신호가 아니므로 룰 엔진 점수에는 넣지 않고** 화면·AI 맥락으로만.
+- **코인선물 분석 › 🌐 거시 배경 카드**(`lib/coinMacroContext.readMacroBias` + `app/coin-analysis`): 美 10년물·실질금리(TIPS)·DXY가 같은 방향인지로 **순풍(롱 우호)/맞바람(숏 우호)/엇갈림**을 판정. 수치는 네이버 실시간(실패 시 FRED), 실질금리는 FRED `DFII10`(`lib/brief.coinMacroRates`). 화살표는 방향만 중립색, 순풍/맞바람 배지가 좋고 나쁨을 전함. "매매 신호 아님" 명시.
+- **AI 분석 프롬프트에 거시 맥락 + 【거시 배경】 항목** 주입 — AI가 금리·달러가 지금 코인에 순풍인지 맞바람인지, 왜 금리가 움직이는지(완화 기대 vs 재정·수급)를 환경 설명으로 짚음(매매 권유 아님).
+- **공부법 `/study/macro` 보강**: 새 과정 "금리·달러·실질금리를 묶어서 — 같은 방향인지 확인"(10Y×DXY 조합표 + 암기 문장 + 상황별 시나리오표) + 금리 과정에 "왜 금리가 쉽게 안 내려오나"(기간 프리미엄·국채 수급·커브 스티프닝).
+- 검증: 테스트 coinMacroContext 9(신규)·전체 통과·tsc 0·build. 로컬 API 실측 `macro` 필드(10Y·DXY·실질금리 방향 판정) 정상. ⚠️ AI 요약 문장은 Anthropic 크레딧 충전 시 작동(기존 환경 이슈).
+
 ## 2026-10-06 (106차) — 매매일지 복기 3종(요일×시간대 히트맵·월 목표선·확신별 성적)
 
 project-state nextActions 3건 구현(참고: TraderSync·Edgewonk). 전부 순수함수+테스트 고정 → 헤드리스 실데이터 검증.

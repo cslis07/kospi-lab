@@ -33,6 +33,9 @@ export function kstParts(ts: number): { wd: number; hour: number } {
   return { wd: d.getUTCDay(), hour: d.getUTCHours() };
 }
 
+/** KST 시(0~23) → HOUR_BANDS 인덱스(해당 없으면 -1). 히트맵 집계·칸 드릴다운이 같은 기준을 쓰게 공용화 */
+export const bandOf = (hour: number): number => HOUR_BANDS.findIndex((b) => hour >= b.from && hour < b.to);
+
 export interface BreakItem {
   ts: number;
   symbol: string;
@@ -101,7 +104,7 @@ export function weekdayHourHeatmap(items: BreakItem[], thinAt = THIN_SAMPLE): He
   const map = new Map<string, BreakItem[]>();
   for (const it of items) {
     const { wd, hour } = kstParts(it.ts);
-    const band = HOUR_BANDS.findIndex((b) => hour >= b.from && hour < b.to);
+    const band = bandOf(hour);
     if (band < 0) continue;
     const k = `${wd}-${band}`;
     const arr = map.get(k); if (arr) arr.push(it); else map.set(k, [it]);
@@ -127,8 +130,7 @@ export function weekdayHourHeatmap(items: BreakItem[], thinAt = THIN_SAMPLE): He
 /** 시간대별(KST 4시간 단위) — 이른 시간부터 */
 export function byHourBand(items: BreakItem[], thinAt = THIN_SAMPLE): BreakRow[] {
   return bucket(items, (i) => {
-    const { hour } = kstParts(i.ts);
-    const idx = HOUR_BANDS.findIndex((b) => hour >= b.from && hour < b.to);
+    const idx = bandOf(kstParts(i.ts).hour);
     return { key: `h${idx}`, label: HOUR_BANDS[idx].label, order: idx };
   }, thinAt).sort((a, b) => a.order - b.order);
 }
@@ -156,20 +158,42 @@ export function byStopPresence(items: BreakItem[], thinAt = THIN_SAMPLE): BreakR
     .sort((a, b) => a.order - b.order);
 }
 
+/** 진입 규모 분위수 경계 [q1,q2,q3] — 매매가 4건 미만이면 null. byNotionalQuartile·rowKeyOf 공용(칸↔행 일치) */
+export function notionalQuartileEdges(items: BreakItem[]): [number, number, number] | null {
+  const vals = items.map((i) => i.notional).filter((x): x is number => x != null && x > 0).sort((a, b) => a - b);
+  if (vals.length < 4) return null;
+  const q = (f: number) => vals[Math.min(vals.length - 1, Math.floor(vals.length * f))];
+  return [q(0.25), q(0.5), q(0.75)];
+}
+const notionalBand = (n: number, [q1, q2, q3]: [number, number, number]) => (n < q1 ? 0 : n < q2 ? 1 : n < q3 ? 2 : 3);
+
 /** 진입 규모 분위수(작은 25% ~ 큰 25%)별 — 계좌 규모와 무관하게 '내 매매 중 크게 건 쪽'을 본다(참고: TraderSync) */
 export function byNotionalQuartile(items: BreakItem[], thinAt = THIN_SAMPLE): BreakRow[] {
-  const vals = items.map((i) => i.notional).filter((x): x is number => x != null && x > 0).sort((a, b) => a - b);
-  if (vals.length < 4) return [];                      // 분위수로 나눌 만큼 안 모임
-  const q = (f: number) => vals[Math.min(vals.length - 1, Math.floor(vals.length * f))];
-  const q1 = q(0.25), q2 = q(0.5), q3 = q(0.75);
-  const band = (n: number) => (n < q1 ? 0 : n < q2 ? 1 : n < q3 ? 2 : 3);
+  const edgesN = notionalQuartileEdges(items);
+  if (!edgesN) return [];                              // 분위수로 나눌 만큼 안 모임
+  const [q1, q2, q3] = edgesN;
   const money = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(Math.round(n)));
   const edges = [`~${money(q1)}`, `${money(q1)}~${money(q2)}`, `${money(q2)}~${money(q3)}`, `${money(q3)}~`];
   const names = ['작은(하위25%)', '중하', '중상', '큰(상위25%)'];
   return bucket(items.filter((i) => i.notional != null && i.notional > 0), (i) => {
-    const b = band(i.notional!);
+    const b = notionalBand(i.notional!, edgesN);
     return { key: `nq${b}`, label: `${names[b]} ${edges[b]}`, order: b };
   }, thinAt).sort((a, b) => a.order - b.order);
+}
+
+/* ── 행 드릴다운 — 한 매매가 각 탭에서 속하는 행 key(분해 표 행 클릭 → 그 매매 목록) ────────
+ * bucket keyOf 와 반드시 같은 key 를 돌려줘야 행↔목록이 어긋나지 않는다. 그 탭에서 빠지면 null. */
+export type BreakTab = 'wd' | 'hour' | 'sym' | 'side' | 'hold' | 'stop' | 'size';
+export function rowKeyOf(tab: BreakTab, i: BreakItem, sizeEdges?: [number, number, number] | null): string | null {
+  switch (tab) {
+    case 'wd': return `wd${kstParts(i.ts).wd}`;
+    case 'hour': { const b = bandOf(kstParts(i.ts).hour); return b < 0 ? null : `h${b}`; }
+    case 'sym': return i.symbol;
+    case 'side': return i.side === 'long' ? 'long' : i.side === 'short' ? 'short' : null;
+    case 'hold': return i.holdMs != null && i.holdMs > 0 ? `hb${holdBandIndex(i.holdMs)}` : null;
+    case 'stop': return i.hasStop === true ? 'stop' : i.hasStop === false ? 'nostop' : null;
+    case 'size': return i.notional != null && i.notional > 0 && sizeEdges ? `nq${notionalBand(i.notional, sizeEdges)}` : null;
+  }
 }
 
 /** 종목별 — 건수 많은 순, 같으면 합계 큰 순 */

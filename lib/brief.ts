@@ -442,3 +442,14 @@ export async function krMacro(): Promise<MacroNum[]> {
 export async function marketMacro(market: BriefMarket): Promise<MacroNum[]> {
   return market === 'coin' ? coinMacro() : market === 'us' ? usMacro() : krMacro();
 }
+
+/**
+ * 코인 거시 배경용 3종(10년물·DXY·10년 실질금리) 가벼운 수집.
+ * 10Y·DXY 는 네이버 실시간(실패 시 FRED 폴백), 실질금리(TIPS, DFII10)는 FRED 전용.
+ * coinAnalysis 라우트가 [[coinMacroContext]] readMacroBias 입력으로 쓴다(수급 전체 재조회 회피).
+ */
+export interface CoinMacroRates { us10: MacroNum | null; dxy: MacroNum | null; realYield: FredPoint | null }
+export async function coinMacroRates(): Promise<CoinMacroRates> {
+  const [us10v, dxyv, ry] = await Promise.all([us10(), dxyNum(), fredLatest('DFII10')]);
+  return { us10: us10v, dxy: dxyv, realYield: ry };
+}
