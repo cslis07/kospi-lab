@@ -277,6 +277,18 @@ export default function JournalPage() {
     setEditing(null);
   };
 
+  // 복기 목차 — 실제로 렌더되는 카드만(데이터 없으면 칩도 없음)
+  const tocItems = ([
+    breakItems.length > 0 && { id: 'sec-breakdown', label: '손익 분해' },
+    heatmap.cells.length > 0 && { id: 'sec-heatmap', label: '요일×시간대' },
+    positions.length > 0 && { id: 'sec-stats', label: '성적·곡선·비용' },
+    (setupStats.length > 0 || mistakeStats.length > 0) && { id: 'sec-tagstat', label: '태그별 성적' },
+    convStatsAll.length > 0 && { id: 'sec-conviction', label: '확신 보정' },
+    convBySetup.length > 0 && { id: 'sec-setupconv', label: '셋업×확신' },
+    convByMistake.length > 0 && { id: 'sec-mistakeconv', label: '실수×확신' },
+    months.length > 0 && { id: 'sec-months', label: '월별' },
+  ].filter(Boolean)) as { id: string; label: string }[];
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       <div className="mb-4">
@@ -300,6 +312,19 @@ export default function JournalPage() {
           <p className="text-[var(--faint)]">전부 과거 기록 복기이며 방향 예측·매매 신호가 아닙니다. 태그·확신은 이 기기에 저장(선택 시 기기 간 동기화)됩니다.</p>
         </div>
       </details>
+
+      {/* 복기 목차 — 카드로 바로가기(앵커) */}
+      {tocItems.length > 1 && (
+        <nav aria-label="복기 목차" className="flex items-center gap-1.5 flex-wrap mb-3">
+          <span className="text-[10px] text-[var(--text-muted)] shrink-0">바로가기</span>
+          {tocItems.map((t) => (
+            <a key={t.id} href={`#${t.id}`}
+              className="px-2 py-1 rounded-lg border border-[var(--border)] text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-hover)] transition-colors">
+              {t.label}
+            </a>
+          ))}
+        </nav>
+      )}
 
       {/* 기간 + 가져오기 */}
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
@@ -365,6 +390,7 @@ export default function JournalPage() {
 
       {/* 손익 분해 — 요일·시간대·종목별(청산 건). 행을 누르면 그 구간 매매가 펼쳐짐 */}
       {positions.length > 0 && (
+        <div id="sec-breakdown" className="scroll-mt-16">
         <BreakdownTables items={breakItems} unit="USDT" valueLabel="순손익" fmt={fmtPnl}
           sub={`최근 ${days}일 청산 ${positions.length}건 · 진입 시각(KST) 기준`}
           selectedRow={selRow} onSelectRow={setSelRow}
@@ -373,20 +399,23 @@ export default function JournalPage() {
               note="행을 누르면 기분·태그·스냅샷 기록"
               onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelRow(null)} />
           )} />
+        </div>
       )}
 
       {/* 요일 × 시간대 히트맵 — 어느 요일·시간에 벌고 잃었나 (칸 클릭 → 그 칸 매매 드릴다운) */}
       {positions.length > 0 && heatmap.cells.length > 0 && (
+        <div id="sec-heatmap" className="scroll-mt-16">
         <WeekdayHourHeatmap h={heatmap} fmt={fmtPnl} sub={`최근 ${days}일 · 진입 시각(KST) 기준`}
           selected={selCell} onSelect={(c) => setSelCell((cur) => (cur && cur.wd === c.wd && cur.band === c.band ? null : c))}
           detail={<BucketTrades title={selCell ? `${WEEKDAYS[selCell.wd]}요일 ${HOUR_BANDS[selCell.band].label}` : null} trades={cellTrades}
             moods={moods} tags={tags} snapIds={snaps.ids} note="진입 시각(KST) 기준 · 행을 누르면 기분·태그·스냅샷 기록"
             onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelCell(null)} />} />
+        </div>
       )}
 
       {/* 자산 곡선 · 연속 승패 · 일별 손익 달력 — 청산 시각 기준 실현손익 */}
       {positions.length > 0 && (
-        <>
+        <div id="sec-stats" className="scroll-mt-16">
           {(streak.maxWin > 0 || streak.maxLoss > 0) && (
             <div className="fin-card px-4 py-3 mb-3 flex items-center gap-4 text-[12px] flex-wrap">
               <span className="font-bold text-[var(--text)]">연속 승/패</span>
@@ -410,12 +439,12 @@ export default function JournalPage() {
           <CalendarHeatmap trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} selected={selDay} onSelect={setSelDay}
             detail={<DayTrades date={selDay} trades={dayTrades} moods={moods} tags={tags} snapIds={snaps.ids}
               onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelDay(null)} />} />
-        </>
+        </div>
       )}
 
       {/* 셋업·실수 태그별 성적 — 어떤 셋업이 돈이 되고 어떤 실수가 깎나 */}
       {positions.length > 0 && (setupStats.length > 0 || mistakeStats.length > 0) && (
-        <section className="mb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <section id="sec-tagstat" className="scroll-mt-16 mb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <TagStatTable title="셋업별 성적" sub="왜 들어갔나" stats={setupStats} />
           <TagStatTable title="실수별 성적" sub="무엇을 잘못했나" stats={mistakeStats} />
         </section>
@@ -428,7 +457,7 @@ export default function JournalPage() {
 
       {/* 확신 복기 기간 토글 — 전체 vs 이번 달(교차표·코칭에만 적용) */}
       {positions.length > 0 && convStatsAll.length > 0 && (
-        <div className="flex items-center gap-2 mb-2 px-1">
+        <div id="sec-conviction" className="scroll-mt-16 flex items-center gap-2 mb-2 px-1">
           <span className="text-[11px] text-[var(--text-muted)]">확신 복기 기간</span>
           <div className="seg" role="tablist" aria-label="확신 복기 기간">
             {([['all', '전체'], ['month', '이번 달']] as const).map(([k, l]) => (
@@ -468,17 +497,21 @@ export default function JournalPage() {
 
       {/* 셋업 × 확신 교차 — 어떤 셋업에서 확신이 잘 맞았나 */}
       {positions.length > 0 && convBySetup.length > 0 && (
+        <div id="sec-setupconv" className="scroll-mt-16">
         <SetupConvictionCard rows={convBySetup} fmt={fmtUsdt} sub={`최근 ${days}일 · 셋업+확신 둘 다 매긴 매매`} />
+        </div>
       )}
 
       {/* 실수 × 확신 교차 — 어떤 실수가 어떤 확신대에서 나왔나(과신 점검) */}
       {positions.length > 0 && convByMistake.length > 0 && (
+        <div id="sec-mistakeconv" className="scroll-mt-16">
         <SetupConvictionCard kind="mistake" rows={convByMistake} fmt={fmtUsdt} sub={`최근 ${days}일 · 실수+확신 둘 다 매긴 매매`} />
+        </div>
       )}
 
       {/* ③ 월별 보고서 — 접힘 상태로 월 목록만, 월을 누르면 상세 펼침(청산 건만) */}
       {months.length > 0 && (
-        <section className="mb-5">
+        <section id="sec-months" className="scroll-mt-16 mb-5">
           <h2 className="text-sm font-bold text-[var(--text)] mb-2">월별 보고서 <span className="text-[10px] font-normal text-[var(--text-muted)]">월을 누르면 상세가 열립니다</span></h2>
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
             {months.map((m, i) => {
