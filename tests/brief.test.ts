@@ -29,6 +29,31 @@ ok('tagOf: 국가명만 있는 비분쟁 기사는 war 아님', () => {
   assert.notEqual(tagOf('러시아, 신규 가스전 개발 발표'), 'war');
 });
 ok('tagOf: 전쟁+유가 동시면 war 우선', () => assert.equal(tagOf('중동 전쟁으로 유가 급등'), 'war'));
+ok('tagOf: 공격/드론공격/피습/보복 등 지정학 공격 → war', () => {
+  assert.equal(tagOf('미국 본토 공격 위협 고조'), 'war');
+  assert.equal(tagOf('이란, 드론 공격 감행'), 'war');
+  assert.equal(tagOf('송유관 피습으로 가동 중단'), 'war');
+  assert.equal(tagOf('이스라엘 보복 다짐'), 'war');
+  assert.equal(tagOf('US base under attack in region'), 'war');
+});
+ok('tagOf: 공격적/공격수/드론배송 등은 war 오탐 아님', () => {
+  assert.notEqual(tagOf('공격적 투자 전략 주목'), 'war');
+  assert.notEqual(tagOf('손흥민 공격 포인트 추가'), 'war');
+  assert.notEqual(tagOf('드론 배송 상용화 임박'), 'war');
+});
+ok('tagOf: 트럼프·셧다운 → geo (무역전쟁은 "전쟁" 포함이라 war)', () => {
+  assert.equal(tagOf('트럼프, 중국에 추가 관세 경고'), 'geo');
+  assert.equal(tagOf('美 연방정부 셧다운 초읽기'), 'geo');
+  assert.equal(tagOf('미중 무역전쟁 재점화 우려'), 'war'); // 전쟁 포함 → war(⚠️), 어쨌든 노출됨
+});
+ok('newsScore: 지정학·정치 충격은 코인/증시 키워드 없어도 점수(안 버림)', () => {
+  assert.ok((newsScore(news('미국 본토 드론 공격에 시장 출렁', 'CNBC'), 'coin') ?? -1) > 0);
+  assert.ok((newsScore(news('트럼프, 전면 관세 발표', '연합뉴스'), 'us') ?? -1) > 0);
+  assert.ok((newsScore(news('美 셧다운 장기화 우려', '연합뉴스'), 'kr') ?? -1) > 0);
+});
+ok('newsScore: 공격적 투자 같은 오탐은 지정학으로 안 잡혀 제외', () => {
+  assert.equal(newsScore(news('공격적 투자 전략이 뜬다', 'X'), 'coin'), null);
+});
 
 /* ── pickNews ── */
 ok('pickNews(coin): 코인·거시 관련만 추리고 무관은 제외', () => {

@@ -36,7 +36,7 @@ function edgeLine(e: Edge | null): string | null {
   return null;
 }
 
-const TAG_ICON: Record<string, string> = { war: '⚠️', oil: '🛢', rate: '💵' };
+const TAG_ICON: Record<string, string> = { war: '⚠️', oil: '🛢', rate: '💵', geo: '🏛' };
 const TOPIC_STOP = new Set('속보 단독 종합 마켓뷰 투자 투자360 사상 최고 최고가 신고가 경신 전망 코스피 코스닥 나스닥 다우 다우존스 증시 시장 오늘 내년 올해 관련 분석 목표가 유력 이틀째 사흘째 기록 돌파 상승 하락 마감 개장 눈앞 목전 nvidia bitcoin crypto market markets stocks shares record high rally rallies tech news wrap the and for with to of in on as at'.split(' '));
 const topicTokens = (t: string) => new Set(t.replace(/[^가-힣a-z0-9]/gi, ' ').toLowerCase().split(/\s+/).filter((w) => w.length >= 2 && !TOPIC_STOP.has(w)));
 function sameTopic(a: Set<string>, b: Set<string>): boolean {

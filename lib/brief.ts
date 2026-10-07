@@ -32,7 +32,7 @@ export interface MacroNum {
   delayMin?: number;          // 시세 지연(분)
   group?: 'lead' | 'market' | 'macro' | 'crypto'; // 선행 / 시장 / 거시 / 코인 수급
 }
-export type NewsTag = 'war' | 'oil' | 'rate' | null;
+export type NewsTag = 'war' | 'oil' | 'rate' | 'geo' | null;
 export interface BriefNews { title: string; link: string; source: string; tag: NewsTag; ts: number | null }
 export interface BriefEvent { date: string; title: string; importance: string; country: string }
 export interface BriefAi {
@@ -54,7 +54,10 @@ export interface BriefData {
 
 /* ── 태그·관련도 정규식 ─────────────────────────────── */
 // 국가명만으로는 잡지 않는다(예: "Russia plague"는 전염병 기사) — 분쟁 맥락 단어·분쟁 당사자 중심.
-export const WAR_RE = /전쟁|공습|공세|미사일|침공|교전|분쟁|지정학|휴전|정전협정|도발|포격|테러|핵실험|하마스|헤즈볼라|호르무즈|가자지구|제재|\bwar\b|warfare|invasion|airstrike|\bmissile\b|ceasefire|militant|\bconflict\b|geopolit|sanction/i;
+// '공격'은 공격적(aggressive)·공격수(스포츠) 오탐을 피해 '공격받/본토 공격/드론 공격' 등 구체 표현만.
+export const WAR_RE = /전쟁|공습|공세|미사일|침공|교전|분쟁|지정학|휴전|정전협정|도발|포격|폭격|피습|피격|테러|핵실험|보복|무력충돌|본토 ?공격|공격받|드론 ?(?:공격|피격|타격|침투|격추)|하마스|헤즈볼라|호르무즈|가자지구|제재|\bwar\b|warfare|invasion|airstrike|\bmissile\b|drone (?:strike|attack)|\battack(?:ed|s)?\b|retaliat|ceasefire|militant|\bconflict\b|geopolit|sanction/i;
+// 시장을 움직이는 정치·정책 충격(전쟁과 별개) — 트럼프 발언·무역전쟁·셧다운 등. 'geo' 태그.
+export const POLITIC_RE = /트럼프|백악관|무역전쟁|관세 폭탄|셧다운|연방정부 폐쇄|행정명령|\btrump\b|white house|trade war|\bshutdown\b|executive order/i;
 export const OIL_RE = /유가|원유|석유|정유|감산|증산|OPEC|WTI|브렌트|\boil\b|crude|petroleum|배럴/i;
 export const RATE_RE = /금리|국채|수익률|연준|FOMC|기준금리|인플레|물가|CPI|PCE|고용|실업|긴축|완화|\bfed\b|yield|treasur(?:ies|y (?:yield|bond|note|bill|market|auction)s?)|\brate\b|inflation|jobs|payroll/i;
 
@@ -82,6 +85,7 @@ const sourceW = (s: string) => SOURCE_W[s] ?? 1;
 
 export function tagOf(title: string): NewsTag {
   if (WAR_RE.test(title)) return 'war';
+  if (POLITIC_RE.test(title)) return 'geo';
   if (OIL_RE.test(title)) return 'oil';
   if (RATE_RE.test(title)) return 'rate';
   return null;
@@ -107,7 +111,8 @@ export function newsScore(n: NewsItem, market: BriefMarket, now: number = Date.n
   const t = n.title || '';
   if (!t || !n.link || NOISE_RE.test(t)) return null;
   const core = CORE_RE[market].test(t);
-  const macro = MACRO_RE.test(t);
+  // 거시 + 지정학(전쟁·공격) + 정치 충격(트럼프·무역전쟁·셧다운)도 '시장 영향 요인'으로 점수에 넣는다
+  const macro = MACRO_RE.test(t) || WAR_RE.test(t) || POLITIC_RE.test(t);
   if (!core && !macro) return null;
   // 코인: 국내 일반 매체의 거시 기사(코인 언급 없음)는 뺀다 — 코인 맥락은 해외 전문 매체·코인 기사로
   if (market === 'coin' && !core && n.category === 'domestic') return null;

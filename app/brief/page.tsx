@@ -28,6 +28,7 @@ const GROUPS: { key: NonNullable<MacroNum['group']>; label: string; desc: string
 
 const TAG_STYLE: Record<Exclude<NewsTag, null>, { label: string; cls: string }> = {
   war: { label: '지정학', cls: 'bg-[var(--warn-soft)] text-[var(--warn)]' },
+  geo: { label: '정치', cls: 'bg-[var(--warn-soft)] text-[var(--warn)]' },
   oil: { label: '유가', cls: 'bg-amber-500/15 text-amber-400' },
   rate: { label: '금리', cls: 'bg-[var(--accent-soft)] text-[var(--accent)]' },
 };
