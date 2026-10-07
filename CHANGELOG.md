@@ -2,6 +2,13 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-07 (115차) — 모닝 브리핑 Vercel 정시 발송 cutover 완료
+
+113차 Vercel 크론 발송을 실측 검증하고 GitHub 발송을 제거해 이중 발송을 막음.
+- 사용자가 Vercel env(`CRON_SECRET`·`TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID`) 설정 후 재배포. **"kospi lab" 그룹(chat_id `-5009047152`, GetIDs Bot으로 확보)으로 Vercel 라우트 실발송 성공 확인**(그룹 수신 확인).
+- `brief-warm.yml`의 'Send to Telegram' 스텝 **제거** — 이제 텔레그램 발송은 **Vercel 크론(07:30 KST, Hobby는 지정 시각 ±1시간)** 하나만. GitHub 크론은 CDN 워밍만(백업).
+- 효과: GitHub 크론 수 시간 지각(07:30→11:21 실측) 문제 해소, 정시 발송.
+
 ## 2026-10-07 (114차) — 코인 판정 기록도 저장 직후 태거 자동 펼침(주식과 통일)
 
 - `/coin-analysis` 매매일지(R 기록) 목록의 각 기록에 **🏷 태그**(셋업·실수·확신 1~5) 인라인 입력 + **저장 직후 자동 펼침** — 112차 /stock-analysis와 동일 UX(공용 `components/TagPicker`). 태그는 R-기록에 저장되어 `/performance` 셋업×확신·실수×확신 교차표(R)에 코인·주식 모두 집계.

@@ -1,10 +1,9 @@
 name: brief-warm
 
-# 모닝 브리핑 미리 생성·CDN 데우기 + 텔레그램 발송 — 매일 07:30 KST(22:30 UTC).
+# 모닝 브리핑 미리 생성·CDN 데우기 — 매일 07:30 KST(22:30 UTC).
 # /api/brief 는 온디맨드 생성(Gemini) + CDN 캐시라, 아침에 한 번 불러두면 사용자가 열 때 즉시 뜬다.
-# ⚠️ 정시 발송은 Vercel 크론(vercel.json crons → /api/brief/telegram)으로 이관 중.
-#    Vercel env(CRON_SECRET·TELEGRAM_*) 설정·검증 전까지는 여기서도 발송(브리핑 누락 방지).
-#    Vercel 발송이 확인되면 아래 'Send to Telegram' 스텝을 제거해 이중 발송을 막는다.
+# ✅ 텔레그램 발송은 Vercel 크론(vercel.json crons → /api/brief/telegram)이 담당(cutover 완료, 2026-10-07).
+#    GitHub 크론은 수 시간 지각이라 정시성은 Vercel. 여기선 CDN 워밍만(백업).
 
 on:
   schedule:
@@ -37,13 +36,4 @@ jobs:
           done
           # 페이지 셸도 한 번 데운다
           curl -s -o /dev/null --max-time 30 "$BASE/brief" || true
-
-      # ⚠️ Vercel 크론(/api/brief/telegram) 검증 후 이 스텝을 제거해 이중 발송을 막는다(cutover).
-      - name: Send to Telegram
-        env:
-          BRIEF_BASE: https://kospi-lab.vercel.app
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          KL_TELEGRAM_BOT_TOKEN: ${{ secrets.KL_TELEGRAM_BOT_TOKEN }}
-          KL_TELEGRAM_CHAT_ID: ${{ secrets.KL_TELEGRAM_CHAT_ID }}
-        run: npx --yes tsx scripts/briefTelegram.mts
+          # 텔레그램 발송은 Vercel 크론(/api/brief/telegram)이 담당(cutover 완료). 여기선 워밍만.
