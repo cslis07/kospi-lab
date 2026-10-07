@@ -11,6 +11,8 @@ const CoinCandleChart = dynamic(() => import('@/components/CoinCandleChart'), {
   loading: () => <div className="h-72 rounded-xl bg-white/5 animate-pulse" aria-label="차트 로딩 중" />,
 });
 import { useCoinJournal } from '@/hooks/useCoinJournal';
+import { SETUPS, MISTAKES } from '@/lib/tradeTags';
+import { TagPickRow, ConvictionPickRow } from '@/components/TagPicker';
 const WhaleLiquidationPanel = dynamic(() => import('@/components/WhaleLiquidationPanel'), { ssr: false });
 import { useCoinAlerts } from '@/hooks/useCoinAlerts';
 import BriefingModelPicker from '@/components/BriefingModelPicker';
@@ -758,8 +760,9 @@ export default function CoinAnalysisPage() {
   const saveToJournal = () => {
     if (!data || !v) return;
     const sz = sizingRef.current;
+    const ts = Date.now();
     journal.add({
-      ts: Date.now(), symbol: data.symbol, name: data.name,
+      ts, symbol: data.symbol, name: data.name,
       direction: v.direction, state: v.state, score: v.score, price: data.price,
       entry: v.entry, stop: v.stop, target1: v.target1, target2: v.target2,
       // 사용자가 리스크 패널에서 실제 설정한 배율 — 없으면(패널 미표시) 엔진 권장값으로 폴백
@@ -767,6 +770,17 @@ export default function CoinAnalysisPage() {
       seedUsdt: sz?.seed ?? null, riskPct: sz?.riskPct ?? null, notionUsdt: sz?.notion ?? null,
       reasonsTop: v.reasons.slice(0, 3),
     });
+    setTagOpen(`${data.symbol}-${ts}`); // 저장 직후 복기 태그 입력 유도(주식과 통일)
+  };
+  const [tagOpen, setTagOpen] = useState<string | null>(null);
+  const toggleTag = (id: string, kind: 'setups' | 'mistakes', key: string) => {
+    const cur = journal.entries.find((e) => e.id === id);
+    const list = (cur?.[kind] ?? []) as string[];
+    journal.update(id, { [kind]: list.includes(key) ? list.filter((k) => k !== key) : [...list, key] });
+  };
+  const pickConv = (id: string, lv: number) => {
+    const cur = journal.entries.find((e) => e.id === id);
+    journal.update(id, { conviction: cur?.conviction === lv ? undefined : lv });
   };
 
   const toggleAlert = async (kind: 'entry' | 'long' | 'short') => {
@@ -1676,10 +1690,13 @@ export default function CoinAnalysisPage() {
               <p className="text-xs text-[var(--text-muted)] py-4 text-center">아직 기록이 없습니다. 판정 카드의 &ldquo;📓 매매일지 기록&rdquo;으로 현재 분석을 저장하고, 결과를 나중에 입력해 복기하세요.</p>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {journal.entries.map((e) => (
+                {journal.entries.map((e) => {
+                  const tagEmojis = [...(e.setups ?? []).map((k) => SETUPS.find((s) => s.key === k)?.emoji), ...(e.mistakes ?? []).map((k) => MISTAKES.find((s) => s.key === k)?.emoji)].filter(Boolean);
+                  const tOpen = tagOpen === e.id;
+                  return (
                   <div key={e.id} className="rounded-xl border border-[var(--border)] p-3">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2 text-xs">
+                      <div className="flex items-center gap-2 text-xs flex-wrap">
                         <span className="font-bold text-[var(--text)]">{e.name}</span>
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                           e.direction === 'long' ? 'bg-emerald-500/15 text-emerald-400' : e.direction === 'short' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'
@@ -1689,13 +1706,19 @@ export default function CoinAnalysisPage() {
                           <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-400">자동판정</span>
                         )}
                         <span className="text-[10px] text-[var(--text-muted)]">{new Date(e.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        {e.conviction != null && <span className="text-[10px] text-[var(--text-muted)]">확신 {e.conviction}</span>}
+                        {tagEmojis.length > 0 && <span className="text-[11px]">{tagEmojis.join('')}</span>}
                       </div>
-                      <button
-                        onClick={() => {
-                          // 실거래 기록이고 되돌리기가 없으므로 확인을 받는다 (모바일 오탭 방지)
-                          if (confirm(`${e.name} ${new Date(e.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 기록을 삭제할까요?\n되돌릴 수 없습니다.`)) journal.remove(e.id);
-                        }}
-                        className="text-[10px] text-[var(--text-muted)] hover:text-red-400">삭제</button>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setTagOpen(tOpen ? null : e.id)}
+                          className={`px-1.5 py-0.5 rounded border text-[10px] ${tOpen || tagEmojis.length || e.conviction != null ? 'border-sky-500/40 text-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'}`}>🏷 태그</button>
+                        <button
+                          onClick={() => {
+                            // 실거래 기록이고 되돌리기가 없으므로 확인을 받는다 (모바일 오탭 방지)
+                            if (confirm(`${e.name} ${new Date(e.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 기록을 삭제할까요?\n되돌릴 수 없습니다.`)) journal.remove(e.id);
+                          }}
+                          className="text-[10px] text-[var(--text-muted)] hover:text-red-400">삭제</button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-3 mt-1.5 text-[10px] text-[var(--text-muted)] tabular-nums">
                       <span>진입 ${fmtP(e.price, e.price < 10 ? 4 : e.price < 1000 ? 2 : 1)}</span>
@@ -1735,8 +1758,18 @@ export default function CoinAnalysisPage() {
                         </>
                       )}
                     </div>
+                    {/* 복기 태그 — 저장 직후 자동으로 열려 셋업·실수·확신을 바로 매긴다(성과 교차표에 집계) */}
+                    {tOpen && (
+                      <div className="mt-2 pt-2 border-t border-[var(--border)] space-y-2">
+                        <TagPickRow label="셋업" metas={SETUPS} active={e.setups ?? []} onToggle={(k) => toggleTag(e.id, 'setups', k)} tone="var(--accent)" />
+                        <TagPickRow label="실수" metas={MISTAKES} active={e.mistakes ?? []} onToggle={(k) => toggleTag(e.id, 'mistakes', k)} tone="var(--amber)" />
+                        <ConvictionPickRow value={e.conviction} onPick={(lv) => pickConv(e.id, lv)} />
+                        <p className="text-[10px] text-[var(--faint)]">복기용 태그 — <a href="/performance" className="underline hover:text-[var(--text-muted)]">성과</a>에서 셋업×확신·실수×확신으로 집계됩니다. 방향 예측 아님.</p>
+                      </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
                 {journal.entries.length > 0 && (
                   <button
                     onClick={() => { if (confirm(`매매일지 ${journal.entries.length}건을 전부 삭제할까요?\n되돌릴 수 없습니다. 먼저 '가상투자·백업'에서 내보내기를 권장합니다.`)) journal.clear(); }}
