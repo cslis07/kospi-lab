@@ -2,7 +2,9 @@ name: brief-warm
 
 # 모닝 브리핑 미리 생성·CDN 데우기 + 텔레그램 발송 — 매일 07:30 KST(22:30 UTC).
 # /api/brief 는 온디맨드 생성(Gemini) + CDN 캐시라, 아침에 한 번 불러두면 사용자가 열 때 즉시 뜬다.
-# 데운 뒤 그 결과를 "kospi lab" 그룹으로 보낸다(scripts/briefTelegram.mts, coinTrack 과 같은 봇).
+# ⚠️ 정시 발송은 Vercel 크론(vercel.json crons → /api/brief/telegram)으로 이관 중.
+#    Vercel env(CRON_SECRET·TELEGRAM_*) 설정·검증 전까지는 여기서도 발송(브리핑 누락 방지).
+#    Vercel 발송이 확인되면 아래 'Send to Telegram' 스텝을 제거해 이중 발송을 막는다.
 
 on:
   schedule:
@@ -36,6 +38,7 @@ jobs:
           # 페이지 셸도 한 번 데운다
           curl -s -o /dev/null --max-time 30 "$BASE/brief" || true
 
+      # ⚠️ Vercel 크론(/api/brief/telegram) 검증 후 이 스텝을 제거해 이중 발송을 막는다(cutover).
       - name: Send to Telegram
         env:
           BRIEF_BASE: https://kospi-lab.vercel.app

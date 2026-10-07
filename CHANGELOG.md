@@ -2,6 +2,15 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-07 (113차) — 모닝 브리핑 텔레그램 정시화(Vercel 크론 이관)
+
+**증상:** 모닝 브리핑 알림이 07:30에 안 옴. **원인:** GitHub Actions 크론이 수 시간 지각(실측: 목표 07:30 KST인데 11:21 KST 발화) — 무료 러너 예약 실행의 공식 한계(지연·누락).
+- **발송 로직 공용화** `lib/briefTelegram.ts`: 기존 `scripts/briefTelegram.mts` 의 메시지 빌드·발송을 순수(fetch만) 모듈로 추출. 스크립트는 얇은 래퍼(미리보기 `BRIEF_TG_DRY=1` 유지)로.
+- **Vercel 크론 라우트** `app/api/brief/telegram/route.ts`: `CRON_SECRET`(Bearer) 보호. `vercel.json crons`에 `{ /api/brief/telegram, '30 22 * * *' }` 등록 — Vercel 크론은 GitHub보다 정시성이 높다(Hobby는 지정 시각 ±1시간 내).
+- **이중 발송 방지(점진적 cutover):** Vercel env(`CRON_SECRET`·`TELEGRAM_BOT_TOKEN`·`KL_TELEGRAM_CHAT_ID`) 설정·검증 전까지는 GitHub 발송도 유지(브리핑 누락 방지). Vercel 발송 확인 후 `brief-warm.yml`의 'Send to Telegram' 스텝 제거 예정.
+- **⚠️ 사용자 작업:** Vercel 프로젝트 환경변수에 `CRON_SECRET`(임의 문자열)·`TELEGRAM_BOT_TOKEN`·`KL_TELEGRAM_CHAT_ID`(= Actions Secrets 값) 추가 후 재배포. 미설정 시 라우트는 503(`CRON_SECRET 미설정`)으로 안전하게 거부.
+- 검증: tsc 0·build(라우트 생성)·스크립트 DRY(공용 lib import 정상, 3,005자). 수동 트리거로 오늘치 발송 확인(ok=true).
+
 ## 2026-10-07 (112차) — 주식 판정 기록 복기 태깅 + 확신 복기 '이번 달' 기간 필터
 
 project-state nextActions 2건 구현(COMPLETENESS 6차는 몇 회차 더 쌓인 뒤로 보류). 헤드리스 실데이터 검증.
