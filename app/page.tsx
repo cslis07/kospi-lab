@@ -8,6 +8,7 @@
 import { Suspense } from 'react';
 import NaverHome from '@/components/home/naver/NaverHome';
 import PcMarketSections from '@/components/home/naver/PcMarketSections';
+import MyReviewLine from '@/components/home/MyReviewLine';
 
 const ROLE_TEXT = (
   <>
@@ -20,6 +21,7 @@ const ROLE_TEXT = (
 function DashboardInner() {
   return (
     <>
+      <MyReviewLine />
       <NaverHome />
       {/* 모든 폭 — 실시간 랭킹·산업 트렌드·리서치·테마 ETF·시장지표를 부제목 기준으로 모두 노출(섹션별 지연 마운트) */}
       <PcMarketSections />
