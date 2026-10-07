@@ -15,6 +15,8 @@ import LivePriceTag from '@/components/LivePriceTag';
 import SourceStatus, { type SourceStat } from '@/components/SourceStatus';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 import { useStockJournal } from '@/hooks/useStockJournal';
+import { SETUPS, MISTAKES } from '@/lib/tradeTags';
+import { TagPickRow, ConvictionPickRow } from '@/components/TagPicker';
 
 import { jsonFetcher, ApiError } from '@/lib/fetcher';
 
@@ -146,14 +148,26 @@ export default function StockAnalysisPage() {
 
   // 판정 기록 (매매일지) — 매수우위 기록은 실시간가로 손절/목표 도달 시 자동 판정
   const journal = useStockJournal();
+  const [tagOpen, setTagOpen] = useState<string | null>(null); // 태그 입력 열린 기록 id
   const saveToJournal = () => {
     if (!data || !v) return;
+    const ts = Date.now();
     journal.add({
-      ts: Date.now(), ticker: data.ticker, name: data.name,
+      ts, ticker: data.ticker, name: data.name,
       stance: v.stance, state: v.state, score: v.score, price: data.price,
       stop: v.stop, target1: v.target1, target2: v.target2,
       reasonsTop: v.reasons.slice(0, 3),
     });
+    setTagOpen(`${data.ticker}-${ts}`); // 저장 직후 복기 태그 입력 유도
+  };
+  const toggleTag = (id: string, kind: 'setups' | 'mistakes', key: string) => {
+    const cur = journal.entries.find((e) => e.id === id);
+    const list = (cur?.[kind] ?? []) as string[];
+    journal.update(id, { [kind]: list.includes(key) ? list.filter((k) => k !== key) : [...list, key] });
+  };
+  const pickConv = (id: string, lv: number) => {
+    const cur = journal.entries.find((e) => e.id === id);
+    journal.update(id, { conviction: cur?.conviction === lv ? undefined : lv });
   };
   useEffect(() => {
     const p = liveTick?.price;
@@ -713,7 +727,10 @@ export default function StockAnalysisPage() {
             ) : (
               <>
                 <div className="space-y-2 max-h-72 overflow-y-auto">
-                  {journal.entries.map((e) => (
+                  {journal.entries.map((e) => {
+                    const tagEmojis = [...(e.setups ?? []).map((k) => SETUPS.find((s) => s.key === k)?.emoji), ...(e.mistakes ?? []).map((k) => MISTAKES.find((s) => s.key === k)?.emoji)].filter(Boolean);
+                    const open = tagOpen === e.id;
+                    return (
                     <div key={e.id} className="rounded-xl bg-white/3 px-3 py-2 text-xs">
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <span className="font-semibold text-[var(--text)]">{e.name}</span>
@@ -722,6 +739,8 @@ export default function StockAnalysisPage() {
                         </span>
                         <span className="text-[var(--text-muted)] tabular-nums">{won(e.price)}원 · 손절 {won(Math.round(e.stop))} · 목표 {won(Math.round(e.target1))}</span>
                         <span className="text-[10px] text-[var(--text-muted)]">{new Date(e.ts).toLocaleDateString('ko-KR')}</span>
+                        {e.conviction != null && <span className="text-[10px] text-[var(--text-muted)]">확신 {e.conviction}</span>}
+                        {tagEmojis.length > 0 && <span className="text-[11px]">{tagEmojis.join('')}</span>}
                         <span className="ml-auto flex items-center gap-1.5">
                           {e.result === 'open' ? (
                             (['win', 'loss', 'even'] as const).map((r) => (
@@ -735,13 +754,24 @@ export default function StockAnalysisPage() {
                               {e.result === 'win' ? '✓ 승' : e.result === 'loss' ? '✗ 패' : '— 본전'}{e.memo ? ` · ${e.memo}` : ''}
                             </span>
                           )}
+                          <button onClick={() => setTagOpen(open ? null : e.id)}
+                            className={`px-1.5 py-0.5 rounded border text-[10px] ${open || tagEmojis.length || e.conviction != null ? 'border-[var(--accent)] text-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'}`}>🏷 태그</button>
                           <button
                             onClick={() => { if (confirm('이 판정 기록을 삭제할까요?\n되돌릴 수 없습니다.')) journal.remove(e.id); }}
                             className="text-[10px] text-[var(--text-muted)] hover:text-red-400">삭제</button>
                         </span>
                       </div>
+                      {open && (
+                        <div className="mt-2 pt-2 border-t border-[var(--line-2)] space-y-2">
+                          <TagPickRow label="셋업" metas={SETUPS} active={e.setups ?? []} onToggle={(k) => toggleTag(e.id, 'setups', k)} tone="var(--accent)" />
+                          <TagPickRow label="실수" metas={MISTAKES} active={e.mistakes ?? []} onToggle={(k) => toggleTag(e.id, 'mistakes', k)} tone="var(--amber)" />
+                          <ConvictionPickRow value={e.conviction} onPick={(lv) => pickConv(e.id, lv)} />
+                          <p className="text-[10px] text-[var(--faint)]">복기용 태그 — <a href="/performance" className="underline hover:text-[var(--text-muted)]">성과</a>에서 셋업×확신·실수×확신으로 집계됩니다. 방향 예측 아님.</p>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <button
                   onClick={() => { if (confirm(`판정 기록 ${journal.entries.length}건을 전부 삭제할까요?\n되돌릴 수 없습니다. 먼저 '가상투자·백업'에서 내보내기를 권장합니다.`)) journal.clear(); }}

@@ -14,9 +14,11 @@ import WeeklyReview from '@/components/WeeklyReview';
 import { ICON } from '@/lib/menu';
 import BreakdownTables, { type BreakRowSel } from '@/components/BreakdownTables';
 import { rowKeyOf, type BreakItem } from '@/lib/tradeBreakdown';
-import { SETUPS, MISTAKES, CONVICTIONS, convictionStats, convictionBySetup, convictionByMistake, convictionCoaching, type TradeTagSet } from '@/lib/tradeTags';
+import { kstMonth } from '@/lib/tradeReport';
+import { SETUPS, MISTAKES, convictionStats, convictionBySetup, convictionByMistake, convictionCoaching, type TradeTagSet } from '@/lib/tradeTags';
 import ConvictionCard from '@/components/ConvictionCard';
 import SetupConvictionCard from '@/components/SetupConvictionCard';
+import { TagPickRow, ConvictionPickRow } from '@/components/TagPicker';
 import type { TradePosition } from '@/lib/tradeReport';
 import { toCsv, downloadCsv, kstDateTime, kstStamp } from '@/lib/csv';
 
@@ -38,27 +40,6 @@ function LinkRow({ href, icon, title, sub }: { href: string; icon: string; title
       </div>
       <svg className="w-4 h-4 text-[var(--faint)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 5l7 7-7 7" /></svg>
     </Link>
-  );
-}
-
-/** 태그 선택 줄(셋업·실수) — 켜지면 tone 색 */
-function TagPickRow({ label, metas, active, onToggle, tone }: {
-  label: string; metas: { key: string; label: string; emoji: string }[]; active: string[]; onToggle: (k: string) => void; tone: string;
-}) {
-  return (
-    <div className="flex items-start gap-1.5 flex-wrap">
-      <span className="text-[10px] text-[var(--text-muted)] w-7 pt-1.5">{label}</span>
-      {metas.map((m) => {
-        const on = active.includes(m.key);
-        return (
-          <button key={m.key} type="button" onClick={() => onToggle(m.key)}
-            className="px-2 py-1 rounded-lg border text-[11px] font-semibold"
-            style={on ? { borderColor: tone, background: `color-mix(in srgb, ${tone} 14%, transparent)`, color: 'var(--text)' } : { borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-            {m.emoji} {m.label}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
@@ -92,16 +73,20 @@ export default function PerformancePage() {
   }, [selRow, entryRows]);
 
   // 복기 교차표 — R 기록에 셋업·실수·확신 태그가 있는 매매만(R은 손절 계획한 매매만)
+  const [convPeriod, setConvPeriod] = useState<'all' | 'month'>('all');
+  const curYM = kstMonth(Date.now());
+  const taggedCountAll = useMemo(() => entryRows.filter((r) => r.disp.setups?.length || r.disp.mistakes?.length || r.disp.conviction != null).length, [entryRows]);
+  const convScopedRows = useMemo(() => (convPeriod === 'month' ? entryRows.filter((r) => kstMonth(r.disp.ts) === curYM) : entryRows), [convPeriod, entryRows, curYM]);
   const rTagged = useMemo(() => {
     const tags: Record<string, TradeTagSet> = {};
     const positions: TradePosition[] = [];
-    for (const r of entryRows) {
+    for (const r of convScopedRows) {
       const e = r.disp;
       if (e.setups?.length || e.mistakes?.length || e.conviction != null) tags[e.id] = { setups: e.setups ?? [], mistakes: e.mistakes ?? [], conviction: e.conviction };
       if (e.resultR != null) positions.push({ positionId: e.id, symbol: e.name, side: 'long', openAvg: 0, closeAvg: 0, netProfit: e.resultR, fee: 0, funding: 0, openTs: e.ts, closeTs: e.ts });
     }
     return { tags, positions, count: Object.keys(tags).length };
-  }, [entryRows]);
+  }, [convScopedRows]);
   const rConvStats = useMemo(() => convictionStats(rTagged.positions, rTagged.tags), [rTagged]);
   const rConvBySetup = useMemo(() => convictionBySetup(rTagged.positions, rTagged.tags), [rTagged]);
   const rConvByMistake = useMemo(() => convictionByMistake(rTagged.positions, rTagged.tags), [rTagged]);
@@ -178,16 +163,7 @@ export default function PerformancePage() {
                     <div className="px-3 pb-3 pt-1 space-y-2 bg-[var(--surface-2)]">
                       <TagPickRow label="셋업" metas={SETUPS} active={d.setups ?? []} onToggle={(k) => setTag(d.market, d.id, 'setups', k)} tone="var(--accent)" />
                       <TagPickRow label="실수" metas={MISTAKES} active={d.mistakes ?? []} onToggle={(k) => setTag(d.market, d.id, 'mistakes', k)} tone="var(--amber)" />
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] text-[var(--text-muted)] w-7">확신</span>
-                        {CONVICTIONS.map((c) => (
-                          <button key={c.level} type="button" onClick={() => setConv(d.market, d.id, c.level)}
-                            className="px-2 py-1 rounded-lg border text-[11px] font-semibold"
-                            style={d.conviction === c.level ? { borderColor: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 14%, transparent)', color: 'var(--text)' } : { borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-                            {c.emoji} {c.level}
-                          </button>
-                        ))}
-                      </div>
+                      <ConvictionPickRow value={d.conviction} onPick={(lv) => setConv(d.market, d.id, lv)} />
                     </div>
                   )}
                 </div>
@@ -195,6 +171,22 @@ export default function PerformancePage() {
               })}
             </div>
           )} />
+      )}
+
+      {/* 확신 복기 기간 토글 — 전체 vs 이번 달 */}
+      {ready && taggedCountAll > 0 && (
+        <div className="flex items-center gap-2 px-1">
+          <span className="text-[11px] text-[var(--text-muted)]">확신 복기 기간</span>
+          <div className="seg" role="tablist" aria-label="확신 복기 기간">
+            {([['all', '전체'], ['month', '이번 달']] as const).map(([k, l]) => (
+              <button key={k} type="button" role="tab" aria-selected={convPeriod === k} className={`seg-i !px-2.5 ${convPeriod === k ? 'on' : ''}`} onClick={() => setConvPeriod(k)}>{l}</button>
+            ))}
+          </div>
+          {convPeriod === 'month' && <span className="text-[10px] text-[var(--faint)] tabular-nums">{curYM.replace('-', '.')} 기준</span>}
+        </div>
+      )}
+      {ready && taggedCountAll > 0 && convPeriod === 'month' && rTagged.count === 0 && (
+        <p className="text-[11px] text-[var(--faint)] px-1">이번 달({curYM.replace('-', '.')})에 태그를 매긴 기록이 없습니다 — &lsquo;전체&rsquo;로 보세요.</p>
       )}
 
       {/* 복기 교차표(R 기록) — 태그가 달린 매매가 있을 때만 */}
@@ -215,7 +207,7 @@ export default function PerformancePage() {
           {rConvByMistake.length > 0 && <SetupConvictionCard kind="mistake" rows={rConvByMistake} fmt={fmtR} sub="기록(R) · 실수+확신 둘 다 매긴 매매" />}
         </div>
       )}
-      {ready && breakItems.length > 0 && rTagged.count === 0 && (
+      {ready && breakItems.length > 0 && taggedCountAll === 0 && (
         <p className="text-[11px] text-[var(--faint)] px-1 leading-relaxed">
           손익 분해 표의 <b className="text-[var(--text-muted)]">행을 눌러 매매를 펼친 뒤</b> 셋업·실수·확신을 매기면, 여기에 <b className="text-[var(--text-muted)]">확신별 성적·셋업×확신·실수×확신</b> 복기가 생깁니다(참고: Edgewonk).</p>
       )}

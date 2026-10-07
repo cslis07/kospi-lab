@@ -225,10 +225,15 @@ export default function JournalPage() {
   const streak = useMemo(() => streaks([...positions].sort((a, b) => a.closeTs - b.closeTs).map((p) => resultOf(p.netProfit))), [positions]);
   // 셋업·실수 태그별 성적 — 로드된 청산 포지션 전체
   const heatmap = useMemo(() => weekdayHourHeatmap(breakItems), [breakItems]);
-  const convStats = useMemo(() => convictionStats(positions, tags), [positions, tags]);
-  const convBySetup = useMemo(() => convictionBySetup(positions, tags), [positions, tags]);
-  const convByMistake = useMemo(() => convictionByMistake(positions, tags), [positions, tags]);
-  const coaching = useMemo(() => convictionCoaching(positions, tags), [positions, tags]);
+  // 확신 복기 기간 — 전체(조회 기간) vs 이번 달(KST). 교차표·코칭에만 적용
+  const [convPeriod, setConvPeriod] = useState<'all' | 'month'>('all');
+  const curYM = kstMonth(Date.now());
+  const convPositions = useMemo(() => (convPeriod === 'month' ? positions.filter((p) => kstMonth(p.closeTs) === curYM) : positions), [convPeriod, positions, curYM]);
+  const convStats = useMemo(() => convictionStats(convPositions, tags), [convPositions, tags]);
+  const convBySetup = useMemo(() => convictionBySetup(convPositions, tags), [convPositions, tags]);
+  const convByMistake = useMemo(() => convictionByMistake(convPositions, tags), [convPositions, tags]);
+  const coaching = useMemo(() => convictionCoaching(convPositions, tags), [convPositions, tags]);
+  const convStatsAll = useMemo(() => convictionStats(positions, tags), [positions, tags]); // 토글 표시 여부 판단용(전체 기준)
   const setupStats = useMemo(() => tagStats(positions, tags, 'setup'), [positions, tags]);
   const mistakeStats = useMemo(() => tagStats(positions, tags, 'mistake'), [positions, tags]);
   // 히트맵 칸 드릴다운 — 선택한 요일×시간대에 '진입'한 청산 매매(집계와 같은 진입 시각·KST 기준)
@@ -419,6 +424,22 @@ export default function JournalPage() {
         <p className="text-[11px] text-[var(--faint)] mb-5 px-1 leading-relaxed">
           매매 행을 눌러 <b className="text-[var(--text-muted)]">셋업·실수 태그</b>를 달면 "어떤 셋업이 돈이 되고 어떤 실수가 깎나"가 여기 집계됩니다(참고: Edgewonk·TraderSync).
         </p>
+      )}
+
+      {/* 확신 복기 기간 토글 — 전체 vs 이번 달(교차표·코칭에만 적용) */}
+      {positions.length > 0 && convStatsAll.length > 0 && (
+        <div className="flex items-center gap-2 mb-2 px-1">
+          <span className="text-[11px] text-[var(--text-muted)]">확신 복기 기간</span>
+          <div className="seg" role="tablist" aria-label="확신 복기 기간">
+            {([['all', '전체'], ['month', '이번 달']] as const).map(([k, l]) => (
+              <button key={k} type="button" role="tab" aria-selected={convPeriod === k} className={`seg-i !px-2.5 ${convPeriod === k ? 'on' : ''}`} onClick={() => setConvPeriod(k)}>{l}</button>
+            ))}
+          </div>
+          {convPeriod === 'month' && <span className="text-[10px] text-[var(--faint)] tabular-nums">{curYM.replace('-', '.')} 기준</span>}
+        </div>
+      )}
+      {positions.length > 0 && convStatsAll.length > 0 && convStats.length === 0 && (
+        <p className="text-[11px] text-[var(--faint)] px-1 mb-3">이번 달({curYM.replace('-', '.')})에 확신을 매긴 청산 매매가 없습니다 — &lsquo;전체&rsquo;로 보세요.</p>
       )}
 
       {/* 확신 보정 종합 한 줄 — 확신별·셋업×확신·실수×확신을 묶은 코칭 */}
