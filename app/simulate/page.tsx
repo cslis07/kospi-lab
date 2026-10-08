@@ -204,11 +204,15 @@ function CompoundSim() {
 
 /* ══════════════════ 코인: 레버리지 손익 계산기 ══════════════════ */
 const COINS = [
-  { symbol: 'BTCUSDT', short: 'BTC', name: '비트코인', bg: '#F7931A' },
-  { symbol: 'ETHUSDT', short: 'ETH', name: '이더리움', bg: '#627EEA' },
-  { symbol: 'XRPUSDT', short: 'XRP', name: '리플',     bg: '#23292F' },
-  { symbol: 'SOLUSDT', short: 'SOL', name: '솔라나',   bg: '#9945FF' },
+  // mmr = Bitget USDT-M 고립마진 1티어(소액) 유지증거금률
+  { symbol: 'BTCUSDT', short: 'BTC', name: '비트코인', bg: '#F7931A', mmr: 0.004 },
+  { symbol: 'ETHUSDT', short: 'ETH', name: '이더리움', bg: '#627EEA', mmr: 0.004 },
+  { symbol: 'XRPUSDT', short: 'XRP', name: '리플',     bg: '#23292F', mmr: 0.005 },
+  { symbol: 'SOLUSDT', short: 'SOL', name: '솔라나',   bg: '#9945FF', mmr: 0.005 },
 ];
+
+// Bitget 테이커 수수료(기본). 청산 시 청산 명목가에 부과되므로 유지증거금률과 함께 더해진다.
+const TAKER_FEE = 0.0006;
 
 function priceDigits(p: number) { return p >= 1000 ? 1 : p >= 10 ? 2 : 4; }
 
@@ -243,9 +247,13 @@ function LeverageCalc() {
   const pnl = price > 0 ? position * ((effTarget - price) / price) * dirSign : 0; // 예상 손익(USDT)
   const roe = margin > 0 ? (pnl / margin) * 100 : 0;   // 증거금 대비 수익률
   const targetPrice = effTarget;
-  // 청산가(근사, 고립마진·수수료 제외): 진입가 × (1 ∓ 1/배율)
-  const liqPrice = dir === 'long' ? price * (1 - 1 / lev) : price * (1 + 1 / lev);
-  const liqMovePct = 100 / lev;                        // 청산까지 가격 변동 %
+  // 청산가: Bitget 고립마진 공식 = 진입가 × (1 ∓ 1/배율) / (1 ∓ (유지증거금률+테이커수수료))
+  //   수수료는 청산 명목가에 비례 부과되므로 유지증거금률에 선형으로 합쳐진다.
+  const effRate = coin.mmr + TAKER_FEE;                // 실효 유지증거금률(수수료 포함)
+  const liqPrice = dir === 'long'
+    ? price * (1 - 1 / lev) / (1 - effRate)
+    : price * (1 + 1 / lev) / (1 + effRate);
+  const liqMovePct = price > 0 ? Math.abs(price - liqPrice) / price * 100 : 0; // 청산까지 가격 변동 %
 
   // 목표가 슬라이더 범위(현재가 ±50%)
   const priceLo = price ? +(price * 0.5).toFixed(dg) : 0;
@@ -283,7 +291,7 @@ function LeverageCalc() {
 
       <div className="flex items-start gap-2 text-xs text-amber-400 bg-amber-500/5 border border-amber-500/20 rounded-xl px-3 py-2">
         <span>⚠</span>
-        <span>레버리지 선물은 원금 초과 손실·강제청산 위험이 있습니다. 아래 계산은 수수료·펀딩비를 제외한 단순 예시입니다.</span>
+        <span>레버리지 선물은 원금 초과 손실·강제청산 위험이 있습니다. <b>청산가</b>는 Bitget 고립마진 공식(유지증거금률+테이커수수료)으로 계산하지만, <b>손익</b>은 수수료·펀딩비를 제외한 단순 예시입니다.</span>
       </div>
 
       {/* 입력 */}
@@ -359,7 +367,7 @@ function LeverageCalc() {
           {[
             { label: '포지션 크기', value: fmtUsdt(position, 0), sub: price ? `${qty.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${coin.short}` : '' },
             { label: '목표가', value: price ? `$${targetPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `현재가 대비 ${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` },
-            { label: '청산가(근사)', value: price ? `$${liqPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `${dir === 'long' ? '-' : '+'}${liqMovePct.toFixed(1)}% 지점`, danger: true },
+            { label: '청산가 (Bitget 고립)', value: price ? `$${liqPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `${dir === 'long' ? '-' : '+'}${liqMovePct.toFixed(1)}% · 유지증거금 ${(coin.mmr * 100).toFixed(1)}%`, danger: true },
             { label: '최대 손실(청산 시)', value: `-${fmtUsdt(margin, 0)}`, sub: '증거금 전액', danger: true },
           ].map((c) => (
             <div key={c.label} className={`rounded-xl border p-3 ${c.danger ? 'border-red-500/20 bg-red-500/5' : 'border-[var(--border)] bg-white/3'}`}>
@@ -404,7 +412,7 @@ function LeverageCalc() {
           </table>
         </div>
         <p className="text-[10px] text-[var(--text-muted)] mt-3">
-          청산가는 고립마진 기준 근사치(진입가 × (1 ∓ 1/배율))이며 수수료·유지증거금을 제외합니다. 실제 청산가는 거래소·마진모드에 따라 다릅니다. 투자 권유가 아닙니다.
+          청산가 = Bitget 고립마진 공식 <b>진입가 × (1 ∓ 1/배율) ÷ (1 ∓ (유지증거금률+테이커수수료 0.06%))</b>. 유지증거금률은 소액(1티어) 기준(BTC·ETH 0.4%, XRP·SOL 0.5%)이라 포지션이 커지면 상승해 청산가가 더 불리해집니다. 교차마진·펀딩비 적립은 미반영. 실제값은 거래소 설정에 따라 다릅니다. 투자 권유가 아닙니다.
         </p>
       </div>
     </div>
