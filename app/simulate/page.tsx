@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { isolatedLiqPrice, liqSafety, notionForRisk } from '@/lib/positionSizing';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, isNaN(n) ? lo : n));
@@ -222,9 +223,14 @@ function LeverageCalc() {
   const [lev,    setLev]      = useState(10);     // 배율
   const [dir,    setDir]      = useState<'long' | 'short'>('long');
   const [targetStr, setTargetStr] = useState('');  // 목표가 입력(빈칸이면 현재가로 간주)
+  const [feeOn,  setFeeOn]    = useState(false);   // 수수료·펀딩 반영(실손익)
+  const [holdH,  setHoldH]    = useState(24);      // 보유 시간(시간)
+  const [seed,   setSeed]     = useState(1000);    // 리스크 역산: 계좌 시드 USDT
+  const [riskPct, setRiskPct] = useState(2);       // 리스크 역산: 계좌 대비 허용 손실%
+  const [stopStr, setStopStr] = useState('');      // 리스크 역산: 손절가
 
-  // 코인 전환 시 목표가 초기화(현재가 기준으로)
-  useEffect(() => { setTargetStr(''); }, [symbol]);
+  // 코인 전환 시 목표가·손절가 초기화(현재가 기준으로)
+  useEffect(() => { setTargetStr(''); setStopStr(''); }, [symbol]);
 
   const { data: prices } = useSWR<Record<string, { price: number }>>(
     `/api/crypto/batch?symbols=${COINS.map((c) => c.symbol).join(',')}`,
@@ -233,6 +239,11 @@ function LeverageCalc() {
   );
   const { data: market } = useSWR('/api/market', fetcher, { refreshInterval: 30000 });
   const usdtKrw: number | null = market?.usdtkrw?.value ?? market?.usdkrw?.value ?? null;
+  // 선물 펀딩비(8h, %) — 실손익용
+  const { data: futures } = useSWR<{ symbol: string; fundingRate: number | null }[]>(
+    '/api/futures/tickers', fetcher, { refreshInterval: 60000 },
+  );
+  const fundingPct = futures?.find((f) => f.symbol === symbol)?.fundingRate ?? null; // 8h당 %
 
   const coin = COINS.find((c) => c.symbol === symbol)!;
   const price = prices?.[symbol]?.price ?? 0;
@@ -241,19 +252,37 @@ function LeverageCalc() {
   const position = margin * lev;                       // 포지션 명목가치
   const qty = price > 0 ? position / price : 0;        // 코인 수량
   const dirSign = dir === 'long' ? 1 : -1;
+  const isShort = dir === 'short';
   const targetNum = parseFloat(targetStr);
   const effTarget = targetStr !== '' && !isNaN(targetNum) && targetNum > 0 ? targetNum : price; // 미입력 시 현재가
   const changePct = price > 0 ? ((effTarget - price) / price) * 100 : 0; // 부호 있는 가격 변동%
-  const pnl = price > 0 ? position * ((effTarget - price) / price) * dirSign : 0; // 예상 손익(USDT)
+  const grossPnl = price > 0 ? position * ((effTarget - price) / price) * dirSign : 0; // 수수료 전 손익(USDT)
+
+  // 수수료·펀딩(실손익): 진입 테이커 + 청산 테이커(청산 명목가) + 보유기간 펀딩
+  const openFee  = position * TAKER_FEE;
+  const closeFee = price > 0 ? position * (effTarget / price) * TAKER_FEE : 0;
+  const feeCost  = openFee + closeFee;
+  // 펀딩: 8h마다 명목가×펀딩률. 펀딩률>0이면 롱이 숏에게 지급(롱 비용·숏 수익)
+  const fundingPeriods = holdH / 8;
+  const fundingCost = fundingPct != null ? position * (fundingPct / 100) * fundingPeriods * dirSign : 0;
+  const netPnl = grossPnl - feeCost - fundingCost;
+  const pnl = feeOn ? netPnl : grossPnl;               // 표시 손익
   const roe = margin > 0 ? (pnl / margin) * 100 : 0;   // 증거금 대비 수익률
   const targetPrice = effTarget;
-  // 청산가: Bitget 고립마진 공식 = 진입가 × (1 ∓ 1/배율) / (1 ∓ (유지증거금률+테이커수수료))
-  //   수수료는 청산 명목가에 비례 부과되므로 유지증거금률에 선형으로 합쳐진다.
-  const effRate = coin.mmr + TAKER_FEE;                // 실효 유지증거금률(수수료 포함)
-  const liqPrice = dir === 'long'
-    ? price * (1 - 1 / lev) / (1 - effRate)
-    : price * (1 + 1 / lev) / (1 + effRate);
+  // 청산가: Bitget 고립마진 공식(단일 소스 lib/positionSizing). 코인별 1티어 MMR + 테이커.
+  const liqPrice = price > 0 ? isolatedLiqPrice(price, lev, isShort, coin.mmr, TAKER_FEE) : 0;
   const liqMovePct = price > 0 ? Math.abs(price - liqPrice) / price * 100 : 0; // 청산까지 가격 변동 %
+
+  // ── 리스크 기반 역산: "계좌의 X%만 잃으려면?" ──
+  const stopNum = parseFloat(stopStr);
+  const hasStop = stopStr !== '' && !isNaN(stopNum) && stopNum > 0 && price > 0
+    && (isShort ? stopNum > price : stopNum < price);   // 손절은 손실 방향이어야 유효
+  const stopPct = hasStop ? Math.abs(stopNum - price) / price * 100 : 0;
+  const recNotion = hasStop ? notionForRisk(seed, riskPct, stopPct) : 0;  // 권장 포지션 명목가
+  const recMargin = recNotion / lev;                    // 권장 증거금
+  const riskLoss  = seed * (riskPct / 100);             // 손절 시 손실(계좌 대비)
+  const safety    = hasStop ? liqSafety(price, stopPct, lev, isShort, coin.mmr, TAKER_FEE) : 0; // 청산여유÷손절거리
+  const safeMaxLev = hasStop && safety > 0 && safety < 2 ? Math.max(1, Math.floor(lev * (safety / 2))) : lev;
 
   // 목표가 슬라이더 범위(현재가 ±50%)
   const priceLo = price ? +(price * 0.5).toFixed(dg) : 0;
@@ -291,7 +320,7 @@ function LeverageCalc() {
 
       <div className="flex items-start gap-2 text-xs text-amber-400 bg-amber-500/5 border border-amber-500/20 rounded-xl px-3 py-2">
         <span>⚠</span>
-        <span>레버리지 선물은 원금 초과 손실·강제청산 위험이 있습니다. <b>청산가</b>는 Bitget 고립마진 공식(유지증거금률+테이커수수료)으로 계산하지만, <b>손익</b>은 수수료·펀딩비를 제외한 단순 예시입니다.</span>
+        <span>레버리지 선물은 원금 초과 손실·강제청산 위험이 있습니다. <b>청산가</b>는 Bitget 고립마진 공식으로 계산합니다. <b>손익</b>은 기본은 수수료 제외이며, 아래 <b>수수료·펀딩 반영</b>을 켜면 진입·청산 테이커와 보유기간 펀딩비까지 반영한 실손익을 보여줍니다.</span>
       </div>
 
       {/* 입력 */}
@@ -343,12 +372,29 @@ function LeverageCalc() {
             </span>
           </div>
         </div>
+
+        {/* 수수료·펀딩 반영(실손익) 토글 */}
+        <div className="pt-1 border-t border-[var(--border)]">
+          <label className="flex items-center justify-between cursor-pointer select-none">
+            <span className="text-xs text-[var(--text)]">수수료·펀딩 반영 <span className="text-[10px] text-[var(--text-muted)]">(실손익)</span></span>
+            <input type="checkbox" checked={feeOn} onChange={(e) => setFeeOn(e.target.checked)} className="w-4 h-4 accent-sky-500" />
+          </label>
+          {feeOn && (
+            <div className="mt-3 space-y-2.5">
+              <SimSlider label="보유 시간" sliderValue={holdH} sliderMin={0} sliderMax={720} sliderStep={1} onSlider={setHoldH}
+                numValue={holdH} numMin={0} numMax={8760} numStep={1} unit="시간" onNum={setHoldH} numW="w-20" />
+              <p className="text-[10px] text-[var(--text-muted)]">
+                테이커 {(TAKER_FEE * 100).toFixed(2)}%(진입+청산) · 펀딩 {fundingPct != null ? `${fundingPct >= 0 ? '+' : ''}${fundingPct.toFixed(4)}%/8h (${dir === 'long' ? (fundingPct >= 0 ? '롱 지급' : '롱 수취') : (fundingPct >= 0 ? '숏 수취' : '숏 지급')})` : '로딩…'} · {fundingPeriods.toFixed(1)}회
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 손익 결과 */}
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
         <div className="text-center mb-4">
-          <p className="text-xs text-[var(--text-muted)] mb-1">예상 손익</p>
+          <p className="text-xs text-[var(--text-muted)] mb-1">{feeOn ? '예상 실손익 (수수료·펀딩 반영)' : '예상 손익'}</p>
           <p className={`text-3xl font-bold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {pnl >= 0 ? '+' : ''}{fmtUsdt(pnl)}
           </p>
@@ -361,6 +407,13 @@ function LeverageCalc() {
             증거금 대비 {roe >= 0 ? '+' : ''}{roe.toFixed(1)}%
             {usdtKrw ? <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1.5">1 USDT ≈ ₩{Math.round(usdtKrw).toLocaleString('ko-KR')}</span> : null}
           </p>
+          {feeOn && (
+            <div className="mt-3 pt-2.5 border-t border-[var(--border)] text-[11px] text-[var(--text-muted)] space-y-0.5 max-w-[260px] mx-auto">
+              <div className="flex justify-between"><span>수수료 전 손익</span><span className={grossPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{grossPnl >= 0 ? '+' : ''}{fmtUsdt(grossPnl)}</span></div>
+              <div className="flex justify-between"><span>− 수수료(진입+청산)</span><span className="text-red-400">-{fmtUsdt(feeCost, 2)}</span></div>
+              <div className="flex justify-between"><span>{fundingCost >= 0 ? '− 펀딩비' : '+ 펀딩 수취'}</span><span className={fundingCost > 0 ? 'text-red-400' : fundingCost < 0 ? 'text-emerald-400' : ''}>{fundingCost >= 0 ? '-' : '+'}{fmtUsdt(Math.abs(fundingCost), 2)}</span></div>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
@@ -377,6 +430,61 @@ function LeverageCalc() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* 리스크 기반 역산 — "계좌의 X%만 잃으려면?" */}
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-4">
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--text)]">리스크 기반 역산</h2>
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">손절가를 정하면 “계좌의 일부만 잃도록” 적정 증거금·포지션을 거꾸로 계산합니다. 리스크는 배율이 아니라 <b>손절 거리</b>가 정합니다.</p>
+        </div>
+
+        <SimSlider label="계좌 시드 (USDT)" sliderValue={seed} sliderMin={100} sliderMax={100000} sliderStep={100} onSlider={setSeed}
+          numValue={seed} numMin={10} numMax={10000000} numStep={100} unit="USDT" onNum={setSeed} numW="w-24" />
+        <SimSlider label="허용 손실 (계좌 대비)" sliderValue={riskPct * 10} sliderMin={5} sliderMax={100} sliderStep={5}
+          onSlider={(v) => setRiskPct(v / 10)} numValue={riskPct} numMin={0.1} numMax={50} numStep={0.1} unit="%" onNum={setRiskPct} numW="w-16" />
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-[var(--text-muted)]">손절가 (USDT)</span>
+            <input type="number" inputMode="decimal" value={stopStr}
+              placeholder={price ? String(+(dir === 'long' ? price * 0.97 : price * 1.03).toFixed(dg)) : ''} min={0} step={priceStep}
+              onChange={(e) => setStopStr(e.target.value)}
+              className="w-28 bg-white/5 border border-[var(--border)] rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-sky-500/50" />
+          </div>
+          {stopStr !== '' && !hasStop && (
+            <p className="text-[10px] text-amber-400">손절가는 {dir === 'long' ? '현재가보다 낮아야' : '현재가보다 높아야'} 합니다(손실 방향).</p>
+          )}
+        </div>
+
+        {hasStop ? (
+          <>
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { label: '권장 증거금', value: fmtUsdt(recMargin, 0), sub: `${lev}배 기준` },
+                { label: '권장 포지션', value: fmtUsdt(recNotion, 0), sub: price ? `${(recNotion / price).toLocaleString('en-US', { maximumFractionDigits: 4 })} ${coin.short}` : '' },
+                { label: '손절 시 손실', value: `-${fmtUsdt(riskLoss, 0)}`, sub: `계좌의 ${riskPct}% · 손절거리 ${stopPct.toFixed(2)}%`, danger: true },
+                { label: '청산 여유', value: `${safety.toFixed(1)}배`, sub: safety < 2 ? '⚠ 손절 전 청산 위험' : '손절선의 여유 거리', danger: safety < 2 },
+              ].map((c) => (
+                <div key={c.label} className={`rounded-xl border p-3 ${c.danger ? 'border-red-500/20 bg-red-500/5' : 'border-[var(--border)] bg-white/3'}`}>
+                  <p className="text-[10px] text-[var(--text-muted)]">{c.label}</p>
+                  <p className={`text-base font-bold tabular-nums mt-0.5 ${c.danger ? 'text-red-400' : 'text-[var(--text)]'}`}>{c.value}</p>
+                  {c.sub && <p className={`text-[10px] mt-0.5 ${c.danger ? 'text-red-400/80' : 'text-[var(--text-muted)]'}`}>{c.sub}</p>}
+                </div>
+              ))}
+            </div>
+            {safety > 0 && safety < 2 && (
+              <div className="flex items-start gap-2 text-[11px] text-red-400 bg-red-500/5 border border-red-500/20 rounded-xl px-3 py-2">
+                <span>⚠</span>
+                <span>청산선이 손절선의 <b>{safety.toFixed(1)}배</b> 거리밖에 안 됩니다(2배 미만 = 손절보다 먼저 강제청산될 수 있음). 배율을 <b>{safeMaxLev}배 이하</b>로 낮추면 손절이 먼저 작동합니다.</span>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-[11px] text-[var(--text-muted)] text-center py-3 border border-dashed border-[var(--border)] rounded-xl">손절가를 입력하면 권장 증거금·청산 여유가 계산됩니다.</p>
+        )}
+        <p className="text-[10px] text-[var(--text-muted)]">
+          권장 증거금은 위 ‘배율’ 슬라이더 값을 그대로 쓴 결과입니다. 배율을 바꾸면 손실 크기는 그대로(손절 거리로 고정)이고 증거금만 달라집니다. 투자 권유가 아닙니다.
+        </p>
       </div>
 
       {/* 가격 변동별 빠른 손익표 */}

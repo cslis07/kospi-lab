@@ -70,12 +70,17 @@ ok('노션 = 시드×리스크%÷손절% (1000·1%·0.5% → 2000)', () => {
 ok('손절폭 0이면 노션 0 (0으로 나누기 방어)', () => {
   assert.equal(notionForRisk(1000, 1, 0), 0);
 });
-ok('격리 청산가: 롱 10배 entry100 → 90.5 / 숏 → 109.5 (MMR 0.5%)', () => {
-  assert.ok(Math.abs(isolatedLiqPrice(100, 10, false) - 90.5) < 1e-9);
-  assert.ok(Math.abs(isolatedLiqPrice(100, 10, true) - 109.5) < 1e-9);
+ok('격리 청산가(Bitget 나눗셈형): 롱 10배 entry100 → 90.452 / 숏 → 109.453 (MMR 0.5%)', () => {
+  // 100×(1∓1/10)÷(1∓0.005)
+  assert.ok(Math.abs(isolatedLiqPrice(100, 10, false) - 90.452261) < 1e-4);
+  assert.ok(Math.abs(isolatedLiqPrice(100, 10, true) - 109.452736) < 1e-4);
 });
-ok('청산여유÷손절거리: 롱 10배·손절 1% → 9.5배', () => {
-  assert.ok(Math.abs(liqSafety(100, 1, 10, false) - 9.5) < 1e-9);
+ok('격리 청산가에 테이커수수료 더하면 청산선이 진입가에 더 가까워짐', () => {
+  assert.ok(isolatedLiqPrice(100, 10, false, 0.005, 0.0006) > isolatedLiqPrice(100, 10, false, 0.005, 0)); // 롱: 청산가↑
+  assert.ok(isolatedLiqPrice(100, 10, true, 0.005, 0.0006) < isolatedLiqPrice(100, 10, true, 0.005, 0));   // 숏: 청산가↓
+});
+ok('청산여유÷손절거리: 롱 10배·손절 1% → 9.548배', () => {
+  assert.ok(Math.abs(liqSafety(100, 1, 10, false) - 9.547739) < 1e-4);
 });
 ok('분할 3분할: 가중 합=1, 노션·증거금 보존, 평단이 존 안', () => {
   const t = tranches3(3000, 10, 100, 99, true, { type: 'pullback', zoneLow: 98, zoneHigh: 100 });

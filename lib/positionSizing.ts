@@ -8,15 +8,20 @@ export function notionForRisk(seedUsdt: number, riskPct: number, stopPct: number
   return stopPct > 0 ? (seedUsdt * riskPct / 100) / (stopPct / 100) : 0;
 }
 
-/** 격리 청산가 근사 — 유지증거금률(MMR) 가정. 거래소 티어별로 다르므로 근사치 */
-export function isolatedLiqPrice(entry: number, lev: number, isShort: boolean, mmr = 0.005): number {
-  return isShort ? entry * (1 + 1 / lev - mmr) : entry * (1 - 1 / lev + mmr);
+/**
+ * 격리 청산가 — Bitget 고립마진 공식: 진입가 × (1 ∓ 1/lev) ÷ (1 ∓ (MMR + 테이커수수료)).
+ * 청산 시 수수료는 청산 명목가에 비례 부과되므로 유지증거금률(MMR)에 선형으로 합쳐진다.
+ * MMR은 거래소·심볼·포지션 티어별로 달라 근사치. taker 0이면 수수료 제외(안전 비율용).
+ */
+export function isolatedLiqPrice(entry: number, lev: number, isShort: boolean, mmr = 0.005, taker = 0): number {
+  const r = mmr + taker;
+  return isShort ? entry * (1 + 1 / lev) / (1 + r) : entry * (1 - 1 / lev) / (1 - r);
 }
 
 /** 청산여유 ÷ 손절거리 — 2 미만이면 손절 전에 청산될 수 있음 */
-export function liqSafety(entry: number, stopPct: number, lev: number, isShort: boolean, mmr = 0.005): number {
+export function liqSafety(entry: number, stopPct: number, lev: number, isShort: boolean, mmr = 0.005, taker = 0): number {
   if (entry <= 0 || stopPct <= 0) return 0;
-  const liq = isolatedLiqPrice(entry, lev, isShort, mmr);
+  const liq = isolatedLiqPrice(entry, lev, isShort, mmr, taker);
   const liqDistPct = (Math.abs(liq - entry) / entry) * 100;
   return liqDistPct / stopPct;
 }
