@@ -70,6 +70,10 @@ ok('노션 = 시드×리스크%÷손절% (1000·1%·0.5% → 2000)', () => {
 ok('손절폭 0이면 노션 0 (0으로 나누기 방어)', () => {
   assert.equal(notionForRisk(1000, 1, 0), 0);
 });
+ok('노션 비용 차감: (시드×리스크% − 비용)÷손절% (1000·1%·0.5%·비용2 → 1600)', () => {
+  assert.equal(notionForRisk(1000, 1, 0.5, 2), 1600);        // (10−2)/0.005
+  assert.equal(notionForRisk(1000, 1, 0.5, 20), 0);          // 예산<0이면 0
+});
 ok('격리 청산가(Bitget 나눗셈형): 롱 10배 entry100 → 90.452 / 숏 → 109.453 (MMR 0.5%)', () => {
   // 100×(1∓1/10)÷(1∓0.005)
   assert.ok(Math.abs(isolatedLiqPrice(100, 10, false) - 90.452261) < 1e-4);
@@ -885,16 +889,23 @@ console.log('\n[ journalStats — 성적 실측 (순수 함수) ]');
 
   ok('브레이커: 일일 손실 한도 초과 시 blocked (오늘 KST 기준)', () => {
     const rows = [be({ts:now, realizedUsdt:-60})];   // 오늘 -60
-    const r = evaluateBreaker(rows, { maxConsecutiveLosses:99, dailyLossLimitUsdt:50, weeklyLossLimitUsdt:null }, now);
+    const r = evaluateBreaker(rows, { maxConsecutiveLosses:99, dailyLossLimitUsdt:50, weeklyLossLimitUsdt:null, perTradeLossLimitUsdt:null }, now);
     assert.equal(r.status, 'blocked');
     assert.equal(r.todayRealized, -60);
   });
 
   ok('브레이커: 어제 손실은 오늘 한도에 안 들어간다', () => {
     const rows = [be({ts:now-DAY, realizedUsdt:-100})];
-    const r = evaluateBreaker(rows, { maxConsecutiveLosses:99, dailyLossLimitUsdt:50, weeklyLossLimitUsdt:null }, now);
+    const r = evaluateBreaker(rows, { maxConsecutiveLosses:99, dailyLossLimitUsdt:50, weeklyLossLimitUsdt:null, perTradeLossLimitUsdt:null }, now);
     assert.equal(r.todayRealized, null);       // 오늘 실현 없음
     assert.equal(r.status, 'ok');
+  });
+
+  ok('브레이커: 직전 매매가 1회 손실 한도 초과면 warn', () => {
+    const rows = [be({ts:now-DAY, realizedUsdt:-5}), be({ts:now, realizedUsdt:-15})];  // 마지막 -15
+    const r = evaluateBreaker(rows, { maxConsecutiveLosses:99, dailyLossLimitUsdt:null, weeklyLossLimitUsdt:null, perTradeLossLimitUsdt:10 }, now);
+    assert.equal(r.status, 'warn');
+    assert.ok(r.reasons.some((x) => x.includes('1회 손실 한도')));
   });
 
   ok('브레이커: 한도 미설정이면 스트릭만 본다', () => {

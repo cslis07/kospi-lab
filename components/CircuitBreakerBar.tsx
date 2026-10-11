@@ -79,7 +79,13 @@ export default function CircuitBreakerBar() {
               onChange={(e) => update({ weeklyLossLimitUsdt: e.target.value === '' ? null : Math.max(0, Number(e.target.value) || 0) })}
               className="mt-1 w-full px-2 py-1.5 bg-transparent border border-[var(--border)] rounded-lg text-[var(--text)] outline-none focus:border-sky-500/50 tabular-nums" />
           </label>
-          <p className="sm:col-span-3 text-[10px] text-[var(--text-muted)]">양수로 입력하세요(예: 50 → 오늘 −50 USDT면 차단). 손실은 거래소 대조로 채워진 실현손익 기준. 설정은 기기 간 동기화됩니다.</p>
+          <label className="text-[var(--text-muted)]">
+            1회 손실 한도 (USDT)
+            <input type="number" min={0} placeholder="미설정" value={numOrEmpty(limits.perTradeLossLimitUsdt)}
+              onChange={(e) => update({ perTradeLossLimitUsdt: e.target.value === '' ? null : Math.max(0, Number(e.target.value) || 0) })}
+              className="mt-1 w-full px-2 py-1.5 bg-transparent border border-[var(--border)] rounded-lg text-[var(--text)] outline-none focus:border-sky-500/50 tabular-nums" />
+          </label>
+          <p className="sm:col-span-3 text-[10px] text-[var(--text-muted)]">양수로 입력하세요(예: 50 → 오늘 −50 USDT면 차단). <b>1회 한도</b>는 한 매매가 한 번에 그만큼 넘게 깨졌을 때 다음 매매 전 경고. 손실은 거래소 대조로 채워진 실현손익 기준. 설정은 기기 간 동기화됩니다.</p>
         </div>
       )}
     </div>

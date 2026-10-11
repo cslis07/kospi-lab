@@ -18,12 +18,14 @@ export interface BreakerLimits {
   maxConsecutiveLosses: number;         // 이 이상 연속 손절이면 차단 (기본 3)
   dailyLossLimitUsdt: number | null;    // 오늘 실현손실이 이 값(양수)을 넘으면 차단
   weeklyLossLimitUsdt: number | null;
+  perTradeLossLimitUsdt: number | null; // 한 매매에서 이 값(양수)을 넘는 손실이면 1회 한도 초과 경고
 }
 
 export const DEFAULT_LIMITS: BreakerLimits = {
   maxConsecutiveLosses: 3,
   dailyLossLimitUsdt: null,
   weeklyLossLimitUsdt: null,
+  perTradeLossLimitUsdt: null,
 };
 
 export interface BreakerState {
@@ -82,6 +84,15 @@ export function evaluateBreaker(entries: BreakerEntry[], limits: BreakerLimits, 
   if (limits.weeklyLossLimitUsdt != null && weekRealized != null && weekRealized <= -limits.weeklyLossLimitUsdt) {
     blocked = true;
     reasons.push(`이번 주 실현손실 ${Math.round(weekRealized)} USDT — 주간 한도(-${limits.weeklyLossLimitUsdt}) 초과.`);
+  }
+
+  // 1회 손실 한도 — 직전 매매가 한 번에 한도를 넘겼으면 다음 매매 전 경고(차단 아님, 이미 끝난 매매)
+  if (limits.perTradeLossLimitUsdt != null && closed.length) {
+    const last = closed[closed.length - 1];
+    if (last.result === 'loss' && last.realizedUsdt != null && last.realizedUsdt <= -limits.perTradeLossLimitUsdt) {
+      warn = true;
+      reasons.push(`직전 매매 ${Math.round(last.realizedUsdt)} USDT — 1회 손실 한도(-${limits.perTradeLossLimitUsdt}) 초과. 다음 매매는 손절을 좁히거나 사이즈를 줄이세요.`);
+    }
   }
 
   return { status: blocked ? 'blocked' : warn ? 'warn' : 'ok', reasons, lossStreak, todayRealized, weekRealized };

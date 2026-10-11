@@ -46,6 +46,15 @@ export default function StudyPage() {
         <Link href="/principles" className="inline-block mt-2 text-[12px] font-semibold text-[var(--accent-ink)]">매매 대원칙 보기 →</Link>
       </section>
 
+      {/* 실전 체크리스트 */}
+      <Link href="/study/reentry" className="fin-card p-4 block mb-7 border border-[var(--accent)]/30">
+        <div className="flex items-center justify-between">
+          <b className="text-[14px] text-[var(--text)]">✅ 진입·재진입 체크리스트</b>
+          <span className="text-[12px] font-semibold text-[var(--accent-ink)]">열기 →</span>
+        </div>
+        <p className="text-[12px] text-[var(--text-muted)] mt-1.5 leading-relaxed">진입 전 7문항 + 손절 후 재진입 프로토콜(60분 대기·새 근거 4단계). 주문 전에 조건을 직접 체크하는 규율 도구.</p>
+      </Link>
+
       {/* 과정 */}
       <h2 className="text-[15px] font-bold text-[var(--text)] mb-2">과정</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-7">

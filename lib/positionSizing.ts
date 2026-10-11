@@ -3,9 +3,15 @@
  * UI(RiskPanel)와 테스트(tests/engine.test.ts)가 같은 코드를 쓴다.
  */
 
-/** 노션 = 시드 × 허용손실% ÷ 손절거리% — 리스크는 손절거리가 결정 */
-export function notionForRisk(seedUsdt: number, riskPct: number, stopPct: number): number {
-  return stopPct > 0 ? (seedUsdt * riskPct / 100) / (stopPct / 100) : 0;
+/**
+ * 노션 = (시드 × 허용손실% − 예상비용) ÷ 손절거리% — 리스크는 손절거리가 결정.
+ * costUsdt를 주면 수수료·미끄러짐을 손실 예산에서 먼저 빼므로 더 보수적인(작은) 포지션이 나온다.
+ * (개인 매매 진단: 수량=(최대허용손실−예상비용)÷|진입가−손절가|)
+ */
+export function notionForRisk(seedUsdt: number, riskPct: number, stopPct: number, costUsdt = 0): number {
+  if (stopPct <= 0) return 0;
+  const budget = seedUsdt * riskPct / 100 - costUsdt;
+  return budget > 0 ? budget / (stopPct / 100) : 0;
 }
 
 /**

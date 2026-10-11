@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { isolatedLiqPrice, liqSafety, notionForRisk } from '@/lib/positionSizing';
+import { useRiskLimits } from '@/hooks/useRiskLimits';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, isNaN(n) ? lo : n));
@@ -244,6 +245,7 @@ function LeverageCalc() {
     '/api/futures/tickers', fetcher, { refreshInterval: 60000 },
   );
   const fundingPct = futures?.find((f) => f.symbol === symbol)?.fundingRate ?? null; // 8h당 %
+  const { limits: riskLimits } = useRiskLimits();      // 1회 손실 한도(서킷브레이커 설정 공유)
 
   const coin = COINS.find((c) => c.symbol === symbol)!;
   const price = prices?.[symbol]?.price ?? 0;
@@ -274,15 +276,20 @@ function LeverageCalc() {
   const liqMovePct = price > 0 ? Math.abs(price - liqPrice) / price * 100 : 0; // 청산까지 가격 변동 %
 
   // ── 리스크 기반 역산: "계좌의 X%만 잃으려면?" ──
+  const perTradeLimit = riskLimits.perTradeLossLimitUsdt;  // 1회 손실 한도(USDT, null=미설정)
   const stopNum = parseFloat(stopStr);
   const hasStop = stopStr !== '' && !isNaN(stopNum) && stopNum > 0 && price > 0
     && (isShort ? stopNum > price : stopNum < price);   // 손절은 손실 방향이어야 유효
   const stopPct = hasStop ? Math.abs(stopNum - price) / price * 100 : 0;
-  const recNotion = hasStop ? notionForRisk(seed, riskPct, stopPct) : 0;  // 권장 포지션 명목가
-  const recMargin = recNotion / lev;                    // 권장 증거금
   const riskLoss  = seed * (riskPct / 100);             // 손절 시 손실(계좌 대비)
+  // 비용 차감 사이징: 수량=(최대허용손실−예상비용)÷손절거리. 예상비용은 1차 노션으로 추정(진입+청산 테이커)
+  const notion0   = hasStop ? notionForRisk(seed, riskPct, stopPct) : 0;
+  const estCost   = notion0 * TAKER_FEE * 2;            // 진입+청산 테이커 추정
+  const recNotion = hasStop ? notionForRisk(seed, riskPct, stopPct, estCost) : 0;  // 권장 포지션 명목가(비용 차감)
+  const recMargin = recNotion / lev;                    // 권장 증거금
   const safety    = hasStop ? liqSafety(price, stopPct, lev, isShort, coin.mmr, TAKER_FEE) : 0; // 청산여유÷손절거리
   const safeMaxLev = hasStop && safety > 0 && safety < 2 ? Math.max(1, Math.floor(lev * (safety / 2))) : lev;
+  const perTradeExceeded = perTradeLimit != null && riskLoss > perTradeLimit;  // 1회 한도 초과
 
   // 목표가 슬라이더 범위(현재가 ±50%)
   const priceLo = price ? +(price * 0.5).toFixed(dg) : 0;
@@ -461,8 +468,8 @@ function LeverageCalc() {
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { label: '권장 증거금', value: fmtUsdt(recMargin, 0), sub: `${lev}배 기준` },
-                { label: '권장 포지션', value: fmtUsdt(recNotion, 0), sub: price ? `${(recNotion / price).toLocaleString('en-US', { maximumFractionDigits: 4 })} ${coin.short}` : '' },
-                { label: '손절 시 손실', value: `-${fmtUsdt(riskLoss, 0)}`, sub: `계좌의 ${riskPct}% · 손절거리 ${stopPct.toFixed(2)}%`, danger: true },
+                { label: '권장 포지션', value: fmtUsdt(recNotion, 0), sub: price ? `${(recNotion / price).toLocaleString('en-US', { maximumFractionDigits: 4 })} ${coin.short} · 비용 ~${fmtUsdt(estCost, 1)} 차감` : '' },
+                { label: '손절 시 손실', value: `-${fmtUsdt(riskLoss, 0)}`, sub: perTradeExceeded ? `⚠ 1회 한도(-${perTradeLimit}) 초과` : `계좌의 ${riskPct}% · 손절거리 ${stopPct.toFixed(2)}%`, danger: true },
                 { label: '청산 여유', value: `${safety.toFixed(1)}배`, sub: safety < 2 ? '⚠ 손절 전 청산 위험' : '손절선의 여유 거리', danger: safety < 2 },
               ].map((c) => (
                 <div key={c.label} className={`rounded-xl border p-3 ${c.danger ? 'border-red-500/20 bg-red-500/5' : 'border-[var(--border)] bg-white/3'}`}>
@@ -476,6 +483,12 @@ function LeverageCalc() {
               <div className="flex items-start gap-2 text-[11px] text-red-400 bg-red-500/5 border border-red-500/20 rounded-xl px-3 py-2">
                 <span>⚠</span>
                 <span>청산선이 손절선의 <b>{safety.toFixed(1)}배</b> 거리밖에 안 됩니다(2배 미만 = 손절보다 먼저 강제청산될 수 있음). 배율을 <b>{safeMaxLev}배 이하</b>로 낮추면 손절이 먼저 작동합니다.</span>
+              </div>
+            )}
+            {perTradeExceeded && (
+              <div className="flex items-start gap-2 text-[11px] text-red-400 bg-red-500/5 border border-red-500/20 rounded-xl px-3 py-2">
+                <span>⚠</span>
+                <span>이 손절 시 손실 <b>-{fmtUsdt(riskLoss, 0)}</b>은 설정한 <b>1회 손실 한도(-{perTradeLimit} USDT)</b>를 넘습니다. 허용 손실%를 낮추거나 손절을 좁히세요. (한도는 홈 ‘오늘의 리스크’에서 설정)</span>
               </div>
             )}
           </>

@@ -124,6 +124,7 @@ export const EXTRAS: MenuItem[] = [
   { href: '/calendar',   icon: 'calendar',   label: '경제 캘린더', desc: 'FOMC·CPI·실적 등 주요 일정' },
   { href: '/principles', icon: 'principles', label: '매매 대원칙', desc: '지킬 3·피할 3' },
   { href: '/study',      icon: 'insight',    label: '코인 기초 공부법', desc: '차트·RSI·MACD·피보나치·금리·유가' },
+  { href: '/study/reentry', icon: 'principles', label: '진입·재진입 체크리스트', desc: '진입 전 7문항·손절 후 60분 프로토콜' },
   { href: '/virtual',   icon: 'virtual',   label: '가상투자',    desc: '모의매매·백업' },
   { href: '/invest',    icon: 'invest',    label: '투자설계',    desc: '계좌·자산 추천' },
   { href: '/tax',       icon: 'tax',       label: '세제혜택',    desc: 'ISA·IRP·연금' },
