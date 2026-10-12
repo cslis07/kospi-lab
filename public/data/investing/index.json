@@ -58,6 +58,14 @@
       "oldest": "2021-01-13"
     },
     {
+      "id": "business-inventories-29",
+      "name": "미국 기업재고 <전월 대비>",
+      "url": "https://kr.investing.com/economic-calendar/business-inventories-29",
+      "count": 70,
+      "newest": "2026-10-15",
+      "oldest": "2021-01-16"
+    },
+    {
       "id": "ny-empire-state-manufacturing-index-323",
       "name": "미국 뉴욕 엠파이어스테이트 제조업지수",
       "url": "https://kr.investing.com/economic-calendar/ny-empire-state-manufacturing-index-323",
@@ -112,6 +120,22 @@
       "count": 302,
       "newest": "2026-10-15",
       "oldest": "2021-01-07"
+    },
+    {
+      "id": "eia-crude-oil-inventories-75",
+      "name": "미국 원유재고",
+      "url": "https://kr.investing.com/economic-calendar/eia-crude-oil-inventories-75",
+      "count": 302,
+      "newest": "2026-10-16",
+      "oldest": "2021-01-07"
+    },
+    {
+      "id": "retail-inventories-ex-auto-1887",
+      "name": "미국 자동차 제외 소매 재고",
+      "url": "https://kr.investing.com/economic-calendar/retail-inventories-ex-auto-1887",
+      "count": 135,
+      "newest": "2026-10-28",
+      "oldest": "2021-01-16"
     },
     {
       "id": "philly-fed-employment-908",
