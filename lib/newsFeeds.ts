@@ -86,6 +86,57 @@ export async function fetchNaverMainNews(pageSize = 20): Promise<NewsItem[]> {
   }
 }
 
+/**
+ * 글로벌이코노믹(g-enews) — 글로벌 경제·시장 한국어 기사. RSS 가 없어 섹션 리스트 HTML 을 파싱.
+ * 제목 앵커(class e2=피처 / w2=목록)만 추출하고, 요약 리드(w3)는 제외. 날짜는 기사 URL 끝 14자리(YYYYMMDDHHMMSS, KST).
+ * list.php 는 일반 공개 페이지라 Vercel(icn1)에서도 조회 가능. 실패 시 빈 배열(그레이스풀).
+ */
+const GENEWS_SECTIONS: { name: string; ct: string }[] = [
+  { name: '글로벌이코노믹', ct: 'g080000' }, // Global-Biz(美 금리·유가·글로벌 증시 등 거시)
+];
+const stripTags = (s: string) => s.replace(/<[^>]+>/g, '');
+const decodeEntities = (s: string) =>
+  s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+
+export async function fetchGenews(perSection = 12): Promise<NewsItem[]> {
+  const jobs = GENEWS_SECTIONS.map(async (s): Promise<NewsItem[]> => {
+    try {
+      const res = await fetch(`https://www.g-enews.com/list.php?ct=${s.ct}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml',
+        },
+        next: { revalidate: 300 },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) return [];
+      const html = await res.text();
+      const re = /<a href="(https:\/\/www\.g-enews\.com\/article\/[^"]+)"[^>]*class="[^"]*\b(?:e2|w2)\b[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
+      const seen = new Set<string>();
+      const out: NewsItem[] = [];
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(html)) !== null && out.length < perSection) {
+        const link = m[1];
+        if (seen.has(link)) continue;
+        seen.add(link);
+        const title = decodeEntities(stripTags(m[2])).replace(/\s+/g, ' ').trim();
+        if (title.length < 6) continue;
+        const seg = link.split('/').pop() ?? '';
+        const d = seg.slice(0, 14);
+        const pubDate = /^\d{14}$/.test(d)
+          ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${d.slice(8, 10)}:${d.slice(10, 12)}:${d.slice(12, 14)}+09:00`
+          : undefined;
+        out.push({ title, link, pubDate, source: s.name, category: 'international' });
+      }
+      return out;
+    } catch {
+      return [];
+    }
+  });
+  const settled = await Promise.allSettled(jobs);
+  return settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+}
+
 const byDateDesc = (a: NewsItem, b: NewsItem) =>
   (b.pubDate ? new Date(b.pubDate).getTime() : 0) - (a.pubDate ? new Date(a.pubDate).getTime() : 0);
 
@@ -94,6 +145,7 @@ export async function fetchNews(category?: NewsCategory | null, limit = 100): Pr
   const rss = category ? RSS_SOURCES.filter((s) => s.category === category) : RSS_SOURCES;
   const jobs: Promise<NewsItem[]>[] = rss.map(fetchRss);
   if (!category || category === 'domestic') jobs.push(fetchNaverMainNews(20));
+  if (!category || category === 'international') jobs.push(fetchGenews(12)); // 글로벌이코노믹(해외 거시)
 
   const settled = await Promise.allSettled(jobs);
   const seen = new Set<string>();
