@@ -90,6 +90,14 @@
       "oldest": "2021-01-15"
     },
     {
+      "id": "industrial-production-161",
+      "name": "미국 산업생산 <전월 대비>",
+      "url": "https://kr.investing.com/economic-calendar/industrial-production-161",
+      "count": 70,
+      "newest": "2026-10-16",
+      "oldest": "2021-01-15"
+    },
+    {
       "id": "retail-control-1506",
       "name": "미국 소매관리 <전월 대비>",
       "url": "https://kr.investing.com/economic-calendar/retail-control-1506",
@@ -112,6 +120,22 @@
       "count": 68,
       "newest": "2026-10-14",
       "oldest": "2021-01-13"
+    },
+    {
+      "id": "import-price-index-153",
+      "name": "미국 수입물가지수 <전월 대비>",
+      "url": "https://kr.investing.com/economic-calendar/import-price-index-153",
+      "count": 69,
+      "newest": "2026-10-16",
+      "oldest": "2021-01-14"
+    },
+    {
+      "id": "export-price-index-892",
+      "name": "미국 수출물가지수 <전월 대비>",
+      "url": "https://kr.investing.com/economic-calendar/export-price-index-892",
+      "count": 69,
+      "newest": "2026-10-16",
+      "oldest": "2021-01-14"
     },
     {
       "id": "initial-jobless-claims-294",
@@ -170,12 +194,28 @@
       "oldest": "2025-10-29"
     },
     {
+      "id": "eia-weekly-cushing-oil-inventories-1657",
+      "name": "미국 API 주간 쿠싱 원유 재고",
+      "url": "https://kr.investing.com/economic-calendar/eia-weekly-cushing-oil-inventories-1657",
+      "count": 302,
+      "newest": "2026-10-16",
+      "oldest": "2021-01-07"
+    },
+    {
       "id": "atlanta-fed-gdpnow-2260",
       "name": "애틀랜타 연방준비은행의 GDPNow",
       "url": "https://kr.investing.com/economic-calendar/atlanta-fed-gdpnow-2260",
       "count": 244,
       "newest": "2026-10-29",
       "oldest": "2023-10-28"
+    },
+    {
+      "id": "industrial-production-1755",
+      "name": "전년 대비 미국의 산업 생산",
+      "url": "https://kr.investing.com/economic-calendar/industrial-production-1755",
+      "count": 70,
+      "newest": "2026-10-16",
+      "oldest": "2021-01-15"
     }
   ]
 }
