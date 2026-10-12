@@ -26,6 +26,14 @@
       "oldest": "2021-01-29"
     },
     {
+      "id": "core-ppi-62",
+      "name": "미국 근원 생산자물가지수(PPI) <전월 대비>",
+      "url": "https://kr.investing.com/economic-calendar/core-ppi-62",
+      "count": 70,
+      "newest": "2026-10-15",
+      "oldest": "2021-01-15"
+    },
+    {
       "id": "core-cpi-index-1226",
       "name": "미국 근원 소비자물가 지수(CPI)",
       "url": "https://kr.investing.com/economic-calendar/core-cpi-index-1226",
@@ -48,6 +56,22 @@
       "count": 68,
       "newest": "2026-10-14",
       "oldest": "2021-01-13"
+    },
+    {
+      "id": "ny-empire-state-manufacturing-index-323",
+      "name": "미국 뉴욕 엠파이어스테이트 제조업지수",
+      "url": "https://kr.investing.com/economic-calendar/ny-empire-state-manufacturing-index-323",
+      "count": 70,
+      "newest": "2026-10-15",
+      "oldest": "2021-01-15"
+    },
+    {
+      "id": "retail-control-1506",
+      "name": "미국 소매관리 <전월 대비>",
+      "url": "https://kr.investing.com/economic-calendar/retail-control-1506",
+      "count": 69,
+      "newest": "2026-10-15",
+      "oldest": "2021-01-15"
     },
     {
       "id": "cpi-733",
@@ -88,6 +112,14 @@
       "count": 302,
       "newest": "2026-10-15",
       "oldest": "2021-01-07"
+    },
+    {
+      "id": "philly-fed-employment-908",
+      "name": "미국 필라델피아 연준 고용률",
+      "url": "https://kr.investing.com/economic-calendar/philly-fed-employment-908",
+      "count": 70,
+      "newest": "2026-10-15",
+      "oldest": "2021-01-21"
     },
     {
       "id": "adp-employment-change-weekly-2295",
