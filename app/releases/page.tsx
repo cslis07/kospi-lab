@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
+import { computeReaction, type PricePoint, type ReactionStat, type ReactionResult } from '@/lib/releaseReaction';
+import Link from 'next/link';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -25,13 +27,44 @@ function actualClass(actual: string | null, forecast: string | null) {
   return 'text-[var(--text)]';
 }
 
+const rxSign = (v: number) => (v > 0 ? 'text-red-400' : v < 0 ? 'text-blue-400' : 'text-[var(--text-muted)]');
+// 반응 통계 셀: 평균 변동%·상승 비율(표본)
+function RxCell({ s }: { s: ReactionStat }) {
+  if (!s || s.n === 0) return <span className="text-[var(--text-muted)]">—</span>;
+  return (
+    <span className="tabular-nums">
+      <b className={rxSign(s.avgPct)}>{s.avgPct >= 0 ? '+' : ''}{s.avgPct.toFixed(2)}%</b>
+      <span className="text-[var(--text-muted)]"> · 상승 {s.posRate.toFixed(0)}% <span className={s.n < 10 ? 'text-amber-400' : ''}>({s.n})</span></span>
+    </span>
+  );
+}
+
 export default function ReleasesPage() {
   const { data: idx } = useSWR<IndexFile>('/data/investing/index.json', fetcher);
   const items = idx?.items ?? [];
   const [sel, setSel] = useState<string>('');
+  // ?id= 딥링크(초기 1회) — /macro 등에서 특정 지표로 바로 진입
+  useEffect(() => {
+    try { const q = new URLSearchParams(window.location.search).get('id'); if (q) setSel(q); } catch {}
+  }, []);
   const curId = sel || items[0]?.id || '';
   const { data: file } = useSWR<DataFile>(curId ? `/data/investing/${curId}.json` : null, fetcher);
   const meta = items.find((x) => x.id === curId);
+
+  // 서프라이즈 → 다음 거래일 반응 (BTC·S&P는 발표 당일, 코스피는 다음 세션)
+  const { data: daily } = useSWR<{ btc: PricePoint[]; sp: PricePoint[]; nasdaq: PricePoint[]; kospi: PricePoint[] }>('/api/macro/daily', fetcher);
+  const reaction = useMemo(() => {
+    if (!file) return null;
+    const rel = file.rows.map((r) => ({ date: r.date, actual: r.actual, forecast: r.forecast }));
+    const scored = rel.filter((r) => r.actual && r.forecast).length;
+    if (scored < 5) return { tooFew: scored };
+    if (!daily) return { loading: true };
+    return {
+      btc: computeReaction(rel, daily.btc, 0),
+      sp: computeReaction(rel, daily.sp, 0),
+      kospi: computeReaction(rel, daily.kospi, 1),
+    };
+  }, [file, daily]);
 
   const [year, setYear] = useState<string>('전체');
   const years = useMemo(() => {
@@ -60,6 +93,7 @@ export default function ReleasesPage() {
           {items.map((it) => <option key={it.id} value={it.id}>{it.name} ({it.count})</option>)}
         </select>
         <span className="text-[11px] text-[var(--text-muted)]">{items.length}개 지표{idx ? ` · 수집 ${idx.updatedAt}` : ''}</span>
+        <Link href="/macro" className="text-[11px] font-semibold text-[var(--accent-ink)] shrink-0">FRED 지표(/macro) →</Link>
       </div>
 
       {meta && file ? (
@@ -114,6 +148,49 @@ export default function ReleasesPage() {
             </div>
           </div>
           <p className="text-[11px] text-[var(--text-muted)] mt-2">결과 색: <span className="text-blue-400 font-semibold">예측 상회</span> · <span className="text-red-400 font-semibold">예측 하회</span> (인베스팅 표기와 동일). 표시행 {rows.length}건.</p>
+
+          {/* 서프라이즈 → 다음 거래일 시장 반응 */}
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mt-4">
+            <h2 className="text-sm font-semibold text-[var(--text)]">서프라이즈 → 다음 거래일 반응</h2>
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-3">결과가 <b className="text-[var(--text)]">예측을 벗어난 날</b>, 그 다음 시장이 어떻게 움직였나(과거 평균). 美 지표라 S&P·BTC는 발표 당일, 코스피는 다음 거래일 기준.</p>
+            {reaction && 'tooFew' in reaction ? (
+              <p className="text-[12px] text-[var(--text-muted)]">이 지표는 예측(컨센서스) 있는 발표가 {reaction.tooFew}건뿐이라 반응 분석을 생략합니다(국채 입찰·ADP 등은 컨센서스가 없음).</p>
+            ) : reaction && 'loading' in reaction ? (
+              <p className="text-[12px] text-[var(--text-muted)]">시세 불러오는 중…</p>
+            ) : reaction ? (
+              <>
+                <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-[var(--bg)] border-b border-[var(--border)]">
+                        <th className="text-left px-3 py-2 text-[var(--text-muted)] font-semibold">자산</th>
+                        <th className="text-right px-2 py-2 text-[var(--text-muted)] font-semibold">예측 상회일</th>
+                        <th className="text-right px-2 py-2 text-[var(--text-muted)] font-semibold">예측 하회일</th>
+                        <th className="text-right px-3 py-2 text-[var(--text-muted)] font-semibold">대조군(전체)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {([{ k: 'btc', label: '비트코인' }, { k: 'sp', label: 'S&P500' }, { k: 'kospi', label: '코스피' }] as const).map((a) => {
+                        const R = (reaction as unknown as Record<string, ReactionResult>)[a.k];
+                        return (
+                          <tr key={a.k} className="border-b border-[var(--border)]/50">
+                            <td className="px-3 py-2 font-semibold text-[var(--text)] whitespace-nowrap">{a.label}</td>
+                            <td className="px-2 py-2 text-right"><RxCell s={R.up} /></td>
+                            <td className="px-2 py-2 text-right"><RxCell s={R.down} /></td>
+                            <td className="px-3 py-2 text-right"><RxCell s={R.control} /></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
+                  각 칸 = 평균 변동% · 상승 비율(표본 수). <b>상회/하회는 좋고 나쁨이 아니라 결과가 예측보다 높았나 낮았나</b>일 뿐입니다(지표마다 의미 다름).
+                  변동폭이 대조군과 비슷하거나 표본(괄호)이 적으면(주황) <b className="text-amber-400">우연</b>입니다 — 이 앱의 측정에서 지표 서프라이즈로 다음날을 맞히는 우위는 거의 없었습니다. 상관이지 인과 아님.
+                </p>
+              </>
+            ) : null}
+          </div>
         </>
       ) : (
         <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">

@@ -2,11 +2,17 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
+import Link from 'next/link';
 import MacroChartLazy from '@/components/MacroChartLazy';
 import type { MacroIndicator } from '@/lib/macroData';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const FLAG: Record<string, string> = { US: '🇺🇸', KR: '🇰🇷' };
+// FRED 지표 → 인베스팅 발표 이력(결과·예측) 연결
+const RELEASES_LINK: Record<string, { id: string; label: string }> = {
+  cpi: { id: 'cpi-733', label: 'CPI 발표 이력·예측' },
+  ppi: { id: 'core-ppi-62', label: '근원 PPI 발표 이력·예측' },
+};
 
 function fmtNum(v: number | null | undefined, dec: number) {
   return v == null ? '-' : v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -65,6 +71,9 @@ export default function MacroPage() {
               <div>
                 <p className="text-sm font-semibold text-[var(--text)]">{FLAG[cur.country]} {cur.label}</p>
                 <p className="text-[11px] text-[var(--text-muted)] mt-0.5">기준일 {cur.latest.date} · {cur.schedule}</p>
+                {RELEASES_LINK[cur.id] && (
+                  <Link href={`/releases?id=${RELEASES_LINK[cur.id].id}`} className="inline-block mt-1 text-[11px] font-semibold text-[var(--accent-ink)]">{RELEASES_LINK[cur.id].label} →</Link>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-2xl font-extrabold tabular-nums text-[var(--text)]">{fmtNum(cur.latest.value, cur.decimals)}<span className="text-xs font-normal text-[var(--text-muted)] ml-1">{cur.unit}</span></p>
