@@ -123,6 +123,7 @@ export const EXTRAS: MenuItem[] = [
   { href: '/news',       icon: 'news',       label: '뉴스',        desc: '시장 소식' },
   { href: '/calendar',   icon: 'calendar',   label: '경제 캘린더', desc: 'FOMC·CPI·실적 등 주요 일정' },
   { href: '/macro',      icon: 'signal',     label: '경제지표',    desc: '미국 CPI·PPI·달러지수·유가·원달러(FRED)' },
+  { href: '/releases',   icon: 'calendar',   label: '지표 발표 이력', desc: '인베스팅 결과·예측·이전(2021~)' },
   { href: '/principles', icon: 'principles', label: '매매 대원칙', desc: '지킬 3·피할 3' },
   { href: '/study',      icon: 'insight',    label: '코인 기초 공부법', desc: '차트·RSI·MACD·피보나치·금리·유가' },
   { href: '/study/reentry', icon: 'principles', label: '진입·재진입 체크리스트', desc: '진입 전 7문항·손절 후 60분 프로토콜' },
@@ -169,7 +170,7 @@ export function drillTitle(pathname: string): string {
  */
 export const OWN_H1_ROUTES = [
   '/bitget', '/brokerage', '/crypto/', '/futures', '/growth', '/invest', '/journal', '/krx',
-  '/overseas/', '/overseas-analysis', '/macro', '/principles', '/screener', '/simulate', '/stock/', '/study', '/tax', '/virtual',
+  '/overseas/', '/overseas-analysis', '/macro', '/principles', '/releases', '/screener', '/simulate', '/stock/', '/study', '/tax', '/virtual',
 ];
 export const pageOwnsH1 = (pathname: string) =>
   OWN_H1_ROUTES.some((r) => (r.endsWith('/') ? pathname.startsWith(r) : under(pathname, r)));
