@@ -2,12 +2,36 @@
   "updatedAt": "2026-10-12",
   "items": [
     {
+      "id": "3-month-bill-auction-568",
+      "name": "미국 3개월물 국채 입찰",
+      "url": "https://kr.investing.com/economic-calendar/3-month-bill-auction-568",
+      "count": 302,
+      "newest": "2026-10-14",
+      "oldest": "2021-01-05"
+    },
+    {
+      "id": "6-month-bill-auction-679",
+      "name": "미국 6개월물 국채 입찰",
+      "url": "https://kr.investing.com/economic-calendar/6-month-bill-auction-679",
+      "count": 302,
+      "newest": "2026-10-14",
+      "oldest": "2021-01-05"
+    },
+    {
       "id": "continuing-jobless-claims-522",
       "name": "미국 연속 실업수당청구건수",
       "url": "https://kr.investing.com/economic-calendar/continuing-jobless-claims-522",
       "count": 302,
       "newest": "2026-10-15",
       "oldest": "2021-01-07"
+    },
+    {
+      "id": "adp-employment-change-weekly-2295",
+      "name": "미국 ADP 주간 고용변화",
+      "url": "https://kr.investing.com/economic-calendar/adp-employment-change-weekly-2295",
+      "count": 42,
+      "newest": "2026-10-13",
+      "oldest": "2025-10-29"
     }
   ]
 }
