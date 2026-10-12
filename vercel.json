@@ -1,6 +1,7 @@
 {
   "regions": ["icn1"],
   "crons": [
-    { "path": "/api/brief/telegram", "schedule": "30 22 * * *" }
+    { "path": "/api/brief/telegram", "schedule": "30 22 * * *" },
+    { "path": "/api/econ/alert", "schedule": "0 22 * * 1-5" }
   ]
 }
