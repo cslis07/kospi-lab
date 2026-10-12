@@ -18,6 +18,38 @@
       "oldest": "2021-01-05"
     },
     {
+      "id": "core-cpi-736",
+      "name": "미국 근원 소비자물가지수(CPI) <전년 대비>",
+      "url": "https://kr.investing.com/economic-calendar/core-cpi-736",
+      "count": 69,
+      "newest": "2026-10-14",
+      "oldest": "2021-01-13"
+    },
+    {
+      "id": "core-cpi-56",
+      "name": "미국 근원 소비자물가지수(CPI) <전월 대비>",
+      "url": "https://kr.investing.com/economic-calendar/core-cpi-56",
+      "count": 68,
+      "newest": "2026-10-14",
+      "oldest": "2021-01-13"
+    },
+    {
+      "id": "cpi-733",
+      "name": "미국 소비자물가지수(CPI) <전년 대비>",
+      "url": "https://kr.investing.com/economic-calendar/cpi-733",
+      "count": 69,
+      "newest": "2026-10-14",
+      "oldest": "2021-01-13"
+    },
+    {
+      "id": "cpi-69",
+      "name": "미국 소비자물가지수(CPI) <전월 대비>",
+      "url": "https://kr.investing.com/economic-calendar/cpi-69",
+      "count": 68,
+      "newest": "2026-10-14",
+      "oldest": "2021-01-13"
+    },
+    {
       "id": "continuing-jobless-claims-522",
       "name": "미국 연속 실업수당청구건수",
       "url": "https://kr.investing.com/economic-calendar/continuing-jobless-claims-522",
