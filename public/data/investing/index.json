@@ -2,12 +2,28 @@
   "updatedAt": "2026-10-12",
   "items": [
     {
+      "id": "8-week-bill-auction-1801",
+      "name": "8주일물 미 국채 입찰",
+      "url": "https://kr.investing.com/economic-calendar/8-week-bill-auction-1801",
+      "count": 302,
+      "newest": "2026-10-16",
+      "oldest": "2021-01-08"
+    },
+    {
       "id": "3-month-bill-auction-568",
       "name": "미국 3개월물 국채 입찰",
       "url": "https://kr.investing.com/economic-calendar/3-month-bill-auction-568",
       "count": 302,
       "newest": "2026-10-14",
       "oldest": "2021-01-05"
+    },
+    {
+      "id": "4-week-bill-auction-567",
+      "name": "미국 4주일물 국채 입찰",
+      "url": "https://kr.investing.com/economic-calendar/4-week-bill-auction-567",
+      "count": 304,
+      "newest": "2026-10-16",
+      "oldest": "2021-01-08"
     },
     {
       "id": "6-month-bill-auction-679",
@@ -152,6 +168,14 @@
       "count": 42,
       "newest": "2026-10-13",
       "oldest": "2025-10-29"
+    },
+    {
+      "id": "atlanta-fed-gdpnow-2260",
+      "name": "애틀랜타 연방준비은행의 GDPNow",
+      "url": "https://kr.investing.com/economic-calendar/atlanta-fed-gdpnow-2260",
+      "count": 244,
+      "newest": "2026-10-29",
+      "oldest": "2023-10-28"
     }
   ]
 }
