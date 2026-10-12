@@ -213,8 +213,11 @@ const COINS = [
   { symbol: 'SOLUSDT', short: 'SOL', name: '솔라나',   bg: '#9945FF', mmr: 0.005 },
 ];
 
-// Bitget 테이커 수수료(기본). 청산 시 청산 명목가에 부과되므로 유지증거금률과 함께 더해진다.
+// Bitget USDT-M 선물 기본 수수료율(VIP0·BGB 할인 미적용).
+//  - 테이커(시장가/체결 주문): 0.06% · 메이커(지정가 대기 주문): 0.02%
+//  - 수수료는 각 체결의 명목가(수량×체결가)에 부과. 강제청산은 테이커로 체결된다.
 const TAKER_FEE = 0.0006;
+const MAKER_FEE = 0.0002;
 
 function priceDigits(p: number) { return p >= 1000 ? 1 : p >= 10 ? 2 : 4; }
 
@@ -226,6 +229,8 @@ function LeverageCalc() {
   const [entryStr, setEntryStr] = useState('');    // 진입가(기준가) 직접 입력. 빈칸이면 현재가 사용
   const [targetStr, setTargetStr] = useState('');  // 목표가 입력(빈칸이면 진입가로 간주)
   const [feeOn,  setFeeOn]    = useState(false);   // 수수료·펀딩 반영(실손익)
+  const [openMaker,  setOpenMaker]  = useState(false); // 진입 주문유형: false=시장가(테이커)·true=지정가(메이커)
+  const [closeMaker, setCloseMaker] = useState(false); // 청산 주문유형
   const [holdH,  setHoldH]    = useState(24);      // 보유 시간(시간)
   const [seed,   setSeed]     = useState(1000);    // 리스크 역산: 계좌 시드 USDT
   const [riskPct, setRiskPct] = useState(2);       // 리스크 역산: 계좌 대비 허용 손실%
@@ -265,9 +270,12 @@ function LeverageCalc() {
   const changePct = entry > 0 ? ((effTarget - entry) / entry) * 100 : 0; // 진입가 대비 가격 변동%
   const grossPnl = entry > 0 ? position * ((effTarget - entry) / entry) * dirSign : 0; // 수수료 전 손익(USDT)
 
-  // 수수료·펀딩(실손익): 진입 테이커 + 청산 테이커(청산 명목가) + 보유기간 펀딩
-  const openFee  = position * TAKER_FEE;
-  const closeFee = entry > 0 ? position * (effTarget / entry) * TAKER_FEE : 0;
+  // 수수료·펀딩(실손익): Bitget 수수료율 — 진입·청산 각각 메이커(0.02%)/테이커(0.06%)
+  //  진입 수수료 = 진입 명목가×율 · 청산 수수료 = 청산 명목가(수량×청산가)×율
+  const openRate  = openMaker ? MAKER_FEE : TAKER_FEE;
+  const closeRate = closeMaker ? MAKER_FEE : TAKER_FEE;
+  const openFee  = position * openRate;
+  const closeFee = entry > 0 ? position * (effTarget / entry) * closeRate : 0;
   const feeCost  = openFee + closeFee;
   // 펀딩: 8h마다 명목가×펀딩률. 펀딩률>0이면 롱이 숏에게 지급(롱 비용·숏 수익)
   const fundingPeriods = holdH / 8;
@@ -332,7 +340,7 @@ function LeverageCalc() {
 
       <div className="flex items-start gap-2 text-xs text-amber-400 bg-amber-500/5 border border-amber-500/20 rounded-xl px-3 py-2">
         <span>⚠</span>
-        <span>레버리지 선물은 원금 초과 손실·강제청산 위험이 있습니다. <b>청산가</b>는 Bitget 고립마진 공식으로 계산합니다. <b>손익</b>은 기본은 수수료 제외이며, 아래 <b>수수료·펀딩 반영</b>을 켜면 진입·청산 테이커와 보유기간 펀딩비까지 반영한 실손익을 보여줍니다.</span>
+        <span>레버리지 선물은 원금 초과 손실·강제청산 위험이 있습니다. <b>청산가</b>는 Bitget 고립마진 공식으로 계산합니다. <b>손익</b>은 기본은 수수료 제외이며, 아래 <b>수수료·펀딩 반영</b>을 켜면 진입·청산 수수료(Bitget 메이커 0.02%/테이커 0.06%)와 보유기간 펀딩비까지 반영한 실손익을 보여줍니다.</span>
       </div>
 
       {/* 입력 */}
@@ -410,10 +418,25 @@ function LeverageCalc() {
           </label>
           {feeOn && (
             <div className="mt-3 space-y-2.5">
+              {/* 진입·청산 주문유형 → 메이커/테이커 수수료율 */}
+              {([
+                { label: '진입 주문', maker: openMaker, set: setOpenMaker },
+                { label: '청산 주문', maker: closeMaker, set: setCloseMaker },
+              ] as const).map((leg) => (
+                <div key={leg.label} className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-[var(--text-muted)] shrink-0">{leg.label}</span>
+                  <div className="grid grid-cols-2 gap-1 flex-1 max-w-[220px]">
+                    <button onClick={() => leg.set(false)}
+                      className={`py-1 rounded-lg border text-[11px] font-semibold transition-all ${!leg.maker ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>시장가 · 테이커 0.06%</button>
+                    <button onClick={() => leg.set(true)}
+                      className={`py-1 rounded-lg border text-[11px] font-semibold transition-all ${leg.maker ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>지정가 · 메이커 0.02%</button>
+                  </div>
+                </div>
+              ))}
               <SimSlider label="보유 시간" sliderValue={holdH} sliderMin={0} sliderMax={720} sliderStep={1} onSlider={setHoldH}
                 numValue={holdH} numMin={0} numMax={8760} numStep={1} unit="시간" onNum={setHoldH} numW="w-20" />
               <p className="text-[10px] text-[var(--text-muted)]">
-                테이커 {(TAKER_FEE * 100).toFixed(2)}%(진입+청산) · 펀딩 {fundingPct != null ? `${fundingPct >= 0 ? '+' : ''}${fundingPct.toFixed(4)}%/8h (${dir === 'long' ? (fundingPct >= 0 ? '롱 지급' : '롱 수취') : (fundingPct >= 0 ? '숏 수취' : '숏 지급')})` : '로딩…'} · {fundingPeriods.toFixed(1)}회
+                진입 {(openRate * 100).toFixed(2)}% + 청산 {(closeRate * 100).toFixed(2)}% · 펀딩 {fundingPct != null ? `${fundingPct >= 0 ? '+' : ''}${fundingPct.toFixed(4)}%/8h (${dir === 'long' ? (fundingPct >= 0 ? '롱 지급' : '롱 수취') : (fundingPct >= 0 ? '숏 수취' : '숏 지급')})` : '로딩…'} · {fundingPeriods.toFixed(1)}회 · Bitget VIP0 기준(BGB 할인 미적용)
               </p>
             </div>
           )}
@@ -439,7 +462,8 @@ function LeverageCalc() {
           {feeOn && (
             <div className="mt-3 pt-2.5 border-t border-[var(--border)] text-[11px] text-[var(--text-muted)] space-y-0.5 max-w-[260px] mx-auto">
               <div className="flex justify-between"><span>수수료 전 손익</span><span className={grossPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{grossPnl >= 0 ? '+' : ''}{fmtUsdt(grossPnl)}</span></div>
-              <div className="flex justify-between"><span>− 수수료(진입+청산)</span><span className="text-red-400">-{fmtUsdt(feeCost, 2)}</span></div>
+              <div className="flex justify-between"><span>− 진입 수수료 ({openMaker ? '메이커' : '테이커'} {(openRate * 100).toFixed(2)}%)</span><span className="text-red-400">-{fmtUsdt(openFee, 2)}</span></div>
+              <div className="flex justify-between"><span>− 청산 수수료 ({closeMaker ? '메이커' : '테이커'} {(closeRate * 100).toFixed(2)}%)</span><span className="text-red-400">-{fmtUsdt(closeFee, 2)}</span></div>
               <div className="flex justify-between"><span>{fundingCost >= 0 ? '− 펀딩비' : '+ 펀딩 수취'}</span><span className={fundingCost > 0 ? 'text-red-400' : fundingCost < 0 ? 'text-emerald-400' : ''}>{fundingCost >= 0 ? '-' : '+'}{fmtUsdt(Math.abs(fundingCost), 2)}</span></div>
             </div>
           )}
