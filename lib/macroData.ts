@@ -68,6 +68,13 @@ export const MACRO_CFG: Cfg[] = [
     impact: '환율 급등(원 약세)은 외국인 매도·증시 부담 요인, 급락(원 강세)은 그 반대다.',
     schedule: '영업일 일별 갱신(FRED 기준 1~2일 지연)',
   },
+  {
+    id: 'nasdaq', fred: 'NASDAQCOM', label: '나스닥 종합지수', country: 'US',
+    unit: '포인트', periodicity: 'daily', decimals: 2,
+    desc: '미국 나스닥 시장 전체 종목의 시가총액 가중 지수. 애플·엔비디아 등 기술주 비중이 커 위험자산·성장주 심리의 바로미터다.',
+    impact: '나스닥 강세는 위험 선호(코인·성장주 순풍), 급락은 위험 회피 신호. 금리·달러와 함께 보면 시장 맥락이 잡힌다.',
+    schedule: '미국 증시 영업일 마감치(FRED 기준 1~2일 지연)',
+  },
 ];
 
 async function fredObs(id: string, limit: number): Promise<MacroPoint[]> {

@@ -13,6 +13,7 @@ import useSWR from 'swr';
 import { fetcher, colorOf, arrowOf, MiniLine, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, MoreLink, Flash } from '@/components/naver/ui';
 import BottomSheet from '@/components/ui/BottomSheet';
 import MacroDetail, { FLAG } from '@/components/MacroDetail';
+import MarketIndicatorDetail from '@/components/MarketIndicatorDetail';
 import type { MacroIndicator } from '@/lib/macroData';
 
 interface Q { code: string; name: string; cat: string; unit?: string; price: number; change: number; changeRate: number; status: string; spark: number[] }
@@ -24,10 +25,11 @@ const GROUPS: [string, string[]][] = [
 ];
 // 네이버 홈 배치 순서(번들의 코드 배열과 동일)
 const HOME_ORDER = ['FX_USDKRW', 'FX_EURKRW', 'FX_JPYKRW', '.DXY', 'US3YT=RR', 'US10YT=RR', 'CLcv1', 'GCcv1', 'M04020000', 'SIcv1', 'KR2YT=RR', 'KR10YT=RR'];
-// live 시세 코드 → 경제지표(FRED) id. 겹치는 지표는 눌러서 같은 상세를 본다.
-const LIVE_TO_MACRO: Record<string, string> = { CLcv1: 'wti', '.DXY': 'dxy', FX_USDKRW: 'usdkrw' };
-// 경제지표 그룹에 보여줄 순서
-const MACRO_ORDER = ['cpi', 'ppi', 'dxy', 'wti', 'usdkrw'];
+// 경제지표 그룹에 보여줄 순서(FRED). 나스닥 포함.
+const MACRO_ORDER = ['cpi', 'ppi', 'nasdaq', 'dxy', 'wti', 'usdkrw'];
+
+// 시트에 띄울 대상: live 시세 지표 또는 경제지표(FRED)
+type Sel = { kind: 'live'; q: Q } | { kind: 'macro'; id: string } | null;
 
 const dec = (q: Q) => (q.cat === 'bond' ? 4 : q.code === 'M04020000' ? 0 : 2);
 const fmt = (q: Q, v: number) => v.toLocaleString('en-US', { minimumFractionDigits: dec(q), maximumFractionDigits: dec(q) });
@@ -80,17 +82,17 @@ export default function IndicatorsSection({ home = false }: { home?: boolean }) 
   // 경제지표는 발표치라 자주 안 바뀜 → 5분. 홈(compact)에선 불러오지 않는다(키 null).
   const { data: macro } = useSWR<MacroIndicator[]>(home ? null : '/api/macro/indicators', fetcher, { refreshInterval: 300000 });
   const macroById = new Map((macro ?? []).map((m) => [m.id, m]));
-  const [sel, setSel] = useState<string | null>(null); // 열린 경제지표 id
+  const [sel, setSel] = useState<Sel>(null); // 시트에 띄울 대상
 
   const by = new Map((data?.items ?? []).map((q) => [q.code, q]));
   // 응답이 왔는데 이 지표만 없으면(코드 변경 등) 스켈레톤을 끝없이 돌리지 않고 '없음' 카드로
   const slot = (c: string) => {
     const q = by.get(c);
-    const macroId = !home ? LIVE_TO_MACRO[c] : undefined; // 페이지에서만 겹치는 카드 클릭 가능
     if (q) {
-      if (macroId) {
+      // 페이지에선 모든 지표 카드를 눌러 상세(히스토리·설명·영향)를 연다. 홈 레일은 그대로.
+      if (!home) {
         return (
-          <button key={c} type="button" onClick={() => setSel(macroId)} aria-label={`${q.name} 경제지표 상세`}
+          <button key={c} type="button" onClick={() => setSel({ kind: 'live', q })} aria-label={`${q.name} 상세`}
             style={{ display: 'block', width: '100%', padding: 0, background: 'none', border: 0, textAlign: 'left', cursor: 'pointer' }}>
             <Card q={q} compact={home} />
           </button>
@@ -104,12 +106,13 @@ export default function IndicatorsSection({ home = false }: { home?: boolean }) 
 
   const macroSlot = (id: string) => {
     const it = macroById.get(id);
-    if (it) return <MacroCard key={id} it={it} onClick={() => setSel(id)} />;
+    if (it) return <MacroCard key={id} it={it} onClick={() => setSel({ kind: 'macro', id })} />;
     if (macro) return null; // 응답엔 왔는데 이 지표만 없으면 숨김
     return <div key={id} className="skeleton" style={{ height: 128, borderRadius: 'var(--r)' }} />;
   };
 
-  const selIndicator = sel ? macroById.get(sel) : undefined;
+  const selMacro = sel?.kind === 'macro' ? macroById.get(sel.id) : undefined;
+  const sheetTitle = sel?.kind === 'live' ? sel.q.name : sel?.kind === 'macro' ? (selMacro?.label ?? '경제지표') : '';
 
   return (
     <div>
@@ -126,20 +129,22 @@ export default function IndicatorsSection({ home = false }: { home?: boolean }) 
       {/* 🆕 경제지표(FRED) — 페이지에서만. 눌러서 상세(차트·발표내역·영향) */}
       {!home && (
         <section style={{ marginBottom: 18 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', margin: '14px 2px 4px' }}>경제지표 <span style={{ fontWeight: 400, color: 'var(--faint)', fontSize: 11.5 }}>· 미국 물가·달러·유가와 원/달러(FRED 공식 발표치) — 카드를 누르면 상세</span></div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', margin: '14px 2px 4px' }}>경제지표 <span style={{ fontWeight: 400, color: 'var(--faint)', fontSize: 11.5 }}>· 미국 물가·나스닥·달러·유가와 원/달러(FRED 공식 발표치) — 카드를 누르면 상세</span></div>
           <div className="nv-ind-grid">{MACRO_ORDER.map(macroSlot)}</div>
         </section>
       )}
 
       {/* 출처·신호 아님 고지는 홈에서도 노출(완성도 축 9) */}
-      <SourceNote>출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물){home ? '' : ' · 경제지표는 FRED(세인트루이스 연은) 공식 발표치'}. 국내 금은 g당 원화 가격, 엔화는 100엔 기준입니다. ‘N분 지연’ 표시 지표는 실시간이 아닙니다.</SourceNote>
+      <SourceNote>출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물){home ? '' : ' · 경제지표는 FRED(세인트루이스 연은) 공식 발표치'}. 국내 금은 g당 원화 가격, 엔화는 100엔 기준입니다. ‘N분 지연’ 표시 지표는 실시간이 아닙니다.{home ? '' : ' 지표를 누르면 히스토리·설명을 봅니다.'}</SourceNote>
 
-      {/* 경제지표 상세 바텀시트 */}
+      {/* 상세 바텀시트 — live 시장지표 또는 경제지표(FRED) */}
       {!home && (
-        <BottomSheet open={sel !== null} onClose={() => setSel(null)} title={selIndicator ? selIndicator.label : '경제지표'} full>
-          {selIndicator
-            ? <MacroDetail cur={selIndicator} />
-            : <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0' }}>지표 불러오는 중…</p>}
+        <BottomSheet open={sel !== null} onClose={() => setSel(null)} title={sheetTitle} full>
+          {sel?.kind === 'live'
+            ? <MarketIndicatorDetail q={sel.q} />
+            : selMacro
+              ? <MacroDetail cur={selMacro} />
+              : <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0' }}>지표 불러오는 중…</p>}
         </BottomSheet>
       )}
     </div>

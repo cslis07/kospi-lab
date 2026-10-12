@@ -234,6 +234,24 @@ export async function marketIndicators(): Promise<IndicatorQuote[]> {
   });
 }
 
+/** 시장지표 단일 종목 일별 종가 히스토리(과거→최신) — 상세 차트·표용.
+ *  prices 엔드포인트는 pageSize 상한 60 → 여러 페이지를 모아 더 긴 기간을 만든다(기본 3페이지≈9개월). */
+export async function indicatorHistory(cat: string, code: string, pages = 3): Promise<{ date: string; value: number }[]> {
+  const base = `/securityService/marketindex/${cat}/${encodeURIComponent(code)}/prices?pageSize=60&page=`;
+  const resps = await Promise.all(
+    Array.from({ length: pages }, (_, i) => nget<{ localTradedAt?: string; closePrice?: string }[]>(`${base}${i + 1}`, 600)));
+  const seen = new Set<string>();
+  const out: { date: string; value: number }[] = [];
+  for (const rows of resps) {
+    for (const x of rows ?? []) {
+      const date = String(x.localTradedAt ?? '').slice(0, 10);
+      const value = n(x.closePrice);
+      if (date.length === 10 && value > 0 && !seen.has(date)) { seen.add(date); out.push({ date, value }); }
+    }
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date)); // 과거→최신
+}
+
 /* ────────────────── 테마 ETF ────────────────── */
 export interface EtfTheme { code: string; name: string; large: string; count: number; return1d?: number; return3m?: number }
 export async function etfThemes(region: 'kr' | 'us'): Promise<EtfTheme[]> {
