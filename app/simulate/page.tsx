@@ -223,15 +223,16 @@ function LeverageCalc() {
   const [margin, setMargin]   = useState(100);   // 증거금 USDT
   const [lev,    setLev]      = useState(10);     // 배율
   const [dir,    setDir]      = useState<'long' | 'short'>('long');
-  const [targetStr, setTargetStr] = useState('');  // 목표가 입력(빈칸이면 현재가로 간주)
+  const [entryStr, setEntryStr] = useState('');    // 진입가(기준가) 직접 입력. 빈칸이면 현재가 사용
+  const [targetStr, setTargetStr] = useState('');  // 목표가 입력(빈칸이면 진입가로 간주)
   const [feeOn,  setFeeOn]    = useState(false);   // 수수료·펀딩 반영(실손익)
   const [holdH,  setHoldH]    = useState(24);      // 보유 시간(시간)
   const [seed,   setSeed]     = useState(1000);    // 리스크 역산: 계좌 시드 USDT
   const [riskPct, setRiskPct] = useState(2);       // 리스크 역산: 계좌 대비 허용 손실%
   const [stopStr, setStopStr] = useState('');      // 리스크 역산: 손절가
 
-  // 코인 전환 시 목표가·손절가 초기화(현재가 기준으로)
-  useEffect(() => { setTargetStr(''); setStopStr(''); }, [symbol]);
+  // 코인 전환 시 진입가·목표가·손절가 초기화(현재가 기준으로)
+  useEffect(() => { setEntryStr(''); setTargetStr(''); setStopStr(''); }, [symbol]);
 
   const { data: prices } = useSWR<Record<string, { price: number }>>(
     `/api/crypto/batch?symbols=${COINS.map((c) => c.symbol).join(',')}`,
@@ -248,21 +249,25 @@ function LeverageCalc() {
   const { limits: riskLimits } = useRiskLimits();      // 1회 손실 한도(서킷브레이커 설정 공유)
 
   const coin = COINS.find((c) => c.symbol === symbol)!;
-  const price = prices?.[symbol]?.price ?? 0;
-  const dg = price ? priceDigits(price) : 2;
+  const price = prices?.[symbol]?.price ?? 0;          // 현재가(live)
+  // 진입가(기준가): 직접 입력하면 그 값으로, 비우면 현재가로 전체 계산
+  const entryNum = parseFloat(entryStr);
+  const usingManualEntry = entryStr !== '' && !isNaN(entryNum) && entryNum > 0;
+  const entry = usingManualEntry ? entryNum : price;   // 모든 계산의 기준가
+  const dg = entry ? priceDigits(entry) : 2;
 
   const position = margin * lev;                       // 포지션 명목가치
-  const qty = price > 0 ? position / price : 0;        // 코인 수량
+  const qty = entry > 0 ? position / entry : 0;        // 코인 수량
   const dirSign = dir === 'long' ? 1 : -1;
   const isShort = dir === 'short';
   const targetNum = parseFloat(targetStr);
-  const effTarget = targetStr !== '' && !isNaN(targetNum) && targetNum > 0 ? targetNum : price; // 미입력 시 현재가
-  const changePct = price > 0 ? ((effTarget - price) / price) * 100 : 0; // 부호 있는 가격 변동%
-  const grossPnl = price > 0 ? position * ((effTarget - price) / price) * dirSign : 0; // 수수료 전 손익(USDT)
+  const effTarget = targetStr !== '' && !isNaN(targetNum) && targetNum > 0 ? targetNum : entry; // 미입력 시 진입가
+  const changePct = entry > 0 ? ((effTarget - entry) / entry) * 100 : 0; // 진입가 대비 가격 변동%
+  const grossPnl = entry > 0 ? position * ((effTarget - entry) / entry) * dirSign : 0; // 수수료 전 손익(USDT)
 
   // 수수료·펀딩(실손익): 진입 테이커 + 청산 테이커(청산 명목가) + 보유기간 펀딩
   const openFee  = position * TAKER_FEE;
-  const closeFee = price > 0 ? position * (effTarget / price) * TAKER_FEE : 0;
+  const closeFee = entry > 0 ? position * (effTarget / entry) * TAKER_FEE : 0;
   const feeCost  = openFee + closeFee;
   // 펀딩: 8h마다 명목가×펀딩률. 펀딩률>0이면 롱이 숏에게 지급(롱 비용·숏 수익)
   const fundingPeriods = holdH / 8;
@@ -272,29 +277,29 @@ function LeverageCalc() {
   const roe = margin > 0 ? (pnl / margin) * 100 : 0;   // 증거금 대비 수익률
   const targetPrice = effTarget;
   // 청산가: Bitget 고립마진 공식(단일 소스 lib/positionSizing). 코인별 1티어 MMR + 테이커.
-  const liqPrice = price > 0 ? isolatedLiqPrice(price, lev, isShort, coin.mmr, TAKER_FEE) : 0;
-  const liqMovePct = price > 0 ? Math.abs(price - liqPrice) / price * 100 : 0; // 청산까지 가격 변동 %
+  const liqPrice = entry > 0 ? isolatedLiqPrice(entry, lev, isShort, coin.mmr, TAKER_FEE) : 0;
+  const liqMovePct = entry > 0 ? Math.abs(entry - liqPrice) / entry * 100 : 0; // 청산까지 가격 변동 %
 
   // ── 리스크 기반 역산: "계좌의 X%만 잃으려면?" ──
   const perTradeLimit = riskLimits.perTradeLossLimitUsdt;  // 1회 손실 한도(USDT, null=미설정)
   const stopNum = parseFloat(stopStr);
-  const hasStop = stopStr !== '' && !isNaN(stopNum) && stopNum > 0 && price > 0
-    && (isShort ? stopNum > price : stopNum < price);   // 손절은 손실 방향이어야 유효
-  const stopPct = hasStop ? Math.abs(stopNum - price) / price * 100 : 0;
+  const hasStop = stopStr !== '' && !isNaN(stopNum) && stopNum > 0 && entry > 0
+    && (isShort ? stopNum > entry : stopNum < entry);   // 손절은 손실 방향이어야 유효
+  const stopPct = hasStop ? Math.abs(stopNum - entry) / entry * 100 : 0;
   const riskLoss  = seed * (riskPct / 100);             // 손절 시 손실(계좌 대비)
   // 비용 차감 사이징: 수량=(최대허용손실−예상비용)÷손절거리. 예상비용은 1차 노션으로 추정(진입+청산 테이커)
   const notion0   = hasStop ? notionForRisk(seed, riskPct, stopPct) : 0;
   const estCost   = notion0 * TAKER_FEE * 2;            // 진입+청산 테이커 추정
   const recNotion = hasStop ? notionForRisk(seed, riskPct, stopPct, estCost) : 0;  // 권장 포지션 명목가(비용 차감)
   const recMargin = recNotion / lev;                    // 권장 증거금
-  const safety    = hasStop ? liqSafety(price, stopPct, lev, isShort, coin.mmr, TAKER_FEE) : 0; // 청산여유÷손절거리
+  const safety    = hasStop ? liqSafety(entry, stopPct, lev, isShort, coin.mmr, TAKER_FEE) : 0; // 청산여유÷손절거리
   const safeMaxLev = hasStop && safety > 0 && safety < 2 ? Math.max(1, Math.floor(lev * (safety / 2))) : lev;
   const perTradeExceeded = perTradeLimit != null && riskLoss > perTradeLimit;  // 1회 한도 초과
 
-  // 목표가 슬라이더 범위(현재가 ±50%)
-  const priceLo = price ? +(price * 0.5).toFixed(dg) : 0;
-  const priceHi = price ? +(price * 1.5).toFixed(dg) : 1;
-  const priceStep = price > 1000 ? 10 : price > 10 ? 0.1 : 0.0001;
+  // 목표가 슬라이더 범위(진입가 ±50%)
+  const priceLo = entry ? +(entry * 0.5).toFixed(dg) : 0;
+  const priceHi = entry ? +(entry * 1.5).toFixed(dg) : 1;
+  const priceStep = entry > 1000 ? 10 : entry > 10 ? 0.1 : 0.0001;
 
   const krwOf = (u: number) => (usdtKrw ? u * usdtKrw : null);
 
@@ -336,6 +341,7 @@ function LeverageCalc() {
           <h2 className="text-sm font-semibold text-[var(--text)]">{coin.name} 선물 손익 계산</h2>
           <span className="text-xs text-[var(--text-muted)] tabular-nums">
             현재가 {price ? `$${price.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '로딩…'}
+            {usingManualEntry && <span className="text-sky-400"> · 기준 ${entry.toLocaleString('en-US', { maximumFractionDigits: dg })}</span>}
           </span>
         </div>
 
@@ -351,16 +357,32 @@ function LeverageCalc() {
           numValue={margin} numMin={1} numMax={1000000} numStep={10} unit="USDT" onNum={setMargin} numW="w-24" />
         <SimSlider label="배율 (레버리지)" sliderValue={lev} sliderMin={1} sliderMax={125} sliderStep={1} onSlider={setLev}
           numValue={lev} numMin={1} numMax={125} numStep={1} unit="배" onNum={setLev} numW="w-16" />
+        {/* 진입가(기준가) 직접 입력 */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-[var(--text-muted)]">진입가 (기준가, USDT)</span>
+            <div className="flex items-center gap-1">
+              <input type="number" inputMode="decimal" value={entryStr}
+                placeholder={price ? String(+price.toFixed(dg)) : '현재가'} min={0} step={priceStep}
+                onChange={(e) => setEntryStr(e.target.value)}
+                className={`w-28 bg-white/5 border rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-sky-500/50 ${usingManualEntry ? 'border-sky-500/50' : 'border-[var(--border)]'}`} />
+              <button onClick={() => setEntryStr('')} className="text-[10px] text-[var(--text-muted)] hover:text-sky-400 w-12" title="현재가로 초기화">현재가</button>
+            </div>
+          </div>
+          <p className="text-[10px] text-[var(--text-muted)]">
+            {usingManualEntry ? '입력한 진입가 기준으로 손익·청산가·역산을 계산합니다.' : '비워두면 현재가로 계산. 실제 체결가나 예정 진입가를 넣으면 그 값이 기준이 됩니다.'}
+          </p>
+        </div>
         {/* 목표가 입력 */}
         <div className="space-y-1.5">
           <div className="flex justify-between items-center">
             <span className="text-xs text-[var(--text-muted)]">목표가 (USDT)</span>
             <div className="flex items-center gap-1">
               <input type="number" inputMode="decimal" value={targetStr}
-                placeholder={price ? String(+price.toFixed(dg)) : ''} min={0} step={priceStep}
+                placeholder={entry ? String(+entry.toFixed(dg)) : ''} min={0} step={priceStep}
                 onChange={(e) => setTargetStr(e.target.value)}
                 className="w-28 bg-white/5 border border-[var(--border)] rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-sky-500/50" />
-              <button onClick={() => setTargetStr('')} className="text-[10px] text-[var(--text-muted)] hover:text-sky-400 w-12" title="현재가로 초기화">현재가</button>
+              <button onClick={() => setTargetStr('')} className="text-[10px] text-[var(--text-muted)] hover:text-sky-400 w-12" title="진입가로 초기화">진입가</button>
             </div>
           </div>
           <input type="range" min={priceLo} max={priceHi} step={priceStep}
@@ -368,7 +390,7 @@ function LeverageCalc() {
             onChange={(e) => setTargetStr(e.target.value)} disabled={!price}
             className="w-full accent-sky-500 disabled:opacity-40" />
           <div className="flex justify-between text-[10px]">
-            <span className="text-[var(--text-muted)]">현재가 대비{' '}
+            <span className="text-[var(--text-muted)]">진입가 대비{' '}
               <span className={changePct >= 0 ? 'text-emerald-400' : 'text-red-400'}>{changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%</span>
             </span>
             <span className={
@@ -425,9 +447,9 @@ function LeverageCalc() {
 
         <div className="grid grid-cols-2 gap-2.5">
           {[
-            { label: '포지션 크기', value: fmtUsdt(position, 0), sub: price ? `${qty.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${coin.short}` : '' },
-            { label: '목표가', value: price ? `$${targetPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `현재가 대비 ${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` },
-            { label: '청산가 (Bitget 고립)', value: price ? `$${liqPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `${dir === 'long' ? '-' : '+'}${liqMovePct.toFixed(1)}% · 유지증거금 ${(coin.mmr * 100).toFixed(1)}%`, danger: true },
+            { label: '포지션 크기', value: fmtUsdt(position, 0), sub: entry ? `${qty.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${coin.short}` : '' },
+            { label: '목표가', value: entry ? `$${targetPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `진입가 대비 ${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` },
+            { label: '청산가 (Bitget 고립)', value: entry ? `$${liqPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `${dir === 'long' ? '-' : '+'}${liqMovePct.toFixed(1)}% · 유지증거금 ${(coin.mmr * 100).toFixed(1)}%`, danger: true },
             { label: '최대 손실(청산 시)', value: `-${fmtUsdt(margin, 0)}`, sub: '증거금 전액', danger: true },
           ].map((c) => (
             <div key={c.label} className={`rounded-xl border p-3 ${c.danger ? 'border-red-500/20 bg-red-500/5' : 'border-[var(--border)] bg-white/3'}`}>
@@ -454,7 +476,7 @@ function LeverageCalc() {
           <div className="flex justify-between items-center">
             <span className="text-xs text-[var(--text-muted)]">손절가 (USDT)</span>
             <input type="number" inputMode="decimal" value={stopStr}
-              placeholder={price ? String(+(dir === 'long' ? price * 0.97 : price * 1.03).toFixed(dg)) : ''} min={0} step={priceStep}
+              placeholder={entry ? String(+(dir === 'long' ? entry * 0.97 : entry * 1.03).toFixed(dg)) : ''} min={0} step={priceStep}
               onChange={(e) => setStopStr(e.target.value)}
               className="w-28 bg-white/5 border border-[var(--border)] rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-sky-500/50" />
           </div>
@@ -468,7 +490,7 @@ function LeverageCalc() {
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { label: '권장 증거금', value: fmtUsdt(recMargin, 0), sub: `${lev}배 기준` },
-                { label: '권장 포지션', value: fmtUsdt(recNotion, 0), sub: price ? `${(recNotion / price).toLocaleString('en-US', { maximumFractionDigits: 4 })} ${coin.short} · 비용 ~${fmtUsdt(estCost, 1)} 차감` : '' },
+                { label: '권장 포지션', value: fmtUsdt(recNotion, 0), sub: entry ? `${(recNotion / entry).toLocaleString('en-US', { maximumFractionDigits: 4 })} ${coin.short} · 비용 ~${fmtUsdt(estCost, 1)} 차감` : '' },
                 { label: '손절 시 손실', value: `-${fmtUsdt(riskLoss, 0)}`, sub: perTradeExceeded ? `⚠ 1회 한도(-${perTradeLimit}) 초과` : `계좌의 ${riskPct}% · 손절거리 ${stopPct.toFixed(2)}%`, danger: true },
                 { label: '청산 여유', value: `${safety.toFixed(1)}배`, sub: safety < 2 ? '⚠ 손절 전 청산 위험' : '손절선의 여유 거리', danger: safety < 2 },
               ].map((c) => (
