@@ -3,7 +3,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
 import { computeReaction, type PricePoint, type ReactionStat, type ReactionResult } from '@/lib/releaseReaction';
+import ReleaseChartLazy from '@/components/ReleaseChartLazy';
 import Link from 'next/link';
+
+const PERIODS = [{ k: '1y', label: '1년', years: 1 }, { k: '2y', label: '2년', years: 2 }, { k: '5y', label: '5년', years: 5 }, { k: 'max', label: '최대', years: 0 }] as const;
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -66,6 +69,17 @@ export default function ReleasesPage() {
     };
   }, [file, daily]);
 
+  // 차트 기간 토글(결과 추이)
+  const [period, setPeriod] = useState<string>('max');
+  const chartRows = useMemo(() => {
+    const all = file?.rows ?? [];
+    const p = PERIODS.find((x) => x.k === period);
+    if (!p || p.years === 0) return all;
+    const d = new Date(); d.setFullYear(d.getFullYear() - p.years);
+    const cut = d.toISOString().slice(0, 10);
+    return all.filter((r) => r.date >= cut);
+  }, [file, period]);
+
   const [year, setYear] = useState<string>('전체');
   const years = useMemo(() => {
     const ys = new Set<string>();
@@ -108,6 +122,23 @@ export default function ReleasesPage() {
                 <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-[var(--accent-ink)] shrink-0">인베스팅 원본 ↗</a>
               )}
             </div>
+          </div>
+
+          {/* 결과 추이 차트 + 기간 토글 */}
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-semibold text-[var(--text)]">결과 추이</h2>
+              <div className="flex gap-1">
+                {PERIODS.map((p) => (
+                  <button key={p.k} onClick={() => setPeriod(p.k)}
+                    className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${period === p.k ? 'bg-[var(--surface-2)] text-[var(--accent-ink)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ReleaseChartLazy rows={chartRows} />
+            <p className="text-[10px] text-[var(--text-muted)] mt-1.5">결과값(발표치) 추이. 마우스를 올리면 날짜·결과·예측·이전이 표시됩니다.{file.rows.some((r) => /K|%|만/.test(r.actual || '')) ? ' 단위는 표(아래) 기준.' : ''}</p>
           </div>
 
           {/* 연도 필터 */}
