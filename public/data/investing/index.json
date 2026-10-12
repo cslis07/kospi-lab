@@ -18,6 +18,22 @@
       "oldest": "2021-01-05"
     },
     {
+      "id": "us-leading-index-1968",
+      "name": "미국 경기선행지수 MoM",
+      "url": "https://kr.investing.com/economic-calendar/us-leading-index-1968",
+      "count": 70,
+      "newest": "2026-10-22",
+      "oldest": "2021-01-29"
+    },
+    {
+      "id": "core-cpi-index-1226",
+      "name": "미국 근원 소비자물가 지수(CPI)",
+      "url": "https://kr.investing.com/economic-calendar/core-cpi-index-1226",
+      "count": 69,
+      "newest": "2026-10-14",
+      "oldest": "2021-01-13"
+    },
+    {
       "id": "core-cpi-736",
       "name": "미국 근원 소비자물가지수(CPI) <전년 대비>",
       "url": "https://kr.investing.com/economic-calendar/core-cpi-736",
@@ -45,6 +61,22 @@
       "id": "cpi-69",
       "name": "미국 소비자물가지수(CPI) <전월 대비>",
       "url": "https://kr.investing.com/economic-calendar/cpi-69",
+      "count": 68,
+      "newest": "2026-10-14",
+      "oldest": "2021-01-13"
+    },
+    {
+      "id": "initial-jobless-claims-294",
+      "name": "미국 신규 실업수당청구건수",
+      "url": "https://kr.investing.com/economic-calendar/initial-jobless-claims-294",
+      "count": 302,
+      "newest": "2026-10-15",
+      "oldest": "2021-01-07"
+    },
+    {
+      "id": "real-earnings-890",
+      "name": "미국 실질임금 <전월 대비>",
+      "url": "https://kr.investing.com/economic-calendar/real-earnings-890",
       "count": 68,
       "newest": "2026-10-14",
       "oldest": "2021-01-13"
