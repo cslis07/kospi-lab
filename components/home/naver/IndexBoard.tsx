@@ -263,8 +263,12 @@ function Trio({ title, sub, items }: { title: string; sub?: string; items: [stri
   );
 }
 
-type Code = 'KOSPI' | 'KOSDAQ' | 'NASDAQ';
-const NAMES: Record<Code, string> = { KOSPI: '코스피', KOSDAQ: '코스닥', NASDAQ: '나스닥' };
+type Code = 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'SP500' | 'DOW';
+const NAMES: Record<Code, string> = { KOSPI: '코스피', KOSDAQ: '코스닥', NASDAQ: '나스닥', SP500: 'S&P500', DOW: '다우' };
+const CODES: Code[] = ['KOSPI', 'KOSDAQ', 'NASDAQ', 'SP500', 'DOW'];
+const US_SET = new Set<Code>(['NASDAQ', 'SP500', 'DOW']);
+// 해외 지수 차트 안내 라벨
+const US_LABEL: Partial<Record<Code, string>> = { NASDAQ: '나스닥 종합지수', SP500: 'S&P 500', DOW: '다우존스 산업평균' };
 
 export default function IndexBoard() {
   const [code, setCode] = useState<Code>('KOSPI');
@@ -273,9 +277,9 @@ export default function IndexBoard() {
   const isMobile = useMediaQuery('(max-width: 1023px)', true);
   const [open, setOpen] = useState(true);
 
-  const isUs = code === 'NASDAQ';
-  // 해외 지수는 분봉이 없어 1일 탭이 없다 → 나스닥으로 바꿀 때 1일이면 1개월로
-  const selectCode = (c: Code) => { setCode(c); if (c === 'NASDAQ' && range === '1d') setRange('1m'); };
+  const isUs = US_SET.has(code);
+  // 해외 지수는 분봉이 없어 1일 탭이 없다 → 해외로 바꿀 때 1일이면 1개월로
+  const selectCode = (c: Code) => { setCode(c); if (US_SET.has(c) && range === '1d') setRange('1m'); };
   const ranges = isUs ? RANGES.filter(([k]) => k !== '1d') : RANGES;
   const effRange: Range = isUs && range === '1d' ? '1m' : range;
 
@@ -294,10 +298,13 @@ export default function IndexBoard() {
     <div className="fin-card" style={{ padding: 20 }}>
       {/* 헤더: 지수 · AI 칩 · 기간 · 차트형태 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div className="seg">
-          <button className={`seg-i ${code === 'KOSPI' ? 'on' : ''}`} onClick={() => selectCode('KOSPI')}>코스피</button>
-          <button className={`seg-i ${code === 'KOSDAQ' ? 'on' : ''}`} onClick={() => selectCode('KOSDAQ')}>코스닥</button>
-          <button className={`seg-i ${code === 'NASDAQ' ? 'on' : ''}`} onClick={() => selectCode('NASDAQ')}>나스닥</button>
+        {/* 지수 탭 — 5개라 좁은 화면에선 가로 스크롤(페이지 가로 넘침 방지) */}
+        <div className="idx-tabs" style={{ overflowX: 'auto', maxWidth: '100%', minWidth: 0 }}>
+          <div className="seg">
+            {CODES.map((c) => (
+              <button key={c} className={`seg-i ${code === c ? 'on' : ''}`} onClick={() => selectCode(c)}>{NAMES[c]}</button>
+            ))}
+          </div>
         </div>
         {headline ? (
           <span className="fin-chip" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', maxWidth: '100%', fontSize: 11.5, padding: '5px 10px' }}>
@@ -348,7 +355,7 @@ export default function IndexBoard() {
             <Chart points={b?.points ?? []} mode={mode} range={effRange} prevClose={b?.prevClose ?? 0} />
             {/* 안내 줄은 데이터 전에도 자리를 잡는다(도착 순간 아래가 밀리지 않게) */}
             {isUs && (
-              <div style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2, minHeight: 15 }}>미국 나스닥 종합지수 · 현지 종가 기준 일봉(분봉 미제공)</div>
+              <div style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2, minHeight: 15 }}>미국 {US_LABEL[code]} · 현지 종가 기준 일봉(분봉 미제공)</div>
             )}
             {!isUs && effRange === '1d' && (
               <div style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2, minHeight: 15 }}>{b?.tradingDate ? `${b.tradingDate} 분봉 · 30초마다 갱신 · 차트에 마우스(터치)를 대면 값 표시` : ' '}</div>
@@ -402,6 +409,8 @@ export default function IndexBoard() {
       </Fold>
 
       <style jsx>{`
+        .idx-tabs { -ms-overflow-style: none; scrollbar-width: none; }
+        .idx-tabs::-webkit-scrollbar { display: none; }
         .board-grid { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 22px; align-items: start; }
         @media (max-width: 900px) { .board-grid { grid-template-columns: 1fr; } }
         .board-grid :global(.bd-k) { font-size: 12.5px; color: var(--ink); font-weight: 700; }
