@@ -10,6 +10,7 @@ export const COURSES = [
   { href: '/study/indicators', n: 2, label: '보조지표',    title: '보조지표 — RSI·MACD·볼린저', desc: '과매수/과매도·교차·스퀴즈·다이버전스' },
   { href: '/study/fibonacci',  n: 3, label: '피보나치·패턴', title: '피보나치와 차트 패턴',   desc: '되돌림·골든 포켓·확장·이중천장·헤드앤숄더' },
   { href: '/study/macro',      n: 4, label: '거시·수급',   title: '금리·국채·유가와 코인',     desc: '금리·달러·유가·유동성·ETF·온체인·파생' },
+  { href: '/study/execution',  n: 5, label: '실전 체계',   title: '실전 매매 체계',           desc: '다중 시간봉·재테스트·추세선·지표 줄이기·OI/CVD·뉴스 순서' },
 ] as const;
 
 export function StudyNav({ current }: { current: string }) {

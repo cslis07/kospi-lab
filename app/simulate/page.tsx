@@ -293,12 +293,14 @@ function LeverageCalc() {
 
   const krwOf = (u: number) => (usdtKrw ? u * usdtKrw : null);
 
-  // 가격 변동별 손익 빠른 표
-  const quickRows = [1, 3, 5, 10, 20].map((m) => ({
-    move: m,
-    pnl: position * (m / 100),
-    roe: margin > 0 ? (position * (m / 100)) / margin * 100 : 0,
-  }));
+  // 가격 변동별 손익 사다리 — 실제 가격 기준 + 양방향(이익·손실). off=진입가 대비 가격 변동%(상승 +)
+  const quickRows = entry > 0
+    ? [20, 10, 5, 2, -2, -5, -10].map((off) => {
+        const p = entry * (1 + off / 100);
+        const pl = position * (off / 100) * dirSign;      // 수수료 전 손익(방향 반영)
+        return { off, price: p, pnl: pl, roe: margin > 0 ? (pl / margin) * 100 : 0 };
+      })
+    : [];
 
   return (
     <div className="space-y-4">
@@ -530,38 +532,45 @@ function LeverageCalc() {
 
       {/* 가격 변동별 빠른 손익표 */}
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-        <h2 className="text-sm font-semibold text-[var(--text)] mb-3">가격 변동별 손익 <span className="text-[10px] font-normal text-[var(--text-muted)]">{coin.short} {dir === 'long' ? '롱' : '숏'} · {lev}배 · {margin} USDT</span></h2>
+        <h2 className="text-sm font-semibold text-[var(--text)] mb-3">가격별 손익 사다리 <span className="text-[10px] font-normal text-[var(--text-muted)]">{coin.short} {dir === 'long' ? '롱' : '숏'} · {lev}배 · {margin} USDT · 수수료 전</span></h2>
         <div className="overflow-hidden rounded-xl border border-[var(--border)]">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--bg)]">
-                <th className="text-left px-3 py-2 text-[var(--text-muted)] font-medium">{dir === 'long' ? '상승' : '하락'}폭</th>
+                <th className="text-left px-3 py-2 text-[var(--text-muted)] font-medium">가격</th>
+                <th className="text-right px-3 py-2 text-[var(--text-muted)] font-medium">변동</th>
                 <th className="text-right px-3 py-2 text-[var(--text-muted)] font-medium">손익(USDT)</th>
-                <th className="text-right px-3 py-2 text-[var(--text-muted)] font-medium">한화</th>
                 <th className="text-right px-3 py-2 text-[var(--text-muted)] font-medium">증거금 대비</th>
               </tr>
             </thead>
             <tbody>
-              {quickRows.map((r, i) => (
-                <tr key={r.move} className={i % 2 === 1 ? 'bg-[var(--bg)]/30' : ''}>
-                  <td className="px-3 py-2 text-[var(--text-muted)]">{dir === 'long' ? '+' : '-'}{r.move}%</td>
-                  <td className="px-3 py-2 text-right font-semibold text-emerald-400">+{fmtUsdt(r.pnl)}</td>
-                  <td className="px-3 py-2 text-right text-emerald-400">{krwOf(r.pnl) !== null ? `+${fmtW(krwOf(r.pnl)!)}` : '-'}</td>
-                  <td className="px-3 py-2 text-right text-emerald-400">+{r.roe.toFixed(0)}%</td>
-                </tr>
-              ))}
+              {quickRows.map((r, i) => {
+                const pos = r.pnl >= 0;
+                const col = pos ? 'text-emerald-400' : 'text-red-400';
+                return (
+                  <tr key={r.off} className={i % 2 === 1 ? 'bg-[var(--bg)]/30' : ''}>
+                    <td className="px-3 py-2 tabular-nums text-[var(--text)]">{fmtUsdt(r.price)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">{r.off > 0 ? '+' : ''}{r.off}%</td>
+                    <td className={`px-3 py-2 text-right font-semibold tabular-nums ${col}`}>{pos ? '+' : '-'}{fmtUsdt(Math.abs(r.pnl))}</td>
+                    <td className={`px-3 py-2 text-right tabular-nums ${col}`}>{pos ? '+' : '-'}{Math.abs(r.roe).toFixed(0)}%</td>
+                  </tr>
+                );
+              })}
               {/* 청산 행 */}
               <tr className="border-t border-red-500/20 bg-red-500/5">
-                <td className="px-3 py-2 text-red-400">{dir === 'long' ? '-' : '+'}{liqMovePct.toFixed(1)}% (청산)</td>
-                <td className="px-3 py-2 text-right font-semibold text-red-400">-{fmtUsdt(margin)}</td>
-                <td className="px-3 py-2 text-right text-red-400">{krwOf(margin) !== null ? `-${fmtW(krwOf(margin)!)}` : '-'}</td>
-                <td className="px-3 py-2 text-right text-red-400">-100%</td>
+                <td className="px-3 py-2 tabular-nums text-red-400">{liqPrice > 0 ? fmtUsdt(liqPrice) : '-'} <span className="text-[10px]">(청산)</span></td>
+                <td className="px-3 py-2 text-right tabular-nums text-red-400">{dir === 'long' ? '-' : '+'}{liqMovePct.toFixed(1)}%</td>
+                <td className="px-3 py-2 text-right font-semibold tabular-nums text-red-400">-{fmtUsdt(margin)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-red-400">-100%</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <div className="mt-3 rounded-xl border border-[var(--border)] bg-white/3 p-3 text-[11px] leading-relaxed text-[var(--text-muted)]">
+          <b className="text-[var(--text)]">되돌림에 수익을 반납하지 않으려면</b> — 전량 홀딩은 수익 잠재력이 크지만 되돌림 때도 크게 반납합니다. <b className="text-[var(--text)]">부분 익절 후 나머지는 추적 손절</b>로 끌어올리면 조기 전량매도의 아쉬움과 수익 반납 위험을 절충할 수 있습니다. 추적 손절선은 최근 확정된 높은 저점·15분/1시간봉 구조·손실 허용액을 함께 봅니다(급락 시 원하는 가격에 체결 안 될 수 있음).
+        </div>
         <p className="text-[10px] text-[var(--text-muted)] mt-3">
-          청산가 = Bitget 고립마진 공식 <b>진입가 × (1 ∓ 1/배율) ÷ (1 ∓ (유지증거금률+테이커수수료 0.06%))</b>. 유지증거금률은 소액(1티어) 기준(BTC·ETH 0.4%, XRP·SOL 0.5%)이라 포지션이 커지면 상승해 청산가가 더 불리해집니다. 교차마진·펀딩비 적립은 미반영. 실제값은 거래소 설정에 따라 다릅니다. 투자 권유가 아닙니다.
+          청산가 = Bitget 고립마진 공식 <b>진입가 × (1 ∓ 1/배율) ÷ (1 ∓ (유지증거금률+테이커수수료 0.06%))</b>. 유지증거금률은 소액(1티어) 기준(BTC·ETH 0.4%, XRP·SOL 0.5%)이라 포지션이 커지면 상승해 청산가가 더 불리해집니다. 손익은 수수료 전이며 교차마진·펀딩비 적립은 미반영. 실제값은 거래소 설정에 따라 다릅니다. 투자 권유가 아닙니다.
         </p>
       </div>
     </div>
