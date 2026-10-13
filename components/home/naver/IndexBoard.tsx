@@ -263,22 +263,31 @@ function Trio({ title, sub, items }: { title: string; sub?: string; items: [stri
   );
 }
 
+type Code = 'KOSPI' | 'KOSDAQ' | 'NASDAQ';
+const NAMES: Record<Code, string> = { KOSPI: '코스피', KOSDAQ: '코스닥', NASDAQ: '나스닥' };
+
 export default function IndexBoard() {
-  const [code, setCode] = useState<'KOSPI' | 'KOSDAQ'>('KOSPI');
+  const [code, setCode] = useState<Code>('KOSPI');
   const [range, setRange] = useState<Range>('1d');
   const [mode, setMode] = useState<'line' | 'candle'>('line');
   const isMobile = useMediaQuery('(max-width: 1023px)', true);
   const [open, setOpen] = useState(true);
 
-  const { data: b } = useSWR<BoardResp>(`/api/home/board?code=${code}&range=${range}`, fetcher, {
-    refreshInterval: range === '1d' ? 30000 : 300000, revalidateOnFocus: true, keepPreviousData: true,
+  const isUs = code === 'NASDAQ';
+  // 해외 지수는 분봉이 없어 1일 탭이 없다 → 나스닥으로 바꿀 때 1일이면 1개월로
+  const selectCode = (c: Code) => { setCode(c); if (c === 'NASDAQ' && range === '1d') setRange('1m'); };
+  const ranges = isUs ? RANGES.filter(([k]) => k !== '1d') : RANGES;
+  const effRange: Range = isUs && range === '1d' ? '1m' : range;
+
+  const { data: b } = useSWR<BoardResp>(`/api/home/board?code=${code}&range=${effRange}`, fetcher, {
+    refreshInterval: effRange === '1d' ? 30000 : 300000, revalidateOnFocus: true, keepPreviousData: true,
   });
-  const { data: brief } = useSWR<BriefResp>('/api/home/briefing?tab=kr', fetcher, { revalidateOnFocus: false });
+  const { data: brief } = useSWR<BriefResp>(`/api/home/briefing?tab=${isUs ? 'us' : 'kr'}`, fetcher, { revalidateOnFocus: false });
   const headline = brief?.providers?.find((p) => p.ok && p.brief)?.brief?.headline;
 
   const live = b?.live;
   const value = live?.value ?? 0, change = live?.change ?? 0, rate = live?.changeRate ?? 0;
-  const name = code === 'KOSPI' ? '코스피' : '코스닥';
+  const name = NAMES[code];
   const ud = b?.upDown;
 
   return (
@@ -286,8 +295,9 @@ export default function IndexBoard() {
       {/* 헤더: 지수 · AI 칩 · 기간 · 차트형태 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <div className="seg">
-          <button className={`seg-i ${code === 'KOSPI' ? 'on' : ''}`} onClick={() => setCode('KOSPI')}>코스피</button>
-          <button className={`seg-i ${code === 'KOSDAQ' ? 'on' : ''}`} onClick={() => setCode('KOSDAQ')}>코스닥</button>
+          <button className={`seg-i ${code === 'KOSPI' ? 'on' : ''}`} onClick={() => selectCode('KOSPI')}>코스피</button>
+          <button className={`seg-i ${code === 'KOSDAQ' ? 'on' : ''}`} onClick={() => selectCode('KOSDAQ')}>코스닥</button>
+          <button className={`seg-i ${code === 'NASDAQ' ? 'on' : ''}`} onClick={() => selectCode('NASDAQ')}>나스닥</button>
         </div>
         {headline ? (
           <span className="fin-chip" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', maxWidth: '100%', fontSize: 11.5, padding: '5px 10px' }}>
@@ -313,7 +323,7 @@ export default function IndexBoard() {
           {live && <span className={`idx-live${live.live ? ' on' : ''}`}><i />{live.live ? '실시간' : '장마감'}</span>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-          <Link href="/domestic" style={{ fontSize: 12.5, color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>{name} 시장 →</Link>
+          <Link href={isUs ? '/overseas' : '/domestic'} style={{ fontSize: 12.5, color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>{name} 시장 →</Link>
           <button type="button" className="nv-m-only" onClick={() => setOpen((o) => !o)} aria-label={open ? '차트 접기' : '차트 펼치기'} aria-expanded={open}
             style={{ width: 32, height: 32, placeItems: 'center', border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}>
             <Chevron open={open} />
@@ -325,7 +335,7 @@ export default function IndexBoard() {
         {/* 기간 · 차트형태 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <div className="seg">
-            {RANGES.map(([k, l]) => <button key={k} className={`seg-i ${range === k ? 'on' : ''}`} onClick={() => setRange(k)}>{l}</button>)}
+            {ranges.map(([k, l]) => <button key={k} className={`seg-i ${effRange === k ? 'on' : ''}`} onClick={() => setRange(k)}>{l}</button>)}
           </div>
           <div className="seg" style={{ marginLeft: 'auto' }}>
             <button className={`seg-i ${mode === 'line' ? 'on' : ''}`} onClick={() => setMode('line')}>라인</button>
@@ -335,37 +345,46 @@ export default function IndexBoard() {
 
         <div className="board-grid" style={{ marginTop: 10 }}>
           <div style={{ minWidth: 0 }}>
-            <Chart points={b?.points ?? []} mode={mode} range={range} prevClose={b?.prevClose ?? 0} />
+            <Chart points={b?.points ?? []} mode={mode} range={effRange} prevClose={b?.prevClose ?? 0} />
             {/* 안내 줄은 데이터 전에도 자리를 잡는다(도착 순간 아래가 밀리지 않게) */}
-            {range === '1d' && (
+            {isUs && (
+              <div style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2, minHeight: 15 }}>미국 나스닥 종합지수 · 현지 종가 기준 일봉(분봉 미제공)</div>
+            )}
+            {!isUs && effRange === '1d' && (
               <div style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2, minHeight: 15 }}>{b?.tradingDate ? `${b.tradingDate} 분봉 · 30초마다 갱신 · 차트에 마우스(터치)를 대면 값 표시` : ' '}</div>
             )}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {/* 시장 현황 — 실시간 */}
-            <div>
-              <div className="bd-k">시장 현황</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginTop: 8 }}>
-                {([['상승', ud?.up, ud?.upper, 'var(--warn)'], ['보합', ud?.flat, null, 'var(--faint)'], ['하락', ud?.down, ud?.lower, 'var(--accent)']] as const).map(([k, v, lim, c]) => (
-                  <div key={k}>
-                    <div style={{ fontSize: 11, color: 'var(--faint)', fontWeight: 600 }}>{k}</div>
-                    <div className="tabular-nums" style={{ fontSize: 17, fontWeight: 800, color: c, marginTop: 2 }}>
-                      {ud ? (v ?? 0).toLocaleString() : '—'}
-                      {ud && lim != null && <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 2 }}>({lim})</span>}
+            {/* 시장 현황 — 실시간 (국내 지수만. 해외 지수는 해당 없음) */}
+            {!isUs && (
+              <div>
+                <div className="bd-k">시장 현황</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginTop: 8 }}>
+                  {([['상승', ud?.up, ud?.upper, 'var(--warn)'], ['보합', ud?.flat, null, 'var(--faint)'], ['하락', ud?.down, ud?.lower, 'var(--accent)']] as const).map(([k, v, lim, c]) => (
+                    <div key={k}>
+                      <div style={{ fontSize: 11, color: 'var(--faint)', fontWeight: 600 }}>{k}</div>
+                      <div className="tabular-nums" style={{ fontSize: 17, fontWeight: 800, color: c, marginTop: 2 }}>
+                        {ud ? (v ?? 0).toLocaleString() : '—'}
+                        {ud && lim != null && <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 2 }}>({lim})</span>}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* 데이터 전엔 실제와 같은 높이(52주 58 · 투자자/프로그램 63px 실측)의 자리 — 첫 방문 CLS 0.27의 원인이었다 */}
             {!b ? (
-              <>
+              isUs ? (
                 <div className="skeleton" style={{ height: 58, borderRadius: 10 }} />
-                <div className="skeleton" style={{ height: 63, borderRadius: 10 }} />
-                <div className="skeleton" style={{ height: 63, borderRadius: 10 }} />
-              </>
+              ) : (
+                <>
+                  <div className="skeleton" style={{ height: 58, borderRadius: 10 }} />
+                  <div className="skeleton" style={{ height: 63, borderRadius: 10 }} />
+                  <div className="skeleton" style={{ height: 63, borderRadius: 10 }} />
+                </>
+              )
             ) : (
               <>
                 {b.week52High && b.week52Low ? <Stat52 low={b.week52Low} high={b.week52High} value={value} /> : null}
