@@ -2,9 +2,15 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import useSWR from 'swr';
-import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import dynamic from 'next/dynamic';
 import { isolatedLiqPrice, liqSafety, notionForRisk } from '@/lib/positionSizing';
 import { useRiskLimits } from '@/hooks/useRiskLimits';
+
+// 자산 성장 그래프(recharts)는 첫 번들에서 빼고 지연 로딩
+const SimulateChart = dynamic(() => import('@/components/SimulateChart'), {
+  ssr: false,
+  loading: () => <div className="skeleton rounded-xl" style={{ height: 260 }} aria-label="그래프 로딩 중" />,
+});
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, isNaN(n) ? lo : n));
@@ -89,16 +95,6 @@ function CompoundSim() {
   }, [initial, monthly, rate, years]);
 
   const final = data[data.length - 1];
-  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) => {
-    if (!active || !payload) return null;
-    return (
-      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3 text-xs shadow-xl">
-        <p className="font-semibold text-[var(--text)] mb-1">{label}</p>
-        {payload.map((p) => <p key={p.name} style={{ color: p.color }}>{p.name}: {fmtW(p.value)}</p>)}
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-4">
@@ -158,21 +154,7 @@ function CompoundSim() {
 
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
         <h2 className="text-sm font-semibold text-[var(--text)] mb-4">자산 성장 그래프</h2>
-        <ResponsiveContainer width="100%" height={260}>
-          <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="fvGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00acfe" stopOpacity={0.3} /><stop offset="95%" stopColor="#00acfe" stopOpacity={0} /></linearGradient>
-              <linearGradient id="prGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#5c6f8a" stopOpacity={0.3} /><stop offset="95%" stopColor="#5c6f8a" stopOpacity={0} /></linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-            <XAxis dataKey="year" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} interval={Math.ceil(years / 5) - 1} />
-            <YAxis tickFormatter={(v) => v >= 100000000 ? `${(v/100000000).toFixed(0)}억` : `${(v/10000).toFixed(0)}만`} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={50} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Area type="monotone" dataKey="fv" name="예상 자산" stroke="#00acfe" fill="url(#fvGrad)" strokeWidth={2} />
-            <Area type="monotone" dataKey="principal" name="투자 원금" stroke="#5c6f8a" fill="url(#prGrad)" strokeWidth={1.5} strokeDasharray="4 2" />
-          </AreaChart>
-        </ResponsiveContainer>
+        <SimulateChart data={data} years={years} />
       </div>
 
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">

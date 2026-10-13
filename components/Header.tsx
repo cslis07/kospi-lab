@@ -98,7 +98,8 @@ function FxPill({ label, rate, className = 'hidden sm:flex' }: { label: string; 
 
 /* ── Header ───────────────────────────────────────────── */
 export default function Header() {
-  const { data } = useSWR('/api/market', fetcher, { refreshInterval: 10000 });
+  // 앱바 환율·지수 틱커는 전 화면 상주 → 30초 폴링(차트·일지 보는 중 상시 10초 부하 완화)
+  const { data } = useSWR('/api/market', fetcher, { refreshInterval: 30000 });
   const { isKrOpen, isUsOpen, krLabel, usLabel } = useMarketStatus();
   const pathname = usePathname();
   const router = useRouter();

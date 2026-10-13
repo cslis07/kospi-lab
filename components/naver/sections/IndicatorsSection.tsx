@@ -10,11 +10,16 @@
  */
 import { useState } from 'react';
 import useSWR from 'swr';
+import dynamic from 'next/dynamic';
 import { fetcher, colorOf, arrowOf, MiniLine, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, MoreLink, Flash } from '@/components/naver/ui';
 import BottomSheet from '@/components/ui/BottomSheet';
-import MacroDetail, { FLAG } from '@/components/MacroDetail';
-import MarketIndicatorDetail from '@/components/MarketIndicatorDetail';
 import type { MacroIndicator } from '@/lib/macroData';
+
+// 상세(차트·표)는 /indicators 페이지에서 카드를 눌러야 열린다 → 지연 로딩해 홈(compact) 번들에서 뺀다.
+const sheetLoading = () => <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0' }}>지표 불러오는 중…</p>;
+const MacroDetail = dynamic(() => import('@/components/MacroDetail'), { ssr: false, loading: sheetLoading });
+const MarketIndicatorDetail = dynamic(() => import('@/components/MarketIndicatorDetail'), { ssr: false, loading: sheetLoading });
+const FLAG: Record<string, string> = { US: '🇺🇸', KR: '🇰🇷' };
 
 interface Q { code: string; name: string; cat: string; unit?: string; price: number; change: number; changeRate: number; status: string; spark: number[] }
 
