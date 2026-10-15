@@ -27,6 +27,7 @@ interface BriefResp { providers?: { ok: boolean; brief?: { headline: string } }[
 
 type Range = '1d' | '1m' | '3m' | '1y';
 const RANGES: [Range, string][] = [['1d', '1일'], ['1m', '1개월'], ['3m', '3개월'], ['1y', '1년']];
+const VALID_RANGES = new Set<Range>(RANGES.map(([k]) => k));
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -272,7 +273,10 @@ const TAB_GROUPS: { label: string; codes: Code[] }[] = [
   { label: '아시아', codes: ['NIKKEI', 'HANGSENG'] },
   { label: '유럽', codes: ['DAX', 'FTSE'] },
 ];
-const BOARD_TAB_KEY = 'kospi-lab-board-tab'; // 마지막 본 지수 탭(이 기기 한정, cloudSync 제외)
+// 마지막 선택 기억(이 기기 한정, cloudSync SYNC_EXCLUDE 제외)
+const BOARD_TAB_KEY = 'kospi-lab-board-tab';
+const BOARD_RANGE_KEY = 'kospi-lab-board-range';
+const BOARD_MODE_KEY = 'kospi-lab-board-mode';
 const ALL_CODES = new Set<Code>(TAB_GROUPS.flatMap((g) => g.codes));
 const US_SET = new Set<Code>(['NASDAQ', 'SP500', 'DOW', 'NIKKEI', 'HANGSENG', 'DAX', 'FTSE']); // 해외(분봉 미제공·부가정보 없음)
 // 해외 지수 차트 안내 라벨(국가 포함)
@@ -285,16 +289,24 @@ export default function IndexBoard() {
   const isMobile = useMediaQuery('(max-width: 1023px)', true);
   const [open, setOpen] = useState(true);
 
-  // 마지막 본 지수 탭 복귀 — 마운트 후 1회(하이드레이션 안전). 이 기기 한정(cloudSync SYNC_EXCLUDE).
+  // 마지막 본 탭·기간·차트형 복귀 — 마운트 후 1회(하이드레이션 안전). 이 기기 한정(cloudSync SYNC_EXCLUDE).
   useEffect(() => {
-    try { const s = localStorage.getItem(BOARD_TAB_KEY); if (s && ALL_CODES.has(s as Code)) setCode(s as Code); } catch {}
+    try {
+      const s = localStorage.getItem(BOARD_TAB_KEY); if (s && ALL_CODES.has(s as Code)) setCode(s as Code);
+      const r = localStorage.getItem(BOARD_RANGE_KEY); if (r && VALID_RANGES.has(r as Range)) setRange(r as Range);
+      const m = localStorage.getItem(BOARD_MODE_KEY); if (m === 'line' || m === 'candle') setMode(m);
+    } catch {}
   }, []);
 
+  // 선택은 기기에 기억(localStorage)
+  const selectRange = (r: Range) => { setRange(r); try { localStorage.setItem(BOARD_RANGE_KEY, r); } catch {} };
+  const selectMode = (m: 'line' | 'candle') => { setMode(m); try { localStorage.setItem(BOARD_MODE_KEY, m); } catch {} };
+
   const isUs = US_SET.has(code);
-  // 해외 지수는 분봉이 없어 1일 탭이 없다 → 해외로 바꿀 때 1일이면 1개월로. 선택은 기기에 기억.
+  // 해외 지수는 분봉이 없어 1일 탭이 없다 → 해외로 바꿀 때 1일이면 1개월로.
   const selectCode = (c: Code) => {
     setCode(c);
-    if (US_SET.has(c) && range === '1d') setRange('1m');
+    if (US_SET.has(c) && range === '1d') selectRange('1m');
     try { localStorage.setItem(BOARD_TAB_KEY, c); } catch {}
   };
   const ranges = isUs ? RANGES.filter(([k]) => k !== '1d') : RANGES;
@@ -366,11 +378,11 @@ export default function IndexBoard() {
         {/* 기간 · 차트형태 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <div className="seg">
-            {ranges.map(([k, l]) => <button key={k} className={`seg-i ${effRange === k ? 'on' : ''}`} onClick={() => setRange(k)}>{l}</button>)}
+            {ranges.map(([k, l]) => <button key={k} className={`seg-i ${effRange === k ? 'on' : ''}`} onClick={() => selectRange(k)}>{l}</button>)}
           </div>
           <div className="seg" style={{ marginLeft: 'auto' }}>
-            <button className={`seg-i ${mode === 'line' ? 'on' : ''}`} onClick={() => setMode('line')}>라인</button>
-            <button className={`seg-i ${mode === 'candle' ? 'on' : ''}`} onClick={() => setMode('candle')}>캔들</button>
+            <button className={`seg-i ${mode === 'line' ? 'on' : ''}`} onClick={() => selectMode('line')}>라인</button>
+            <button className={`seg-i ${mode === 'candle' ? 'on' : ''}`} onClick={() => selectMode('candle')}>캔들</button>
           </div>
         </div>
 

@@ -2,6 +2,13 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (127차) — 홈 보드 기간·차트형도 마지막 선택 기억
+
+126차 지수 탭 기억에 이어 기간(1일/1개월/3개월/1년)·차트형(라인/캔들)도 기억.
+- `IndexBoard`: `selectRange`·`selectMode` 래퍼가 선택을 `localStorage`(`kospi-lab-board-range`·`kospi-lab-board-mode`)에 저장, 마운트 복원 useEffect가 탭과 함께 복원(유효값 검증 — `VALID_RANGES`·line/candle). 기간 버튼·라인/캔들 토글·해외 전환 시 1일→1개월 강제도 래퍼 경유.
+- **이 기기 한정**: `cloudSync` `SYNC_EXCLUDE`에 두 키 추가.
+- 검증: tsc 0·build 0, 헤드리스 390px: 3개월·캔들 선택 → 재방문 시 둘 다 복원(range=3m·mode=candle)·콘솔 0.
+
 ## 2026-10-16 (126차) — 홈 보드 마지막 본 지수 탭 기억(재방문 복귀)
 
 홈 중앙 보드에서 마지막으로 본 지수 탭을 기억해 재방문 시 그 탭으로 복귀.
