@@ -272,6 +272,8 @@ const TAB_GROUPS: { label: string; codes: Code[] }[] = [
   { label: '아시아', codes: ['NIKKEI', 'HANGSENG'] },
   { label: '유럽', codes: ['DAX', 'FTSE'] },
 ];
+const BOARD_TAB_KEY = 'kospi-lab-board-tab'; // 마지막 본 지수 탭(이 기기 한정, cloudSync 제외)
+const ALL_CODES = new Set<Code>(TAB_GROUPS.flatMap((g) => g.codes));
 const US_SET = new Set<Code>(['NASDAQ', 'SP500', 'DOW', 'NIKKEI', 'HANGSENG', 'DAX', 'FTSE']); // 해외(분봉 미제공·부가정보 없음)
 // 해외 지수 차트 안내 라벨(국가 포함)
 const US_LABEL: Partial<Record<Code, string>> = { NASDAQ: '미국 나스닥 종합지수', SP500: '미국 S&P 500', DOW: '미국 다우존스 산업평균', NIKKEI: '일본 닛케이225', HANGSENG: '홍콩 항셍', DAX: '독일 DAX', FTSE: '영국 FTSE 100' };
@@ -283,9 +285,18 @@ export default function IndexBoard() {
   const isMobile = useMediaQuery('(max-width: 1023px)', true);
   const [open, setOpen] = useState(true);
 
+  // 마지막 본 지수 탭 복귀 — 마운트 후 1회(하이드레이션 안전). 이 기기 한정(cloudSync SYNC_EXCLUDE).
+  useEffect(() => {
+    try { const s = localStorage.getItem(BOARD_TAB_KEY); if (s && ALL_CODES.has(s as Code)) setCode(s as Code); } catch {}
+  }, []);
+
   const isUs = US_SET.has(code);
-  // 해외 지수는 분봉이 없어 1일 탭이 없다 → 해외로 바꿀 때 1일이면 1개월로
-  const selectCode = (c: Code) => { setCode(c); if (US_SET.has(c) && range === '1d') setRange('1m'); };
+  // 해외 지수는 분봉이 없어 1일 탭이 없다 → 해외로 바꿀 때 1일이면 1개월로. 선택은 기기에 기억.
+  const selectCode = (c: Code) => {
+    setCode(c);
+    if (US_SET.has(c) && range === '1d') setRange('1m');
+    try { localStorage.setItem(BOARD_TAB_KEY, c); } catch {}
+  };
   const ranges = isUs ? RANGES.filter(([k]) => k !== '1d') : RANGES;
   const effRange: Range = isUs && range === '1d' ? '1m' : range;
 

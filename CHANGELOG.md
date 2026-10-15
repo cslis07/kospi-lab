@@ -2,6 +2,13 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (126차) — 홈 보드 마지막 본 지수 탭 기억(재방문 복귀)
+
+홈 중앙 보드에서 마지막으로 본 지수 탭을 기억해 재방문 시 그 탭으로 복귀.
+- `IndexBoard`: `selectCode`가 선택 탭을 `localStorage` `kospi-lab-board-tab`에 저장, 마운트 후 1회 복원(하이드레이션 안전 — 기본 코스피로 렌더 후 useEffect에서 복원). 저장값은 유효 Code(`ALL_CODES`)인지 검증.
+- **이 기기 한정**: `cloudSync.ts` `SYNC_EXCLUDE`에 `kospi-lab-board-tab` 추가(기기 간 동기화 제외 — `kospi-lab-my-stocks-tab`과 동일 성격). "기기에만 저장" 원칙 유지.
+- 검증: tsc 0·build 0, 헤드리스 390px: 기본 코스피 → FTSE 클릭(localStorage 저장) → 재방문 시 FTSE 복귀·콘솔 0.
+
 ## 2026-10-16 (125차) — /inflation 지역·품목 드릴다운 확장
 
 실시간 물가 허브에 지역별 물가와 품목 드릴다운 추가(nowflation geo/compare 데이터).
