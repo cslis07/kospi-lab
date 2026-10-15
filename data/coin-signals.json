@@ -1,6 +1,22 @@
 {
-  "updated": "2026-10-14T22:29:17.858Z",
-  "open": [],
+  "updated": "2026-10-15T00:46:38.314Z",
+  "open": [
+    {
+      "id": "ETHUSDT-scalp-1792025195603",
+      "sym": "ETHUSDT",
+      "mode": "scalp",
+      "dir": -1,
+      "dirLabel": "SHORT",
+      "entry": 2422.795,
+      "tp": 2415.8,
+      "sl": 2430.45,
+      "ts": 1792025195603,
+      "price0": 2417.26,
+      "ultra": false,
+      "conf": 93,
+      "eq": 62
+    }
+  ],
   "closed": [
     {
       "id": "XRPUSDT-scalp-1791954675802",
