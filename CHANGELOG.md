@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (136차) — 매매일지 벤치마크: 원금 입력 시 내 수익률%곡선 vs 지수 오버레이
+
+135차 벤치마크 카드에 계좌 원금 입력 → 내 수익률%곡선을 지수와 겹쳐 비교하는 오버레이 추가.
+- `BenchmarkCard`에 **원금(USDT) 입력** + 지수 선택(비트코인·나스닥·코스피). 원금 입력 시 `CompareCurve`(Recharts, 지연 로딩)로 **내 수익률%(누적 순손익÷원금) vs 지수 정규화%(시작일 0%)** 두 선 오버레이.
+- `lib/journalAnalytics.benchmarkCurve`(순수함수, 날짜축 정렬·지수 close 보간) + `tests` +2. 원금은 `localStorage`(`kospi-lab-journal-principal`), **이 기기 한정**(cloudSync SYNC_EXCLUDE).
+- 자산곡선($)·지수(%)를 한 축에 섞지 않고, 비교는 전부 **% 기준**으로 정규화해 공정하게. 참고용·신호 아님 명시.
+- 검증: npm test(journalAnalytics +benchmarkCurve)·tsc 0·build 0, 차트는 next/dynamic만.
+
 ## 2026-10-16 (135차) — 매매일지 성과에 시장 벤치마크 비교
 
 매매일지(코인선물) 성과에 "내 매매 기간 동안 시장이 어땠나"를 붙임.

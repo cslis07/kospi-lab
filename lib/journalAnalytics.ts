@@ -29,6 +29,23 @@ export function periodReturn(series: PricePt[] | undefined, from: string, to: st
   return ((end.close - start.close) / start.close) * 100;
 }
 
+/** 내 수익률%곡선(누적손익/원금) vs 지수 정규화%곡선 — 같은 날짜축 */
+export interface CmpRow { date: string; mine: number; index: number | null }
+export function benchmarkCurve(points: { date: string; cum: number }[], series: PricePt[] | undefined, principal: number): CmpRow[] {
+  if (!points.length || !(principal > 0)) return [];
+  const asc = [...(series ?? [])].filter((p) => Number.isFinite(p.close)).sort((a, b) => a.date.localeCompare(b.date));
+  const base = asc.find((p) => p.date >= points[0].date)?.close ?? null;
+  const closeOnOrBefore = (d: string): number | null => {
+    let c: number | null = null;
+    for (const p of asc) { if (p.date <= d) c = p.close; else break; }
+    return c;
+  };
+  return points.map((pt) => {
+    const c = base ? closeOnOrBefore(pt.date) : null;
+    return { date: pt.date, mine: (pt.cum / principal) * 100, index: base && c != null ? (c / base - 1) * 100 : null };
+  });
+}
+
 // ────────────────────────── 에쿼티 커브 + MDD ──────────────────────────
 
 export interface EquityPoint {

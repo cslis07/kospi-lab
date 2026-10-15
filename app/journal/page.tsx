@@ -28,7 +28,8 @@ import type { BreakRowSel } from '@/components/BreakdownTables';
 import EquityCurveLazy from '@/components/EquityCurveLazy';
 import CalendarHeatmap from '@/components/CalendarHeatmap';
 import useSWR from 'swr';
-import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, tradesPerDay, periodReturn, type TradeValue, type PricePt } from '@/lib/journalAnalytics';
+import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, tradesPerDay, periodReturn, equityCurve, benchmarkCurve, type TradeValue, type PricePt } from '@/lib/journalAnalytics';
+import CompareCurveLazy from '@/components/CompareCurveLazy';
 import TradesPerDayCard from '@/components/TradesPerDayCard';
 import EdgeSummaryCard from '@/components/EdgeSummaryCard';
 import CostCard from '@/components/CostCard';
@@ -81,9 +82,16 @@ function periodLabel(days: number): string {
 const fmtUsdt = (n: number) => (Math.abs(n) >= 1000 ? Math.round(n).toLocaleString() : String(Math.round(n * 100) / 100));
 
 const bmFetcher = (u: string) => fetch(u).then((r) => r.json());
-/** 시장 벤치마크 — 내 매매 기간 동안 비트코인·나스닥·코스피가 얼마나 움직였나(같은 기간 시장 맥락). */
+const PRINCIPAL_KEY = 'kospi-lab-journal-principal';
+const BM_IDX = [['btc', '비트코인'], ['nasdaq', '나스닥'], ['kospi', '코스피']] as const;
+
+/** 시장 벤치마크 — 내 매매 기간 동안 시장 + (원금 입력 시) 내 수익률%곡선 vs 지수 오버레이. */
 function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
   const { data } = useSWR<{ btc: PricePt[]; nasdaq: PricePt[]; kospi: PricePt[] }>('/api/macro/daily', bmFetcher, { revalidateOnFocus: false });
+  const [principal, setPrincipal] = useState('');
+  const [idx, setIdx] = useState<'btc' | 'nasdaq' | 'kospi'>('btc');
+  useEffect(() => { try { const s = localStorage.getItem(PRINCIPAL_KEY); if (s) setPrincipal(s); } catch {} }, []);
+  const savePrincipal = (v: string) => { setPrincipal(v); try { localStorage.setItem(PRINCIPAL_KEY, v); } catch {} };
   if (!trades.length) return null;
   const tsList = trades.map((t) => t.ts);
   const from = kstDateKey(Math.min(...tsList));
@@ -95,6 +103,10 @@ function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
     ['나스닥', data ? periodReturn(data.nasdaq, from, to) : null],
     ['코스피', data ? periodReturn(data.kospi, from, to) : null],
   ];
+  const pr = Number(principal.replace(/,/g, ''));
+  const curve = data && pr > 0 ? benchmarkCurve(equityCurve(trades).points, data[idx], pr) : [];
+  const idxLabel = BM_IDX.find(([k]) => k === idx)![1];
+  const chip = (on: boolean) => `px-2 py-0.5 rounded-md text-[11px] font-semibold ${on ? 'bg-[var(--surface-2)] text-[var(--accent-ink)]' : 'text-[var(--text-muted)]'}`;
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <h3 className="text-sm font-semibold text-[var(--text)]">시장 벤치마크 <span className="text-[11px] font-normal text-[var(--text-muted)]">· 내 매매 기간 동안 시장</span></h3>
@@ -107,7 +119,22 @@ function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">계좌 원금 정보가 없어 내 수익률%는 표시하지 않습니다 — 같은 기간 <b className="text-[var(--text)]">시장 방향</b> 참고용(매매 신호 아님). 지수는 각 구간 종가 기준.</p>
+      <div className="mt-3 pt-3 border-t border-[var(--border)]">
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          <label className="text-[11px] text-[var(--text-muted)]">계좌 원금(USDT)</label>
+          <input inputMode="decimal" value={principal} onChange={(e) => savePrincipal(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="예: 1000"
+            className="w-24 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-2 py-1 text-sm text-[var(--text)] tabular-nums outline-none focus:border-[var(--accent)]" />
+          <div className="flex gap-1 ml-auto">{BM_IDX.map(([k, l]) => <button key={k} type="button" className={chip(idx === k)} onClick={() => setIdx(k)}>{l}</button>)}</div>
+        </div>
+        {pr > 0 ? (
+          <>
+            <CompareCurveLazy rows={curve} indexLabel={idxLabel} />
+            <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">내 수익률% = 누적 순손익 ÷ 원금. 지수는 같은 기간 시작일 0% 정규화. 원금은 <b className="text-[var(--text)]">이 기기에만</b> 저장 · 참고용(매매 신호 아님).</p>
+          </>
+        ) : (
+          <p className="text-[11px] text-[var(--text-muted)]">원금을 입력하면 내 수익률%곡선을 지수와 겹쳐 비교합니다(이 기기에만 저장).</p>
+        )}
+      </div>
     </div>
   );
 }

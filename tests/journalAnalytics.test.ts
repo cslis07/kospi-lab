@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import {
-  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary, afterLossStreaks, tradesPerDay, goalLine, periodReturn,
+  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary, afterLossStreaks, tradesPerDay, goalLine, periodReturn, benchmarkCurve,
 } from '../lib/journalAnalytics';
 
 let passed = 0;
@@ -235,6 +235,21 @@ ok('periodReturn: 범위 밖·빈 입력 null', () => {
   assert.equal(periodReturn(s, '2027-01-01', '2027-12-31'), null); // from이 to보다 미래 데이터만
   assert.equal(periodReturn([], '2026-01-01', '2026-12-31'), null);
   assert.equal(periodReturn(undefined, '2026-01-01', '2026-12-31'), null);
+});
+
+ok('benchmarkCurve: 내 %(누적/원금) + 지수 정규화 %', () => {
+  const pts = [{ date: '2026-01-02', cum: 0 }, { date: '2026-02-01', cum: 100 }, { date: '2026-03-01', cum: 250 }];
+  const series = [{ date: '2026-01-02', close: 200 }, { date: '2026-02-01', close: 210 }, { date: '2026-03-01', close: 220 }];
+  const r = benchmarkCurve(pts, series, 1000);
+  assert.equal(r.length, 3);
+  assert.deepEqual(r[0], { date: '2026-01-02', mine: 0, index: 0 }); // 0/1000, base 대비 0%
+  assert.equal(r[1].mine, 10); // 100/1000
+  assert.equal(r[2].mine, 25); // 250/1000
+  assert.equal(Math.round((r[2].index as number) * 10) / 10, 10); // 220/200-1 = 10%
+});
+ok('benchmarkCurve: 원금 0·빈 입력 []', () => {
+  assert.deepEqual(benchmarkCurve([{ date: '2026-01-02', cum: 5 }], [], 0), []);
+  assert.deepEqual(benchmarkCurve([], [{ date: '2026-01-02', close: 1 }], 1000), []);
 });
 
 console.log(`\n${passed} passed`);
