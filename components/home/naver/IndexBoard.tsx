@@ -263,12 +263,12 @@ function Trio({ title, sub, items }: { title: string; sub?: string; items: [stri
   );
 }
 
-type Code = 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'SP500' | 'DOW' | 'NIKKEI' | 'HANGSENG';
-const NAMES: Record<Code, string> = { KOSPI: '코스피', KOSDAQ: '코스닥', NASDAQ: '나스닥', SP500: 'S&P500', DOW: '다우', NIKKEI: '닛케이', HANGSENG: '항셍' };
-const CODES: Code[] = ['KOSPI', 'KOSDAQ', 'NASDAQ', 'SP500', 'DOW', 'NIKKEI', 'HANGSENG'];
-const US_SET = new Set<Code>(['NASDAQ', 'SP500', 'DOW', 'NIKKEI', 'HANGSENG']); // 해외(분봉 미제공·부가정보 없음)
+type Code = 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'SP500' | 'DOW' | 'NIKKEI' | 'HANGSENG' | 'DAX' | 'FTSE';
+const NAMES: Record<Code, string> = { KOSPI: '코스피', KOSDAQ: '코스닥', NASDAQ: '나스닥', SP500: 'S&P500', DOW: '다우', NIKKEI: '닛케이', HANGSENG: '항셍', DAX: 'DAX', FTSE: 'FTSE' };
+const CODES: Code[] = ['KOSPI', 'KOSDAQ', 'NASDAQ', 'SP500', 'DOW', 'NIKKEI', 'HANGSENG', 'DAX', 'FTSE'];
+const US_SET = new Set<Code>(['NASDAQ', 'SP500', 'DOW', 'NIKKEI', 'HANGSENG', 'DAX', 'FTSE']); // 해외(분봉 미제공·부가정보 없음)
 // 해외 지수 차트 안내 라벨(국가 포함)
-const US_LABEL: Partial<Record<Code, string>> = { NASDAQ: '미국 나스닥 종합지수', SP500: '미국 S&P 500', DOW: '미국 다우존스 산업평균', NIKKEI: '일본 닛케이225', HANGSENG: '홍콩 항셍' };
+const US_LABEL: Partial<Record<Code, string>> = { NASDAQ: '미국 나스닥 종합지수', SP500: '미국 S&P 500', DOW: '미국 다우존스 산업평균', NIKKEI: '일본 닛케이225', HANGSENG: '홍콩 항셍', DAX: '독일 DAX', FTSE: '영국 FTSE 100' };
 
 export default function IndexBoard() {
   const [code, setCode] = useState<Code>('KOSPI');
