@@ -17,6 +17,7 @@ const WhaleLiquidationPanel = dynamic(() => import('@/components/WhaleLiquidatio
 import { useCoinAlerts } from '@/hooks/useCoinAlerts';
 import BriefingModelPicker from '@/components/BriefingModelPicker';
 import LivePriceTag from '@/components/LivePriceTag';
+import Range52Bar from '@/components/Range52Bar';
 import SourceStatus, { type SourceStat } from '@/components/SourceStatus';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '@/lib/positionSizing';
@@ -729,6 +730,20 @@ export default function CoinAnalysisPage() {
   }, [data]);
 
   const priceDigits = data && data.price < 10 ? 4 : data && data.price < 1000 ? 2 : 1;
+
+  // BTC 52주 위치(레일·보드와 일관) — /api/macro/daily의 BTC 일별 종가로 최근 365일 고/저. BTC 분석일 때만.
+  const { data: macroDaily } = useSWR<{ btc?: { date: string; close: number }[] }>(
+    data?.symbol === 'BTCUSDT' ? '/api/macro/daily' : null, fetcher, { revalidateOnFocus: false },
+  );
+  const btc52 = useMemo(() => {
+    const s = macroDaily?.btc;
+    if (!s?.length) return null;
+    const cutoff = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
+    const recent = s.filter((p) => p.date >= cutoff && Number.isFinite(p.close));
+    if (recent.length < 2) return null;
+    return { high: Math.max(...recent.map((p) => p.close)), low: Math.min(...recent.map((p) => p.close)) };
+  }, [macroDaily]);
+
   // 알림은 분석된 심볼(data.symbol)로 발동한다. 선택만 바꾼 상태에서 규칙이 어긋나지 않도록 맞춘다.
   const alertSymbol = data?.symbol ?? symbol;
   const alertRule = coinAlerts.rules[alertSymbol];
@@ -1071,6 +1086,14 @@ export default function CoinAnalysisPage() {
                 </div>
               </div>
             </div>
+
+            {/* BTC 52주 위치 — 레일·보드와 일관(일 종가 기준) */}
+            {btc52 && (
+              <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                <Range52Bar low={btc52.low} high={btc52.high} value={liveTick?.price ?? data.price}
+                  fmt={(n) => `$${Math.round(n).toLocaleString()}`} label="BTC 52주 위치 (일 종가 기준)" />
+              </div>
+            )}
 
             {/* 롱숏 계정 비율 심리 바 */}
             {data.longShort.latest && (
