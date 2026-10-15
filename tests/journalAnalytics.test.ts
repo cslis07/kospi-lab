@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import {
-  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary, afterLossStreaks, tradesPerDay, goalLine, periodReturn, benchmarkCurve,
+  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary, afterLossStreaks, tradesPerDay, goalLine, periodReturn, benchmarkCurve, monthlyPnl,
 } from '../lib/journalAnalytics';
 
 let passed = 0;
@@ -250,6 +250,18 @@ ok('benchmarkCurve: 내 %(누적/원금) + 지수 정규화 %', () => {
 ok('benchmarkCurve: 원금 0·빈 입력 []', () => {
   assert.deepEqual(benchmarkCurve([{ date: '2026-01-02', cum: 5 }], [], 0), []);
   assert.deepEqual(benchmarkCurve([], [{ date: '2026-01-02', close: 1 }], 1000), []);
+});
+
+ok('monthlyPnl: 월별(YYYY-MM) 합계', () => {
+  const d = (s: string) => Date.parse(`${s}T00:00:00+09:00`);
+  const m = monthlyPnl([
+    { ts: d('2026-01-05'), value: 10 },
+    { ts: d('2026-01-20'), value: -4 },
+    { ts: d('2026-02-03'), value: 7 },
+  ]);
+  assert.equal(m.get('2026-01'), 6);
+  assert.equal(m.get('2026-02'), 7);
+  assert.equal(m.size, 2);
 });
 
 console.log(`\n${passed} passed`);

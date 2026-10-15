@@ -29,6 +29,13 @@ export function periodReturn(series: PricePt[] | undefined, from: string, to: st
   return ((end.close - start.close) / start.close) * 100;
 }
 
+/** 월별(YYYY-MM) 순손익 합계 — 월별 수익률% 표용 */
+export function monthlyPnl(trades: TradeValue[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const t of trades) { const k = kstDateKey(t.ts).slice(0, 7); m.set(k, (m.get(k) ?? 0) + t.value); }
+  return m;
+}
+
 /** 내 수익률%곡선(누적손익/원금) vs 지수 정규화%곡선 — 같은 날짜축 */
 export interface CmpRow { date: string; mine: number; index: number | null }
 export function benchmarkCurve(points: { date: string; cum: number }[], series: PricePt[] | undefined, principal: number): CmpRow[] {

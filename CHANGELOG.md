@@ -2,6 +2,13 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (137차) — 매매일지 월별 수익률% 표(내 vs 지수 월간)
+
+벤치마크 카드에 월별 수익률 표 추가 — 내 월간 성과를 선택 지수 월간과 나란히.
+- `MonthlyTable`: 월(최신순) × [내 수익률 · {지수}]. 내 = 원금 입력 시 월 순손익÷원금 %, 원금 없으면 월 순손익(USDT). 지수 = 그 달 종가 기준 월간 변화(`periodReturn(series, m-01, m-31)`), 선택 지수(비트코인·나스닥·코스피)와 연동.
+- `lib/journalAnalytics.monthlyPnl`(순수함수, YYYY-MM 합계) + `tests` +1. 상승 빨강·하락 파랑.
+- 검증: npm test(journalAnalytics +monthlyPnl)·tsc 0·build 0.
+
 ## 2026-10-16 (136차) — 매매일지 벤치마크: 원금 입력 시 내 수익률%곡선 vs 지수 오버레이
 
 135차 벤치마크 카드에 계좌 원금 입력 → 내 수익률%곡선을 지수와 겹쳐 비교하는 오버레이 추가.

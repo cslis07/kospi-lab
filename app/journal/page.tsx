@@ -28,7 +28,7 @@ import type { BreakRowSel } from '@/components/BreakdownTables';
 import EquityCurveLazy from '@/components/EquityCurveLazy';
 import CalendarHeatmap from '@/components/CalendarHeatmap';
 import useSWR from 'swr';
-import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, tradesPerDay, periodReturn, equityCurve, benchmarkCurve, type TradeValue, type PricePt } from '@/lib/journalAnalytics';
+import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, tradesPerDay, periodReturn, equityCurve, benchmarkCurve, monthlyPnl, type TradeValue, type PricePt } from '@/lib/journalAnalytics';
 import CompareCurveLazy from '@/components/CompareCurveLazy';
 import TradesPerDayCard from '@/components/TradesPerDayCard';
 import EdgeSummaryCard from '@/components/EdgeSummaryCard';
@@ -135,6 +135,47 @@ function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
           <p className="text-[11px] text-[var(--text-muted)]">원금을 입력하면 내 수익률%곡선을 지수와 겹쳐 비교합니다(이 기기에만 저장).</p>
         )}
       </div>
+      <MonthlyTable trades={trades} series={data ? data[idx] : undefined} idxLabel={idxLabel} principal={pr} />
+    </div>
+  );
+}
+
+/** 월별 수익률 표 — 내(원금 기준 %, 없으면 월 순손익) vs 선택 지수 월간 %. */
+function MonthlyTable({ trades, series, idxLabel, principal }: { trades: TradeValue[]; series?: PricePt[]; idxLabel: string; principal: number }) {
+  const monPnl = monthlyPnl(trades);
+  const months = [...monPnl.keys()].sort().reverse();
+  if (!months.length) return null;
+  const col = (v: number | null) => (v == null ? 'text-[var(--text-muted)]' : v > 0 ? 'text-red-400' : v < 0 ? 'text-blue-400' : 'text-[var(--text-muted)]');
+  const pctStr = (v: number | null) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
+  return (
+    <div className="mt-3 pt-3 border-t border-[var(--border)]">
+      <p className="text-[12px] font-semibold text-[var(--text)] mb-1.5">월별 수익률 <span className="text-[10px] font-normal text-[var(--text-muted)]">내 vs {idxLabel}</span></p>
+      <div className="overflow-hidden rounded-xl border border-[var(--border)]">
+        <table className="w-full text-[11px] tabular-nums">
+          <thead>
+            <tr className="bg-[var(--bg)] border-b border-[var(--border)] text-[var(--text-muted)]">
+              <th className="text-left px-2.5 py-1.5 font-semibold">월</th>
+              <th className="text-right px-2.5 py-1.5 font-semibold">내 수익률</th>
+              <th className="text-right px-2.5 py-1.5 font-semibold">{idxLabel}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {months.map((m) => {
+              const pnl = monPnl.get(m) ?? 0;
+              const mine = principal > 0 ? (pnl / principal) * 100 : null;
+              const idxRet = series ? periodReturn(series, `${m}-01`, `${m}-31`) : null;
+              return (
+                <tr key={m} className="border-b border-[var(--border)]/50">
+                  <td className="px-2.5 py-1.5 text-[var(--text)]">{m}</td>
+                  <td className={`px-2.5 py-1.5 text-right font-bold ${col(mine)}`}>{mine == null ? <span className="text-[var(--text-muted)]">{pnl >= 0 ? '+' : ''}{fmtUsdt(pnl)}</span> : pctStr(mine)}</td>
+                  <td className={`px-2.5 py-1.5 text-right ${col(idxRet)}`}>{pctStr(idxRet)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {principal <= 0 && <p className="text-[10px] text-[var(--text-muted)] mt-1.5">내 열은 원금 입력 시 %로 바뀝니다(지금은 월 순손익 USDT). 지수는 그 달 종가 기준 월간 변화.</p>}
     </div>
   );
 }
