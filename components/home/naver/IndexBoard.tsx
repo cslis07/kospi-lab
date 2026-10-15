@@ -265,7 +265,13 @@ function Trio({ title, sub, items }: { title: string; sub?: string; items: [stri
 
 type Code = 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'SP500' | 'DOW' | 'NIKKEI' | 'HANGSENG' | 'DAX' | 'FTSE';
 const NAMES: Record<Code, string> = { KOSPI: '코스피', KOSDAQ: '코스닥', NASDAQ: '나스닥', SP500: 'S&P500', DOW: '다우', NIKKEI: '닛케이', HANGSENG: '항셍', DAX: 'DAX', FTSE: 'FTSE' };
-const CODES: Code[] = ['KOSPI', 'KOSDAQ', 'NASDAQ', 'SP500', 'DOW', 'NIKKEI', 'HANGSENG', 'DAX', 'FTSE'];
+// 지수 탭을 지역 그룹으로 묶는다(가독성). 각 그룹은 독립 세그먼트 + 소제목.
+const TAB_GROUPS: { label: string; codes: Code[] }[] = [
+  { label: '국내', codes: ['KOSPI', 'KOSDAQ'] },
+  { label: '미국', codes: ['NASDAQ', 'SP500', 'DOW'] },
+  { label: '아시아', codes: ['NIKKEI', 'HANGSENG'] },
+  { label: '유럽', codes: ['DAX', 'FTSE'] },
+];
 const US_SET = new Set<Code>(['NASDAQ', 'SP500', 'DOW', 'NIKKEI', 'HANGSENG', 'DAX', 'FTSE']); // 해외(분봉 미제공·부가정보 없음)
 // 해외 지수 차트 안내 라벨(국가 포함)
 const US_LABEL: Partial<Record<Code, string>> = { NASDAQ: '미국 나스닥 종합지수', SP500: '미국 S&P 500', DOW: '미국 다우존스 산업평균', NIKKEI: '일본 닛케이225', HANGSENG: '홍콩 항셍', DAX: '독일 DAX', FTSE: '영국 FTSE 100' };
@@ -298,11 +304,18 @@ export default function IndexBoard() {
     <div className="fin-card" style={{ padding: 20 }}>
       {/* 헤더: 지수 · AI 칩 · 기간 · 차트형태 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        {/* 지수 탭 — 5개라 좁은 화면에선 가로 스크롤(페이지 가로 넘침 방지) */}
+        {/* 지수 탭 — 국내·미국·아시아·유럽 그룹별 세그먼트, 좁은 화면에선 가로 스크롤(페이지 가로 넘침 방지) */}
         <div className="idx-tabs" style={{ overflowX: 'auto', maxWidth: '100%', minWidth: 0 }}>
-          <div className="seg">
-            {CODES.map((c) => (
-              <button key={c} className={`seg-i ${code === c ? 'on' : ''}`} onClick={() => selectCode(c)}>{NAMES[c]}</button>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, width: 'max-content' }}>
+            {TAB_GROUPS.map((g) => (
+              <div key={g.label} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--faint)', letterSpacing: '.04em', paddingLeft: 4 }}>{g.label}</span>
+                <div className="seg">
+                  {g.codes.map((c) => (
+                    <button key={c} className={`seg-i ${code === c ? 'on' : ''}`} onClick={() => selectCode(c)}>{NAMES[c]}</button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
