@@ -6,16 +6,16 @@ import { krIndexLive, krIndexIntegration, indexMinute, indexDaily, worldIndexLiv
  *  ?code=KOSPI|KOSDAQ|NASDAQ|SP500|DOW  ?range=1d(당일 분봉)|1m|3m|1y(일봉)
  * 국내: 시장현황(상승·보합·하락, 상·하한)·투자자·프로그램매매·52주·전일종가는 네이버 integration(실시간) 기준.
  *  → 이전 KRX 집계는 '전 거래일' 데이터였고, 52주는 차트 API 가 기간을 무시해 틀렸었다(5,262 vs 실제 3,440).
- * 해외(나스닥·S&P500·다우): 분봉 미제공이라 1일 요청은 1개월 일봉으로 대체, 투자자·프로그램·시장현황은 해당 없음(null).
- *  52주는 1년 일봉에서 계산. reutersCode = .IXIC / .INX / .DJI.
+ * 해외(나스닥·S&P500·다우·닛케이·항셍): 분봉 미제공이라 1일 요청은 1개월 일봉으로 대체, 투자자·프로그램·시장현황은 해당 없음(null).
+ *  52주는 1년 일봉에서 계산. reutersCode = .IXIC / .INX / .DJI / .N225 / .HSI.
  */
 export const revalidate = 0;
 
 const RANGE_DAYS: Record<string, number> = { '1m': 31, '3m': 92, '1y': 366 };
 // 해외는 분봉이 없어 일봉만 — 기간별 표시 봉 수(거래일 기준 근사)
 const US_BARS: Record<string, number> = { '1m': 22, '3m': 66, '1y': 260 };
-// 해외 지수 코드 → 네이버 reutersCode
-const US_REUTERS: Record<string, string> = { NASDAQ: '.IXIC', SP500: '.INX', DOW: '.DJI' };
+// 해외 지수 코드 → 네이버 reutersCode (미국·아시아)
+const US_REUTERS: Record<string, string> = { NASDAQ: '.IXIC', SP500: '.INX', DOW: '.DJI', NIKKEI: '.N225', HANGSENG: '.HSI' };
 
 export interface BoardPoint { x: string; o: number; h: number; l: number; c: number }
 

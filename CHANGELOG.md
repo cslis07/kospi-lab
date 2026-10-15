@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-15 (122차) — 홈 보드에 아시아 지수 탭(닛케이·항셍) 추가
+
+홈 중앙 보드 탭을 미국(나스닥·S&P500·다우)에 이어 아시아로 확장. 코스피·코스닥 옆에 7개 탭.
+- `/api/home/board` `US_REUTERS` 맵에 `NIKKEI: '.N225'`·`HANGSENG: '.HSI'` 추가 — 기존 해외 분기(`worldIndexLive`+`indexDaily('foreign')`)가 그대로 처리. live 실시간·일봉·52주(1년 max/min), 투자자·프로그램·시장현황은 해외라 null.
+- `IndexBoard`: Code·NAMES·CODES·US_SET(해외셋)·US_LABEL에 닛케이225·항셍 추가. 차트 안내 라벨을 국가 포함(`미국/일본/홍콩 …`)으로 일반화("미국" 하드코딩 제거). 탭 7개는 기존 `.idx-tabs` 가로 스크롤로 넘침 방지.
+- 해외 공통 동작 유지: 분봉 미제공이라 1일 탭 없이 일봉(1·3·12개월), 네이버 basic 콤마 문자열은 `num()`이 처리.
+- 검증: tsc 0·build 0, 보드 라우트 NIKKEI/HANGSENG 실데이터(live·22봉·52주) 확인, 헤드리스 390px: 탭 7개·닛케이 클릭 시 라벨·시세 렌더·가로넘침 0·콘솔 0.
+
 ## 2026-10-15 (121차) — /macro·/brief에 "공식 CPI(지연) vs 실시간 나우캐스트" 연결(병합 4단계)
 
 경제지표(/macro)와 모닝 브리핑(/brief)에서 공식 CPI 옆에 실시간 나우캐스트를 바로 대비. 공식은 월 1회·2주 지연이라, "지금 물가가 어디쯤인지"를 나란히 보여 /inflation 허브로 잇는 다리.

@@ -263,12 +263,12 @@ function Trio({ title, sub, items }: { title: string; sub?: string; items: [stri
   );
 }
 
-type Code = 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'SP500' | 'DOW';
-const NAMES: Record<Code, string> = { KOSPI: '코스피', KOSDAQ: '코스닥', NASDAQ: '나스닥', SP500: 'S&P500', DOW: '다우' };
-const CODES: Code[] = ['KOSPI', 'KOSDAQ', 'NASDAQ', 'SP500', 'DOW'];
-const US_SET = new Set<Code>(['NASDAQ', 'SP500', 'DOW']);
-// 해외 지수 차트 안내 라벨
-const US_LABEL: Partial<Record<Code, string>> = { NASDAQ: '나스닥 종합지수', SP500: 'S&P 500', DOW: '다우존스 산업평균' };
+type Code = 'KOSPI' | 'KOSDAQ' | 'NASDAQ' | 'SP500' | 'DOW' | 'NIKKEI' | 'HANGSENG';
+const NAMES: Record<Code, string> = { KOSPI: '코스피', KOSDAQ: '코스닥', NASDAQ: '나스닥', SP500: 'S&P500', DOW: '다우', NIKKEI: '닛케이', HANGSENG: '항셍' };
+const CODES: Code[] = ['KOSPI', 'KOSDAQ', 'NASDAQ', 'SP500', 'DOW', 'NIKKEI', 'HANGSENG'];
+const US_SET = new Set<Code>(['NASDAQ', 'SP500', 'DOW', 'NIKKEI', 'HANGSENG']); // 해외(분봉 미제공·부가정보 없음)
+// 해외 지수 차트 안내 라벨(국가 포함)
+const US_LABEL: Partial<Record<Code, string>> = { NASDAQ: '미국 나스닥 종합지수', SP500: '미국 S&P 500', DOW: '미국 다우존스 산업평균', NIKKEI: '일본 닛케이225', HANGSENG: '홍콩 항셍' };
 
 export default function IndexBoard() {
   const [code, setCode] = useState<Code>('KOSPI');
@@ -355,7 +355,7 @@ export default function IndexBoard() {
             <Chart points={b?.points ?? []} mode={mode} range={effRange} prevClose={b?.prevClose ?? 0} />
             {/* 안내 줄은 데이터 전에도 자리를 잡는다(도착 순간 아래가 밀리지 않게) */}
             {isUs && (
-              <div style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2, minHeight: 15 }}>미국 {US_LABEL[code]} · 현지 종가 기준 일봉(분봉 미제공)</div>
+              <div style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2, minHeight: 15 }}>{US_LABEL[code]} · 현지 종가 기준 일봉(분봉 미제공)</div>
             )}
             {!isUs && effRange === '1d' && (
               <div style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2, minHeight: 15 }}>{b?.tradingDate ? `${b.tradingDate} 분봉 · 30초마다 갱신 · 차트에 마우스(터치)를 대면 값 표시` : ' '}</div>
