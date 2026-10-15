@@ -2,6 +2,15 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (131차) — 관심종목 ↔ 상단 지수 레일 연동
+
+상단 지수 레일 구성을 관심종목(/my-stocks) 화면에서도 관리 — 둘이 같은 리스트를 공유해 라이브 동기화.
+- `hooks/useRailPref` 신설: `useSyncedList('kospi-lab-rail', DEFAULT_RAIL)` 래퍼 → 같은 기기 내 여러 화면/탭이 custom 이벤트로 즉시 동기화(관심종목에서 바꾸면 홈 레일도 바로 반영).
+- `components/RailManager` 로 레일 편집 UI 공용화(IndexRail 인라인 RailEditor 추출). IndexRail은 useRailPref+RailManager로 교체(동작 동일).
+- `/my-stocks` 상단에 **관심 지수** 카드(`RailIndicesCard`): 현재 레일 지수 요약 + 편집(순서·숨김·추가, 풀 10종). 저장은 같은 `kospi-lab-rail`.
+- 기존 동작·기본 6종·이 기기 한정(SYNC_EXCLUDE) 유지.
+- 검증: tsc 0·build 0, 헤드리스 390px: 관심종목에서 닛케이 추가 → 홈 레일 7종 반영(닛케이 포함)·가로넘침 0·콘솔 0.
+
 ## 2026-10-16 (130차) — /inflation 품목 드릴다운 바텀시트화·가독성 개선
 
 인라인 패널로 아래에 펼쳐지던 품목 드릴다운을 모바일 친화 바텀시트로.

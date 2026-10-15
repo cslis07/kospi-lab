@@ -11,6 +11,8 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import WatchRow from '@/components/WatchRow';
 import { useWatchlist } from '@/hooks/useWatchlist';
+import { useRailPref } from '@/hooks/useRailPref';
+import RailManager from '@/components/RailManager';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 import { usePortfolio } from '@/hooks/usePortfolio';
@@ -143,6 +145,7 @@ function MyStocksInner() {
 
   return (
     <div className="max-w-3xl mx-auto pb-6">
+      <RailIndicesCard />
       <div className="seg w-full mb-3" role="tablist" aria-label="관심종목 시장">
         {TABS.map((t) => (
           <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => switchTab(t.key)} className={`seg-i flex-1 ${tab === t.key ? 'on' : ''}`}>
@@ -213,6 +216,36 @@ function MyStocksInner() {
         <div className="toast" role="status">
           {toast.text}
           <button type="button" onClick={() => { toast.undo(); setToast(null); }}>되돌리기</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 관심 지수 — 상단 지수 레일과 같은 리스트를 여기서도 관리(라이브 동기화). */
+function RailIndicesCard() {
+  const { data } = useSWR<{ cards: { code: string; name: string }[] }>('/api/home/indices', fetcher, { revalidateOnFocus: false });
+  const cards = data?.cards ?? [];
+  const poolCodes = cards.map((c) => c.code);
+  const nameOf = (code: string) => cards.find((c) => c.code === code)?.name ?? code;
+  const { pref, save } = useRailPref();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-3 mb-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[13px] font-bold text-[var(--text)]">관심 지수 <span className="text-[11px] font-normal text-[var(--text-muted)]">· 홈 상단 레일</span></p>
+          <p className="text-[11px] text-[var(--text-muted)] truncate mt-0.5">{pref.length ? pref.map(nameOf).join(' · ') : '표시 지수 없음'}</p>
+        </div>
+        <button type="button" onClick={() => setOpen((o) => !o)}
+          className="shrink-0 text-[12px] font-bold px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]">
+          {open ? '완료' : '편집'}
+        </button>
+      </div>
+      {open && (
+        <div className="mt-3">
+          <RailManager pref={pref} poolCodes={poolCodes} nameOf={nameOf} save={save} />
+          <p className="text-[10px] text-[var(--text-muted)] mt-2">여기서 바꾸면 홈 상단 지수 레일에 바로 반영됩니다(이 기기).</p>
         </div>
       )}
     </div>
