@@ -1,12 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import UnlockGate from '@/components/UnlockGate';
 import InflationChartLazy from '@/components/InflationChartLazy';
 import {
   compareRows, forecastRows, categorize, topDrivers, pctFrac, pct, signPp,
-  type Pulse, type CompareDaily, type Forecast, type Cat,
+  sparkCompareRows, gasRanked, metrosByRent, avg,
+  type Pulse, type CompareDaily, type Forecast, type Cat, type Compare, type GeoData,
 } from '@/lib/inflation';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -48,6 +50,9 @@ export default function InflationPage() {
   const { data: fcc } = useSWR<FcCurrent>('/api/nf/forecastCurrent.json', fetcher, SWR_OPT);
   const { data: groc } = useSWR<Grocery>('/api/nf/grocery_basket.json', fetcher, SWR_OPT);
   const { data: fuel } = useSWR<Fuel>('/api/nf/fuel.json', fetcher, SWR_OPT);
+  const { data: citems } = useSWR<Compare>('/api/nf/compare.json', fetcher, SWR_OPT);
+  const { data: geo } = useSWR<GeoData>('/api/nf/geo.json', fetcher, SWR_OPT);
+  const [selComp, setSelComp] = useState<string | null>(null);
 
   const locked = pulse?.locked || cmp?.locked;
 
@@ -106,8 +111,9 @@ export default function InflationPage() {
           </Card>
 
           {/* 품목별 기여 */}
-          <Card title="품목별 기여" aside={<span className="text-[10px] text-[var(--text-muted)]">기여 큰 순 · YoY</span>}>
-            <DriverBars pulse={pulse} />
+          <Card title="품목별 기여" aside={<span className="text-[10px] text-[var(--text-muted)]">막대 클릭 → 공식 대비 추이</span>}>
+            <DriverBars pulse={pulse} selected={selComp} onSelect={(c) => setSelComp(c === selComp ? null : c)} />
+            {selComp && citems && !citems.locked && <DrilldownPanel comp={selComp} citems={citems} onClose={() => setSelComp(null)} />}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               {/* 식품 바스켓 */}
               <div className="rounded-xl border border-[var(--border)] p-3">
@@ -135,6 +141,11 @@ export default function InflationPage() {
                 ) : <p className="text-[11px] text-[var(--text-muted)]">불러오는 중…</p>}
               </div>
             </div>
+          </Card>
+
+          {/* 지역별 물가(미국) */}
+          <Card title="지역별 물가 (미국)" aside={geo?.asof ? <span className="text-[10px] text-[var(--text-muted)]">{geo.asof}</span> : undefined}>
+            {geo && !geo.locked ? <GeoSection geo={geo} /> : <p className="text-[11px] text-[var(--text-muted)]">불러오는 중…</p>}
           </Card>
 
           {/* 예측 */}
@@ -183,32 +194,97 @@ export default function InflationPage() {
   );
 }
 
-function DriverBars({ pulse }: { pulse: Pulse }) {
+function DriverBars({ pulse, selected, onSelect }: { pulse: Pulse; selected: string | null; onSelect: (c: string) => void }) {
   const ds = topDrivers(pulse.drivers, 10);
   if (!ds.length) return <p className="text-[11px] text-[var(--text-muted)]">불러오는 중…</p>;
   const maxAbs = Math.max(...ds.map((d) => Math.abs(d.contribution_bps)), 1);
   return (
-    <ul className="space-y-1.5">
+    <ul className="space-y-1">
       {ds.map((d) => {
         const cat = categorize(d.component);
         const w = Math.round((Math.abs(d.contribution_bps) / maxAbs) * 100);
         const up = d.yoy >= 0;
+        const on = selected === d.component;
         return (
-          <li key={d.component} className="text-[11px]">
-            <div className="flex items-center justify-between gap-2 mb-0.5">
-              <span className="flex items-center gap-1.5 min-w-0">
-                <span className={`shrink-0 text-[9px] font-semibold px-1 py-0.5 rounded ${CAT_STYLE[cat]}`}>{cat}</span>
-                <span className="text-[var(--text)] truncate">{d.label}</span>
-              </span>
-              <span className="shrink-0 tabular-nums"><b className={sign(d.yoy)}>{pctFrac(d.yoy, 1)}</b> <span className="text-[var(--text-muted)]">({d.contribution_bps >= 0 ? '+' : ''}{d.contribution_bps.toFixed(0)}bp)</span></span>
-            </div>
-            <div className="h-1.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
-              <div className={`h-full rounded-full ${up ? 'bg-red-400/70' : 'bg-blue-400/70'}`} style={{ width: `${w}%` }} />
-            </div>
+          <li key={d.component}>
+            <button type="button" onClick={() => onSelect(d.component)}
+              className={`w-full text-left text-[11px] rounded-lg px-1.5 py-1 transition-colors ${on ? 'bg-[var(--surface-2)]' : 'hover:bg-[var(--surface-2)]/50'}`}>
+              <div className="flex items-center justify-between gap-2 mb-0.5">
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className={`shrink-0 text-[9px] font-semibold px-1 py-0.5 rounded ${CAT_STYLE[cat]}`}>{cat}</span>
+                  <span className="text-[var(--text)] truncate">{d.label}</span>
+                </span>
+                <span className="shrink-0 tabular-nums"><b className={sign(d.yoy)}>{pctFrac(d.yoy, 1)}</b> <span className="text-[var(--text-muted)]">({d.contribution_bps >= 0 ? '+' : ''}{d.contribution_bps.toFixed(0)}bp)</span></span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
+                <div className={`h-full rounded-full ${up ? 'bg-red-400/70' : 'bg-blue-400/70'}`} style={{ width: `${w}%` }} />
+              </div>
+            </button>
           </li>
         );
       })}
-      <p className="text-[10px] text-[var(--text-muted)] pt-1">막대 길이 = CPI 기여도(절대값). 빨강=물가 상승 기여, 파랑=하락 기여.</p>
+      <p className="text-[10px] text-[var(--text-muted)] pt-1">막대 길이 = CPI 기여도(절대값). 빨강=물가 상승 기여, 파랑=하락 기여. <b className="text-[var(--text)]">항목을 누르면</b> 공식(BLS) 대비 추이가 열립니다.</p>
     </ul>
+  );
+}
+
+function DrilldownPanel({ comp, citems, onClose }: { comp: string; citems: Compare; onClose: () => void }) {
+  const tile = citems.tiles?.find((t) => t.component === comp);
+  const rows = sparkCompareRows(citems.sparks?.[comp], citems.month);
+  if (!tile && !rows.length) return null;
+  const spreadPp = tile ? tile.spread * 100 : null; // 분수→pp
+  return (
+    <div className="mt-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--surface-2)]/40 p-3">
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <p className="text-[12px] font-semibold text-[var(--text)]">{tile?.label ?? comp} — 공식(BLS) 대비</p>
+        <button type="button" onClick={onClose} className="text-[11px] text-[var(--text-muted)] shrink-0">닫기 ✕</button>
+      </div>
+      {tile && (
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] tabular-nums mb-1">
+          <span><span className="text-[var(--text-muted)]">나우캐스트 </span><b className={sign(tile.yoy)}>{pctFrac(tile.yoy, 1)}</b></span>
+          <span><span className="text-[var(--text-muted)]">공식 BLS </span><b className="text-[var(--text)]">{pctFrac(tile.bls_yoy, 1)}</b></span>
+          {spreadPp != null && <span><span className="text-[var(--text-muted)]">격차 </span><b className={sign(spreadPp)}>{signPp(spreadPp, 2)}</b></span>}
+          <span className="text-[var(--text-muted)]">비중 {pctFrac(tile.weight, 1)}</span>
+        </div>
+      )}
+      {rows.length ? <InflationChartLazy kind="compare" rows={rows} height={180} /> : <p className="text-[11px] text-[var(--text-muted)]">이 품목은 추이 데이터가 없습니다.</p>}
+      <p className="text-[10px] text-[var(--text-muted)] mt-1">12개월 YoY(%). 나우캐스트(ours)와 공식(BLS) 발표치 비교.</p>
+    </div>
+  );
+}
+
+function GeoSection({ geo }: { geo: GeoData }) {
+  const gas = gasRanked(geo.states);
+  const gasAvg = avg(gas.map((s) => s.gas));
+  const topGas = gas.slice(0, 6);
+  const rents = metrosByRent(geo.metros).slice(0, 8);
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* 주별 휘발유·전기 */}
+      <div className="rounded-xl border border-[var(--border)] p-3">
+        <p className="text-[12px] font-semibold text-sky-400 mb-1.5">주별 휘발유 (높은 순)</p>
+        {gasAvg != null && <p className="text-[10px] text-[var(--text-muted)] mb-1.5">전국 평균 ${gasAvg.toFixed(3)}/gal · {gas.length}개 주</p>}
+        <ul className="space-y-1">
+          {topGas.map((s) => (
+            <li key={s.state} className="flex items-center justify-between text-[11px] tabular-nums">
+              <span className="text-[var(--text)] truncate pr-2">{s.name}</span>
+              <span className="shrink-0"><b className="text-[var(--text)]">${s.gas?.toFixed(3)}</b>{s.elec_yoy != null && <span className="text-[var(--text-muted)]"> · 전기 <b className={sign(s.elec_yoy)}>{pctFrac(s.elec_yoy, 1)}</b></span>}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {/* 도시 임대료 */}
+      <div className="rounded-xl border border-[var(--border)] p-3">
+        <p className="text-[12px] font-semibold text-violet-400 mb-1.5">도시 임대료 (높은 순)</p>
+        <ul className="space-y-1">
+          {rents.map((m) => (
+            <li key={m.metro} className="flex items-center justify-between text-[11px] tabular-nums">
+              <span className="text-[var(--text)] truncate pr-2">{m.metro}</span>
+              <span className="shrink-0"><b className="text-[var(--text)]">${m.rent?.toLocaleString()}</b> <span className={sign(m.yoy)}>{pctFrac(m.yoy, 1)}</span></span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }

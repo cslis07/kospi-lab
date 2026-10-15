@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (125차) — /inflation 지역·품목 드릴다운 확장
+
+실시간 물가 허브에 지역별 물가와 품목 드릴다운 추가(nowflation geo/compare 데이터).
+- **품목 드릴다운**: 품목별 기여 막대를 클릭하면 그 품목의 **나우캐스트(ours) vs 공식 BLS(bls) 12개월 YoY 추이**(compare.sparks) + 격차·비중(compare.tiles)이 열림. 차트는 기존 `InflationChart` compare 재사용(`sparkCompareRows`로 월 동기화).
+- **지역별 물가(미국)**: `geo.json`으로 **주별 휘발유 가격**(전국 평균·높은 순 6개·주별 전기요금 YoY)과 **도시 임대료**(높은 순 8개·YoY). `gasRanked`·`metrosByRent`·`avg` 순수 함수.
+- `lib/inflation`에 `Compare`·`GeoData` 타입 + `monthsEndingAt`·`sparkCompareRows`·`gasRanked`·`metrosByRent`·`avg`, `tests/inflation` +4(총 10). 데이터 `/api/nf/{compare,geo}.json`(게이트 쿠키).
+- 검증: npm test(inflation 10)·tsc 0·build 0, 헤드리스 390px: 지역 섹션·품목 클릭 드릴다운 차트 렌더·가로넘침 0·콘솔 0.
+
 ## 2026-10-15 (124차) — 홈 보드 지수 탭 지역 그룹 구분(국내·미국·아시아·유럽)
 
 탭이 9개로 늘어 한 줄 세그먼트가 길어진 것 보완 — 지역별로 묶어 가독성 개선.

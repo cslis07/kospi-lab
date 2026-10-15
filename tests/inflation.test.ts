@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {
   compareRows, forecastRows, categorize, topDrivers, pctFrac, pct, signPp,
-  type CompareDaily, type Forecast, type PulseDriver,
+  monthsEndingAt, sparkCompareRows, gasRanked, metrosByRent, avg,
+  type CompareDaily, type Forecast, type PulseDriver, type StateRow, type MetroRow,
 } from '../lib/inflation';
 
 let passed = 0;
@@ -72,6 +73,39 @@ ok('포맷터: 분수/퍼센트/pp', () => {
   assert.equal(signPp(-0.028), '-0.03%p');
   assert.equal(pctFrac(null), '—');
   assert.equal(pct(undefined), '—');
+});
+
+ok('monthsEndingAt: 연도 경계 포함 오름차순', () => {
+  assert.deepEqual(monthsEndingAt('2026-02', 4), ['2025-11', '2025-12', '2026-01', '2026-02']);
+  assert.deepEqual(monthsEndingAt('2026-08', 1), ['2026-08']);
+});
+
+ok('sparkCompareRows: ours/bls 분수→% + 월 동기화 + null 유지', () => {
+  const r = sparkCompareRows({ ours: [0.031, 0.029, 0.021], bls: [0.034, null, 0.0275] }, '2026-08');
+  assert.deepEqual(r, [
+    { month: '2026-06', nowcast: 3.1, official: 3.4 },
+    { month: '2026-07', nowcast: 2.9, official: null },
+    { month: '2026-08', nowcast: 2.1, official: 2.75 },
+  ]);
+  assert.deepEqual(sparkCompareRows(undefined, '2026-08'), []);
+});
+
+ok('gasRanked·metrosByRent: 내림차순·null 제외', () => {
+  const st: StateRow[] = [
+    { state: 'A', name: 'A', gas: 3.9, elec_cents: 16, elec_yoy: 0.03 },
+    { state: 'B', name: 'B', gas: 5.0, elec_cents: 28, elec_yoy: 0.05 },
+    { state: 'C', name: 'C', gas: null, elec_cents: null, elec_yoy: null },
+  ];
+  assert.deepEqual(gasRanked(st).map((s) => s.state), ['B', 'A']);
+  const mt: MetroRow[] = [
+    { metro: 'X', rent: 3409, yoy: 0.1 }, { metro: 'Y', rent: 3815, yoy: 0.07 }, { metro: 'Z', rent: null, yoy: null },
+  ];
+  assert.deepEqual(metrosByRent(mt).map((m) => m.metro), ['Y', 'X']);
+});
+
+ok('avg: null 제외 평균', () => {
+  assert.equal(avg([3, 5, null]), 4);
+  assert.equal(avg([null, undefined]), null);
 });
 
 console.log(`inflation: ${passed} passed\n`);

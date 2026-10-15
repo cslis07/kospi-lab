@@ -71,6 +71,55 @@ export function forecastRows(f?: Forecast | null): ForecastRow[] {
   return [...map.values()].sort((a, b) => a.month.localeCompare(b.month));
 }
 
+// ── 품목 드릴다운(compare.json) ──
+export interface CompareTile { component: string; label: string; weight: number; yoy: number; mom: number; bls_yoy: number; spread: number }
+export interface Spark { ours: (number | null)[]; bls: (number | null)[] }
+export interface Compare {
+  locked?: boolean; month: string;
+  tiles: CompareTile[];
+  sparks: Record<string, Spark>;
+}
+
+/** "2026-08" 에서 뒤로 n개월(오름차순) */
+export function monthsEndingAt(end: string, n: number): string[] {
+  const [y, m] = end.split('-').map(Number);
+  const out: string[] = [];
+  let yy = y, mm = m;
+  for (let i = 0; i < n; i++) { out.unshift(`${yy}-${String(mm).padStart(2, '0')}`); mm--; if (mm === 0) { mm = 12; yy--; } }
+  return out;
+}
+
+/** 품목 스파크(나우캐스트 ours vs 공식 bls, 분수) → 월별 비교 행(퍼센트) */
+export function sparkCompareRows(spark: Spark | undefined, endMonth: string): CompareRow[] {
+  if (!spark?.ours?.length) return [];
+  const r4 = (x: number) => Math.round(x * 1e6) / 1e4; // 분수→% + 부동소수 정리
+  const months = monthsEndingAt(endMonth, spark.ours.length);
+  return months.map((m, i) => ({
+    month: m,
+    nowcast: spark.ours[i] != null ? r4(spark.ours[i] as number) : null,
+    official: spark.bls?.[i] != null ? r4(spark.bls[i] as number) : null,
+  }));
+}
+
+// ── 지역 물가(geo.json) ──
+export interface StateRow { state: string; name: string; gas: number | null; gas_date?: string; elec_cents: number | null; elec_yoy: number | null; elec_date?: string }
+export interface MetroRow { metro: string; rent: number | null; yoy: number | null; asof?: string }
+export interface GeoData { locked?: boolean; asof?: string; states: StateRow[]; metros: MetroRow[] }
+
+/** 주별 휘발유 가격 내림차순(값 있는 것만) */
+export function gasRanked(states: StateRow[] | undefined): StateRow[] {
+  return [...(states ?? [])].filter((s) => typeof s.gas === 'number').sort((a, b) => (b.gas as number) - (a.gas as number));
+}
+/** 도시 임대료 내림차순(값 있는 것만) */
+export function metrosByRent(metros: MetroRow[] | undefined): MetroRow[] {
+  return [...(metros ?? [])].filter((m) => typeof m.rent === 'number').sort((a, b) => (b.rent as number) - (a.rent as number));
+}
+/** 평균(값 있는 것만) */
+export function avg(nums: (number | null | undefined)[]): number | null {
+  const v = nums.filter((x): x is number => typeof x === 'number');
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+}
+
 export type Cat = '식품' | '주거' | '연료' | '기타';
 export function categorize(component: string): Cat {
   const c = (component || '').toLowerCase();
