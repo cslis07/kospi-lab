@@ -22,7 +22,11 @@ export interface BoardPoint { x: string; o: number; h: number; l: number; c: num
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const codeParam = sp.get('code') ?? '';
-  let range = ['1d', '1m', '3m', '1y'].includes(sp.get('range') ?? '') ? (sp.get('range') as string) : '1d';
+  let range = ['1d', '1m', '3m', '1y', 'ytd'].includes(sp.get('range') ?? '') ? (sp.get('range') as string) : '1d';
+  // YTD(연초 대비) — 올해 1월 1일부터 오늘까지 일봉
+  const todayYmd = kstYmd(0);
+  const yearStartDash = `${todayYmd.slice(0, 4)}-01-01`;
+  const ytdDays = Math.ceil((Date.now() - Date.parse(`${todayYmd.slice(0, 4)}-01-01T00:00:00+09:00`)) / 86400000) + 2;
 
   // ── 해외 지수(나스닥·S&P500·다우): 분봉 없음 → 일봉, 부가정보 없음 ──
   const reuters = US_REUTERS[codeParam];
@@ -30,7 +34,8 @@ export async function GET(req: Request) {
     if (range === '1d') range = '1m';
     const [live, all] = await Promise.all([worldIndexLive(reuters), indexDaily('foreign', reuters, 366)]);
     const bars = US_BARS[range] ?? 22;
-    const points: BoardPoint[] = all.slice(-bars).map((d) => ({ x: d.d, o: d.o, h: d.h, l: d.l, c: d.c }));
+    const sel = range === 'ytd' ? all.filter((d) => d.d >= yearStartDash) : all.slice(-bars);
+    const points: BoardPoint[] = sel.map((d) => ({ x: d.d, o: d.o, h: d.h, l: d.l, c: d.c }));
     const y1 = all.slice(-260);
     const week52High = y1.length ? Math.max(...y1.map((d) => d.h)) : null;
     const week52Low = y1.length ? Math.min(...y1.map((d) => d.l)) : null;
@@ -51,7 +56,10 @@ export async function GET(req: Request) {
     tradingDate = `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`;
     points = (await indexMinute(code, ymd)).map((m) => ({ x: m.t, o: m.o, h: m.h, l: m.l, c: m.c }));
   } else {
-    points = (await indexDaily('domestic', code, RANGE_DAYS[range])).map((d) => ({ x: d.d, o: d.o, h: d.h, l: d.l, c: d.c }));
+    const days = range === 'ytd' ? ytdDays : RANGE_DAYS[range];
+    let rows = await indexDaily('domestic', code, days);
+    if (range === 'ytd') rows = rows.filter((d) => d.d >= yearStartDash); // 연초 이후만(전년 말일 제외)
+    points = rows.map((d) => ({ x: d.d, o: d.o, h: d.h, l: d.l, c: d.c }));
   }
 
   const prevClose = integ?.prevClose || (live ? live.value - live.change : 0);

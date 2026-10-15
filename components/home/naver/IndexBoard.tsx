@@ -25,8 +25,8 @@ interface BoardResp {
 }
 interface BriefResp { providers?: { ok: boolean; brief?: { headline: string } }[] }
 
-type Range = '1d' | '1m' | '3m' | '1y';
-const RANGES: [Range, string][] = [['1d', '1일'], ['1m', '1개월'], ['3m', '3개월'], ['1y', '1년']];
+type Range = '1d' | '1m' | '3m' | '1y' | 'ytd';
+const RANGES: [Range, string][] = [['1d', '1일'], ['1m', '1개월'], ['3m', '3개월'], ['1y', '1년'], ['ytd', 'YTD']];
 const VALID_RANGES = new Set<Range>(RANGES.map(([k]) => k));
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
@@ -47,7 +47,7 @@ function bucket(points: Pt[], size: number): Pt[] {
 
 function xLabel(x: string, range: Range) {
   if (range === '1d') return x;                       // HH:mm
-  if (range === '1y') return `${x.slice(2, 4)}.${x.slice(5, 7)}`; // YY.MM
+  if (range === '1y' || range === 'ytd') return `${x.slice(2, 4)}.${x.slice(5, 7)}`; // YY.MM
   return `${x.slice(5, 7)}.${x.slice(8, 10)}`;         // MM.DD
 }
 
