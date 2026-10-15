@@ -5,10 +5,11 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import UnlockGate from '@/components/UnlockGate';
 import InflationChartLazy from '@/components/InflationChartLazy';
+import BottomSheet from '@/components/ui/BottomSheet';
 import {
   compareRows, forecastRows, categorize, topDrivers, pctFrac, pct, signPp,
   sparkCompareRows, gasRanked, metrosByRent, avg,
-  type Pulse, type CompareDaily, type Forecast, type Cat, type Compare, type GeoData,
+  type Pulse, type CompareDaily, type Forecast, type Cat, type Compare, type GeoData, type StateRow, type MetroRow,
 } from '@/lib/inflation';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -254,37 +255,112 @@ function DrilldownPanel({ comp, citems, onClose }: { comp: string; citems: Compa
 }
 
 function GeoSection({ geo }: { geo: GeoData }) {
+  const [allOpen, setAllOpen] = useState(false);
   const gas = gasRanked(geo.states);
   const gasAvg = avg(gas.map((s) => s.gas));
   const topGas = gas.slice(0, 6);
   const rents = metrosByRent(geo.metros).slice(0, 8);
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {/* 주별 휘발유·전기 */}
-      <div className="rounded-xl border border-[var(--border)] p-3">
-        <p className="text-[12px] font-semibold text-sky-400 mb-1.5">주별 휘발유 (높은 순)</p>
-        {gasAvg != null && <p className="text-[10px] text-[var(--text-muted)] mb-1.5">전국 평균 ${gasAvg.toFixed(3)}/gal · {gas.length}개 주</p>}
-        <ul className="space-y-1">
-          {topGas.map((s) => (
-            <li key={s.state} className="flex items-center justify-between text-[11px] tabular-nums">
+    <>
+      <div className="flex justify-end mb-2">
+        <button type="button" onClick={() => setAllOpen(true)} className="text-[11px] font-semibold text-[var(--accent-ink)]">
+          전체 보기 (주 {geo.states?.length ?? 0}·도시 {geo.metros?.length ?? 0}) →
+        </button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* 주별 휘발유·전기 */}
+        <div className="rounded-xl border border-[var(--border)] p-3">
+          <p className="text-[12px] font-semibold text-sky-400 mb-1.5">주별 휘발유 (높은 순)</p>
+          {gasAvg != null && <p className="text-[10px] text-[var(--text-muted)] mb-1.5">전국 평균 ${gasAvg.toFixed(3)}/gal · {gas.length}개 주</p>}
+          <ul className="space-y-1">
+            {topGas.map((s) => (
+              <li key={s.state} className="flex items-center justify-between text-[11px] tabular-nums">
+                <span className="text-[var(--text)] truncate pr-2">{s.name}</span>
+                <span className="shrink-0"><b className="text-[var(--text)]">${s.gas?.toFixed(3)}</b>{s.elec_yoy != null && <span className="text-[var(--text-muted)]"> · 전기 <b className={sign(s.elec_yoy)}>{pctFrac(s.elec_yoy, 1)}</b></span>}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        {/* 도시 임대료 */}
+        <div className="rounded-xl border border-[var(--border)] p-3">
+          <p className="text-[12px] font-semibold text-violet-400 mb-1.5">도시 임대료 (높은 순)</p>
+          <ul className="space-y-1">
+            {rents.map((m) => (
+              <li key={m.metro} className="flex items-center justify-between text-[11px] tabular-nums">
+                <span className="text-[var(--text)] truncate pr-2">{m.metro}</span>
+                <span className="shrink-0"><b className="text-[var(--text)]">${m.rent?.toLocaleString()}</b> <span className={sign(m.yoy)}>{pctFrac(m.yoy, 1)}</span></span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <GeoAllSheet geo={geo} open={allOpen} onClose={() => setAllOpen(false)} />
+    </>
+  );
+}
+
+function GeoAllSheet({ geo, open, onClose }: { geo: GeoData; open: boolean; onClose: () => void }) {
+  const [tab, setTab] = useState<'states' | 'metros'>('states');
+  const [q, setQ] = useState('');
+  const [sort, setSort] = useState('gas');
+  const selectTab = (t: 'states' | 'metros') => { setTab(t); setSort(t === 'states' ? 'gas' : 'rent'); setQ(''); };
+  const kw = q.trim().toLowerCase();
+
+  let states: StateRow[] = (geo.states ?? []).filter((s) => typeof s.gas === 'number' || typeof s.elec_cents === 'number');
+  if (kw) states = states.filter((s) => `${s.name} ${s.state}`.toLowerCase().includes(kw));
+  states = [...states].sort((x, y) =>
+    sort === 'gasAsc' ? (x.gas ?? 1e9) - (y.gas ?? 1e9)
+      : sort === 'elec' ? (y.elec_yoy ?? -1e9) - (x.elec_yoy ?? -1e9)
+        : sort === 'name' ? x.name.localeCompare(y.name)
+          : (y.gas ?? -1e9) - (x.gas ?? -1e9));
+
+  let metros: MetroRow[] = (geo.metros ?? []).filter((m) => typeof m.rent === 'number');
+  if (kw) metros = metros.filter((m) => m.metro.toLowerCase().includes(kw));
+  metros = [...metros].sort((x, y) =>
+    sort === 'rentAsc' ? (x.rent ?? 1e9) - (y.rent ?? 1e9)
+      : sort === 'yoy' ? (y.yoy ?? -1e9) - (x.yoy ?? -1e9)
+        : sort === 'name' ? x.metro.localeCompare(y.metro)
+          : (y.rent ?? -1e9) - (x.rent ?? -1e9));
+
+  const SORTS: [string, string][] = tab === 'states'
+    ? [['gas', '휘발유↓'], ['gasAsc', '휘발유↑'], ['elec', '전기YoY↓'], ['name', '이름순']]
+    : [['rent', '임대료↓'], ['rentAsc', '임대료↑'], ['yoy', 'YoY↓'], ['name', '이름순']];
+
+  const seg = (on: boolean) => `px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${on ? 'border-[var(--accent)] bg-[var(--surface-2)] text-[var(--accent-ink)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`;
+
+  return (
+    <BottomSheet open={open} onClose={onClose} title="지역별 물가 — 전체">
+      <div className="flex gap-1.5 mb-2">
+        <button type="button" className={seg(tab === 'states')} onClick={() => selectTab('states')}>주별 휘발유·전기</button>
+        <button type="button" className={seg(tab === 'metros')} onClick={() => selectTab('metros')}>도시 임대료</button>
+      </div>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tab === 'states' ? '주 이름 검색(영문)' : '도시 검색(영문)'}
+        className="w-full mb-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--accent)]" />
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {SORTS.map(([k, l]) => <button key={k} type="button" className={seg(sort === k)} onClick={() => setSort(k)}>{l}</button>)}
+      </div>
+      {tab === 'states' ? (
+        <ul className="divide-y divide-[var(--border)]/60">
+          {states.map((s) => (
+            <li key={s.state} className="flex items-center justify-between py-1.5 text-[12px] tabular-nums">
               <span className="text-[var(--text)] truncate pr-2">{s.name}</span>
-              <span className="shrink-0"><b className="text-[var(--text)]">${s.gas?.toFixed(3)}</b>{s.elec_yoy != null && <span className="text-[var(--text-muted)]"> · 전기 <b className={sign(s.elec_yoy)}>{pctFrac(s.elec_yoy, 1)}</b></span>}</span>
+              <span className="shrink-0"><b className="text-[var(--text)]">${s.gas?.toFixed(3)}</b><span className="text-[var(--text-muted)]">/gal{s.elec_yoy != null && <> · 전기 <b className={sign(s.elec_yoy)}>{pctFrac(s.elec_yoy, 1)}</b></>}</span></span>
             </li>
           ))}
+          {states.length === 0 && <li className="py-3 text-center text-[12px] text-[var(--text-muted)]">검색 결과 없음</li>}
         </ul>
-      </div>
-      {/* 도시 임대료 */}
-      <div className="rounded-xl border border-[var(--border)] p-3">
-        <p className="text-[12px] font-semibold text-violet-400 mb-1.5">도시 임대료 (높은 순)</p>
-        <ul className="space-y-1">
-          {rents.map((m) => (
-            <li key={m.metro} className="flex items-center justify-between text-[11px] tabular-nums">
+      ) : (
+        <ul className="divide-y divide-[var(--border)]/60">
+          {metros.map((m) => (
+            <li key={m.metro} className="flex items-center justify-between py-1.5 text-[12px] tabular-nums">
               <span className="text-[var(--text)] truncate pr-2">{m.metro}</span>
               <span className="shrink-0"><b className="text-[var(--text)]">${m.rent?.toLocaleString()}</b> <span className={sign(m.yoy)}>{pctFrac(m.yoy, 1)}</span></span>
             </li>
           ))}
+          {metros.length === 0 && <li className="py-3 text-center text-[12px] text-[var(--text-muted)]">검색 결과 없음</li>}
         </ul>
-      </div>
-    </div>
+      )}
+      <p className="text-[10px] text-[var(--text-muted)] mt-2">출처 Nowflation(CC BY). 휘발유=주 평균 펌프가($/gal), 전기=YoY, 임대료=중위 월세($)·YoY.</p>
+    </BottomSheet>
   );
 }
