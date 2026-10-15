@@ -1,0 +1,108 @@
+{
+  "print_month": "2026-09",
+  "status": "provisional",
+  "immutable": false,
+  "source": "standing nowcast / ensemble / benchmark values — provisional until the pre-print lock the evening before release",
+  "release_datetime_utc": "2026-10-14T12:30:00Z",
+  "release_datetime_et": "2026-10-14 08:30 ET",
+  "locked_at_utc": "2026-10-07T16:20:38Z",
+  "locked_at_et": "October 7, 2026 at 12:20 PM ET",
+  "official_forecast": {
+    "label": "Nowflation CPI Forecast",
+    "target": "cpi_headline_yoy",
+    "method": "fmc_ensemble (inverse-error-weighted blend of the in-house bottom-up nowcast, Cleveland Fed, and Street — every rated forecaster weighted by its mean absolute error over a common window of graded prints)",
+    "value_precise": 3.597,
+    "value_reported_1dp": 3.6
+  },
+  "headline_yoy_all_forecasters": {
+    "nowflation_forecast_ensemble": 3.597,
+    "nowflation_nowcast_inhouse": 3.46,
+    "cleveland_fed": 3.6,
+    "kalshi_implied": 3.633,
+    "street_consensus": 3.7
+  },
+  "core_yoy": {
+    "nowflation_forecast_ensemble": 2.45,
+    "nowflation_nowcast_inhouse": 2.252,
+    "cleveland_fed": 2.39,
+    "kalshi_implied": 2.463,
+    "street_consensus": 2.5
+  },
+  "headline_mom": {
+    "nowflation_forecast_ensemble": 0.514,
+    "nowflation_nowcast_inhouse": 0.441,
+    "cleveland_fed": 0.53,
+    "kalshi_implied": 0.541,
+    "street_consensus": 0.5
+  },
+  "core_mom": {
+    "nowflation_forecast_ensemble": 0.252,
+    "nowflation_nowcast_inhouse": 0.117,
+    "cleveland_fed": 0.2,
+    "kalshi_implied": null,
+    "street_consensus": 0.3
+  },
+  "forecast_asof": {
+    "cpi_headline_yoy": {
+      "nowflation_forecast_ensemble": "2026-10-07",
+      "nowflation_nowcast_inhouse": "2026-10-07",
+      "cleveland_fed": "2026-10-07",
+      "kalshi_implied": "2026-10-07",
+      "street_consensus": "2026-09-15 (first captured)"
+    },
+    "cpi_core_yoy": {
+      "nowflation_forecast_ensemble": "2026-10-07",
+      "nowflation_nowcast_inhouse": "2026-10-07",
+      "cleveland_fed": "2026-10-07",
+      "kalshi_implied": "2026-10-07",
+      "street_consensus": "2026-09-15 (first captured)"
+    },
+    "cpi_headline_mom": {
+      "nowflation_forecast_ensemble": "2026-10-07",
+      "nowflation_nowcast_inhouse": "2026-10-07",
+      "cleveland_fed": "2026-10-07",
+      "kalshi_implied": "2026-10-07",
+      "street_consensus": "2026-09-15 (first captured)"
+    },
+    "cpi_core_mom": {
+      "nowflation_forecast_ensemble": "2026-10-07",
+      "nowflation_nowcast_inhouse": "2026-10-07",
+      "cleveland_fed": "2026-10-07",
+      "street_consensus": "2026-09-15 (first captured)"
+    }
+  },
+  "context": {
+    "prior_actual": 3.4,
+    "street_consensus": 3.7
+  },
+  "ensemble_weights_headline": [
+    {
+      "forecaster": "in_house",
+      "value": 3.46,
+      "weight": 0.287,
+      "mae_basis": "0.104pp over 36 common prints (2023-07 → 2026-08, last 36 of 42; every rated forecaster scored on the same prints)"
+    },
+    {
+      "forecaster": "cleveland_fed",
+      "value": 3.6,
+      "weight": 0.343,
+      "mae_basis": "0.087pp over 36 common prints (2023-07 → 2026-08, last 36 of 42; every rated forecaster scored on the same prints)"
+    },
+    {
+      "forecaster": "street_consensus",
+      "value": 3.7,
+      "weight": 0.37,
+      "mae_basis": "0.081pp over 36 common prints (2023-07 → 2026-08, last 36 of 42; every rated forecaster scored on the same prints)"
+    },
+    {
+      "forecaster": "kalshi_implied",
+      "value": 3.633,
+      "weight": 0,
+      "mae_basis": "display-only — 3 graded prints, joins the blend at 6"
+    }
+  ],
+  "graded": null,
+  "grading_rule": "Graded against the BLS first-release CPI (headline and core YoY = NSA, MoM = SA, one decimal, exactly as the BLS news release reports them). The standing forecast updates daily as data lands; the value on the tape the evening before release is the graded call (vintage-true), consistent with the backtest methodology. Once graded, the scoreboard row is frozen — later revisions by any source never touch it.",
+  "audit_trail": "Full daily as-of history for every forecaster is preserved in the engine database and surfaced on /scoreboard and /cpi-preview. This file is the dated record; sha256 is the SHA-256 of this JSON with the sha256 field removed.",
+  "sha256": "5f1dbe765f964077d29f15db69eb06be7a831936cf6f0d6a035434e7585fd1f3"
+}

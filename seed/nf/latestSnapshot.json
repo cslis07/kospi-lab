@@ -1,0 +1,1094 @@
+{
+  "asof": "2026-10-07",
+  "gauge_date": "2026-10-07",
+  "snapshot_at": "2026-10-07T16:20:51.830Z",
+  "gauge_yoy_pct": 3.46,
+  "gauge_yoy_1dp": 3.5,
+  "gauge_dod_pp": -0.03,
+  "gauge_wow_pp": -0.04,
+  "gauge_mom_pp": 0.16,
+  "gauge_changes_note": "Changes are like for like on method v1.5; the published readings moved +0.314pp on the month across the September 28, 2026 switch from v1.4.",
+  "pace_3m_ann_pct": 4.21,
+  "pace_1m_ann_pct": 5.63,
+  "pace_basis": "the v1.5 December chain with seasonally adjusted fuel (BLS gasoline factors), annualized, both ends on v1.5 (like for like across the 2026-09-28 switch)",
+  "pace_basis_yoy_pct": 3.36,
+  "pace_1m_change_pct": 0.46,
+  "pace_1m_window": {
+    "from": "2026-09-07",
+    "to": "2026-10-07"
+  },
+  "pace_1m_drivers": [
+    {
+      "component": "fuel",
+      "label": "Motor Fuel",
+      "contribution_pp": 0.268,
+      "change": 0.070439,
+      "live": true
+    },
+    {
+      "component": "education_comm",
+      "label": "Education & Comm",
+      "contribution_pp": 0.093,
+      "change": 0.016066,
+      "live": false,
+      "new_print": {
+        "from_month": "2026-07",
+        "to_month": "2026-08",
+        "released": "2026-09-11"
+      }
+    },
+    {
+      "component": "shelter_rent",
+      "label": "Shelter: Rent",
+      "contribution_pp": 0.058,
+      "change": 0.001724,
+      "live": true
+    }
+  ],
+  "pace_1m_split": {
+    "live_pp": 0.296,
+    "new_prints_pp": 0.162,
+    "held_pp": 0,
+    "new_print": {
+      "month": "2026-08",
+      "released": "2026-09-11",
+      "components": 17
+    },
+    "largest_live": {
+      "component": "fuel",
+      "label": "Motor Fuel",
+      "contribution_pp": 0.268
+    },
+    "largest_held": null
+  },
+  "cost_of_living_yoy_pct": 5.97,
+  "tracker_yoy_pct": 3.8,
+  "official_cpi_yoy": 3.4,
+  "official_cpi_yoy_prev": 3.4,
+  "official_core_yoy": 2.4,
+  "official_core_yoy_prev": 2.5,
+  "official_month": "2026-08",
+  "official_month_label": "August 2026",
+  "gap_pp": 0.06,
+  "gauge_gap_explained": {
+    "month": "2026-08",
+    "month_label": "August 2026",
+    "gap_pp": 0.06,
+    "total_pp": 0.07,
+    "rest_pp": -0.01,
+    "parts": [
+      {
+        "key": "fuel",
+        "label": "Motor Fuel",
+        "pp": 0.36,
+        "ours_pct": 39.77,
+        "official_pct": 27.41
+      },
+      {
+        "key": "shelter",
+        "label": "Shelter",
+        "pp": -0.34,
+        "ours_pct": 2.02,
+        "rent_official_pct": 2.75,
+        "oer_official_pct": 3.08
+      },
+      {
+        "key": "used_vehicles",
+        "label": "Used Vehicles",
+        "pp": 0.05,
+        "ours_pct": -0.53,
+        "official_pct": -2.32
+      }
+    ],
+    "rows": [
+      {
+        "component": "fuel",
+        "label": "Motor Fuel",
+        "weight_pct": 2.9,
+        "ours_pct": 39.77,
+        "official_pct": 27.41,
+        "pp": 0.36
+      },
+      {
+        "component": "shelter_owned",
+        "label": "Shelter: Owned",
+        "weight_pct": 26.2,
+        "ours_pct": 2.02,
+        "official_pct": 3.08,
+        "pp": -0.28
+      },
+      {
+        "component": "shelter_rent",
+        "label": "Shelter: Rent",
+        "weight_pct": 7.84,
+        "ours_pct": 2.02,
+        "official_pct": 2.75,
+        "pp": -0.06
+      },
+      {
+        "component": "used_vehicles",
+        "label": "Used Vehicles",
+        "weight_pct": 2.76,
+        "ours_pct": -0.53,
+        "official_pct": -2.32,
+        "pp": 0.05
+      }
+    ],
+    "method_switch": {
+      "date": "2026-09-28",
+      "from": "v1.4",
+      "to": "v1.5",
+      "before_pct": 3.37,
+      "after_pct": 3.55,
+      "gap_before_pp": -0.03,
+      "gap_after_pp": 0.15
+    }
+  },
+  "cum_since_2018_pct": 36.5,
+  "base_period": "January 2018 = 100",
+  "live_coverage_pct": 39.7,
+  "series_freshness": {
+    "realtime": {
+      "asof": "2026-10-07",
+      "live_share_pct": 39.7,
+      "avg_input_age_days": 30,
+      "stale_weight_pct": 3.8,
+      "stepped_aside_weight_pct": 0
+    },
+    "cpi_gauge": {
+      "asof": "2026-10-07",
+      "live_share_pct": 39.7,
+      "avg_input_age_days": 195.6,
+      "mean_lease_age_months": 15.49
+    },
+    "realtime_fresher": true
+  },
+  "live_components": 3,
+  "realtime": {
+    "name": "Nowflation Realtime",
+    "method_version": "v2.2",
+    "date": "2026-10-07",
+    "yoy_pct": 3.16,
+    "dod_pp": -0.006,
+    "wow_pp": 0.04,
+    "change_basis": "like_for_like",
+    "published_dod_pp": -0.006,
+    "published_wow_pp": 0.04,
+    "day_spans_method_switch": false,
+    "week_spans_method_switch": false,
+    "changes": {
+      "method_version": "v2.2",
+      "switch": {
+        "date": "2026-09-28",
+        "from": "v2.0",
+        "to": "v2.2"
+      },
+      "day": {
+        "like_for_like_pp": -0.006,
+        "like_for_like_vs": {
+          "date": "2026-10-06",
+          "method_version": "v2.2",
+          "record_type": "live",
+          "yoy_pct": 3.1614
+        },
+        "published_pp": -0.006,
+        "published_vs": {
+          "date": "2026-10-06",
+          "method_version": "v2.2",
+          "yoy_pct": 3.1614,
+          "shown_pct": 3.16
+        },
+        "method_change_pp": 0,
+        "spans_method_switch": false
+      },
+      "week": {
+        "like_for_like_pp": 0.04,
+        "like_for_like_vs": {
+          "date": "2026-09-30",
+          "method_version": "v2.2",
+          "record_type": "live",
+          "yoy_pct": 3.1149
+        },
+        "published_pp": 0.04,
+        "published_vs": {
+          "date": "2026-09-30",
+          "method_version": "v2.2",
+          "yoy_pct": 3.1149,
+          "shown_pct": 3.11
+        },
+        "method_change_pp": 0,
+        "spans_method_switch": false
+      },
+      "note": null
+    },
+    "changes_note": null,
+    "record_type": "live",
+    "launch_date": "2026-09-15",
+    "cpi_gauge_yoy_pct": 3.46,
+    "live_share_pct": 39.7,
+    "avg_input_age_days": 30,
+    "stale_weight_pct": 3.8,
+    "stale_notice": true,
+    "stepped_aside": [],
+    "shelter_public": "D",
+    "rent_sources_public": [
+      "Zillow ZORI (all homes, SA)",
+      "Apartment List national rent (new leases)"
+    ],
+    "owned_sources_public": [
+      "Zillow ZORI (all homes, SA)",
+      "Apartment List national rent (new leases)"
+    ],
+    "shadow_blend_yoy_pct": null,
+    "gap_line": {
+      "text": "Nowflation Realtime runs below official CPI by 0.24pp: 3.16% against 3.4% for August 2026. Held at the official August 2026 subindexes with no live price, the same construction reads 3.21%, 0.19pp below CPI; that difference is construction, not market prices. Live market prices move it 0.05pp down from there: new-lease rents −0.64pp, pump prices +0.55pp and used-vehicle auction prices +0.05pp, with smaller effects from the rest.",
+      "gap_pp": -0.24,
+      "direction": "below",
+      "component": "shelter_owned",
+      "component_label": "Shelter: Owners' equivalent rent",
+      "shelter_phrasing": true,
+      "realtime_component_yoy_pct": 1.11,
+      "cpi_gauge_component_yoy_pct": 2.02,
+      "official_component_yoy_pct": null,
+      "official_component_month": null,
+      "official_component_series": null,
+      "source_months": [
+        {
+          "code": "zori_us",
+          "name": "Zillow ZORI, all homes (smoothed, seasonally adjusted)",
+          "month": "2026-08"
+        },
+        {
+          "code": "aptlist_rent_us",
+          "name": "Apartment List national rent estimate",
+          "month": "2026-09"
+        }
+      ],
+      "cpi_gauge_method_version": "v1.5",
+      "decomposition": {
+        "held_yoy_pct": 3.2079,
+        "held_yoy_pct_2dp": 3.21,
+        "held_months": [
+          "2026-08"
+        ],
+        "construction_pp": -0.19,
+        "live_pp": -0.05,
+        "parts": [
+          {
+            "key": "shelter",
+            "label": "new-lease rents",
+            "components": [
+              "shelter_rent",
+              "shelter_owned"
+            ],
+            "pp": -0.639
+          },
+          {
+            "key": "fuel",
+            "label": "pump prices",
+            "components": [
+              "fuel"
+            ],
+            "pp": 0.546
+          },
+          {
+            "key": "used_vehicles",
+            "label": "used-vehicle auction prices",
+            "components": [
+              "used_vehicles"
+            ],
+            "pp": 0.052
+          },
+          {
+            "key": "rest",
+            "label": "held components, whose chain shares move with the live prices",
+            "components": [
+              "new_vehicles",
+              "food_home",
+              "food_away",
+              "electricity",
+              "nat_gas",
+              "medical",
+              "apparel",
+              "recreation",
+              "education_comm",
+              "transportation_services",
+              "lodging",
+              "household_furnishings",
+              "water_sewer_trash",
+              "alcohol",
+              "personal_care",
+              "tobacco",
+              "other"
+            ],
+            "pp": -0.011
+          }
+        ],
+        "realtime_recomputed_yoy_pct": 3.1553,
+        "basis": "construction: Realtime's December chain with every component at its official BLS subindex, minus official CPI-U (all items, not seasonally adjusted, as BLS quotes it); live prices: Realtime minus that held build, split by each component's exact chain contribution"
+      }
+    },
+    "move": {
+      "vs_date": "2026-10-06",
+      "dod_pp": -0.006,
+      "basis": "december_chain",
+      "weights": "each component's exact contribution under the December chain the headline uses: its relative importance times its price change since December, so a component whose price has moved far since December carries more than its relative importance",
+      "residual_pp": 0,
+      "drivers": [
+        {
+          "component": "used_vehicles",
+          "label": "Used vehicles",
+          "contribution_pp": -0.004,
+          "input_from": "2026-09-15",
+          "input_to": "2026-09-30"
+        },
+        {
+          "component": "fuel",
+          "label": "Motor fuel",
+          "contribution_pp": -0.002,
+          "input_from": "2026-10-06",
+          "input_to": "2026-10-07"
+        }
+      ]
+    },
+    "reconstructed_history": {
+      "record_type": "reconstructed",
+      "method_version": "v2.0",
+      "basis": "monthly averages of the daily readings; official CPI from CPI-U all items (NSA) and shelter (NSA) year over year",
+      "peak": {
+        "month": "2022-06",
+        "realtime_pct": 12,
+        "official_cpi_pct": 9.1,
+        "cpi_gauge_pct": 9.6
+      },
+      "trough": {
+        "month": "2023-07",
+        "realtime_pct": 1,
+        "official_cpi_pct": 3.2,
+        "cpi_gauge_pct": 2.8
+      },
+      "shelter": {
+        "realtime_rent_peak_month": "2022-02",
+        "realtime_rent_peak_pct": 16.5,
+        "cpi_shelter_peak_month": "2023-03",
+        "cpi_shelter_peak_pct": 8.2,
+        "months_earlier": 13
+      }
+    },
+    "cpi_gauge_new_vehicles_issue": null,
+    "lead_badge": "Realtime clears CPI's own persistence: r 0.32 vs 0.23 at 12 months ahead, since 2019 (79 months)",
+    "lead_pass": true,
+    "attribution": "Data Provided by Zillow Group",
+    "apartment_list": {
+      "name": "Apartment List",
+      "report": "Apartment List National Rent Report",
+      "url": "https://www.apartmentlist.com/research/national-rent-data"
+    },
+    "apartment_list_reason": "Both shelter lines, Shelter: Rent and Shelter: Owned, use an equal blend of Zillow ZORI (all homes) and Apartment List. Apartment List measures transacted new-lease rents, which net out concessions that Zillow's asking rents do not (39.2% of Zillow rental listings offered a concession in August 2026, per Zillow), and pricing all of shelter on one index matches how the CPI Gauge prices shelter. Apartment List publishes no single-family series, so the owners' weight uses a blend that leans toward apartment rents. Zillow single-family is tracked in shadow for comparison. Apartment List publishes its Rent Estimates for public use. If that changes, Realtime moves to Zillow all-homes on both shelter lines as a logged method change.",
+    "shelter_inputs": [
+      {
+        "code": "zori_us",
+        "name": "Zillow ZORI, all homes (smoothed, seasonally adjusted)",
+        "month": "2026-08",
+        "yoy_pct": 2.65,
+        "in_public_number": true
+      },
+      {
+        "code": "aptlist_rent_us",
+        "name": "Apartment List national rent estimate",
+        "month": "2026-09",
+        "yoy_pct": -0.43,
+        "in_public_number": true
+      },
+      {
+        "code": "zori_sfr_us",
+        "name": "Zillow ZORI, single-family (shadow comparison only)",
+        "month": "2026-08",
+        "yoy_pct": 3.13,
+        "in_public_number": false
+      }
+    ],
+    "last_good_held": false,
+    "vintage_statement": "Live readings from 2026-09-15 are stored as published and never rewritten. Method v2.2 since 2026-09-28 (v2.0 before; readings published under v2.0 are unchanged). Values before 2026-09-15 are a reconstruction under method v2.0.",
+    "reconstruction_method_version": "v2.0",
+    "components": [
+      {
+        "component": "shelter_rent",
+        "label": "Shelter: Rent",
+        "weight_pct": 7.84,
+        "realtime_yoy_pct": 1.11,
+        "cpi_gauge_yoy_pct": 2.02,
+        "status": "live",
+        "held_reason": null,
+        "source": "Zillow ZORI (all homes, SA) + Apartment List national rent (new leases)",
+        "source_note": null,
+        "input_age_days": 22
+      },
+      {
+        "component": "shelter_owned",
+        "label": "Shelter: Owners' equivalent rent",
+        "weight_pct": 26.2,
+        "realtime_yoy_pct": 1.11,
+        "cpi_gauge_yoy_pct": 2.02,
+        "status": "live",
+        "held_reason": null,
+        "source": "Zillow ZORI (all homes, SA) + Apartment List national rent (new leases)",
+        "source_note": null,
+        "input_age_days": 22
+      },
+      {
+        "component": "fuel",
+        "label": "Motor fuel",
+        "weight_pct": 2.9,
+        "realtime_yoy_pct": 39.77,
+        "cpi_gauge_yoy_pct": 39.77,
+        "status": "live",
+        "held_reason": null,
+        "source": "AAA national average regular",
+        "source_note": "the year-ago level (October 7, 2025) is EIA weekly retail regular gasoline for the week of September 29, 2025, chain-linked to AAA national average regular, whose history here begins July 2, 2026; the comparison is AAA national average regular on both sides from July 2, 2027",
+        "input_age_days": 0
+      },
+      {
+        "component": "used_vehicles",
+        "label": "Used vehicles",
+        "weight_pct": 2.76,
+        "realtime_yoy_pct": -0.53,
+        "cpi_gauge_yoy_pct": -0.53,
+        "status": "live",
+        "held_reason": null,
+        "source": "Manheim Used Vehicle Value Index",
+        "source_note": null,
+        "input_age_days": 7
+      },
+      {
+        "component": "new_vehicles",
+        "label": "New vehicles",
+        "weight_pct": 3.84,
+        "realtime_yoy_pct": 0.57,
+        "cpi_gauge_yoy_pct": 0.57,
+        "status": "held",
+        "held_reason": "stale",
+        "source": "BLS CUSR0000SETA01 (held)",
+        "source_note": "every live source is past its freshness window (twice its publishing cadence), so the official subindex is held until a fresh observation arrives",
+        "input_age_days": 37
+      },
+      {
+        "component": "food_home",
+        "label": "Food at home",
+        "weight_pct": 8.32,
+        "realtime_yoy_pct": 2.13,
+        "cpi_gauge_yoy_pct": 2.13,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CUSR0000SAF11 (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "food_away",
+        "label": "Food away from home",
+        "weight_pct": 5.37,
+        "realtime_yoy_pct": 3.37,
+        "cpi_gauge_yoy_pct": 3.37,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CUSR0000SEFV (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "electricity",
+        "label": "Electricity",
+        "weight_pct": 2.49,
+        "realtime_yoy_pct": 3.79,
+        "cpi_gauge_yoy_pct": 3.79,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CUSR0000SEHF01 (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "nat_gas",
+        "label": "Utility gas",
+        "weight_pct": 0.77,
+        "realtime_yoy_pct": 4.39,
+        "cpi_gauge_yoy_pct": 4.39,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CUSR0000SEHF02 (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "medical",
+        "label": "Medical care",
+        "weight_pct": 8.42,
+        "realtime_yoy_pct": 1.56,
+        "cpi_gauge_yoy_pct": 1.56,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CPIMEDSL (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "apparel",
+        "label": "Apparel",
+        "weight_pct": 2.37,
+        "realtime_yoy_pct": 3.62,
+        "cpi_gauge_yoy_pct": 3.62,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CPIAPPSL (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "recreation",
+        "label": "Recreation",
+        "weight_pct": 5.14,
+        "realtime_yoy_pct": 2.68,
+        "cpi_gauge_yoy_pct": 2.68,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CPIRECSL (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "education_comm",
+        "label": "Education and communication",
+        "weight_pct": 5.85,
+        "realtime_yoy_pct": 2.15,
+        "cpi_gauge_yoy_pct": 2.15,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CPIEDUSL (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "transportation_services",
+        "label": "Transportation services",
+        "weight_pct": 6.31,
+        "realtime_yoy_pct": 2.46,
+        "cpi_gauge_yoy_pct": 2.46,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CUSR0000SAS4 (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "lodging",
+        "label": "Lodging away from home",
+        "weight_pct": 1.29,
+        "realtime_yoy_pct": 3.18,
+        "cpi_gauge_yoy_pct": 3.18,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CUSR0000SEHB (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "household_furnishings",
+        "label": "Household furnishings and operations",
+        "weight_pct": 4.3,
+        "realtime_yoy_pct": 1.98,
+        "cpi_gauge_yoy_pct": 1.98,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CUSR0000SAH3 (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "water_sewer_trash",
+        "label": "Water, sewer and trash",
+        "weight_pct": 1.14,
+        "realtime_yoy_pct": 4.76,
+        "cpi_gauge_yoy_pct": 4.76,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CUSR0000SEHG (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "alcohol",
+        "label": "Alcoholic beverages",
+        "weight_pct": 0.84,
+        "realtime_yoy_pct": 1.62,
+        "cpi_gauge_yoy_pct": 1.62,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CUSR0000SAF116 (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "personal_care",
+        "label": "Personal care",
+        "weight_pct": 2.46,
+        "realtime_yoy_pct": 3.83,
+        "cpi_gauge_yoy_pct": 3.83,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CUSR0000SAG1 (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "tobacco",
+        "label": "Tobacco",
+        "weight_pct": 0.45,
+        "realtime_yoy_pct": 6.29,
+        "cpi_gauge_yoy_pct": 6.29,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CUSR0000SEGA (held)",
+        "source_note": null,
+        "input_age_days": 37
+      },
+      {
+        "component": "other",
+        "label": "Other (residual, core CPI proxy)",
+        "weight_pct": 0.94,
+        "realtime_yoy_pct": 2.45,
+        "cpi_gauge_yoy_pct": 2.45,
+        "status": "held",
+        "held_reason": null,
+        "source": "BLS CPILFESL (held)",
+        "source_note": null,
+        "input_age_days": 37
+      }
+    ],
+    "revision_hint": "price move in Used vehicles"
+  },
+  "drivers": [
+    {
+      "component": "used_vehicles",
+      "label": "Used Vehicles",
+      "weight_pct": 2.8,
+      "yoy_pct": -0.53,
+      "gauge_yoy_pct": -0.53,
+      "dod_pct": -1.1,
+      "wow_pct": -1.1,
+      "mom_pct": -1.1,
+      "contribution_bps": -1.2,
+      "dod_contribution_bps": -3.05
+    },
+    {
+      "component": "fuel",
+      "label": "Motor Fuel",
+      "weight_pct": 2.9,
+      "yoy_pct": 39.77,
+      "gauge_yoy_pct": 39.77,
+      "dod_pct": -0.05,
+      "wow_pct": -1.53,
+      "mom_pct": 5.21,
+      "contribution_bps": 130.9,
+      "dod_contribution_bps": -0.13
+    },
+    {
+      "component": "shelter_rent",
+      "label": "Shelter: Rent",
+      "weight_pct": 7.8,
+      "yoy_pct": 2.02,
+      "gauge_yoy_pct": 2.02,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.17,
+      "contribution_bps": 15.8,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "shelter_owned",
+      "label": "Shelter: Owned",
+      "weight_pct": 26.2,
+      "yoy_pct": 3.08,
+      "gauge_yoy_pct": 2.02,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.19,
+      "contribution_bps": 52.7,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "new_vehicles",
+      "label": "New Vehicles",
+      "weight_pct": 3.8,
+      "yoy_pct": 0.57,
+      "gauge_yoy_pct": 0.57,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.25,
+      "contribution_bps": 2.2,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "food_home",
+      "label": "Food at Home",
+      "weight_pct": 8.3,
+      "yoy_pct": 2.13,
+      "gauge_yoy_pct": 2.13,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.04,
+      "contribution_bps": 17.4,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "food_away",
+      "label": "Food Away",
+      "weight_pct": 5.4,
+      "yoy_pct": 3.37,
+      "gauge_yoy_pct": 3.37,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.25,
+      "contribution_bps": 18.4,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "electricity",
+      "label": "Electricity",
+      "weight_pct": 2.5,
+      "yoy_pct": 3.79,
+      "gauge_yoy_pct": 3.79,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": -0.21,
+      "contribution_bps": 9.2,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "nat_gas",
+      "label": "Utility Gas",
+      "weight_pct": 0.8,
+      "yoy_pct": 4.38,
+      "gauge_yoy_pct": 4.38,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": -1.14,
+      "contribution_bps": 3.4,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "medical",
+      "label": "Medical Care",
+      "weight_pct": 8.4,
+      "yoy_pct": 1.56,
+      "gauge_yoy_pct": 1.56,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": -0.24,
+      "contribution_bps": 13,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "apparel",
+      "label": "Apparel",
+      "weight_pct": 2.4,
+      "yoy_pct": 3.62,
+      "gauge_yoy_pct": 3.62,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.02,
+      "contribution_bps": 8.6,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "recreation",
+      "label": "Recreation",
+      "weight_pct": 5.1,
+      "yoy_pct": 2.68,
+      "gauge_yoy_pct": 2.68,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0,
+      "contribution_bps": 13.8,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "education_comm",
+      "label": "Education & Comm",
+      "weight_pct": 5.9,
+      "yoy_pct": 2.15,
+      "gauge_yoy_pct": 2.15,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 1.61,
+      "contribution_bps": 12.8,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "transportation_services",
+      "label": "Transportation Services",
+      "weight_pct": 6.3,
+      "yoy_pct": 2.46,
+      "gauge_yoy_pct": 2.46,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.45,
+      "contribution_bps": 15.6,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "lodging",
+      "label": "Lodging Away",
+      "weight_pct": 1.3,
+      "yoy_pct": 3.18,
+      "gauge_yoy_pct": 3.18,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 2.36,
+      "contribution_bps": 3.9,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "household_furnishings",
+      "label": "Household Furnishings",
+      "weight_pct": 4.3,
+      "yoy_pct": 1.98,
+      "gauge_yoy_pct": 1.98,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.07,
+      "contribution_bps": 8.6,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "water_sewer_trash",
+      "label": "Water, Sewer & Trash",
+      "weight_pct": 1.1,
+      "yoy_pct": 4.75,
+      "gauge_yoy_pct": 4.75,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.49,
+      "contribution_bps": 5.4,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "alcohol",
+      "label": "Alcohol",
+      "weight_pct": 0.8,
+      "yoy_pct": 1.62,
+      "gauge_yoy_pct": 1.62,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.12,
+      "contribution_bps": 1.4,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "personal_care",
+      "label": "Personal Care",
+      "weight_pct": 2.5,
+      "yoy_pct": 3.83,
+      "gauge_yoy_pct": 3.83,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.14,
+      "contribution_bps": 9.3,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "tobacco",
+      "label": "Tobacco",
+      "weight_pct": 0.4,
+      "yoy_pct": 6.29,
+      "gauge_yoy_pct": 6.29,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.64,
+      "contribution_bps": 2.9,
+      "dod_contribution_bps": 0
+    },
+    {
+      "component": "other",
+      "label": "Residual (core proxy)",
+      "weight_pct": 0.9,
+      "yoy_pct": 2.45,
+      "gauge_yoy_pct": 2.45,
+      "dod_pct": 0,
+      "wow_pct": 0,
+      "mom_pct": 0.29,
+      "contribution_bps": 2.4,
+      "dod_contribution_bps": 0
+    }
+  ],
+  "fuel": {
+    "pump_usd": 4.366,
+    "pump_date": "2026-10-07",
+    "forward_2wk_usd": 4.462,
+    "delta_cents": 9.6
+  },
+  "top_driver": {
+    "component": "used_vehicles",
+    "label": "Used Vehicles",
+    "dod_pct": -1.1,
+    "wow_pct": -1.1,
+    "yoy_pct": -0.53,
+    "dod_contribution_bps": -3.05,
+    "weight_pct": 2.8
+  },
+  "fiscal": {
+    "basis": "trailing twelve months, Treasury Interest Expense dataset (FiscalData)",
+    "source_code": "fiscal_interest_monthly",
+    "source_url": "https://api.fiscaldata.treasury.gov/services/api/fiscal_service",
+    "units": "$ billions",
+    "interest_ttm_bn": 1360.4,
+    "interest_ttm_prev_bn": 1220,
+    "interest_ttm_yoy_pct": 11.5,
+    "ttm_from": "2025-10",
+    "ttm_to": "2026-09",
+    "ttm_from_label": "October 2025",
+    "ttm_to_label": "September 2026",
+    "interest_latest_month": "2026-09",
+    "interest_latest_month_label": "September 2026",
+    "interest_latest_bn": 92.6,
+    "interest_latest_yoy_pct": 1.4,
+    "interest_year_ago_bn": 91.3,
+    "interest_fytd_bn": 1360.4,
+    "fytd_from_label": "October 2025",
+    "fytd_months": 12,
+    "fiscal_year": 2026,
+    "per_second_usd": 43138
+  },
+  "debt": {
+    "asof": "2026-10-07",
+    "mspd_record_date": "2026-09-30",
+    "curve_asof": "2026-10-06",
+    "debt_to_penny_date": "2026-10-05",
+    "marketable_outstanding_bn": 31831.2,
+    "marketable_outstanding_tn": 31.83,
+    "total_public_debt_bn": 40249.1,
+    "total_public_debt_tn": 40.25,
+    "within_12m_bn": 10640.2,
+    "within_12m_tn": 10.64,
+    "within_12m_share_pct": 33.4,
+    "within_12m_coupon_pct": 3.44,
+    "within_12m_refi_yield_pct": 4.158,
+    "within_12m_added_interest_bn": 76.37,
+    "within_12m_current_interest_bn": 366.04,
+    "within_12m_refi_interest_bn": 442.41,
+    "book_coupon_pct": 3.291,
+    "book_refi_yield_pct": 4.64,
+    "book_added_interest_bn": 429.23,
+    "book_current_interest_bn": 1047.68,
+    "book_refi_interest_bn": 1476.91,
+    "added_12m_bn": 76.37,
+    "added_24m_bn": 129.77,
+    "added_60m_bn": 244.14,
+    "issuance_gross_bn": 681,
+    "issuance_maturing_bn": 912,
+    "issuance_net_bn": -231,
+    "issuance_auctions": 9,
+    "avg_rate_total_marketable_pct": 3.518,
+    "securities": 463
+  },
+  "freshness": {
+    "state": "amber",
+    "stale": [
+      {
+        "name": "KBB/Cox ATP",
+        "cadence": "daily 07:20 (Cox Insights RSS excerpt; report ~10–15 days after month-end)",
+        "window_days": 1,
+        "last_success_at": "2026-09-14T11:20:01.905Z",
+        "days_since": 23.2,
+        "status": "STALE"
+      }
+    ],
+    "checked": 30,
+    "asof": "2026-10-07T16:20:51.830Z",
+    "rule": "stale = last successful pull older than the source's refresh window plus 2 days"
+  },
+  "fed_odds": {
+    "meeting_date": "2026-10-28",
+    "event_ticker": "KXFEDDECISION-26OCT",
+    "days_to": 21,
+    "kalshi": {
+      "market": "Kalshi",
+      "source": "Kalshi KXFEDDECISION (public API), yes bid/ask midpoints renormalized to 100%",
+      "asof": "2026-10-07",
+      "outcomes": [
+        {
+          "label": "Fed maintains rate",
+          "prob_pct": 83.3,
+          "bps": 0
+        },
+        {
+          "label": "Hike 25bps",
+          "prob_pct": 16.7,
+          "bps": 25
+        }
+      ],
+      "implied_change_bps": 4.2,
+      "leading": {
+        "outcome": "Fed maintains rate",
+        "prob_pct": 83.3
+      }
+    },
+    "polymarket": {
+      "market": "Polymarket",
+      "title": "Fed Decision in October?",
+      "volume_usd": 28139332.895158987,
+      "asof": "2026-10-07T16:20:49.240Z",
+      "outcomes": [
+        {
+          "label": "No change",
+          "prob_pct": 82.5
+        },
+        {
+          "label": "25 bps increase",
+          "prob_pct": 17.5
+        },
+        {
+          "label": "25 bps decrease",
+          "prob_pct": 0.4
+        },
+        {
+          "label": "50+ bps increase",
+          "prob_pct": 0.4
+        }
+      ],
+      "leading": {
+        "outcome": "No change",
+        "prob_pct": 82.5
+      }
+    },
+    "matched": [
+      {
+        "outcome": "Fed maintains rate",
+        "bps": 0,
+        "kalshi_pct": 83.3,
+        "polymarket_pct": 82.5,
+        "polymarket_label": "No change",
+        "spread_pp": 0.8
+      },
+      {
+        "outcome": "Hike 25bps",
+        "bps": 25,
+        "kalshi_pct": 16.7,
+        "polymarket_pct": 17.5,
+        "polymarket_label": "25 bps increase",
+        "spread_pp": -0.8
+      }
+    ],
+    "spread_pp": 0.8,
+    "sentence": "Markets disagree by 0.8 points: Kalshi prices Fed maintains rate at 83.3%, Polymarket at 82.5%.",
+    "note": "Fed funds futures are not on the tape: CME futures data has no keyless primary source. Both markets shown are real-money prediction markets already in the data directory."
+  },
+  "narrative": {
+    "date": "2026-10-07",
+    "headline": "Nowflation Realtime reads 3.16% YoY, down 0.006pp on the day as used vehicles subtracts 0.004pp.",
+    "tag": "Disinflation drift",
+    "body": "What moved Nowflation Realtime since 2026-10-06: used vehicles -0.004pp (new input for 2026-09-30), motor fuel -0.002pp (new input for 2026-10-07). Nowflation Realtime reads 3.16% YoY; the Nowflation CPI Gauge reads 3.46%.",
+    "model": "fallback_template",
+    "built_at": "2026-10-07T11:58:09.038Z"
+  }
+}

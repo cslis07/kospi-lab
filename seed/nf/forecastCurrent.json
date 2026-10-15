@@ -1,0 +1,318 @@
+{
+  "asof": "2026-10-07",
+  "print_month": "2026-09",
+  "print_month_label": "September 2026",
+  "release_datetime_utc": "2026-10-14T12:30:00Z",
+  "release_date": "2026-10-14",
+  "release_date_label": "October 14, 2026",
+  "release_time_label": "8:30 AM ET",
+  "release_label": "October 14, 2026 at 8:30 AM ET",
+  "forecast": 3.597,
+  "forecast_2dp": 3.6,
+  "forecast_1dp": 3.6,
+  "forecast_asof": "2026-10-07",
+  "in_house_model": 3.46,
+  "in_house_model_2dp": 3.46,
+  "in_house_asof": "2026-10-07",
+  "cleveland_fed": 3.6,
+  "street_consensus": 3.7,
+  "street_consensus_source": {
+    "field": "nextprint.consensus.cpi_headline_yoy",
+    "provider": "FMP economic calendar",
+    "event": "Inflation Rate YoY (Sep)",
+    "label": "consensus (FMP economic calendar estimate)",
+    "target": "cpi_headline_yoy",
+    "print_month": "2026-09",
+    "captured_at": "2026-09-15T14:05:00.000Z",
+    "captured_date": "2026-09-15",
+    "capture_note": "first recorded 2026-09-15: earlier capture dates were not logged"
+  },
+  "kalshi_implied": 3.633,
+  "consensus": {
+    "cpi_core_mom": 0.3,
+    "cpi_core_yoy": 2.5,
+    "cpi_headline_mom": 0.5,
+    "cpi_headline_yoy": 3.7
+  },
+  "prior_print": 3.4,
+  "prior_month": "2026-08",
+  "receipt": {
+    "status": "provisional",
+    "pre_registered": false,
+    "sha256": "5f1dbe765f964077d29f15db69eb06be7a831936cf6f0d6a035434e7585fd1f3",
+    "locked_at_utc": "2026-10-07T16:20:38Z",
+    "locked_at_et": "October 7, 2026 at 12:20 PM ET",
+    "file": "forecasts/2026-09.json",
+    "official_forecast": 3.597
+  },
+  "last_graded": {
+    "print_month": "2026-08",
+    "print_month_label": "August 2026",
+    "forecast": 3.34,
+    "actual": 3.4,
+    "miss_pp": -0.06,
+    "pre_registered": true,
+    "locked_at_et": "September 10, 2026 at 6:30 PM ET",
+    "file": "forecasts/2026-08.json"
+  },
+  "graded_receipts": [
+    {
+      "print_month": "2026-08",
+      "forecast": 3.34,
+      "actual": 3.4,
+      "miss_pp": -0.06,
+      "locked_at_utc": "2026-09-10T22:30:00Z",
+      "locked_at_et": "September 10, 2026 at 6:30 PM ET",
+      "release_datetime_utc": "2026-09-11T12:30:00Z",
+      "sha256": "cb56cd01cf2f56eb9969addd07e28ef80808f70633c31409b25e8ea3fcaee690",
+      "file": "forecasts/2026-08.json",
+      "pre_registered": true,
+      "note": null,
+      "graded_row_forecast": 3.34,
+      "graded_row_miss_pp": -0.06,
+      "receipt_matches_graded_row": true
+    },
+    {
+      "print_month": "2026-07",
+      "forecast": 3.421,
+      "actual": 3.4,
+      "miss_pp": 0.021,
+      "locked_at_utc": "2026-09-01T21:23:10Z",
+      "locked_at_et": "September 1, 2026 at 5:23 PM ET",
+      "release_datetime_utc": "2026-08-12T12:30:00Z",
+      "sha256": "e454dbe74fc9042c04343f938c15708f04c848c42869ac932a35ff11d4026e82",
+      "file": "forecasts/2026-07.json",
+      "pre_registered": false,
+      "note": "Receipt written September 1, 2026 at 5:23 PM ET, after the July 2026 CPI was released (August 12, 2026). The values are the scoreboard rows frozen from the engine's daily record, but the call was not on the public record before the print, so this row is not counted as a live call.",
+      "graded_row_forecast": 3.421,
+      "graded_row_miss_pp": 0.021,
+      "receipt_matches_graded_row": true
+    },
+    {
+      "print_month": "2026-06",
+      "forecast": 3.935,
+      "actual": 3.5,
+      "miss_pp": 0.435,
+      "locked_at_utc": "2026-07-07T15:18:02Z",
+      "locked_at_et": "July 7, 2026 11:18 AM ET",
+      "release_datetime_utc": "2026-07-14T12:30:00Z",
+      "sha256": null,
+      "file": "forecasts/2026-06.json",
+      "pre_registered": true,
+      "note": null,
+      "graded_row_forecast": 3.895,
+      "graded_row_miss_pp": 0.395,
+      "receipt_matches_graded_row": false
+    }
+  ],
+  "receipts": [
+    {
+      "print_month": "2026-09",
+      "status": "provisional",
+      "file": "forecasts/2026-09.json",
+      "locked_at_et": "October 7, 2026 at 12:20 PM ET",
+      "locked_at_utc": "2026-10-07T16:20:38Z",
+      "release_datetime_utc": "2026-10-14T12:30:00Z",
+      "forecast": 3.597,
+      "actual": null,
+      "miss_pp": null,
+      "graded": false,
+      "sha256": "5f1dbe765f964077d29f15db69eb06be7a831936cf6f0d6a035434e7585fd1f3",
+      "pre_registered": false,
+      "note": null,
+      "record_type": "provisional",
+      "index_notes": []
+    },
+    {
+      "print_month": "2026-08",
+      "status": "locked",
+      "file": "forecasts/2026-08.json",
+      "locked_at_et": "September 10, 2026 at 6:30 PM ET",
+      "locked_at_utc": "2026-09-10T22:30:00Z",
+      "release_datetime_utc": "2026-09-11T12:30:00Z",
+      "forecast": 3.34,
+      "actual": 3.4,
+      "miss_pp": -0.06,
+      "graded": true,
+      "sha256": "cb56cd01cf2f56eb9969addd07e28ef80808f70633c31409b25e8ea3fcaee690",
+      "pre_registered": true,
+      "note": null,
+      "record_type": "pre_registered",
+      "index_notes": [
+        "The Street consensus is dated September 11, 2026, the release day, after the lock (September 10, 2026 at 6:30 PM ET): when this receipt was written, the engine dated the economic-calendar consensus to the release it describes. The receipt holds the consensus value the engine had when it wrote the receipt."
+      ]
+    },
+    {
+      "print_month": "2026-07",
+      "status": "locked",
+      "file": "forecasts/2026-07.json",
+      "locked_at_et": "September 1, 2026 at 5:23 PM ET",
+      "locked_at_utc": "2026-09-01T21:23:10Z",
+      "release_datetime_utc": "2026-08-12T12:30:00Z",
+      "forecast": 3.421,
+      "actual": 3.4,
+      "miss_pp": 0.021,
+      "graded": true,
+      "sha256": "e454dbe74fc9042c04343f938c15708f04c848c42869ac932a35ff11d4026e82",
+      "pre_registered": false,
+      "note": "Receipt written September 1, 2026 at 5:23 PM ET, after the July 2026 CPI was released (August 12, 2026). The values are the scoreboard rows frozen from the engine's daily record, but the call was not on the public record before the print, so this row is not counted as a live call.",
+      "record_type": "frozen_after_release",
+      "index_notes": []
+    },
+    {
+      "print_month": "2026-06",
+      "status": "locked",
+      "file": "forecasts/2026-06.json",
+      "locked_at_et": "July 7, 2026 11:18 AM ET",
+      "locked_at_utc": "2026-07-07T15:18:02Z",
+      "release_datetime_utc": "2026-07-14T12:30:00Z",
+      "forecast": 3.935,
+      "actual": 3.5,
+      "miss_pp": 0.435,
+      "graded": true,
+      "sha256": null,
+      "pre_registered": true,
+      "note": null,
+      "record_type": "pre_registered",
+      "index_notes": []
+    }
+  ],
+  "horizons": {
+    "2026-09": [
+      {
+        "days": 14,
+        "label": "T-14",
+        "file": "forecasts/2026-09/t-14.json",
+        "official_forecast": 3.597,
+        "locked_at_utc": "2026-09-30T22:30:00Z",
+        "locked_at_et": "September 30, 2026 at 6:30 PM ET",
+        "sha256": "2d85147fccc23835879657bd0f3b0a2c481db32b568789b3034d8d4b7aad7dd8",
+        "file_sha256": "d5ae6dea6bffc9fc10b7811bb713f28d539eeb4402d59572fb6fe104282a0916",
+        "ots": "forecasts/2026-09/t-14.json.ots",
+        "wayback_url": "https://web.archive.org/web/20261001231501/https://nowflation.com/forecasts/2026-09/t-14.json"
+      }
+    ]
+  },
+  "leaderboard": [
+    {
+      "forecaster": "street_consensus",
+      "label": "Street Consensus",
+      "ours": false,
+      "n_live": 44,
+      "mae_live": 0.086,
+      "bias_live": 0.023,
+      "wins_live": 27,
+      "win_rate_live": 0.614,
+      "first_live_print": "2022-12",
+      "n_backtest": 0,
+      "mae_backtest": null,
+      "bias_backtest": null,
+      "n_combined": 44,
+      "mae_combined": 0.086,
+      "bias_combined": 0.023,
+      "basis": "live-graded only: every print this forecaster was scored on, its number public before each release"
+    },
+    {
+      "forecaster": "cleveland_fed",
+      "label": "Cleveland Fed",
+      "ours": false,
+      "n_live": 44,
+      "mae_live": 0.104,
+      "bias_live": 0.037,
+      "wins_live": 17,
+      "win_rate_live": 0.386,
+      "first_live_print": "2022-12",
+      "n_backtest": 0,
+      "mae_backtest": null,
+      "bias_backtest": null,
+      "n_combined": 44,
+      "mae_combined": 0.104,
+      "bias_combined": 0.037,
+      "basis": "live-graded only: every print this forecaster was scored on, its number public before each release"
+    },
+    {
+      "forecaster": "kalshi_implied",
+      "label": "Kalshi Market",
+      "ours": false,
+      "n_live": 3,
+      "mae_live": 0.132,
+      "bias_live": 0.074,
+      "wins_live": 0,
+      "win_rate_live": 0,
+      "first_live_print": "2026-06",
+      "n_backtest": 0,
+      "mae_backtest": null,
+      "bias_backtest": null,
+      "n_combined": 3,
+      "mae_combined": 0.132,
+      "bias_combined": 0.074,
+      "basis": "live-graded only: every print this forecaster was scored on, its number public before each release"
+    },
+    {
+      "forecaster": "fmc_ensemble",
+      "label": "Nowflation Forecast",
+      "ours": true,
+      "n_live": 2,
+      "mae_live": 0.248,
+      "bias_live": 0.188,
+      "wins_live": 0,
+      "win_rate_live": 0,
+      "first_live_print": "2026-06",
+      "live_months": [
+        "2026-06",
+        "2026-08"
+      ],
+      "n_backtest": 0,
+      "mae_backtest": null,
+      "bias_backtest": null,
+      "not_pre_registered": [
+        "2026-07"
+      ],
+      "n_combined": 2,
+      "mae_combined": 0.248,
+      "bias_combined": 0.188,
+      "basis": "live = graded receipts locked before the release; backtest = vintage-true walk-forward; combined mixes both; a call whose receipt was written after the print is in neither and is listed by month"
+    },
+    {
+      "forecaster": "fmc",
+      "label": "Nowflation Model (in-house)",
+      "ours": true,
+      "n_live": 2,
+      "mae_live": 0.348,
+      "bias_live": 0.177,
+      "wins_live": 0,
+      "win_rate_live": 0,
+      "first_live_print": "2026-06",
+      "live_months": [
+        "2026-06",
+        "2026-08"
+      ],
+      "n_backtest": 39,
+      "mae_backtest": 0.094,
+      "bias_backtest": 0.017,
+      "not_pre_registered": [
+        "2026-07"
+      ],
+      "n_combined": 41,
+      "mae_combined": 0.106,
+      "bias_combined": 0.024,
+      "basis": "live = graded receipts locked before the release; backtest = vintage-true walk-forward; combined mixes both; a call whose receipt was written after the print is in neither and is listed by month"
+    }
+  ],
+  "leaderboard_ranked_by": "mae_live",
+  "leaderboard_note": "Signed error = forecast − actual (positive bias = ran hot). Graded values are the scoreboard rows frozen at grading time — benchmark sources keep publishing after a release, and those later revisions never touch a graded print. Nowflation rows marked \"backtest\" are vintage-true walk-forward values frozen the day before each release; the leaderboard reports the live-graded record separately from the backtest, with the combined figure labeled.",
+  "benchmark_window": {
+    "n_prints": 44,
+    "first_print_month": "2022-12",
+    "last_print_month": "2026-08"
+  },
+  "live": {
+    "n": 2,
+    "mae_pp": 0.248,
+    "bias_pp": 0.188,
+    "months": [
+      "2026-06",
+      "2026-08"
+    ]
+  }
+}

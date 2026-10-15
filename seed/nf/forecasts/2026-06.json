@@ -1,0 +1,57 @@
+{
+  "print_month": "2026-06",
+  "release_datetime_utc": "2026-07-14T12:30:00Z",
+  "release_datetime_et": "2026-07-14 08:30 ET",
+  "locked_at_utc": "2026-07-07T15:18:02Z",
+  "locked_at_et": "July 7, 2026 11:18 AM ET",
+  "immutable": true,
+  "official_forecast": {
+    "label": "Nowflation CPI Forecast",
+    "target": "cpi_headline_yoy",
+    "method": "fmc_ensemble (inverse-error-weighted blend of the in-house bottom-up nowcast, Cleveland Fed, and Street \u2014 each weighted by its own graded track record)",
+    "value_precise": 3.935,
+    "value_reported_1dp": 3.9
+  },
+  "headline_yoy_all_forecasters": {
+    "nowflation_forecast_ensemble": 3.935,
+    "nowflation_nowcast_inhouse": 4.025,
+    "cleveland_fed": 3.92,
+    "kalshi_implied": 3.798
+  },
+  "core_yoy": {
+    "nowflation_forecast_ensemble": 2.879,
+    "nowflation_nowcast_inhouse": 2.872,
+    "cleveland_fed": 2.85,
+    "kalshi_implied": 2.825
+  },
+  "headline_mom": {
+    "nowflation_forecast_ensemble": -0.027,
+    "nowflation_nowcast_inhouse": 0.033,
+    "cleveland_fed": -0.06,
+    "kalshi_implied": -0.158
+  },
+  "core_mom": {
+    "nowflation_forecast_ensemble": 0.213,
+    "nowflation_nowcast_inhouse": 0.24,
+    "cleveland_fed": 0.23,
+    "kalshi_implied": null
+  },
+  "context": {
+    "prior_actual_may_2026": 4.2,
+    "street_consensus": 3.9
+  },
+  "validation": {
+    "ensemble_walkforward_mae_pp": 0.085,
+    "component_mae_pp": {
+      "ensemble": 0.085,
+      "fmc": 0.127,
+      "cleveland_fed": 0.081,
+      "street_consensus": 0.082
+    },
+    "window": "2023-07 \u2192 2026-05",
+    "graded_prints": 33,
+    "note": "Leakage-free walk-forward over a COMMON window (all components present each print); each print's ensemble weights use only prior prints' graded errors. The ensemble is ~30% tighter than our in-house model and just behind Cleveland/Street individually \u2014 published because it's our own construction and more robust, not because it beats every component."
+  },
+  "grading_rule": "Graded against the BLS first-release headline CPI YoY (NSA, one decimal). The standing forecast updates daily as data lands; the value the day before release is the graded call (vintage-true), consistent with our backtest methodology. This file is the dated, immutable record that the forecast was on the tape before the print.",
+  "audit_trail": "Full daily asof-dated history for every forecaster is preserved in the engine and surfaced on /scoreboard."
+}

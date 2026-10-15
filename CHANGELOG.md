@@ -2,6 +2,16 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-15 (119차) — Nowflation 실시간 인플레이션 데이터 중계 기반(병합 1·2단계)
+
+nowflation 로컬클론(nowprice-local)의 CC BY 데이터를 KOSPI LAB **잠금 뒤로** 들여오는 작업의 토대. 이번엔 **중계 경로만** — 화면(`/inflation` 허브)은 3단계.
+- **1단계 실측**: nowflation.com 데이터 엔드포인트가 Vercel 서버 IP에서 fetch 되는지 확인(인베스팅은 Cloudflare 403이라 선검증 필수). 임시 Vercel 함수(리전 icn1)로 `data/`·`forecasts/` 6종 요청 → **전부 200·유효 JSON·봇차단(cf-mitigated) 없음·CORS 개방**. 중계 가능 확정(임시 프로젝트 삭제). `seed/nf/` 스냅샷은 보조 폴백으로만.
+- **중계 라우트** `app/api/nf/[...name]/route.ts` — 상류 fetch(Next Data Cache 6시간, `?refresh=1`은 무캐시) 성공 시 그대로, 실패 시 `seed/nf/` 스냅샷 폴백. 응답은 `no-store`(게이트 뒤 개인 전용이라 CDN/`withCdn` 안 씀).
+- **허용목록** `lib/nf.ts` `nfAllowed`·`nfUpstreamUrl`(`server.py` 포팅) — 슬래시 1개·`..` 금지·`.json`·`forecasts/|geo/|og/` 접두 또는 최상위(`/data/`)만. `tests/nf.test.ts` 5케이스.
+- **잠금** `middleware.ts` matcher에 `/api/nf/:path*` 추가(혼자 사용·트레이드드레스 회피).
+- **폴백 번들** `next.config.ts` `outputFileTracingIncludes`로 `seed/nf/**`(48 JSON + ATTRIBUTION, CC BY 4.0)를 함수 트레이스에 포함.
+- 검증: `npm test` 17파일·tsc 0·build 0, 빌드 트레이스에 seed 포함 확인, 로컬 스모크(토큰 없이 401·토큰+`realtime.json` 200 no-store·`forecasts/index.json` 200·슬래시 2개 404·`.txt` 404).
+
 ## 2026-10-07 (118차) — 홈 '내 복기 한 줄'(확신 보정 요약)
 
 확신 보정 결과를 홈에도 노출(nextActions). **모닝 브리핑(텔레그램)엔 불가** — 서버 생성이라 개인 localStorage 태그·Bitget 데이터를 못 읽음(검토 결론). 홈은 클라이언트라 가능.

@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: '/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] }];
   },
+  // Nowflation 중계 폴백 스냅샷(seed/nf/)을 /api/nf 함수 트레이스에 포함(상류 차단 시에만 사용).
+  outputFileTracingIncludes: {
+    '/api/nf/*': ['./seed/nf/**/*'],
+  },
 };
 
 export default nextConfig;
