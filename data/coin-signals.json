@@ -1,6 +1,7 @@
 {
-  "updated": "2026-10-15T00:46:38.314Z",
-  "open": [
+  "updated": "2026-10-15T05:33:51.744Z",
+  "open": [],
+  "closed": [
     {
       "id": "ETHUSDT-scalp-1792025195603",
       "sym": "ETHUSDT",
@@ -14,10 +15,12 @@
       "price0": 2417.26,
       "ultra": false,
       "conf": 93,
-      "eq": 62
-    }
-  ],
-  "closed": [
+      "eq": 62,
+      "closeTs": 1792042429396,
+      "closePrice": 2358.48,
+      "outcome": "WIN",
+      "r": 0.91
+    },
     {
       "id": "XRPUSDT-scalp-1791954675802",
       "sym": "XRPUSDT",
@@ -515,9 +518,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 22,
-      "winRate": 55,
-      "avgR": 0.33
+      "n": 23,
+      "winRate": 57,
+      "avgR": 0.35
     },
     "swing": {
       "n": 4,
@@ -525,14 +528,14 @@
       "avgR": 2.21
     },
     "all": {
-      "n": 26,
-      "winRate": 62,
-      "avgR": 0.62
+      "n": 27,
+      "winRate": 63,
+      "avgR": 0.63
     }
   },
   "watch": {
-    "ETHUSDT:liqCrit": 1791796279383,
-    "ETHUSDT:noplan": 1791878756131,
+    "ETHUSDT:liqCrit": 1792042429396,
+    "ETHUSDT:noplan": 1792042429396,
     "cb:blocked:1791298800000": 1791364639692,
     "cb:blocked:1791385200000": 1791446371263,
     "cb:blocked:1791471600000": 1791556168851,
