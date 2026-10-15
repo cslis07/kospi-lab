@@ -322,6 +322,11 @@ export default function IndexBoard() {
   const value = live?.value ?? 0, change = live?.change ?? 0, rate = live?.changeRate ?? 0;
   const name = NAMES[code];
   const ud = b?.upDown;
+  // 선택 기간 수익률 — 그 구간 첫 종가 대비 현재가(1일은 전일대비가 곧 그 값이라 제외)
+  const pts = b?.points ?? [];
+  const pBase = pts.length ? pts[0].c : 0;
+  const periodRet = effRange !== '1d' && pBase ? (((value || pts[pts.length - 1].c) - pBase) / pBase) * 100 : null;
+  const periodLabel = RANGES.find(([k]) => k === effRange)?.[1] ?? '';
 
   return (
     <div className="fin-card" style={{ padding: 20 }}>
@@ -380,6 +385,11 @@ export default function IndexBoard() {
           <div className="seg">
             {ranges.map(([k, l]) => <button key={k} className={`seg-i ${effRange === k ? 'on' : ''}`} onClick={() => selectRange(k)}>{l}</button>)}
           </div>
+          {periodRet != null && (
+            <span className="tabular-nums" title={`${periodLabel} 수익률`} style={{ fontSize: 12.5, fontWeight: 700, color: colorOf(periodRet), whiteSpace: 'nowrap' }}>
+              {periodLabel} {periodRet >= 0 ? '+' : ''}{periodRet.toFixed(2)}%
+            </span>
+          )}
           <div className="seg" style={{ marginLeft: 'auto' }}>
             <button className={`seg-i ${mode === 'line' ? 'on' : ''}`} onClick={() => selectMode('line')}>라인</button>
             <button className={`seg-i ${mode === 'candle' ? 'on' : ''}`} onClick={() => selectMode('candle')}>캔들</button>
