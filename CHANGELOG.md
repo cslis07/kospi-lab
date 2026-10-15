@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-15 (121차) — /macro·/brief에 "공식 CPI(지연) vs 실시간 나우캐스트" 연결(병합 4단계)
+
+경제지표(/macro)와 모닝 브리핑(/brief)에서 공식 CPI 옆에 실시간 나우캐스트를 바로 대비. 공식은 월 1회·2주 지연이라, "지금 물가가 어디쯤인지"를 나란히 보여 /inflation 허브로 잇는 다리.
+- `components/NowcastStrip.tsx`: `/api/nf/pulse.json`에서 나우캐스트 YoY·공식 CPI(월·지연)·격차(pp)를 한 줄로, `/inflation`으로 링크. **게이트 뒤라 잠금 해제된 기기에서만 노출**(공개 페이지엔 UnlockGate 안 띄우고 조용히 숨김).
+- `/macro`: 인트로 아래 삽입(FRED 공식 발표치 설명 바로 다음). `/brief`: '지금 수치' 블록(MacroGroups) 아래 — 모든 탭.
+- 순수 로직 추가 없음(기존 `lib/inflation` pct·signPp 재사용), 신규 테스트 불필요.
+- 검증: tsc 0·build 0, 헤드리스 390px(쿠키·`/api/sync` 차단): /macro·/brief 스트립 노출·격차 표시·가로넘침 0·콘솔 0.
+
 ## 2026-10-15 (120차) — 잠금 /inflation 허브(실시간 물가 나우캐스트, 병합 3단계)
 
 2단계 `/api/nf` 중계 위에 **우리 디자인(Recharts)** 으로 실시간 인플레이션 허브를 올림. 클론 UI 복제가 아니라 데이터만 재구성. 게이트(`APP_ACCESS_TOKEN`) 뒤 개인용.

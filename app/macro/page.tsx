@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import MacroDetail, { FLAG } from '@/components/MacroDetail';
+import NowcastStrip from '@/components/NowcastStrip';
 import type { MacroIndicator } from '@/lib/macroData';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -32,6 +33,9 @@ export default function MacroPage() {
         미국 물가·달러·유가와 원/달러를 <b className="text-[var(--text)]">FRED 공식 발표치</b>로 봅니다. 실제값·이전값·추세 중심이며,
         예상치(컨센서스)는 무료로 제공하는 곳이 없어 생략했습니다. 숫자는 실시간이 아니라 <b className="text-[var(--text)]">공식 발표 기준(기준일 표기)</b>입니다.
       </p>
+
+      {/* 공식 CPI(지연) vs 실시간 나우캐스트 — 잠금 해제 시 노출 */}
+      <NowcastStrip className="mb-5" />
 
       {/* 지표 선택 카드 */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
