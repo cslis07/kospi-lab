@@ -2,6 +2,17 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-15 (120차) — 잠금 /inflation 허브(실시간 물가 나우캐스트, 병합 3단계)
+
+2단계 `/api/nf` 중계 위에 **우리 디자인(Recharts)** 으로 실시간 인플레이션 허브를 올림. 클론 UI 복제가 아니라 데이터만 재구성. 게이트(`APP_ACCESS_TOKEN`) 뒤 개인용.
+- **게이지 헤더**: CPI 게이지(나우캐스트) YoY · 공식 CPI(월·근원) · 격차(pp) + 전일/전주/전월 변화 + Nowflation 모델 요약(narrative, 번역 아님 명시).
+- **공식 CPI vs 실시간 나우캐스트 추이**(`InflationChart` compare): `compare_daily`를 월별(그 달 마지막 게이지값 + 공식 발표치)로 압축해 두 선 비교 + 과거 평균 오차(MAE) 캡션.
+- **품목별 기여**(`pulse.drivers` 상위 10, 기여 bps 막대): 식품/주거/연료/기타 분류 칩, 상승=빨강·하락=파랑. + 식품 바스켓(`grocery_basket`)·연료(`fuel` 펌프가·2주 전망) 상세.
+- **예측**(`InflationChart` forecast): 모델 중앙선+범위 음영+공식 투영 + 다음 CPI 벤치마크 카드(Nowflation·자체·클리블랜드 연준·월가·Kalshi·직전).
+- 데이터: `/api/nf/{pulse,compare_daily,forecast,forecastCurrent,grocery_basket,fuel}.json`(게이트 쿠키). 차트는 `next/dynamic`만. 순수 가공 `lib/inflation`(compareRows·forecastRows·categorize·topDrivers, 단위 분수/퍼센트 분리) + `tests/inflation` 6케이스.
+- 배선: EXTRAS `/inflation`(아이콘 signal)·OWN_H1_ROUTES. sitemap 제외(게이트/개인용, /bitget과 동일). **예측·매매 신호 아님** 원칙 화면 명시, CC BY 출처.
+- 검증: `npm test` 18파일·tsc 0·build 0, **헤드리스 390px(쿠키·`/api/sync` 차단): 게이지·차트 8서펄 렌더·가로넘침 0·콘솔 0**.
+
 ## 2026-10-15 (119차) — Nowflation 실시간 인플레이션 데이터 중계 기반(병합 1·2단계)
 
 nowflation 로컬클론(nowprice-local)의 CC BY 데이터를 KOSPI LAB **잠금 뒤로** 들여오는 작업의 토대. 이번엔 **중계 경로만** — 화면(`/inflation` 허브)은 3단계.
