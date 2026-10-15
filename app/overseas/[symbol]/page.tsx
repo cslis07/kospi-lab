@@ -12,6 +12,7 @@ import PriceChart from '@/components/detail/PriceChartLazy';
 import { TIMEFRAMES } from '@/components/detail/chartLayout';
 import SwipeNav from '@/components/detail/SwipeNav';
 import Collapsible from '@/components/ui/Collapsible';
+import Range52Bar from '@/components/Range52Bar';
 import ActionSheet, { KebabButton, type SheetAction } from '@/components/ui/ActionSheet';
 import VirtualTradeModal from '@/components/VirtualTradeModal';
 import { badgeTint } from '@/components/WatchRow';
@@ -127,14 +128,9 @@ export default function OverseasDetailPage() {
 
       {d && pos !== null && (
         <Collapsible title="52주 위치" sub={`하단에서 ${Math.round(pos * 100)}%`} defaultOpen>
-          <div className="relative h-2 rounded-full bg-[var(--surface-2)] mt-1">
-            <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pos * 100}%`, background: `linear-gradient(90deg, ${DOWN}, ${UP})`, opacity: 0.55 }} />
-            <span className="absolute top-1/2 w-3.5 h-3.5 -mt-[7px] -ml-[7px] rounded-full bg-[var(--surface)] border-2" style={{ left: `${pos * 100}%`, borderColor: 'var(--ink)' }} />
-          </div>
-          <div className="flex justify-between text-[11.5px] font-semibold mt-2 tabular-nums">
-            <span style={{ color: DOWN }}>{usd(d.low52w!)}</span>
-            <span className="text-[var(--faint)]">전일 종가 {d.prevClose ? usd(d.prevClose) : '—'}</span>
-            <span style={{ color: UP }}>{usd(d.high52w!)}</span>
+          <div className="mt-1">
+            <Range52Bar low={d.low52w!} high={d.high52w!} value={d.price} fmt={usd} showLabel={false} />
+            <p className="text-center text-[11px] text-[var(--faint)] mt-2 tabular-nums">전일 종가 {d.prevClose ? usd(d.prevClose) : '—'}</p>
           </div>
         </Collapsible>
       )}
