@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import {
-  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary, afterLossStreaks, tradesPerDay, goalLine,
+  kstDateKey, equityCurve, streaks, resultOf, aggregateDaily, monthList, monthDays, monthSummary, edgeSummary, afterLossStreaks, tradesPerDay, goalLine, periodReturn,
 } from '../lib/journalAnalytics';
 
 let passed = 0;
@@ -223,6 +223,18 @@ ok('goalLine stepped: 달력 월(KST)마다 target 누적 계단', () => {
 ok('goalLine: target 0 이하면 전부 null', () => {
   assert.deepEqual(goalLine([1, 2, 3], 0, 'linear'), [null, null, null]);
   assert.deepEqual(goalLine([], 500, 'stepped'), []);
+});
+
+ok('periodReturn: 구간 첫 종가 대비 마지막 종가 %', () => {
+  const s = [{ date: '2026-01-02', close: 100 }, { date: '2026-02-01', close: 110 }, { date: '2026-03-01', close: 120 }];
+  assert.equal(periodReturn(s, '2026-01-01', '2026-02-15'), 10); // 100→110
+  assert.equal(periodReturn(s, '2026-01-02', '2026-03-01'), 20); // 100→120
+});
+ok('periodReturn: 범위 밖·빈 입력 null', () => {
+  const s = [{ date: '2026-01-02', close: 100 }];
+  assert.equal(periodReturn(s, '2027-01-01', '2027-12-31'), null); // from이 to보다 미래 데이터만
+  assert.equal(periodReturn([], '2026-01-01', '2026-12-31'), null);
+  assert.equal(periodReturn(undefined, '2026-01-01', '2026-12-31'), null);
 });
 
 console.log(`\n${passed} passed`);

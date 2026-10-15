@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (135차) — 매매일지 성과에 시장 벤치마크 비교
+
+매매일지(코인선물) 성과에 "내 매매 기간 동안 시장이 어땠나"를 붙임.
+- `/journal` 자산곡선 아래 **시장 벤치마크 카드**(`BenchmarkCard`): 내 매매 기간(첫~마지막 청산일) + 내 순손익(USDT) + 같은 기간 **비트코인·나스닥·코스피 수익률%**. 데이터는 기존 `/api/macro/daily`(2021~ 일별 종가) 재사용.
+- `lib/journalAnalytics.periodReturn`(순수함수, 구간 첫 종가 대비 마지막 종가 %) + `tests/journalAnalytics` +2.
+- **정직성**: 계좌 원금 정보가 없어 '내 수익률%'는 표시하지 않고, 같은 기간 시장 방향 참고용임을 화면에 명시(매매 신호 아님).
+- 검증: npm test(journalAnalytics +periodReturn)·tsc 0·build 0, /journal 200·macro/daily 데이터 확인, 실데이터 sanity(2026-09-01~10-11 BTC +8.1%·나스닥 +4.9%·코스피 −3.1%).
+
 ## 2026-10-16 (134차) — 상단 지수 레일 카드에 52주 위치 미니 바
 
 보드 상세의 52주 바에 이어, 상단 레일 카드에도 52주 범위 내 현재가 위치를 미니 바로.

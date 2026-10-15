@@ -16,6 +16,19 @@ export function kstDateKey(ts: number): string {
   return new Date(ts + 9 * 3600_000).toISOString().slice(0, 10);
 }
 
+// ────────────────────────── 시장 벤치마크(내 매매 기간 동안 지수 변화) ──────────────────────────
+export interface PricePt { date: string; close: number }
+/** series(일별 종가)에서 [from, to] 구간 수익률(%) — from 이후 첫 종가 대비 to 이전 마지막 종가. 범위 밖이면 null */
+export function periodReturn(series: PricePt[] | undefined, from: string, to: string): number | null {
+  if (!series?.length) return null;
+  const asc = [...series].filter((p) => Number.isFinite(p.close)).sort((a, b) => a.date.localeCompare(b.date));
+  const start = asc.find((p) => p.date >= from);
+  const ended = asc.filter((p) => p.date <= to);
+  const end = ended.length ? ended[ended.length - 1] : null;
+  if (!start || !end || !start.close || start.date > to) return null;
+  return ((end.close - start.close) / start.close) * 100;
+}
+
 // ────────────────────────── 에쿼티 커브 + MDD ──────────────────────────
 
 export interface EquityPoint {

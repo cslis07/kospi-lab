@@ -27,7 +27,8 @@ import SetupConvictionCard from '@/components/SetupConvictionCard';
 import type { BreakRowSel } from '@/components/BreakdownTables';
 import EquityCurveLazy from '@/components/EquityCurveLazy';
 import CalendarHeatmap from '@/components/CalendarHeatmap';
-import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, tradesPerDay, type TradeValue } from '@/lib/journalAnalytics';
+import useSWR from 'swr';
+import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, tradesPerDay, periodReturn, type TradeValue, type PricePt } from '@/lib/journalAnalytics';
 import TradesPerDayCard from '@/components/TradesPerDayCard';
 import EdgeSummaryCard from '@/components/EdgeSummaryCard';
 import CostCard from '@/components/CostCard';
@@ -78,6 +79,38 @@ function periodLabel(days: number): string {
   return `${d(now - days * 86_400_000)}~${d(now)}(최근 ${days}일)`;
 }
 const fmtUsdt = (n: number) => (Math.abs(n) >= 1000 ? Math.round(n).toLocaleString() : String(Math.round(n * 100) / 100));
+
+const bmFetcher = (u: string) => fetch(u).then((r) => r.json());
+/** 시장 벤치마크 — 내 매매 기간 동안 비트코인·나스닥·코스피가 얼마나 움직였나(같은 기간 시장 맥락). */
+function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
+  const { data } = useSWR<{ btc: PricePt[]; nasdaq: PricePt[]; kospi: PricePt[] }>('/api/macro/daily', bmFetcher, { revalidateOnFocus: false });
+  if (!trades.length) return null;
+  const tsList = trades.map((t) => t.ts);
+  const from = kstDateKey(Math.min(...tsList));
+  const to = kstDateKey(Math.max(...tsList));
+  const net = trades.reduce((a, t) => a + t.value, 0);
+  const col = (v: number) => (v > 0 ? 'text-red-400' : v < 0 ? 'text-blue-400' : 'text-[var(--text-muted)]');
+  const rows: [string, number | null][] = [
+    ['비트코인', data ? periodReturn(data.btc, from, to) : null],
+    ['나스닥', data ? periodReturn(data.nasdaq, from, to) : null],
+    ['코스피', data ? periodReturn(data.kospi, from, to) : null],
+  ];
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <h3 className="text-sm font-semibold text-[var(--text)]">시장 벤치마크 <span className="text-[11px] font-normal text-[var(--text-muted)]">· 내 매매 기간 동안 시장</span></h3>
+      <p className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-2 tabular-nums">{from} ~ {to} · 내 순손익 <b className={col(net)}>{net >= 0 ? '+' : ''}{fmtUsdt(net)} USDT</b></p>
+      <div className="grid grid-cols-3 gap-2">
+        {rows.map(([k, v]) => (
+          <div key={k} className="rounded-xl border border-[var(--border)] p-2.5">
+            <p className="text-[11px] text-[var(--text-muted)]">{k}</p>
+            <p className={`text-base font-bold tabular-nums ${v == null ? 'text-[var(--text-muted)]' : col(v)}`}>{v == null ? (data ? '—' : '…') : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`}</p>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">계좌 원금 정보가 없어 내 수익률%는 표시하지 않습니다 — 같은 기간 <b className="text-[var(--text)]">시장 방향</b> 참고용(매매 신호 아님). 지수는 각 구간 종가 기준.</p>
+    </div>
+  );
+}
 const pnlColor = (n: number) => (n > 0 ? UP : n < 0 ? DOWN : 'var(--faint)');
 function fmtHold(ms: number | null): string {
   if (ms == null || ms <= 0) return '—';
@@ -436,6 +469,7 @@ export default function JournalPage() {
           <AfterLossTable rows={afterLoss} fmt={fmtUsdt} breakerAt={limits.maxConsecutiveLosses} />
           <ExcursionSummaryCard trades={positions} />
           <EquityCurveLazy trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />
+          <BenchmarkCard trades={analyticsTrades} />
           <CalendarHeatmap trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} selected={selDay} onSelect={setSelDay}
             detail={<DayTrades date={selDay} trades={dayTrades} moods={moods} tags={tags} snapIds={snaps.ids}
               onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelDay(null)} />} />
