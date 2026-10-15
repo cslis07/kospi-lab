@@ -56,6 +56,7 @@ async function usd(): Promise<IndexCard | null> {
 }
 
 export async function GET() {
+  // 풀 = 기본 6종 + 아시아·유럽 4종(레일 커스터마이즈로 표시 선택). 값은 전부 네이버 실시간.
   const cards = (await Promise.all([
     kr('KOSPI', '코스피'),
     kr('KOSDAQ', '코스닥'),
@@ -63,6 +64,10 @@ export async function GET() {
     world('.INX', 'S&P 500'),
     world('.IXIC', '나스닥 종합'),
     world('.DJI', '다우존스'),
+    world('.N225', '닛케이225'),
+    world('.HSI', '항셍'),
+    world('.GDAXI', 'DAX'),
+    world('.FTSE', 'FTSE 100'),
   ])).filter((x): x is IndexCard => !!x);
   return NextResponse.json(
     { cards, asOf: new Date().toISOString() },
