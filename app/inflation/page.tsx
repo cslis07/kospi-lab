@@ -113,8 +113,8 @@ export default function InflationPage() {
 
           {/* 품목별 기여 */}
           <Card title="품목별 기여" aside={<span className="text-[10px] text-[var(--text-muted)]">막대 클릭 → 공식 대비 추이</span>}>
-            <DriverBars pulse={pulse} selected={selComp} onSelect={(c) => setSelComp(c === selComp ? null : c)} />
-            {selComp && citems && !citems.locked && <DrilldownPanel comp={selComp} citems={citems} onClose={() => setSelComp(null)} />}
+            <DriverBars pulse={pulse} selected={selComp} onSelect={(c) => setSelComp(c)} />
+            <DrilldownSheet comp={selComp} citems={citems} open={!!selComp} onClose={() => setSelComp(null)} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               {/* 식품 바스켓 */}
               <div className="rounded-xl border border-[var(--border)] p-3">
@@ -229,28 +229,46 @@ function DriverBars({ pulse, selected, onSelect }: { pulse: Pulse; selected: str
   );
 }
 
-function DrilldownPanel({ comp, citems, onClose }: { comp: string; citems: Compare; onClose: () => void }) {
-  const tile = citems.tiles?.find((t) => t.component === comp);
-  const rows = sparkCompareRows(citems.sparks?.[comp], citems.month);
-  if (!tile && !rows.length) return null;
+function Stat({ label, value, cls }: { label: string; value: string; cls?: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--border)] p-2.5">
+      <p className="text-[10px] text-[var(--text-muted)]">{label}</p>
+      <p className={`text-base font-bold tabular-nums ${cls ?? 'text-[var(--text)]'}`}>{value}</p>
+    </div>
+  );
+}
+
+function DrilldownSheet({ comp, citems, open, onClose }: { comp: string | null; citems?: Compare; open: boolean; onClose: () => void }) {
+  const tile = comp && citems ? citems.tiles?.find((t) => t.component === comp) : undefined;
+  const rows = comp && citems ? sparkCompareRows(citems.sparks?.[comp], citems.month) : [];
+  const cat = comp ? categorize(comp) : '기타';
   const spreadPp = tile ? tile.spread * 100 : null; // 분수→pp
   return (
-    <div className="mt-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--surface-2)]/40 p-3">
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <p className="text-[12px] font-semibold text-[var(--text)]">{tile?.label ?? comp} — 공식(BLS) 대비</p>
-        <button type="button" onClick={onClose} className="text-[11px] text-[var(--text-muted)] shrink-0">닫기 ✕</button>
-      </div>
-      {tile && (
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] tabular-nums mb-1">
-          <span><span className="text-[var(--text-muted)]">나우캐스트 </span><b className={sign(tile.yoy)}>{pctFrac(tile.yoy, 1)}</b></span>
-          <span><span className="text-[var(--text-muted)]">공식 BLS </span><b className="text-[var(--text)]">{pctFrac(tile.bls_yoy, 1)}</b></span>
-          {spreadPp != null && <span><span className="text-[var(--text-muted)]">격차 </span><b className={sign(spreadPp)}>{signPp(spreadPp, 2)}</b></span>}
-          <span className="text-[var(--text-muted)]">비중 {pctFrac(tile.weight, 1)}</span>
-        </div>
+    <BottomSheet open={open} onClose={onClose} title={tile?.label ?? comp ?? '품목'}>
+      {!citems || citems.locked ? (
+        <p className="text-[12px] text-[var(--text-muted)] py-6 text-center">불러오는 중…</p>
+      ) : (
+        <>
+          <div className="flex items-center gap-1.5 mb-3">
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${CAT_STYLE[cat]}`}>{cat}</span>
+            <span className="text-[11px] text-[var(--text-muted)]">{citems.month} 기준 · 공식 CPI(BLS) 대비</span>
+          </div>
+          {tile && (
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <Stat label="나우캐스트 YoY" value={pctFrac(tile.yoy, 1)} cls={sign(tile.yoy)} />
+              <Stat label="공식 BLS YoY" value={pctFrac(tile.bls_yoy, 1)} />
+              <Stat label="격차(나우−공식)" value={spreadPp != null ? signPp(spreadPp, 2) : '—'} cls={spreadPp != null ? sign(spreadPp) : undefined} />
+              <Stat label="CPI 비중" value={pctFrac(tile.weight, 1)} />
+            </div>
+          )}
+          {rows.length ? <InflationChartLazy kind="compare" rows={rows} height={220} /> : <p className="text-[12px] text-[var(--text-muted)] py-4 text-center">이 품목은 추이 데이터가 없습니다.</p>}
+          <p className="text-[11px] text-[var(--text-muted)] mt-2 leading-relaxed">
+            12개월 YoY(%) — <span style={{ color: '#1c6cff' }}>■</span> 나우캐스트(실시간 추정) vs <span style={{ color: '#f59e0b' }}>■</span> 공식 발표치(BLS).
+            격차가 <b className="text-red-400">+</b>면 나우캐스트가 공식보다 높다는 뜻(발표 전 선반영일 수 있음). 매매 신호 아님.
+          </p>
+        </>
       )}
-      {rows.length ? <InflationChartLazy kind="compare" rows={rows} height={180} /> : <p className="text-[11px] text-[var(--text-muted)]">이 품목은 추이 데이터가 없습니다.</p>}
-      <p className="text-[10px] text-[var(--text-muted)] mt-1">12개월 YoY(%). 나우캐스트(ours)와 공식(BLS) 발표치 비교.</p>
-    </div>
+    </BottomSheet>
   );
 }
 
