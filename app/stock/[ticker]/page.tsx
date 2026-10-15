@@ -15,6 +15,7 @@ import { calcMA, calcRSI, calcBB } from '@/lib/indicators';
 import type { StockData, ChartPoint } from '@/lib/types';
 import type { DartCompany, DartFinancials, DartDividend } from '@/lib/dartClient';
 import Collapsible from '@/components/ui/Collapsible';
+import Range52Bar from '@/components/Range52Bar';
 import BottomSheet from '@/components/ui/BottomSheet';
 import ActionSheet, { KebabButton, type SheetAction } from '@/components/ui/ActionSheet';
 import { useWatchlist } from '@/hooks/useWatchlist';
@@ -561,6 +562,11 @@ export default function StockDetailPage() {
           {stock.high52w && <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">52주 최고</p><p className="font-bold tabular-nums" style={{ color: UP }}>{fmt(stock.high52w)}</p></div>}
           {stock.low52w  && <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">52주 최저</p><p className="font-bold tabular-nums" style={{ color: DOWN }}>{fmt(stock.low52w)}</p></div>}
         </div>
+        {stock.high52w && stock.low52w && stock.high52w > stock.low52w && (
+          <div className="mt-4 pt-4 border-t border-[var(--line-2)]">
+            <Range52Bar low={stock.low52w} high={stock.high52w} value={stock.price} fmt={(n) => `₩${fmt(n)}`} label="52주 위치" />
+          </div>
+        )}
       </div>
       </SwipeNav>
       <ActionSheet open={menuOpen} onClose={() => setMenuOpen(false)} title={stock.name} actions={actions} />

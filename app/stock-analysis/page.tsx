@@ -12,6 +12,7 @@ const CoinCandleChart = dynamic(() => import('@/components/CoinCandleChart'), {
 });
 import BriefingModelPicker from '@/components/BriefingModelPicker';
 import LivePriceTag from '@/components/LivePriceTag';
+import Range52Bar from '@/components/Range52Bar';
 import SourceStatus, { type SourceStat } from '@/components/SourceStatus';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 import { useStockJournal } from '@/hooks/useStockJournal';
@@ -360,6 +361,13 @@ export default function StockAnalysisPage() {
                 )}
               </div>
             </div>
+
+            {/* 52주 위치 — 레일·보드·코인 분석과 일관 */}
+            {data.high52w && data.low52w && data.high52w > data.low52w && (
+              <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                <Range52Bar low={data.low52w} high={data.high52w} value={data.price} fmt={(n) => `₩${n.toLocaleString()}`} label="52주 위치" />
+              </div>
+            )}
 
             {/* 수급 심리 바: 외국인·기관·개인 5일 순매수 */}
             {data.supply && (
