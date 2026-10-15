@@ -14,6 +14,7 @@ import RailManager from '@/components/RailManager';
 interface IndexCard {
   code: string; name: string; value: number; change: number; changeRate: number;
   live: boolean; spark: number[]; sparkLabel: string;
+  week52High?: number | null; week52Low?: number | null;
 }
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -61,6 +62,23 @@ function Card({ c, on }: { c: IndexCard; on?: boolean }) {
       <div style={{ marginTop: 6 }}>
         <Spark points={c.spark} change={c.change} base={isKr ? c.value - c.change : undefined} />
       </div>
+      <Pos52 low={c.week52Low} high={c.week52High} value={c.value} />
+    </div>
+  );
+}
+
+/** 52주 범위 내 현재가 위치 — 레일 카드용 미니 바 */
+function Pos52({ low, high, value }: { low?: number | null; high?: number | null; value: number }) {
+  if (low == null || high == null || high <= low) return <div style={{ height: 16 }} aria-hidden />;
+  const pct = Math.round(Math.max(0, Math.min(100, ((value - low) / (high - low)) * 100)));
+  return (
+    <div style={{ marginTop: 6 }} title={`52주 범위 중 ${pct}% (${fmt(low)}~${fmt(high)})`}>
+      <div style={{ position: 'relative', height: 3, borderRadius: 99, background: 'var(--surface-2)' }}>
+        <div style={{ position: 'absolute', left: `calc(${pct}% - 3px)`, top: -1.5, width: 6, height: 6, borderRadius: '50%', background: 'var(--ink)', border: '1.5px solid var(--surface)' }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--faint)', marginTop: 2 }}>
+        <span>52주</span><span className="tabular-nums">{pct}%</span>
+      </div>
     </div>
   );
 }
@@ -91,7 +109,7 @@ export default function IndexRail() {
       )}
       <div className="idx-rail">
         {cards.length === 0
-          ? Array.from({ length: DEFAULT_RAIL.length }).map((_, i) => <div key={i} className="idx-card skeleton" style={{ height: 112 }} />)
+          ? Array.from({ length: DEFAULT_RAIL.length }).map((_, i) => <div key={i} className="idx-card skeleton" style={{ height: 128 }} />)
           : shown.length === 0
             ? <p style={{ fontSize: 12, color: 'var(--faint)', gridColumn: '1 / -1' }}>표시할 지수가 없습니다. ⚙ 지수 편집에서 추가하세요.</p>
             : shown.map((code, i) => <Card key={code} c={byCode.get(code)!} on={i === 0} />)}

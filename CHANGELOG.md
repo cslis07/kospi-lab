@@ -2,6 +2,13 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (134차) — 상단 지수 레일 카드에 52주 위치 미니 바
+
+보드 상세의 52주 바에 이어, 상단 레일 카드에도 52주 범위 내 현재가 위치를 미니 바로.
+- `/api/home/indices` IndexCard에 `week52High/Low` 추가 — kr·world는 1년 일봉(indexDaily 366) 고/저가로, USD는 frankfurter 1년 종가로 계산(`w52` 헬퍼). 1년 일봉은 Next data cache(5분)라 10초 폴링에도 상류 부담 적음.
+- `IndexRail` Card에 `Pos52` 미니 바(스파크 아래, 3px 바+점+"52주 X%", 값 없으면 자리만). 레일 스켈레톤 높이 112→128로 CLS 완화.
+- 검증: tsc 0·build 0, indices 라우트 week52 반환 확인(국내·USD·해외), 헤드리스 390px: 레일 6카드 전부 "52주" 표기·가로넘침 0·콘솔 0.
+
 ## 2026-10-16 (133차) — 홈 보드 선택 기간 수익률 % 헤더 표기
 
 기간(1개월/3개월/1년/YTD)을 고르면 그 구간 수익률을 기간 탭 옆에 표기.
