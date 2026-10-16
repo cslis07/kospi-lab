@@ -135,6 +135,30 @@ export const EXTRAS: MenuItem[] = [
   { href: '/brokerage', icon: 'brokerage', label: '증권사 비교', desc: '수수료·CMA' },
 ];
 
+/** 실시간 물가(/inflation) 허브의 하위 섹션 — 메뉴 '실시간 물가 허브'·검색에 노출(InflationNav SECTIONS 와 동일 구성).
+ *  허브 루트(/inflation)는 EXTRAS 의 '실시간 물가' 항목이 담당하고, 여기는 그 하위 페이지들. */
+export const INFLATION_SECTIONS: MenuItem[] = [
+  { href: '/inflation/why',         icon: 'signal', label: '오늘 왜',       desc: '게이지가 움직인 이유' },
+  { href: '/inflation/gap',         icon: 'signal', label: 'CPI 격차',      desc: '공식 BLS 전지표 대비' },
+  { href: '/inflation/truflation',  icon: 'signal', label: 'vs Truflation', desc: '민간 실시간 추정 비교' },
+  { href: '/inflation/lead',        icon: 'signal', label: '리드 테스트',    desc: '발표 전 적중 통계' },
+  { href: '/inflation/scoreboard',  icon: 'report', label: '예측 스코어보드', desc: '예측자 적중·백테스트' },
+  { href: '/inflation/calendar',    icon: 'calendar', label: '발표 일정',     desc: '미국 주요 지표·예측' },
+  { href: '/inflation/markets',     icon: 'invest', label: '예측시장',       desc: 'Polymarket·Kalshi 확률' },
+  { href: '/inflation/fed',         icon: 'target', label: 'Fed watch',     desc: '다음 FOMC 시장 확률' },
+  { href: '/inflation/brief',       icon: 'sunrise', label: '데일리 브리핑',  desc: '하루치 인플레 요약' },
+  { href: '/inflation/analysis',    icon: 'report', label: '발표일 분석',    desc: '예측 대 실제' },
+  { href: '/inflation/articles',    icon: 'news',   label: '경제 기사',      desc: 'Nowflation 해설' },
+  { href: '/inflation/prices',      icon: 'krx',    label: '품목별 가격',    desc: '식료품·연료 추이' },
+  { href: '/inflation/cart',        icon: 'tools',  label: '장바구니',       desc: '월 비용·전년대비' },
+  { href: '/inflation/jobs',        icon: 'growth', label: '고용',          desc: 'NFP·실업·임금' },
+  { href: '/inflation/heatcheck',   icon: 'risk',   label: '경기 열지수',    desc: '침체 신호 점검' },
+  { href: '/inflation/quilt',       icon: 'analysis', label: '인플레 히트맵', desc: '품목×월 YoY' },
+  { href: '/inflation/calculator',  icon: 'simulate', label: '인플레 계산기', desc: '구매력 환산' },
+  { href: '/inflation/my',          icon: 'portfolio', label: '내 물가',     desc: '내 소비 가중 체감' },
+  { href: '/inflation/methodology', icon: 'principles', label: '방법론',     desc: '구성·현황·소스' },
+];
+
 /** 종목·코인 상세 — 섹션 항목 하위 경로여도 드릴다운(뒤로가기)으로 취급 */
 const DETAIL_PREFIXES = ['/stock/', '/crypto/', '/overseas/'];
 
@@ -181,6 +205,7 @@ export type FlatMenuItem = MenuItem & { color: string; qc: string };
 export const FLAT: FlatMenuItem[] = [
   ...MENU.flatMap((g) => g.items.map((it) => ({ ...it, color: g.color, qc: g.qc }))),
   ...EXTRAS.map((it) => ({ ...it, color: 'c-violet', qc: 'qc-violet' })),
+  ...INFLATION_SECTIONS.map((it) => ({ ...it, color: 'c-violet', qc: 'qc-violet' })),
 ].filter((it, i, arr) => arr.findIndex((x) => x.href === it.href) === i);
 export const BY_HREF = new Map(FLAT.map((f) => [f.href, f]));
 
