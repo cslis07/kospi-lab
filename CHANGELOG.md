@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (144차) — 국내 종목 목록에 52주 미니 바
+
+국내 종목 목록(`/domestic`) 각 행에 52주 위치 미니 바.
+- `/api/stock/batch`가 이미 받던 네이버 integration `totalInfos`에서 `52주 최고/최저`(highPriceOf52Weeks/lowPriceOf52Weeks)를 뽑아 `high52w/low52w` 반환(추가 요청 없음).
+- `/domestic` 행 종목명 아래에 공용 `Mini52`(해외·코인 목록과 동일).
+- **랭킹(/ranking)은 제외** — 네이버 랭킹 API에 52주가 없고, 거래대금/인기 랭킹은 매 갱신마다 종목이 바뀌어 per-row 52주 조회가 과하고 3열 위젯이 조밀해 생략.
+- 검증: tsc 0·build 0, batch 52주 반환 확인(005930 38만/9.35만), 헤드리스 390px /domestic 40행 52주 미니 바·가로넘침 0·콘솔 0.
+
 ## 2026-10-16 (143차) — 코인 상세에 주봉 52주 위치 바
 
 코인 상세(`/crypto/[symbol]`)에도 52주 위치 바 — 티커엔 24h만 있어 주봉으로 조회.

@@ -36,6 +36,8 @@ async function fetchOne(ticker: string): Promise<[string, StockData]> {
     marketCap: get('시총'),
     market: basic.stockExchangeType?.name ?? 'KRX',
     prevClose: price - change,
+    high52w: parseNum(get('52주 최고')) || undefined,
+    low52w: parseNum(get('52주 최저')) || undefined,
   }];
 }
 

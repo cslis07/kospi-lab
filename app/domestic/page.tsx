@@ -12,6 +12,7 @@ const StockDetailModal = dynamic(loadModal, { ssr: false });
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { STOCK_LIST, type StockItem } from '@/lib/stockList';
 import type { StockData } from '@/lib/types';
+import Mini52 from '@/components/Mini52';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -270,6 +271,7 @@ export default function DomesticPage() {
                           간단
                         </button>
                       </div>
+                      {d?.price ? <Mini52 price={d.price} high={d.high52w} low={d.low52w} /> : null}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 sm:contents">
