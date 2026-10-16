@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import {
   compareRows, forecastRows, categorize, topDrivers, pctFrac, pct, signPp,
   monthsEndingAt, sparkCompareRows, gasRanked, metrosByRent, avg,
-  type CompareDaily, type Forecast, type PulseDriver, type StateRow, type MetroRow,
+  snapDrivers, truflationTrendRows,
+  type CompareDaily, type Forecast, type PulseDriver, type StateRow, type MetroRow, type LatestSnapshot,
 } from '../lib/inflation';
 
 let passed = 0;
@@ -106,6 +107,35 @@ ok('gasRanked·metrosByRent: 내림차순·null 제외', () => {
 ok('avg: null 제외 평균', () => {
   assert.equal(avg([3, 5, null]), 4);
   assert.equal(avg([null, undefined]), null);
+});
+
+ok('snapDrivers: 기여 절대값 내림차순·빈 입력 안전', () => {
+  const s: LatestSnapshot = {
+    pace_1m_drivers: [
+      { component: 'a', label: 'A', contribution_pp: 0.05 },
+      { component: 'b', label: 'B', contribution_pp: -0.27 },
+      { component: 'c', label: 'C', contribution_pp: 0.1 },
+    ],
+  };
+  assert.deepEqual(snapDrivers(s).map((d) => d.component), ['b', 'c', 'a']);
+  assert.deepEqual(snapDrivers(null), []);
+  assert.deepEqual(snapDrivers({}), []);
+});
+
+ok('truflationTrendRows: 최근 N개월 창 + gauge·truflation 정렬, null 안전', () => {
+  const cd: CompareDaily = {
+    dates: ['2024-01-01', '2025-06-01', '2026-10-01', '2026-10-07'],
+    series: {
+      gauge: { data: [2.0, 2.5, 3.4, 3.46] },
+      truflation: { data: [1.9, 2.4, null, 2.88] },
+    },
+    prints: [],
+  };
+  const rows = truflationTrendRows(cd, 12); // 2026-10-07 기준 12개월 → 2025-10-07 이후만
+  assert.deepEqual(rows.map((r) => r.date), ['2026-10-01', '2026-10-07']);
+  assert.deepEqual(rows[0], { date: '2026-10-01', gauge: 3.4, truflation: null });
+  assert.deepEqual(rows[1], { date: '2026-10-07', gauge: 3.46, truflation: 2.88 });
+  assert.deepEqual(truflationTrendRows(null), []);
 });
 
 console.log(`inflation: ${passed} passed\n`);

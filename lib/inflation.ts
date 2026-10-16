@@ -134,6 +134,82 @@ export function topDrivers(drivers: PulseDriver[] | undefined, n = 8): PulseDriv
   return [...(drivers ?? [])].sort((a, b) => Math.abs(b.contribution_bps) - Math.abs(a.contribution_bps)).slice(0, n);
 }
 
+// ── THE GAUGE 허브(Stage A): 오늘 왜·CPI 격차·vs Truflation·리드 테스트 ──
+
+/** latestSnapshot.json — 게이지 최신 스냅샷(오늘 왜 움직였나) */
+export interface SnapDriver {
+  component: string; label: string; contribution_pp: number; change?: number; live?: boolean;
+  new_print?: { from_month: string; to_month: string; released: string };
+}
+/** gauge_gap_explained — 이달 게이지−공식 격차의 품목 분해(원본이 객체) */
+export interface GapExplained {
+  month?: string; month_label?: string; gap_pp?: number; total_pp?: number; rest_pp?: number;
+  parts?: { key: string; label: string; pp: number; ours_pct?: number; official_pct?: number }[];
+}
+/** 격차 분해 품목을 기여(절대 %p) 큰 순으로(값 있는 것만) */
+export function gapExplainedParts(g?: GapExplained | string | null): GapExplained['parts'] {
+  if (!g || typeof g === 'string' || !Array.isArray(g.parts)) return [];
+  return [...g.parts].filter((p) => typeof p.pp === 'number').sort((a, b) => Math.abs(b.pp) - Math.abs(a.pp));
+}
+export interface LatestSnapshot {
+  locked?: boolean; asof?: string; gauge_date?: string;
+  gauge_yoy_pct?: number; gauge_yoy_1dp?: number;
+  gauge_dod_pp?: number; gauge_wow_pp?: number; gauge_mom_pp?: number;
+  gauge_changes_note?: string;
+  pace_3m_ann_pct?: number; pace_1m_ann_pct?: number; pace_basis?: string; pace_basis_yoy_pct?: number;
+  pace_1m_change_pct?: number; pace_1m_window?: { from: string; to: string };
+  pace_1m_drivers?: SnapDriver[];
+  cost_of_living_yoy_pct?: number; tracker_yoy_pct?: number;
+  official_cpi_yoy?: number; official_core_yoy?: number; official_month_label?: string;
+  gap_pp?: number; gauge_gap_explained?: GapExplained | string;
+  live_coverage_pct?: number;
+}
+/** pace_1m_drivers 를 기여도(절대 %p) 큰 순으로 */
+export function snapDrivers(s?: LatestSnapshot | null): SnapDriver[] {
+  return [...(s?.pace_1m_drivers ?? [])].sort((a, b) => Math.abs(b.contribution_pp) - Math.abs(a.contribution_pp));
+}
+
+/** gaptable.json — 게이지 vs 공식(BLS) 전지표 비교 */
+export interface GapRow {
+  key: string; label: string;
+  fmc_yoy: number | null; fmc_source?: string; fmc_kind?: string; fmc_period?: string;
+  official_yoy: number | null; official_month?: string | null; official_role?: string;
+  gap_pp: number | null; gap_basis?: string | null;
+}
+export interface GapTable { locked?: boolean; rows: GapRow[]; next_print?: unknown; lead?: unknown }
+
+/** vs Truflation — compare_daily 의 gauge·truflation 일별을 최근 N개월 창으로 겹쳐 그림(과포인트는 스트라이드 다운샘플) */
+export interface TrendRow { date: string; gauge: number | null; truflation: number | null }
+function shiftMonths(ymd: string, delta: number): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const base = new Date(Date.UTC(y, (m - 1) + delta, d || 1));
+  return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`;
+}
+const toNum = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : null);
+export function truflationTrendRows(cd?: CompareDaily | null, months = 24, maxPts = 180): TrendRow[] {
+  const dates = cd?.dates ?? [];
+  if (!dates.length) return [];
+  const g = cd!.series?.gauge?.data ?? [];
+  const t = cd!.series?.truflation?.data ?? [];
+  const cutoff = shiftMonths(dates[dates.length - 1], -months);
+  const picked = dates.map((d, i) => ({ d, i })).filter((x) => x.d >= cutoff);
+  const stride = Math.max(1, Math.ceil(picked.length / maxPts));
+  return picked
+    .filter((_, k) => k % stride === 0 || k === picked.length - 1)
+    .map(({ d, i }) => ({ date: d, gauge: toNum(g[i]), truflation: toNum(t[i]) }));
+}
+
+/** lead_test.json — 발표 전야 게이지가 공식 CPI를 얼마나 앞서 맞히나(통계) */
+export interface LeadStat {
+  n: number; mean_gap?: number; sd_gap?: number; mae: number; rmse?: number; corr?: number;
+  dir_hit?: number; beats_naive_rate?: number;
+}
+export interface LeadWindow { n_prints: number; from: string; to: string; by_variant: Record<string, LeadStat>; naive?: LeadStat }
+export interface LeadTest {
+  locked?: boolean; asof?: string; variants: Record<string, string>; units?: Record<string, string>;
+  last_cpi_month?: string; print_eve: { windows: Record<string, LeadWindow> };
+}
+
 // 포맷터
 export const pctFrac = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '—' : `${(x * 100).toFixed(d)}%`); // 분수→%
 export const pct = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '—' : `${x.toFixed(d)}%`); // 이미 %

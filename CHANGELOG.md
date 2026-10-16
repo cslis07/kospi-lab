@@ -2,6 +2,18 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (148차) — nowflation 클론 기능 이식 ①: THE GAUGE 허브
+
+원본 클론(nowprice-local)의 기능을 그대로 이식(A→F 6단계 중 **Stage A**). `/inflation`을 허브로 재편하고 서브 섹션 4개 추가 — 데이터는 전부 기존 `/api/nf` 중계(48개 seed 스냅샷 폴백) 재사용.
+- 공통: `app/inflation/layout.tsx` + `components/inflation/InflationNav.tsx`(가로 스크롤 서브내비, `SECTIONS` 단일 소스·Stage B~F에서 추가). 루트 `/inflation`의 컨테이너를 레이아웃으로 이전.
+- `/inflation/why` **오늘 왜 움직였나** — latestSnapshot: 게이지 최신·전일/전주/전월·연율 페이스·이달 공식 대비 격차 분해·한 달 기여 품목.
+- `/inflation/gap` **CPI 격차(vs 공식 BLS 전지표)** — gaptable: 지표별 게이지 vs 공식 YoY·격차(%p)·측정/예측 구분.
+- `/inflation/truflation` **Nowflation vs Truflation** — compare_daily의 gauge·truflation 일별 24개월 오버레이(차트 `trend` kind 신설)+오늘 격차.
+- `/inflation/lead` **리드 테스트** — lead_test: 창(최근12·2023.7~·2019~)별 평균오차·상관·방향적중·나이브 대비 승률, 표본 한계 명시.
+- lib/inflation.ts: `LatestSnapshot·GapExplained·GapTable·TrendRow·LeadTest` 타입 + `snapDrivers·gapExplainedParts·truflationTrendRows`.
+- 수정: `gauge_gap_explained`가 라이브에선 객체(월별 격차 분해)라 문자열 렌더 시 React #31 크래시 → 객체/문자열 분기.
+- 검증: tsc 0·build 0, inflation 테스트 12 passed(snapDrivers·truflationTrendRows 추가)·headings 통과, 헤드리스 390px 4페이지 + 허브: 가로넘침 0·데이터 렌더·콘솔 0.
+
 ## 2026-10-16 (147차) — 목록·관심종목 정렬에 '52주 위치' 기준 추가
 
 52주 위치(현재가의 범위 내 위치)로 정렬 — 저점 근접/고점 근접.

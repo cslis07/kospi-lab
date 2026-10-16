@@ -58,7 +58,7 @@ export default function InflationPage() {
   const locked = pulse?.locked || cmp?.locked;
 
   return (
-    <div className="max-w-3xl mx-auto pb-12">
+    <>
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">실시간 물가 (나우캐스트)</h1>
       <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">
         미국 소비자물가(CPI)는 한 달에 한 번, 2주 지나 발표됩니다. <b className="text-[var(--text)]">Nowflation</b>은 매일 갱신되는 실시간 추정치(나우캐스트)로
@@ -191,7 +191,7 @@ export default function InflationPage() {
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (Creative Commons Attribution 4.0, 중계). 공식 CPI는 미 노동통계국(BLS) 발표치, 나우캐스트는 실시간 추정치입니다.
         예측·투자 권유가 아니며, 지표 서프라이즈로 방향을 맞히는 우위는 이 앱의 측정에서 확인되지 않았습니다.
       </p>
-    </div>
+    </>
   );
 }
 

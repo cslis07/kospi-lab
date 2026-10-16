@@ -4,12 +4,14 @@
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import type { CompareRow, ForecastRow } from '@/lib/inflation';
+import type { CompareRow, ForecastRow, TrendRow } from '@/lib/inflation';
 
 const BLUE = '#1c6cff';
 const AMBER = '#f59e0b';
+const GREEN = '#10b981';
 
 function fmtX(m: string) { const [y, mm] = m.split('-'); return `${y.slice(2)}.${mm}`; }
+function fmtDate(d: string) { const [y, m] = d.split('-'); return `${y.slice(2)}.${m}`; }
 
 interface TP { active?: boolean; payload?: { name: string; value: number; color: string; dataKey: string }[]; label?: string }
 function TipBox({ active, payload, label }: TP) {
@@ -26,20 +28,21 @@ function TipBox({ active, payload, label }: TP) {
 }
 
 export default function InflationChart({ kind, rows, height = 260 }: {
-  kind: 'compare' | 'forecast';
-  rows: CompareRow[] | ForecastRow[];
+  kind: 'compare' | 'forecast' | 'trend';
+  rows: CompareRow[] | ForecastRow[] | TrendRow[];
   height?: number;
 }) {
   if (!rows.length) {
     return <div style={{ height }} className="grid place-items-center text-[12px] text-[var(--text-muted)]">표시할 데이터가 없습니다.</div>;
   }
   const tick = Math.max(1, Math.ceil(rows.length / 7));
+  const xKey = kind === 'trend' ? 'date' : 'month';
   return (
     <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={rows as unknown as Record<string, number | string | number[] | null>[]} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis dataKey="month" tickFormatter={fmtX} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} interval={tick - 1} minTickGap={8} />
+          <XAxis dataKey={xKey} tickFormatter={kind === 'trend' ? fmtDate : fmtX} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} interval={tick - 1} minTickGap={8} />
           <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={40} domain={['auto', 'auto']}
             tickFormatter={(v) => `${Number(v).toFixed(1)}`} />
           <Tooltip content={<TipBox />} />
@@ -48,6 +51,11 @@ export default function InflationChart({ kind, rows, height = 260 }: {
             <>
               <Line type="monotone" dataKey="nowcast" name="나우캐스트(게이지)" stroke={BLUE} strokeWidth={2} dot={false} connectNulls />
               <Line type="monotone" dataKey="official" name="공식 CPI" stroke={AMBER} strokeWidth={2} dot={{ r: 2 }} connectNulls />
+            </>
+          ) : kind === 'trend' ? (
+            <>
+              <Line type="monotone" dataKey="gauge" name="나우캐스트(게이지)" stroke={BLUE} strokeWidth={2} dot={false} connectNulls />
+              <Line type="monotone" dataKey="truflation" name="Truflation" stroke={GREEN} strokeWidth={2} dot={false} connectNulls />
             </>
           ) : (
             <>
