@@ -18,7 +18,7 @@ export function badgeTint(seed: string): string {
 }
 
 export default function WatchRow({
-  href, title, sub, badge, price, changeRate, onMore, loading = false, analyzeHref, actions,
+  href, title, sub, badge, price, changeRate, onMore, loading = false, analyzeHref, actions, below,
 }: {
   href: string;
   title: string;
@@ -32,6 +32,8 @@ export default function WatchRow({
   analyzeHref?: string;
   /** 있으면 종목명 바로 옆에 붙는 액션 버튼들(상세·분석·삭제 등) */
   actions?: ReactNode;
+  /** 있으면 이름·코드 아래에 붙는 보조 표시(예: 52주 위치 미니 바) */
+  below?: ReactNode;
 }) {
   const router = useRouter();
   const cr = changeRate ?? null;
@@ -44,6 +46,7 @@ export default function WatchRow({
       <span className="wl-name">
         <b className="truncate">{title}</b>
         <small className="truncate">{sub}</small>
+        {below}
       </span>
       {onMore && (
         <button type="button" className="wl-menu" aria-label={`${title} 메뉴`}

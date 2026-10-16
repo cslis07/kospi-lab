@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (142차) — 코인 목록에 주요 코인 52주 위치(주봉 소스)
+
+141차에서 소스 부재로 뺐던 코인 52주를, 주요 코인만 주봉으로 넣음.
+- `/api/crypto/week52`(신규): Bitget 스팟 **주봉(1week)** 캔들 최근 52개로 코인별 high52w/low52w(공개·키 불필요, 1h 캐시·최대 12심볼). `?symbols=` 요청.
+- `/coins`: 주요 코인(`MAJOR_BASES` 10종: BTC·ETH·XRP·SOL·BNB·DOGE·ADA·TRX·LINK·AVAX)만 week52 조회 → 행에 `Mini52` 표시. 그 외 코인은 52주 소스가 없어 생략.
+- 공용화: 목록 미니 바 `components/Mini52`로 추출(해외 목록과 공유), `WatchRow`에 `below` 슬롯 추가(이름·코드 아래 보조 표시).
+- 검증: tsc 0·build 0, week52 라우트 실데이터(BTC H116400 등), 헤드리스 390px /coins: 행마다 52주 미니 바·가로넘침 0·콘솔 0.
+
 ## 2026-10-16 (141차) — 해외 종목 목록에 52주 위치 미니 바
 
 해외 종목 목록(`/overseas`)의 각 행에 52주 범위 내 현재가 위치를 컴팩트 미니 바로(목록에서도 한눈에).

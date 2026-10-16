@@ -7,6 +7,7 @@
 import Link from 'next/link';
 import useSWR from 'swr';
 import WatchRow from '@/components/WatchRow';
+import Mini52 from '@/components/Mini52';
 import CoinDashboard from '@/components/CoinDashboard';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 import { COINS, fmtCoinPrice } from '@/lib/coins';
@@ -15,6 +16,8 @@ import type { CryptoData } from '@/lib/types';
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 // 코인선물 분석 엔진 지원 종목(그 외는 분석 버튼 없음)
 const ANALYZABLE = ['BTC', 'ETH', 'XRP', 'SOL'];
+// 52주 위치는 주요 코인만(주봉 소스). 그 외는 52주 소스가 마땅치 않아 생략.
+const MAJOR_BASES = ['BTC', 'ETH', 'XRP', 'SOL', 'BNB', 'DOGE', 'ADA', 'TRX', 'LINK', 'AVAX'];
 const openSearch = () => window.dispatchEvent(new Event('kl:open-search'));
 
 export default function CoinsPage() {
@@ -22,6 +25,10 @@ export default function CoinsPage() {
   const symbols = watchlist.map((w) => w.symbol).join(',');
   const { data, error } = useSWR<Record<string, CryptoData>>(
     symbols ? `/api/crypto/batch?symbols=${symbols}` : null, fetcher, { refreshInterval: 15000 });
+  // 주요 코인 52주(주봉) — 느리게 변해 길게 캐시
+  const w52syms = watchlist.filter((w) => MAJOR_BASES.includes(w.base)).map((w) => w.symbol).join(',');
+  const { data: w52 } = useSWR<Record<string, { high52w: number; low52w: number }>>(
+    w52syms ? `/api/crypto/week52?symbols=${w52syms}` : null, fetcher, { revalidateOnFocus: false });
 
   return (
     <div className="space-y-7 pb-6">
@@ -54,7 +61,8 @@ export default function CoinsPage() {
               return (
                 <WatchRow key={w.symbol} href={`/crypto/${w.symbol}`} title={meta?.ko ?? w.name} sub={`${w.base} · ${meta?.name ?? w.name}`} badge={w.base.slice(0, 3)}
                   price={fmtCoinPrice(d?.price)} changeRate={d?.changeRate} loading={!data && !error}
-                  analyzeHref={ANALYZABLE.includes(w.base) ? `/coin-analysis?symbol=${w.symbol}&run=1` : undefined} />
+                  analyzeHref={ANALYZABLE.includes(w.base) ? `/coin-analysis?symbol=${w.symbol}&run=1` : undefined}
+                  below={d?.price && w52?.[w.symbol] ? <Mini52 price={d.price} high={w52[w.symbol].high52w} low={w52[w.symbol].low52w} /> : undefined} />
               );
             })}
           </div>
