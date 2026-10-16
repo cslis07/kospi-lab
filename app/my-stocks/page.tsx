@@ -27,6 +27,8 @@ type Sort = 'default' | 'up' | 'down';
 type KrFilter = 'all' | 'KOSPI' | 'KOSDAQ';
 const TAB_KEY = 'kospi-lab-my-stocks-tab';
 const ANALYZABLE = ['BTC', 'ETH', 'XRP', 'SOL'];
+// 52주 위치는 주요 코인만(주봉 소스). 목록(/coins)과 동일 정책.
+const MAJOR_CRYPTO = ['BTC', 'ETH', 'XRP', 'SOL', 'BNB', 'DOGE', 'ADA', 'TRX', 'LINK', 'AVAX'];
 const openSearch = () => window.dispatchEvent(new Event('kl:open-search'));
 
 interface Row {
@@ -80,6 +82,10 @@ function MyStocksInner() {
     tab === 'overseas' && ov.watchlist.length ? `/api/overseas/batch?symbols=${ov.watchlist.map((w) => w.symbol).join(',')}` : null, fetcher, { refreshInterval: 15000 });
   const { data: crData } = useSWR<Record<string, CryptoData>>(
     tab === 'crypto' && cr.watchlist.length ? `/api/crypto/batch?symbols=${cr.watchlist.map((w) => w.symbol).join(',')}` : null, fetcher, { refreshInterval: 5000 });
+  // 주요 코인 52주(주봉) — 느리게 변해 길게 캐시
+  const crMajors = cr.watchlist.filter((w) => MAJOR_CRYPTO.includes(w.base)).map((w) => w.symbol).join(',');
+  const { data: w52c } = useSWR<Record<string, { high52w: number; low52w: number }>>(
+    tab === 'crypto' && crMajors ? `/api/crypto/week52?symbols=${crMajors}` : null, fetcher, { revalidateOnFocus: false });
 
   const rows: Row[] = useMemo(() => {
     let list: Row[] = [];
@@ -116,6 +122,7 @@ function MyStocksInner() {
         return {
           key: w.symbol, href: `/crypto/${w.symbol}`, title: ko, sub: `${w.base} · USDT`, badge: w.base.slice(0, 3),
           price: fmtCoinPrice(d?.price), cr: d?.changeRate, loading: !crData,
+          px: d?.price, hi52: w52c?.[w.symbol]?.high52w, lo52: w52c?.[w.symbol]?.low52w,
           detailLabel: '코인 상세',
           analysis: ANALYZABLE.includes(w.base) ? `/coin-analysis?symbol=${w.symbol}&run=1` : undefined, analysisLabel: '코인선물 분석',
           remove: () => { cr.remove(w.symbol); setToast({ text: `${ko} 삭제됨`, undo: () => cr.add(w) }); },
@@ -128,7 +135,7 @@ function MyStocksInner() {
       if (b.cr == null) return -1;
       return sort === 'up' ? b.cr - a.cr : a.cr - b.cr;
     });
-  }, [tab, sort, krFilter, kr, ov, cr, krData, ovData, crData, portfolio, alerts]);
+  }, [tab, sort, krFilter, kr, ov, cr, krData, ovData, crData, w52c, portfolio, alerts]);
 
   // 국내 보유 평가손익 합계(관심종목에 있는 보유분)
   const totalPnl = useMemo(() => {
