@@ -10,6 +10,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import useSWR from 'swr';
 import WatchRow from '@/components/WatchRow';
+import Mini52 from '@/components/Mini52';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useRailPref } from '@/hooks/useRailPref';
 import RailManager from '@/components/RailManager';
@@ -32,6 +33,7 @@ interface Row {
   key: string; href: string; title: string; sub: string; badge: string; price: string;
   cr: number | null | undefined; loading: boolean;
   detailLabel: string; analysis?: string; analysisLabel?: string; remove: () => void;
+  px?: number; hi52?: number; lo52?: number;
 }
 
 /* 종목 행 아래 액션 버튼(버튼형 pill) */
@@ -91,6 +93,7 @@ function MyStocksInner() {
         return {
           key: w.ticker, href: `/stock/${w.ticker}`, title: w.name, sub: parts.join(' · '), badge: w.name.slice(0, 1),
           price: d ? d.price.toLocaleString('ko-KR') : '—', cr: d?.changeRate, loading: !krData,
+          px: d?.price, hi52: d?.high52w, lo52: d?.low52w,
           detailLabel: '종목 상세', analysis: `/stock-analysis?ticker=${w.ticker}&run=1`, analysisLabel: '종목 분석',
           remove: () => { kr.remove(w.ticker); setToast({ text: `${w.name} 삭제됨`, undo: () => kr.add(w) }); },
         };
@@ -101,6 +104,7 @@ function MyStocksInner() {
         return {
           key: w.symbol, href: `/overseas/${encodeURIComponent(w.symbol)}`, title: w.name, sub: `${w.symbol} · ${w.exchange}`, badge: w.symbol.slice(0, 2),
           price: d ? `$${d.price.toFixed(2)}` : '—', cr: d?.changeRate, loading: !ovData,
+          px: d?.price, hi52: d?.high52w, lo52: d?.low52w,
           detailLabel: '종목 상세',
           remove: () => { ov.remove(w.symbol); setToast({ text: `${w.name} 삭제됨`, undo: () => ov.add(w) }); },
         };
@@ -200,6 +204,7 @@ function MyStocksInner() {
           rows.map((r, i) => (
             <div key={r.key} className={i > 0 ? 'border-t border-[var(--line-2)]' : ''}>
               <WatchRow href={r.href} title={r.title} sub={r.sub} badge={r.badge} price={r.price} changeRate={r.cr} loading={r.loading}
+                below={r.px && r.hi52 && r.lo52 ? <Mini52 price={r.px} high={r.hi52} low={r.lo52} /> : undefined}
                 actions={
                   <>
                     <Pill href={r.href} tone="muted">{r.detailLabel}</Pill>

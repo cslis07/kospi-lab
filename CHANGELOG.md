@@ -2,6 +2,13 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (145차) — 관심종목 국내·해외 행에도 52주 미니 바
+
+관심종목(`/my-stocks`) 국내·해외 행에도 52주 위치 미니 바(목록·상세와 일관).
+- Row에 `px/hi52/lo52` 추가, 국내는 `/api/stock/batch`(144차에서 52주 반환), 해외는 `/api/overseas/batch`(기존 52주)에서 공급. `WatchRow` `below`로 공용 `Mini52` 전달.
+- 코인 탭은 batch에 52주가 없어 제외(목록과 동일 정책).
+- 검증: tsc 0·build 0, 헤드리스 390px /my-stocks(국내): 행마다 52주 미니 바·가로넘침 0·콘솔 0.
+
 ## 2026-10-16 (144차) — 국내 종목 목록에 52주 미니 바
 
 국내 종목 목록(`/domestic`) 각 행에 52주 위치 미니 바.
