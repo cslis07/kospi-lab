@@ -3,7 +3,7 @@ import {
   compareRows, forecastRows, categorize, topDrivers, pctFrac, pct, signPp,
   monthsEndingAt, sparkCompareRows, gasRanked, metrosByRent, avg,
   snapDrivers, truflationTrendRows, acctForecasters, usHighImpact, printFile, nfLink,
-  priceRows, valueYearAgo, cartTotals,
+  priceRows, valueYearAgo, cartTotals, seriesLast, signalTone, quiltCellColor,
   type CompareDaily, type Forecast, type PulseDriver, type StateRow, type MetroRow, type LatestSnapshot,
   type AcctPrint, type EconCalWindow, type GroceryItem,
 } from '../lib/inflation';
@@ -208,6 +208,25 @@ ok('cartTotals: 수량>0 품목 합계·전년대비', () => {
   assert.equal(r.yearAgo, 8); // 2*2 + 4*1
   assert.equal(Math.round((r.yoyPct ?? 0) * 100) / 100, 25); // (10-8)/8
   assert.equal(cartTotals(items, {}).now, 0);
+});
+
+ok('seriesLast: 마지막 유효값, 빈 입력 null', () => {
+  assert.deepEqual(seriesLast([['a', 1], ['b', 2]]), { date: 'b', value: 2 });
+  assert.equal(seriesLast([]), null);
+  assert.equal(seriesLast(null), null);
+});
+
+ok('signalTone: state → 색/라벨', () => {
+  assert.equal(signalTone('ok').ko, '양호');
+  assert.equal(signalTone('warn').ko, '주의');
+  assert.equal(signalTone('alert').ko, '경보');
+  assert.equal(signalTone(undefined).ko, '양호');
+});
+
+ok('quiltCellColor: 부호=색(빨강/파랑)·강도=투명도, null 투명', () => {
+  assert.equal(quiltCellColor(null), 'transparent');
+  assert.ok(quiltCellColor(0.03).startsWith('rgba(239,68,68,')); // 양(+)=빨강
+  assert.ok(quiltCellColor(-0.03).startsWith('rgba(59,130,246,')); // 음(−)=파랑
 });
 
 console.log(`inflation: ${passed} passed\n`);

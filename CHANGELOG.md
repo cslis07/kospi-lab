@@ -2,6 +2,15 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (152차) — nowflation 클론 기능 이식 ⑤: 경제·역사(고용·경기 열지수·인플레 히트맵)
+
+A→F 6단계 중 **Stage E**. /inflation 허브에 다섯 번째 그룹(경제) 3개 추가 — labor·quilt_months 중계 재사용.
+- `/inflation/jobs` **고용** — labor: 비농업 고용(NFP) 나우캐스트+백테스트(모델 vs 나이브), 최근 예측 대 실제 표, 실업률·임금 상승률(애틀랜타 연준/Indeed).
+- `/inflation/heatcheck` **경기 열지수** — labor.recession.signals: Sahm 법칙·장단기 금리차·실업수당·산업생산·소매판매를 양호/주의/경보 배지로. 침체 신호 점검.
+- `/inflation/quilt` **인플레 히트맵** — quilt_months(24/48 선택): 품목 × 월 YoY 색지도(빨강=상승·파랑=하락·진할수록 큼), 가로 스크롤. 중계 데이터 범위상 100년 장기 시계열은 미포함 명시.
+- lib/inflation.ts: `Labor·LaborSignal·NfpRow·Quilt·QuiltComponent` 타입 + `seriesLast·signalTone·quiltCellColor`.
+- 검증: tsc 0·build 0, inflation 테스트 22 passed(seriesLast·signalTone·quiltCellColor 추가)·headings 통과, 헤드리스 390px 3페이지: 가로넘침 0(히트맵은 스크롤 컨테이너)·데이터 렌더·콘솔 0.
+
 ## 2026-10-16 (151차) — nowflation 클론 기능 이식 ④: 가격(품목별·장바구니)
 
 A→F 6단계 중 **Stage D**. /inflation 허브에 네 번째 그룹(가격) 2개 추가 — grocery_basket·fuel 중계 재사용.

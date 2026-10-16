@@ -353,6 +353,45 @@ export function cartTotals(items: GroceryItem[], qty: Record<string, number>): {
   return { now, yearAgo: ya, yoyPct: ya != null ? ((now - ya) / ya) * 100 : null };
 }
 
+// ── 경제·역사 허브(Stage E): 고용·경기 열지수·인플레 히트맵 ──
+
+/** labor.json — 고용·경기 */
+export interface LaborSignal { key: string; label: string; value: string; state: string; why?: string }
+export interface NfpRow { month: string; actual_k: number | null; model_k: number | null; naive_k: number | null }
+export interface Labor {
+  locked?: boolean; asof?: string;
+  nfp?: { print_month?: string; nowcast_k?: number; rows?: NfpRow[]; backtest?: { mae_model_k?: number; mae_naive_k?: number; beats_naive_pct?: number } };
+  payrolls?: [string, number][]; claims?: [string, number][];
+  unemployment?: { series: [string, number][] };
+  wages?: { atlanta?: { series: [string, number][] }; indeed?: { series: [string, number][] } };
+  recession?: { signals: LaborSignal[] };
+}
+/** [date,value] 시계열의 마지막 값 */
+export function seriesLast(series?: [string, number][] | null): { date: string; value: number } | null {
+  const s = series ?? [];
+  for (let i = s.length - 1; i >= 0; i--) { const v = s[i]?.[1]; if (typeof v === 'number' && Number.isFinite(v)) return { date: s[i][0], value: v }; }
+  return null;
+}
+/** 경기 신호 state → 색/라벨(ok=양호, warn=주의, alert=경보) */
+export function signalTone(state?: string): { cls: string; ko: string } {
+  const s = (state ?? '').toLowerCase();
+  if (s === 'alert' || s === 'danger' || s === 'red') return { cls: 'bg-red-500/15 text-red-400', ko: '경보' };
+  if (s === 'warn' || s === 'warning' || s === 'amber' || s === 'elevated') return { cls: 'bg-amber-500/15 text-amber-400', ko: '주의' };
+  return { cls: 'bg-emerald-500/15 text-emerald-400', ko: '양호' };
+}
+
+/** quilt_months_*.json — 품목 × 월 인플레 히트맵 */
+export interface QuiltCell { yoy?: number | null; mom?: number | null; bls_yoy?: number | null; spread?: number | null }
+export interface QuiltComponent { key: string; label: string; cells: QuiltCell[] }
+export interface Quilt { locked?: boolean; months: string[]; components: QuiltComponent[]; headlines?: QuiltComponent[] }
+/** YoY(분수) → 히트맵 배경색(디스인플레=파랑, 인플레=빨강, 강도=투명도). 색은 한국 관행(상승=빨강). */
+export function quiltCellColor(yoy?: number | null): string {
+  if (yoy == null || !Number.isFinite(yoy)) return 'transparent';
+  const pct = yoy * 100;
+  const a = Math.max(0.08, Math.min(0.85, Math.abs(pct) / 8)); // 0~8%+ → 투명도
+  return pct >= 0 ? `rgba(239,68,68,${a.toFixed(3)})` : `rgba(59,130,246,${a.toFixed(3)})`;
+}
+
 // 포맷터
 export const pctFrac = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '—' : `${(x * 100).toFixed(d)}%`); // 분수→%
 export const pct = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '—' : `${x.toFixed(d)}%`); // 이미 %
