@@ -291,7 +291,7 @@ export default function BriefPage() {
               <span className="text-[10.5px] text-[var(--text-muted)] tabular-nums">1분마다 갱신{live?.asOf ? ` · ${hhmm(live.asOf)} 조회` : ''}</span>
             </div>
             <MacroGroups macro={macro} />
-            <NowcastStrip className="mt-3" />
+            <NowcastStrip className="mt-3" hub />
           </div>
 
           {/* 과거 통계 */}

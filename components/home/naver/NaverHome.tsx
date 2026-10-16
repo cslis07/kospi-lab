@@ -10,6 +10,7 @@ import IndexBoard from './IndexBoard';
 import HomeBriefing from './HomeBriefing';
 import HomeNews from './HomeNews';
 import HomeSidebar from './HomeSidebar';
+import NowcastStrip from '@/components/NowcastStrip';
 
 export default function NaverHome() {
   return (
@@ -18,6 +19,7 @@ export default function NaverHome() {
       <div className="nh-grid">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
           <IndexBoard />
+          <NowcastStrip hub />
           <HomeBriefing />
           <HomeNews />
         </div>
