@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {
   compareRows, forecastRows, categorize, topDrivers, pctFrac, pct, signPp,
   monthsEndingAt, sparkCompareRows, gasRanked, metrosByRent, avg,
-  snapDrivers, truflationTrendRows, acctForecasters, usHighImpact,
+  snapDrivers, truflationTrendRows, acctForecasters, usHighImpact, printFile, nfLink,
   type CompareDaily, type Forecast, type PulseDriver, type StateRow, type MetroRow, type LatestSnapshot,
   type AcctPrint, type EconCalWindow,
 } from '../lib/inflation';
@@ -169,6 +169,19 @@ ok('usHighImpact: 미국 High/Medium만·상한', () => {
   assert.deepEqual(usHighImpact(w).map((e) => e.event), ['CPI', 'PCE']);
   assert.deepEqual(usHighImpact(w, 1).map((e) => e.event), ['CPI']);
   assert.deepEqual(usHighImpact(null), []);
+});
+
+ok('printFile: print_month → 파일명, 형식 외엔 null', () => {
+  assert.equal(printFile('2026-09'), 'print_2026_09.json');
+  assert.equal(printFile('2026-9'), null);
+  assert.equal(printFile(undefined), null);
+  assert.equal(printFile(''), null);
+});
+
+ok('nfLink: 상대→절대, 절대/빈값 보존', () => {
+  assert.equal(nfLink('/articles/x'), 'https://nowflation.com/articles/x');
+  assert.equal(nfLink('https://x.com/a'), 'https://x.com/a');
+  assert.equal(nfLink(undefined), 'https://nowflation.com');
 });
 
 console.log(`inflation: ${passed} passed\n`);

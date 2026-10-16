@@ -20,6 +20,9 @@ export const SECTIONS: InflationSection[] = [
   { href: '/inflation/calendar', label: '발표 일정', group: 'forecast' },
   { href: '/inflation/markets', label: '예측시장', group: 'forecast' },
   { href: '/inflation/fed', label: 'Fed watch', group: 'forecast' },
+  { href: '/inflation/brief', label: '데일리 브리핑', group: 'brief' },
+  { href: '/inflation/analysis', label: '발표일 분석', group: 'brief' },
+  { href: '/inflation/articles', label: '경제 기사', group: 'brief' },
 ];
 
 export default function InflationNav() {

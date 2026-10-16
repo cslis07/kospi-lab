@@ -2,6 +2,15 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (150차) — nowflation 클론 기능 이식 ③: 브리핑·발표일 분석·기사
+
+A→F 6단계 중 **Stage C**. /inflation 허브에 세 번째 그룹(브리핑) 3개 추가 — 데이터는 기존 `/api/nf` 중계·seed 폴백.
+- `/inflation/brief` **데일리 브리핑** — brief_daily: 오늘(헤드라인·태그·본문·게이지·무엇이 움직였나·다음 발표)+최근 14일 아카이브. 앱 `/brief`(증시 모닝)와 역할 구분 명시.
+- `/inflation/analysis` **발표일 분석** — nextprint로 이번 발표월을 얻어 `print_<YYYY_MM>.json`: 발표 전=예측 비교(타깃별 컨센서스·직전·예측자 콜), 발표 후=적중(절대오차). status로 발표 예정/발표됨 전환.
+- `/inflation/articles` **경제 기사** — articles_index: 저자 카드 + 기사 목록(제목·날짜·읽기시간·요약·태그), 원문은 nowflation.com 외부 링크.
+- lib/inflation.ts: `BriefDaily·PrintDay·ArticlesIndex` 타입 + `printFile`(월→파일명)·`nfLink`(상대→절대).
+- 검증: tsc 0·build 0(inflation 라우트 12개), inflation 테스트 16 passed(printFile·nfLink 추가)·headings 통과, 헤드리스 390px 3페이지: 가로넘침 0·데이터 렌더·콘솔 0. (analysis는 nextprint→print 2단계 라이브 fetch로 live가 10월분 자동 반영 확인.)
+
 ## 2026-10-16 (149차) — nowflation 클론 기능 이식 ②: 예측·Fed
 
 A→F 6단계 중 **Stage B**. /inflation 허브에 예측·Fed 섹션 4개 추가(서브내비를 게이지/예측·Fed 두 그룹으로 구분선 분리) — 데이터는 기존 `/api/nf` 중계·seed 폴백.

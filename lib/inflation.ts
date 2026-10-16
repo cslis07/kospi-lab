@@ -273,6 +273,43 @@ export interface FedWatch {
   market?: { source?: string; outcomes: FedOutcome[]; implied_change_bps?: number; modal?: FedOutcome; history?: { date: string; implied_change_bps?: number }[] };
 }
 
+// ── 브리핑·발표일 분석·기사 허브(Stage C) ──
+
+/** brief_daily.json — 일별 인플레 브리핑(오늘 + 아카이브) */
+export interface BriefGauge { yoy_pct?: number; dod_pp?: number; wow_pp?: number; mom_pp?: number; pace_1m_pct?: number; pace_3m_pct?: number }
+export interface BriefDay { date: string; date_label?: string; gauge?: BriefGauge }
+export interface BriefToday extends BriefDay {
+  narrative?: { headline?: string; tag?: string; body?: string };
+  what_moved?: string[];
+  next_release?: { name?: string; print_month_label?: string; date_label?: string; days_to?: number; street?: number; nowflation_forecast?: number; cleveland?: number; kalshi?: number; prior?: number };
+  truflation?: { yoy_pct?: number; date?: string; gap_vs_gauge_pp?: number };
+  official?: { print_month_label?: string; cpi_yoy?: number; gap_pp?: number };
+}
+export interface BriefDaily { locked?: boolean; asof?: string; today?: BriefToday; archive?: BriefDay[]; cpi_schedule?: { date: string; print_month: string; days_to: number }[] }
+
+/** print_<YYYY_MM>.json — 발표일 분석(예측 대 실제) */
+export interface PrintCall { forecaster: string; label: string; value: number | null; source?: string; err?: number | null; abs?: number | null }
+export interface PrintTarget { target: string; label: string; actual: number | null; consensus?: number; prior?: number; calls: PrintCall[] }
+export interface PrintDay {
+  locked?: boolean; print_month?: string; print_month_label?: string; slug?: string; status?: string;
+  release?: { date?: string; datetime_et?: string; name?: string };
+  targets?: PrintTarget[]; what_happened?: string | null;
+}
+/** "2026-09" → "print_2026_09.json" (nextprint.print_month 으로 파일명 구성) */
+export function printFile(printMonth?: string | null): string | null {
+  if (!printMonth || !/^\d{4}-\d{2}$/.test(printMonth)) return null;
+  return `print_${printMonth.replace('-', '_')}.json`;
+}
+
+/** articles_index.json — 경제 기사 목록(nowflation.com 외부 링크) */
+export interface ArticleItem { slug: string; url: string; title: string; date: string; updated?: string | null; summary?: string; excerpt?: string; tags?: string[]; reading_min?: number; has_video?: boolean }
+export interface ArticlesIndex { locked?: boolean; count?: number; tags?: string[]; author?: { name?: string; credentials?: string; role?: string }; articles: ArticleItem[] }
+/** 상대 경로(/articles/..) → nowflation.com 절대 URL */
+export function nfLink(url?: string): string {
+  if (!url) return 'https://nowflation.com';
+  return url.startsWith('http') ? url : `https://nowflation.com${url}`;
+}
+
 // 포맷터
 export const pctFrac = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '—' : `${(x * 100).toFixed(d)}%`); // 분수→%
 export const pct = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '—' : `${x.toFixed(d)}%`); // 이미 %
