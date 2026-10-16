@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import {
   compareRows, forecastRows, categorize, topDrivers, pctFrac, pct, signPp,
   monthsEndingAt, sparkCompareRows, gasRanked, metrosByRent, avg,
-  snapDrivers, truflationTrendRows,
+  snapDrivers, truflationTrendRows, acctForecasters, usHighImpact,
   type CompareDaily, type Forecast, type PulseDriver, type StateRow, type MetroRow, type LatestSnapshot,
+  type AcctPrint, type EconCalWindow,
 } from '../lib/inflation';
 
 let passed = 0;
@@ -136,6 +137,38 @@ ok('truflationTrendRows: 최근 N개월 창 + gauge·truflation 정렬, null 안
   assert.deepEqual(rows[0], { date: '2026-10-01', gauge: 3.4, truflation: null });
   assert.deepEqual(rows[1], { date: '2026-10-07', gauge: 3.46, truflation: 2.88 });
   assert.deepEqual(truflationTrendRows(null), []);
+});
+
+ok('acctForecasters: 절대오차 오름차순 + best 표시 + 표시명', () => {
+  const p: AcctPrint = {
+    print_month: '2026-08', actual: 3.4,
+    forecasts: {
+      fmc: { value: 3.23, err: -0.17, abs: 0.17 },
+      street_consensus: { value: 3.4, err: 0, abs: 0 },
+      cleveland_fed: { value: 3.38, err: -0.02, abs: 0.02 },
+    },
+    best: ['street_consensus'],
+  };
+  const r = acctForecasters(p);
+  assert.deepEqual(r.map((x) => x.key), ['street_consensus', 'cleveland_fed', 'fmc']);
+  assert.equal(r[0].best, true);
+  assert.equal(r[0].name, '월가 컨센서스');
+  assert.equal(r[2].name, 'Nowflation');
+  assert.deepEqual(acctForecasters({ print_month: 'x', actual: 0, forecasts: {} }).length, 0);
+});
+
+ok('usHighImpact: 미국 High/Medium만·상한', () => {
+  const w: EconCalWindow = {
+    events: [
+      { date: 'd1', country: 'US', event: 'CPI', actual: null, estimate: null, previous: null, impact: 'High' },
+      { date: 'd2', country: 'US', event: 'x', actual: null, estimate: null, previous: null, impact: 'Low' },
+      { date: 'd3', country: 'NZ', event: 'y', actual: null, estimate: null, previous: null, impact: 'High' },
+      { date: 'd4', country: 'US', event: 'PCE', actual: null, estimate: null, previous: null, impact: 'Medium' },
+    ],
+  };
+  assert.deepEqual(usHighImpact(w).map((e) => e.event), ['CPI', 'PCE']);
+  assert.deepEqual(usHighImpact(w, 1).map((e) => e.event), ['CPI']);
+  assert.deepEqual(usHighImpact(null), []);
 });
 
 console.log(`inflation: ${passed} passed\n`);

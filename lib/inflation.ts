@@ -210,6 +210,69 @@ export interface LeadTest {
   last_cpi_month?: string; print_eve: { windows: Record<string, LeadWindow> };
 }
 
+// ── 예측·Fed 허브(Stage B): 스코어보드·발표 일정·예측시장·Fed watch ──
+
+/** 예측자 표시명 */
+export const FORECASTER_KO: Record<string, string> = {
+  fmc: 'Nowflation', fmc_ensemble: 'Nowflation(앙상블)', in_house: '자체 모델',
+  cleveland_fed: '클리블랜드 연준', street_consensus: '월가 컨센서스', kalshi_implied: 'Kalshi(시장)',
+};
+
+/** accountability_target_*.json — 발표별 예측자 적중(누가 맞혔나) */
+export interface AcctForecast { value: number; err: number; abs: number; vintage?: string; pre_registered?: boolean }
+export interface AcctPrint {
+  print_month: string; scheduled_at?: string; actual: number;
+  forecasts: Record<string, AcctForecast>; best?: string[]; best_incl_backtest?: string[];
+}
+export interface Accountability { locked?: boolean; target?: string; prints: AcctPrint[] }
+/** 한 발표의 예측자들을 절대오차 작은 순(정확한 순)으로, best 표시 */
+export function acctForecasters(p: AcctPrint): { key: string; name: string; f: AcctForecast; best: boolean }[] {
+  const best = new Set(p?.best ?? []);
+  return Object.entries(p?.forecasts ?? {})
+    .map(([key, f]) => ({ key, name: FORECASTER_KO[key] ?? key, f, best: best.has(key) }))
+    .sort((a, b) => (a.f?.abs ?? 1e9) - (b.f?.abs ?? 1e9));
+}
+
+/** backtest.json — 장기 성적 요약 */
+export interface Backtest {
+  locked?: boolean;
+  summary?: {
+    model?: string; prints?: number; range?: [string, string];
+    mae_fmc?: number; mae_naive?: number; beats_naive_pct?: number;
+    street_overlap?: { prints?: number; mae_fmc?: number; mae_street?: number };
+    note?: string;
+  };
+}
+
+/** release_calendar.json — 미국 주요 지표 발표 일정(나우캐스트 예측 포함) */
+export interface ReleaseEvent {
+  kind: string; date: string; data_month?: string; unit?: string; summary?: string; url?: string;
+  street?: number; prior?: number; cleveland?: number; kalshi?: number; nowflation_forecast?: number;
+}
+export interface ReleaseCalendar { locked?: boolean; from?: string; events: ReleaseEvent[] }
+
+/** econcal_window.json — 경제 캘린더(국가별 이벤트) */
+export interface EconEvent { date: string; country: string; event: string; actual: number | null; estimate: number | null; previous: number | null; impact: string; unit?: string | null }
+export interface EconCalWindow { locked?: boolean; from?: string; to?: string; events: EconEvent[] }
+/** 미국 High/Medium 영향 이벤트만(상한) */
+export function usHighImpact(w?: EconCalWindow | null, limit = 24): EconEvent[] {
+  return (w?.events ?? []).filter((e) => e.country === 'US' && (e.impact === 'High' || e.impact === 'Medium')).slice(0, limit);
+}
+
+/** predmarkets_summary.json — 예측시장(Polymarket·Kalshi) */
+export interface PredOutcome { name: string; prob: number }
+export interface PredMarket { source: string; title: string; group: string; volume?: number; closes?: string; url?: string; outcomes: PredOutcome[] }
+export interface PredGroup { key: string; label: string; markets: PredMarket[] }
+export interface PredMarkets { locked?: boolean; generated_at?: string; groups: PredGroup[] }
+
+/** fedwatch.json — 다음 FOMC 시장 확률(Kalshi) */
+export interface FedOutcome { label: string; prob: number; bps?: number }
+export interface FedWatch {
+  locked?: boolean; asof?: string;
+  next_meeting?: { date: string; days_to?: number; statement_et?: string; releases_before?: { release: string; print_month?: string; date: string }[] };
+  market?: { source?: string; outcomes: FedOutcome[]; implied_change_bps?: number; modal?: FedOutcome; history?: { date: string; implied_change_bps?: number }[] };
+}
+
 // 포맷터
 export const pctFrac = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '—' : `${(x * 100).toFixed(d)}%`); // 분수→%
 export const pct = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '—' : `${x.toFixed(d)}%`); // 이미 %

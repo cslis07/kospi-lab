@@ -2,6 +2,16 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (149차) — nowflation 클론 기능 이식 ②: 예측·Fed
+
+A→F 6단계 중 **Stage B**. /inflation 허브에 예측·Fed 섹션 4개 추가(서브내비를 게이지/예측·Fed 두 그룹으로 구분선 분리) — 데이터는 기존 `/api/nf` 중계·seed 폴백.
+- `/inflation/scoreboard` **예측 스코어보드** — accountability(발표별 예측자 적중·★최우수·절대오차) + backtest(장기 MAE 나우캐스트 vs 나이브·승률·월가 겹침).
+- `/inflation/calendar` **발표 일정(미국)** — release_calendar(CPI/PCE 등 주요 지표·나우캐스트 예측·컨센서스·직전) + econcal_window(미국 High/Medium 경제 이벤트). 앱 `/calendar`(공시·실적)와 역할 구분 명시.
+- `/inflation/markets` **예측시장** — predmarkets_summary(Polymarket·Kalshi): 그룹별 시장·결과 확률 바·거래량·원시장 링크.
+- `/inflation/fed` **Fed Watch** — fedwatch(Kalshi KXFEDDECISION): 다음 FOMC 날짜·시장 기대(modal)·예상 변화폭(bp)·확률 분포·회의 전 발표.
+- lib/inflation.ts: `Accountability·Backtest·ReleaseCalendar·EconCalWindow·PredMarkets·FedWatch` 타입 + `acctForecasters·usHighImpact·FORECASTER_KO`.
+- 검증: tsc 0·build 0(라우트 9개), inflation 테스트 14 passed(acctForecasters·usHighImpact 추가)·headings 통과, 헤드리스 390px 4페이지: 가로넘침 0·데이터 렌더·콘솔 0.
+
 ## 2026-10-16 (148차) — nowflation 클론 기능 이식 ①: THE GAUGE 허브
 
 원본 클론(nowprice-local)의 기능을 그대로 이식(A→F 6단계 중 **Stage A**). `/inflation`을 허브로 재편하고 서브 섹션 4개 추가 — 데이터는 전부 기존 `/api/nf` 중계(48개 seed 스냅샷 폴백) 재사용.
