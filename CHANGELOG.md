@@ -2,6 +2,16 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (153차) — nowflation 클론 기능 이식 ⑥(완): 도구·사이트(계산기·내 물가·방법론)
+
+A→F 6단계 중 **Stage F(마지막)**. /inflation 허브에 여섯 번째 그룹(도구) 3개 추가 — 이로써 클론 기능 이식 A~F 완료(허브 1 + 서브 17개 = 18 라우트).
+- `/inflation/calculator` **인플레 계산기** — quilt_102 ours_cpi_comparable YoY를 12개월 앵커로, N년 전 금액의 지금 가치(연 복리 누적·구매력 감소%). 게이지 기준·연 단위·중계 범위(~2018~)로 한정 명시.
+- `/inflation/my` **내 물가** — compare.json 상위 품목 비중을 내 소비(×0~×3)로 조정 → 개인 체감 YoY vs 공식 가중 비교. 조정값 이 기기 한정(`useSyncedList`+SYNC_EXCLUDE `kospi-lab-inflation-myweights`).
+- `/inflation/methodology` **방법론·현황** — siteMeta(버전·누적·가중치·백테스트) + qa(헬스체크 passed/total) + sources_status(소스 상태 점).
+- lib/inflation.ts: `SiteMeta·SourcesStatus·Qa` 타입 + `yoyAnchors·inflateByYears·personalYoY`.
+- 검증: tsc 0·build 0, inflation 테스트 25 passed(yoyAnchors·inflateByYears·personalYoY 추가)·headings 통과, 헤드리스 390px: calculator 결과 계산·my 품목 렌더+담기 저장·methodology 섹션, 가로넘침 0·콘솔 0.
+- ⇒ **nowflation 클론 기능 이식 A~F 전부 완료** — /inflation이 게이지·예측/Fed·브리핑·가격·경제·도구 6그룹 18페이지 허브로.
+
 ## 2026-10-16 (152차) — nowflation 클론 기능 이식 ⑤: 경제·역사(고용·경기 열지수·인플레 히트맵)
 
 A→F 6단계 중 **Stage E**. /inflation 허브에 다섯 번째 그룹(경제) 3개 추가 — labor·quilt_months 중계 재사용.

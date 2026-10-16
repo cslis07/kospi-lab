@@ -4,8 +4,9 @@ import {
   monthsEndingAt, sparkCompareRows, gasRanked, metrosByRent, avg,
   snapDrivers, truflationTrendRows, acctForecasters, usHighImpact, printFile, nfLink,
   priceRows, valueYearAgo, cartTotals, seriesLast, signalTone, quiltCellColor,
+  yoyAnchors, inflateByYears, personalYoY,
   type CompareDaily, type Forecast, type PulseDriver, type StateRow, type MetroRow, type LatestSnapshot,
-  type AcctPrint, type EconCalWindow, type GroceryItem,
+  type AcctPrint, type EconCalWindow, type GroceryItem, type CompareTile,
 } from '../lib/inflation';
 
 let passed = 0;
@@ -227,6 +228,38 @@ ok('quiltCellColor: 부호=색(빨강/파랑)·강도=투명도, null 투명', (
   assert.equal(quiltCellColor(null), 'transparent');
   assert.ok(quiltCellColor(0.03).startsWith('rgba(239,68,68,')); // 양(+)=빨강
   assert.ok(quiltCellColor(-0.03).startsWith('rgba(59,130,246,')); // 음(−)=파랑
+});
+
+ok('yoyAnchors: 12개월 간격 최신→과거, 유효값만', () => {
+  // 25 cells: 뒤에서 12칸씩 → idx 24,12,0
+  const cells = Array.from({ length: 25 }, (_, i) => ({ yoy: i === 0 ? null : i / 100 }));
+  const a = yoyAnchors(cells);
+  assert.deepEqual(a, [0.24, 0.12]); // idx24=0.24, idx12=0.12, idx0=null 제외
+  assert.deepEqual(yoyAnchors(null), []);
+});
+
+ok('inflateByYears: 연 복리 누적, 범위 밖 null', () => {
+  const anchors = [0.1, 0.2]; // 올해 +10%, 작년 +20%
+  const r1 = inflateByYears(100, anchors, 1);
+  assert.equal(Math.round((r1?.value ?? 0) * 100) / 100, 110);
+  const r2 = inflateByYears(100, anchors, 2);
+  assert.equal(Math.round((r2?.value ?? 0) * 100) / 100, 132); // 100*1.1*1.2
+  assert.equal(inflateByYears(100, anchors, 3), null);
+  assert.equal(inflateByYears(100, anchors, 0), null);
+});
+
+ok('personalYoY: 비중 배수로 개인 vs 공식 가중', () => {
+  const tiles: CompareTile[] = [
+    { component: 'a', label: 'A', weight: 0.5, yoy: 0.02, mom: 0, bls_yoy: 0, spread: 0 },
+    { component: 'b', label: 'B', weight: 0.5, yoy: 0.10, mom: 0, bls_yoy: 0, spread: 0 },
+  ];
+  const r3 = (x: number | null) => Math.round((x ?? 0) * 1000) / 1000;
+  const base = personalYoY(tiles, {});
+  assert.equal(r3(base.official), 0.06); // (0.5*0.02+0.5*0.10)/1
+  assert.equal(r3(base.personal), 0.06); // mult 기본 1 → 동일
+  const tilt = personalYoY(tiles, { b: 3 }); // b 비중 3배
+  assert.ok((tilt.personal ?? 0) > 0.06); // 고물가 품목 비중↑ → 체감↑
+  assert.equal(personalYoY([], {}).official, null);
 });
 
 console.log(`inflation: ${passed} passed\n`);

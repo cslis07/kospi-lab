@@ -392,6 +392,45 @@ export function quiltCellColor(yoy?: number | null): string {
   return pct >= 0 ? `rgba(239,68,68,${a.toFixed(3)})` : `rgba(59,130,246,${a.toFixed(3)})`;
 }
 
+// ── 도구·사이트 허브(Stage F): 인플레 계산기·내 물가·방법론 ──
+
+/** quilt headline(ours_cpi_comparable) YoY cells → 12개월 앵커(최신→과거, 유효값만) */
+export function yoyAnchors(cells?: { yoy?: number | null }[] | null): number[] {
+  const c = cells ?? [];
+  const out: number[] = [];
+  for (let i = c.length - 1; i >= 0; i -= 12) {
+    const v = c[i]?.yoy;
+    if (typeof v === 'number' && Number.isFinite(v)) out.push(v);
+  }
+  return out;
+}
+/** N년 전 금액 → 지금 가치(연 단위 YoY 복리). years 1..anchors.length */
+export function inflateByYears(amount: number, anchors: number[], years: number): { value: number; cumPct: number } | null {
+  if (!(amount >= 0) || years < 1 || years > anchors.length) return null;
+  let m = 1;
+  for (let i = 0; i < years; i++) m *= 1 + anchors[i];
+  return { value: amount * m, cumPct: (m - 1) * 100 };
+}
+
+/** compare.json tiles + 사용자 비중 배수 → 개인 체감 vs 공식 가중 YoY(분수) */
+export function personalYoY(tiles: CompareTile[] | undefined, mult: Record<string, number>): { personal: number | null; official: number | null } {
+  let pNum = 0, pDen = 0, oNum = 0, oDen = 0;
+  for (const t of tiles ?? []) {
+    const w = t.weight ?? 0, y = t.yoy ?? 0, mu = mult[t.component] ?? 1;
+    oNum += w * y; oDen += w;
+    pNum += w * mu * y; pDen += w * mu;
+  }
+  return { personal: pDen > 0 ? pNum / pDen : null, official: oDen > 0 ? oNum / oDen : null };
+}
+
+/** siteMeta.json — 방법론/현황 숫자(문자·숫자 혼재) */
+export type SiteMeta = Record<string, string | number | null> & { locked?: boolean };
+/** sources_status.json — 데이터 소스 상태 */
+export interface SourceStatus { id?: number; name: string; route?: string; cadence?: string; active?: number; last_success_at?: string; last_status?: string; last_message?: string }
+export interface SourcesStatus { locked?: boolean; sources: SourceStatus[] }
+/** qa.json — 헬스체크 요약 */
+export interface Qa { locked?: boolean; asof?: string; passed?: number; total?: number; ok?: boolean; critical_ok?: boolean; failed?: string[] }
+
 // 포맷터
 export const pctFrac = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '—' : `${(x * 100).toFixed(d)}%`); // 분수→%
 export const pct = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '—' : `${x.toFixed(d)}%`); // 이미 %

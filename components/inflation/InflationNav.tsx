@@ -28,6 +28,9 @@ export const SECTIONS: InflationSection[] = [
   { href: '/inflation/jobs', label: '고용', group: 'economy' },
   { href: '/inflation/heatcheck', label: '경기 열지수', group: 'economy' },
   { href: '/inflation/quilt', label: '인플레 히트맵', group: 'economy' },
+  { href: '/inflation/calculator', label: '인플레 계산기', group: 'tools' },
+  { href: '/inflation/my', label: '내 물가', group: 'tools' },
+  { href: '/inflation/methodology', label: '방법론', group: 'tools' },
 ];
 
 export default function InflationNav() {
