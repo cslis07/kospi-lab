@@ -23,6 +23,8 @@ export const SECTIONS: InflationSection[] = [
   { href: '/inflation/brief', label: '데일리 브리핑', group: 'brief' },
   { href: '/inflation/analysis', label: '발표일 분석', group: 'brief' },
   { href: '/inflation/articles', label: '경제 기사', group: 'brief' },
+  { href: '/inflation/prices', label: '품목별 가격', group: 'prices' },
+  { href: '/inflation/cart', label: '장바구니', group: 'prices' },
 ];
 
 export default function InflationNav() {

@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (151차) — nowflation 클론 기능 이식 ④: 가격(품목별·장바구니)
+
+A→F 6단계 중 **Stage D**. /inflation 허브에 네 번째 그룹(가격) 2개 추가 — grocery_basket·fuel 중계 재사용.
+- `/inflation/prices` **품목별 가격** — grocery_basket 품목(현재가·YoY) 그리드 + 휘발유(fuel). 품목 누르면 바텀시트에 가격 추이 차트(월별 8년, `price` 차트 kind 신설·$ 단위 툴팁).
+- `/inflation/cart` **장바구니 담기** — 품목 수량 담기 → 월 비용 합계·1년 전 대비(각 품목 series의 12개월 전 값) 계산. 담은 내용은 이 기기 한정(`useSyncedList` + cloudSync SYNC_EXCLUDE에 `kospi-lab-inflation-cart`).
+- lib/inflation.ts: `GroceryBasket·GroceryItem·PriceRow` 타입 + `priceRows`(다운샘플)·`valueYearAgo`·`cartTotals`.
+- 검증: tsc 0·build 0(inflation 라우트 14개), inflation 테스트 19 passed(priceRows·valueYearAgo·cartTotals 추가)·headings 통과, 헤드리스 390px: prices 품목 렌더+추이 차트, cart 담기→월 비용·전년대비 계산, 가로넘침 0·콘솔 0.
+
 ## 2026-10-16 (150차) — nowflation 클론 기능 이식 ③: 브리핑·발표일 분석·기사
 
 A→F 6단계 중 **Stage C**. /inflation 허브에 세 번째 그룹(브리핑) 3개 추가 — 데이터는 기존 `/api/nf` 중계·seed 폴백.

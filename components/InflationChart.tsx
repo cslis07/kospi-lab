@@ -4,7 +4,7 @@
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import type { CompareRow, ForecastRow, TrendRow } from '@/lib/inflation';
+import type { CompareRow, ForecastRow, TrendRow, PriceRow } from '@/lib/inflation';
 
 const BLUE = '#1c6cff';
 const AMBER = '#f59e0b';
@@ -13,39 +13,41 @@ const GREEN = '#10b981';
 function fmtX(m: string) { const [y, mm] = m.split('-'); return `${y.slice(2)}.${mm}`; }
 function fmtDate(d: string) { const [y, m] = d.split('-'); return `${y.slice(2)}.${m}`; }
 
-interface TP { active?: boolean; payload?: { name: string; value: number; color: string; dataKey: string }[]; label?: string }
-function TipBox({ active, payload, label }: TP) {
+interface TP { active?: boolean; payload?: { name: string; value: number; color: string; dataKey: string }[]; label?: string; price?: boolean }
+function TipBox({ active, payload, label, price }: TP) {
   if (!active || !payload?.length) return null;
   const rows = payload.filter((p) => p.dataKey !== 'band' && typeof p.value === 'number');
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-2.5 text-[11px] shadow-xl tabular-nums">
       <p className="font-semibold text-[var(--text)] mb-1">{label}</p>
       {rows.map((p) => (
-        <p key={p.dataKey}><span style={{ color: p.color }}>■ </span><span className="text-[var(--text-muted)]">{p.name} </span><b className="text-[var(--text)]">{p.value.toFixed(2)}%</b></p>
+        <p key={p.dataKey}><span style={{ color: p.color }}>■ </span><span className="text-[var(--text-muted)]">{p.name} </span><b className="text-[var(--text)]">{price ? `$${p.value.toFixed(p.value < 10 ? 3 : 2)}` : `${p.value.toFixed(2)}%`}</b></p>
       ))}
     </div>
   );
 }
 
 export default function InflationChart({ kind, rows, height = 260 }: {
-  kind: 'compare' | 'forecast' | 'trend';
-  rows: CompareRow[] | ForecastRow[] | TrendRow[];
+  kind: 'compare' | 'forecast' | 'trend' | 'price';
+  rows: CompareRow[] | ForecastRow[] | TrendRow[] | PriceRow[];
   height?: number;
 }) {
   if (!rows.length) {
     return <div style={{ height }} className="grid place-items-center text-[12px] text-[var(--text-muted)]">표시할 데이터가 없습니다.</div>;
   }
   const tick = Math.max(1, Math.ceil(rows.length / 7));
-  const xKey = kind === 'trend' ? 'date' : 'month';
+  const isDateX = kind === 'trend' || kind === 'price';
+  const xKey = isDateX ? 'date' : 'month';
+  const price = kind === 'price';
   return (
     <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={rows as unknown as Record<string, number | string | number[] | null>[]} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis dataKey={xKey} tickFormatter={kind === 'trend' ? fmtDate : fmtX} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} interval={tick - 1} minTickGap={8} />
+          <XAxis dataKey={xKey} tickFormatter={isDateX ? fmtDate : fmtX} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} interval={tick - 1} minTickGap={8} />
           <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={40} domain={['auto', 'auto']}
-            tickFormatter={(v) => `${Number(v).toFixed(1)}`} />
-          <Tooltip content={<TipBox />} />
+            tickFormatter={(v) => (price ? `$${Number(v).toFixed(Number(v) < 10 ? 2 : 0)}` : `${Number(v).toFixed(1)}`)} />
+          <Tooltip content={(p) => <TipBox {...(p as unknown as TP)} price={price} />} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
           {kind === 'compare' ? (
             <>
@@ -57,6 +59,8 @@ export default function InflationChart({ kind, rows, height = 260 }: {
               <Line type="monotone" dataKey="gauge" name="나우캐스트(게이지)" stroke={BLUE} strokeWidth={2} dot={false} connectNulls />
               <Line type="monotone" dataKey="truflation" name="Truflation" stroke={GREEN} strokeWidth={2} dot={false} connectNulls />
             </>
+          ) : kind === 'price' ? (
+            <Line type="monotone" dataKey="value" name="가격" stroke={AMBER} strokeWidth={2} dot={false} connectNulls />
           ) : (
             <>
               <Area type="monotone" dataKey="band" name="예측 범위" stroke="none" fill={BLUE} fillOpacity={0.12} connectNulls />

@@ -3,8 +3,9 @@ import {
   compareRows, forecastRows, categorize, topDrivers, pctFrac, pct, signPp,
   monthsEndingAt, sparkCompareRows, gasRanked, metrosByRent, avg,
   snapDrivers, truflationTrendRows, acctForecasters, usHighImpact, printFile, nfLink,
+  priceRows, valueYearAgo, cartTotals,
   type CompareDaily, type Forecast, type PulseDriver, type StateRow, type MetroRow, type LatestSnapshot,
-  type AcctPrint, type EconCalWindow,
+  type AcctPrint, type EconCalWindow, type GroceryItem,
 } from '../lib/inflation';
 
 let passed = 0;
@@ -182,6 +183,31 @@ ok('nfLink: 상대→절대, 절대/빈값 보존', () => {
   assert.equal(nfLink('/articles/x'), 'https://nowflation.com/articles/x');
   assert.equal(nfLink('https://x.com/a'), 'https://x.com/a');
   assert.equal(nfLink(undefined), 'https://nowflation.com');
+});
+
+ok('priceRows: 최근 N개월·date/value, 빈 입력 안전', () => {
+  const s: [string, number][] = [['2020-01-01', 1], ['2020-02-01', 2], ['2020-03-01', 3]];
+  assert.deepEqual(priceRows(s, 2), [{ date: '2020-02-01', value: 2 }, { date: '2020-03-01', value: 3 }]);
+  assert.deepEqual(priceRows(null), []);
+});
+
+ok('valueYearAgo: 13번째 뒤 값(12개월 전), 짧으면 null', () => {
+  const s: [string, number][] = Array.from({ length: 13 }, (_, i) => [`m${i}`, i] as [string, number]);
+  assert.equal(valueYearAgo(s), 0); // 길이 13 → s[0]
+  assert.equal(valueYearAgo(s.slice(0, 12)), null);
+});
+
+ok('cartTotals: 수량>0 품목 합계·전년대비', () => {
+  const mkSeries = (ya: number, now: number): [string, number][] => [...Array.from({ length: 12 }, (_, i) => [`m${i}`, ya] as [string, number]), ['now', now]];
+  const items: GroceryItem[] = [
+    { code: 'egg', label: 'Eggs', latest: { date: 'now', value: 3 }, series: mkSeries(2, 3) },
+    { code: 'milk', label: 'Milk', latest: { date: 'now', value: 4 }, series: mkSeries(4, 4) },
+  ];
+  const r = cartTotals(items, { egg: 2, milk: 1 });
+  assert.equal(r.now, 10); // 3*2 + 4*1
+  assert.equal(r.yearAgo, 8); // 2*2 + 4*1
+  assert.equal(Math.round((r.yoyPct ?? 0) * 100) / 100, 25); // (10-8)/8
+  assert.equal(cartTotals(items, {}).now, 0);
 });
 
 console.log(`inflation: ${passed} passed\n`);

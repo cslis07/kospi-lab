@@ -310,6 +310,49 @@ export function nfLink(url?: string): string {
   return url.startsWith('http') ? url : `https://nowflation.com${url}`;
 }
 
+// ── 가격 허브(Stage D): 품목별 가격·장바구니 담기 ──
+
+/** grocery_basket.json — 품목별 현재가 + yoy(분수) + 월별 series([date,value]) */
+export interface GroceryItem {
+  code: string; label: string; unit?: string;
+  latest?: { date: string; value: number }; last_date?: string;
+  yoy?: number; series?: [string, number][]; stale?: boolean;
+}
+export interface GroceryBasket { locked?: boolean; asof?: string; items: GroceryItem[]; stale_codes?: string[] }
+
+/** 월별 [date,value] → 최근 N개월 차트 행(과포인트는 스트라이드 다운샘플) */
+export interface PriceRow { date: string; value: number | null }
+export function priceRows(series?: [string, number][] | null, months = 60, maxPts = 120): PriceRow[] {
+  const s = (series ?? []).filter((p) => Array.isArray(p) && typeof p[1] === 'number');
+  if (!s.length) return [];
+  const recent = s.slice(-months);
+  const stride = Math.max(1, Math.ceil(recent.length / maxPts));
+  return recent.filter((_, k) => k % stride === 0 || k === recent.length - 1).map(([date, value]) => ({ date, value }));
+}
+
+/** series 의 1년 전(12개월 전) 값 — 월별 연속 가정, 없으면 null */
+export function valueYearAgo(series?: [string, number][] | null): number | null {
+  const s = series ?? [];
+  if (s.length < 13) return null;
+  const v = s[s.length - 13]?.[1];
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+/** 장바구니 합계 — 현재가·1년 전·전년대비% (수량 map, 수량>0 품목만) */
+export function cartTotals(items: GroceryItem[], qty: Record<string, number>): { now: number; yearAgo: number | null; yoyPct: number | null } {
+  let now = 0, yearAgo = 0, yaOk = true;
+  for (const it of items) {
+    const q = qty[it.code] ?? 0;
+    if (q <= 0) continue;
+    const price = it.latest?.value ?? 0;
+    now += price * q;
+    const ya = valueYearAgo(it.series);
+    if (ya == null) yaOk = false; else yearAgo += ya * q;
+  }
+  const ya = yaOk && yearAgo > 0 ? yearAgo : null;
+  return { now, yearAgo: ya, yoyPct: ya != null ? ((now - ya) / ya) * 100 : null };
+}
+
 // 포맷터
 export const pctFrac = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '—' : `${(x * 100).toFixed(d)}%`); // 분수→%
 export const pct = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '—' : `${x.toFixed(d)}%`); // 이미 %
