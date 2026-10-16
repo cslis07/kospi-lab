@@ -13,6 +13,7 @@ import SwipeNav from '@/components/detail/SwipeNav';
 import ActionSheet, { KebabButton, type SheetAction } from '@/components/ui/ActionSheet';
 import VirtualTradeModal from '@/components/VirtualTradeModal';
 import { badgeTint } from '@/components/WatchRow';
+import Range52Bar from '@/components/Range52Bar';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 import { COINS, fmtCoinPrice } from '@/lib/coins';
 import type { CryptoData, ChartPoint } from '@/lib/types';
@@ -43,6 +44,8 @@ export default function CryptoDetailPage() {
 
   const { data: batch, error } = useSWR<Record<string, CryptoData>>(symbol ? `/api/crypto/batch?symbols=${symbol}` : null, fetcher, { refreshInterval: 5000 });
   const { data: chart } = useSWR<ChartPoint[]>(symbol ? `/api/crypto/chart/${symbol}?months=${TIMEFRAMES[tfIdx].months}` : null, fetcher, { refreshInterval: 60000 });
+  // 52주 위치(주봉) — 코인 티커엔 24h만 있어 별도 조회(목록·분석과 일관)
+  const { data: w52 } = useSWR<Record<string, { high52w: number; low52w: number }>>(symbol ? `/api/crypto/week52?symbols=${symbol}` : null, fetcher, { revalidateOnFocus: false });
 
   const c = batch?.[symbol];
   const isUp = (c?.change ?? 0) >= 0;
@@ -100,6 +103,11 @@ export default function CryptoDetailPage() {
                 <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">거래량</p><p className="font-bold text-[var(--text)] tabular-nums">{fmtVol(c.volume24h)} {base}</p></div>
                 <div><p className="text-[var(--text-muted)] text-[11px] mb-0.5">거래대금</p><p className="font-bold text-[var(--text)] tabular-nums">${fmtVol(c.quoteVolume24h)}</p></div>
               </div>
+              {w52?.[symbol] && (
+                <div className="mt-4 pt-4 border-t border-[var(--line-2)]">
+                  <Range52Bar low={w52[symbol].low52w} high={w52[symbol].high52w} value={c.price} fmt={fmtCoinPrice} label="52주 위치 (주봉)" />
+                </div>
+              )}
             </>
           ) : (
             <div className="space-y-2 mt-3"><span className="skeleton h-8 w-40" /><span className="skeleton h-4 w-28" /><span className="skeleton h-16 w-full mt-3" /></div>
