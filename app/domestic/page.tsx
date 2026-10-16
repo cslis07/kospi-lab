@@ -72,12 +72,14 @@ function marketStatus(): string {
   return '장마감';
 }
 
-type SortKey = 'default' | 'changeRateDesc' | 'changeRateAsc' | 'priceDesc';
+type SortKey = 'default' | 'changeRateDesc' | 'changeRateAsc' | 'priceDesc' | 'pos52Asc' | 'pos52Desc';
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'default',        label: '기본순'       },
   { key: 'changeRateDesc', label: '등락률 높은순' },
   { key: 'changeRateAsc',  label: '등락률 낮은순' },
   { key: 'priceDesc',      label: '시가 높은순'   },
+  { key: 'pos52Asc',       label: '52주 저점 근접' },
+  { key: 'pos52Desc',      label: '52주 고점 근접' },
 ];
 
 type MarketFilter = 'all' | 'KOSPI' | 'KOSDAQ';
@@ -147,6 +149,10 @@ export default function DomesticPage() {
     if (sort === 'changeRateDesc') return [...list].sort((a, b) => (allData[b.ticker]?.changeRate ?? 0) - (allData[a.ticker]?.changeRate ?? 0));
     if (sort === 'changeRateAsc')  return [...list].sort((a, b) => (allData[a.ticker]?.changeRate ?? 0) - (allData[b.ticker]?.changeRate ?? 0));
     if (sort === 'priceDesc')      return [...list].sort((a, b) => (allData[b.ticker]?.price      ?? 0) - (allData[a.ticker]?.price      ?? 0));
+    if (sort === 'pos52Asc' || sort === 'pos52Desc') {
+      const pos = (t: string) => { const d = allData[t]; return d?.high52w && d?.low52w && d.high52w > d.low52w ? (d.price - d.low52w) / (d.high52w - d.low52w) : null; };
+      return [...list].sort((a, b) => { const pa = pos(a.ticker), pb = pos(b.ticker); if (pa == null) return 1; if (pb == null) return -1; return sort === 'pos52Asc' ? pa - pb : pb - pa; });
+    }
     return list;
   }, [query, sort, mktFilter, watchOnly, watchSet, mounted, allData]);
   // 긴 목록은 40행씩 점진 렌더(검색·정렬·필터가 바뀌면 처음부터)

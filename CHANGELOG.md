@@ -2,6 +2,13 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-16 (147차) — 목록·관심종목 정렬에 '52주 위치' 기준 추가
+
+52주 위치(현재가의 범위 내 위치)로 정렬 — 저점 근접/고점 근접.
+- `/domestic`: SORT_OPTIONS에 '52주 저점 근접'(pos52Asc)·'52주 고점 근접'(pos52Desc). pct=(price−low52w)/(high52w−low52w), 52주 없는 종목은 뒤로.
+- `/my-stocks`: 정렬 칩에 '52주 저점'(52low)·'52주 고점'(52high). 행의 hi52/lo52/px로 정렬(국내·해외·주요 코인 공통).
+- 검증: tsc 0·build 0, 헤드리스 390px: /domestic 셀렉트 옵션·정렬 적용, /my-stocks 칩 클릭·가로넘침 0·콘솔 0.
+
 ## 2026-10-16 (146차) — 관심종목 코인 행에도 주요 코인 52주 미니 바
 
 관심종목 코인 탭 행에도 주요 코인 52주 위치 — `/api/crypto/week52`(주봉) 재사용.

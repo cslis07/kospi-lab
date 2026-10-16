@@ -23,7 +23,7 @@ import type { StockData, OverseasStockData, CryptoData } from '@/lib/types';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 type MarketTab = 'domestic' | 'overseas' | 'crypto';
-type Sort = 'default' | 'up' | 'down';
+type Sort = 'default' | 'up' | 'down' | '52low' | '52high';
 type KrFilter = 'all' | 'KOSPI' | 'KOSDAQ';
 const TAB_KEY = 'kospi-lab-my-stocks-tab';
 const ANALYZABLE = ['BTC', 'ETH', 'XRP', 'SOL'];
@@ -130,6 +130,10 @@ function MyStocksInner() {
       });
     }
     if (sort === 'default') return list;
+    if (sort === '52low' || sort === '52high') {
+      const pos = (r: Row) => (r.px && r.hi52 && r.lo52 && r.hi52 > r.lo52 ? (r.px - r.lo52) / (r.hi52 - r.lo52) : null);
+      return [...list].sort((a, b) => { const pa = pos(a), pb = pos(b); if (pa == null) return 1; if (pb == null) return -1; return sort === '52low' ? pa - pb : pb - pa; });
+    }
     return [...list].sort((a, b) => {
       if (a.cr == null) return 1;
       if (b.cr == null) return -1;
@@ -171,7 +175,7 @@ function MyStocksInner() {
       </button>
 
       <div className="chip-scroll mb-3">
-        {([['default', '기본순'], ['up', '상승률순'], ['down', '하락률순']] as [Sort, string][]).map(([k, l]) => (
+        {([['default', '기본순'], ['up', '상승률순'], ['down', '하락률순'], ['52low', '52주 저점'], ['52high', '52주 고점']] as [Sort, string][]).map(([k, l]) => (
           <button key={k} type="button" className={`chip ${sort === k ? 'active' : ''}`} aria-pressed={sort === k} onClick={() => setSort(k)}>{l}</button>
         ))}
         {tab === 'domestic' && (
