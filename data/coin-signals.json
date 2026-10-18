@@ -1,6 +1,7 @@
 {
-  "updated": "2026-10-18T13:16:54.525Z",
-  "open": [
+  "updated": "2026-10-18T16:41:50.196Z",
+  "open": [],
+  "closed": [
     {
       "id": "ETHUSDT-scalp-1792329411360",
       "sym": "ETHUSDT",
@@ -14,10 +15,12 @@
       "price0": 2411.69,
       "ultra": false,
       "conf": 99,
-      "eq": 71
-    }
-  ],
-  "closed": [
+      "eq": 71,
+      "closeTs": 1792341707245,
+      "closePrice": 2363.63,
+      "outcome": "WIN",
+      "r": 1.59
+    },
     {
       "id": "BTCUSDT-scalp-1792206008505",
       "sym": "BTCUSDT",
@@ -572,9 +575,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 25,
-      "winRate": 52,
-      "avgR": 0.26
+      "n": 26,
+      "winRate": 54,
+      "avgR": 0.32
     },
     "swing": {
       "n": 4,
@@ -582,15 +585,14 @@
       "avgR": 2.21
     },
     "all": {
-      "n": 29,
-      "winRate": 59,
-      "avgR": 0.53
+      "n": 30,
+      "winRate": 60,
+      "avgR": 0.57
     }
   },
   "watch": {
-    "ETHUSDT:liqCrit": 1792042429396,
+    "ETHUSDT:liqCrit": 1792341707245,
     "ETHUSDT:noplan": 1792329411360,
-    "cb:blocked:1791644400000": 1791646243266,
     "BTCUSDT:liqCrit": 1791705000474,
     "cb:warn:1791644400000": 1791705000474,
     "BTCUSDT:noplan": 1791854458870,
