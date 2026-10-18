@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-18T18:57:38.626Z",
+  "updated": "2026-10-18T21:20:36.468Z",
   "open": [],
   "closed": [
     {
@@ -592,7 +592,7 @@
   },
   "watch": {
     "ETHUSDT:liqCrit": 1792341707245,
-    "ETHUSDT:noplan": 1792329411360,
+    "ETHUSDT:noplan": 1792358434090,
     "BTCUSDT:liqCrit": 1791705000474,
     "cb:warn:1791644400000": 1791705000474,
     "BTCUSDT:noplan": 1791854458870,
