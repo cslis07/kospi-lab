@@ -11,7 +11,7 @@
 import type { SupplyLayer } from './coinSupply';
 import type { DemandLayer } from './coinPremium';
 import type { MacroContext } from './coinMacroContext';
-import { isolatedLiqPrice } from './positionSizing';
+import { isolatedLiqPrice, notionForRisk } from './positionSizing';
 
 /** 위험자산 기준 기울기: -1 맞바람 · 0 중립 · +1 순풍 */
 export type Tilt = -1 | 0 | 1;
@@ -174,4 +174,37 @@ export function leverageGuard(i: LevGuardInput): LevGuard {
     warnings.push(`청산거리(${liqDistPct.toFixed(1)}%)가 과거 이 체제 최대 역행(${i.maxAdversePct!.toFixed(1)}%)보다 작음 — 버티기 위험`);
   if (i.leverage >= 10) warnings.push('10배 이상 — 공급 감소 전망만 믿고 버티지 말 것(배경은 트리거 아님)');
   return { liqPrice, liqDistPct, stopSafety, survivesMaxAdverse, warnings };
+}
+
+// ── 권장 사이징 (리스크% 기반, positionSizing.notionForRisk 재사용) ───────
+export interface SizingInput {
+  seedUsdt: number; // 계좌 자본
+  riskPct: number; // 회당 허용 손실 %
+  stopPct: number; // 손절 거리 %
+  leverage: number;
+  entry: number;
+}
+export interface Sizing {
+  riskUsdt: number; // 손절 시 잃는 금액(= 자본 × 리스크%)
+  notionUsdt: number; // 권장 명목가
+  qty: number; // 권장 수량(코인)
+  marginUsdt: number; // 필요 증거금(명목가 ÷ 레버리지)
+  marginPctOfSeed: number; // 증거금이 자본에서 차지하는 비중 %
+  overMargin: boolean; // 필요 증거금 > 자본 (레버리지가 낮아 감당 불가)
+}
+
+/** 손절거리가 리스크를 결정 → 명목가 역산, 레버리지로 증거금 환산. 방향·승률과 무관한 자금관리. */
+export function recommendSizing(i: SizingInput): Sizing | null {
+  if (!(i.seedUsdt > 0) || !(i.riskPct > 0) || !(i.stopPct > 0) || !(i.leverage > 0) || !(i.entry > 0)) return null;
+  const riskUsdt = (i.seedUsdt * i.riskPct) / 100;
+  const notionUsdt = notionForRisk(i.seedUsdt, i.riskPct, i.stopPct);
+  const marginUsdt = notionUsdt / i.leverage;
+  return {
+    riskUsdt,
+    notionUsdt,
+    qty: notionUsdt / i.entry,
+    marginUsdt,
+    marginPctOfSeed: (marginUsdt / i.seedUsdt) * 100,
+    overMargin: marginUsdt > i.seedUsdt,
+  };
 }

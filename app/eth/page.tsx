@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { leverageGuard, type RegimeRead, type LayerTilt } from '@/lib/coinRegime';
+import { leverageGuard, recommendSizing, type RegimeRead, type LayerTilt } from '@/lib/coinRegime';
 import type { SupplyLayer } from '@/lib/coinSupply';
 import type { DemandLayer } from '@/lib/coinPremium';
 import type { OptionsLayer } from '@/lib/coinOptions';
@@ -80,6 +80,8 @@ export default function EthRegimePage() {
   const [side, setSide] = useState<'long' | 'short'>('long');
   const [entry, setEntry] = useState<string>('');
   const [stop, setStop] = useState<number>(5);
+  const [seed, setSeed] = useState<string>('1000');
+  const [riskPct, setRiskPct] = useState<number>(1);
 
   const price = data?.positioning?.priceUsd ?? data?.edge?.priceUsd ?? data?.demand?.ethUsd ?? null;
   const entryNum = entry ? Number(entry) : price ?? 0;
@@ -89,6 +91,11 @@ export default function EthRegimePage() {
     if (!entryNum) return null;
     return leverageGuard({ entry: entryNum, leverage: lev, isShort: side === 'short', stopPct: stop, maxAdversePct: maxAdverse });
   }, [entryNum, lev, side, stop, maxAdverse]);
+
+  const sizing = useMemo(
+    () => recommendSizing({ seedUsdt: Number(seed), riskPct, stopPct: stop, leverage: lev, entry: entryNum }),
+    [seed, riskPct, stop, lev, entryNum],
+  );
 
   const r = data?.regime;
   const STRENGTH_CLS: Record<string, string> = { '강': 'text-emerald-400', '보통': 'text-[var(--accent)]', '약': 'text-amber-400', '혼조': 'text-[var(--text-muted)]' };
@@ -219,6 +226,16 @@ export default function EthRegimePage() {
                 </div>
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <label className="text-[11px] text-[var(--text-muted)]">자본(USDT)
+                <input value={seed} onChange={(e) => setSeed(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal"
+                  className="mt-1 w-full rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-2 py-1.5 text-[13px] text-[var(--text)] tabular-nums" />
+              </label>
+              <label className="text-[11px] text-[var(--text-muted)]">회당 리스크(%)
+                <input type="number" value={riskPct} min={0.1} step={0.1} onChange={(e) => setRiskPct(Number(e.target.value))}
+                  className="mt-1 w-full rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-2 py-1.5 text-[13px] text-[var(--text)] tabular-nums" />
+              </label>
+            </div>
             {guard && (
               <div className="space-y-2">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
@@ -234,6 +251,21 @@ export default function EthRegimePage() {
                     ))}
                   </ul>
                 )}
+              </div>
+            )}
+            {sizing && (
+              <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">권장 사이징 <span className="opacity-70">(자본 리스크 {riskPct}% · 손절 {stop}% 기준 · 방향·승률과 무관한 자금관리)</span></p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                  <Stat label="권장 수량" value={`${sizing.qty.toFixed(3)} ETH`} />
+                  <Stat label="명목가" value={usd(sizing.notionUsdt)} />
+                  <Stat label={`증거금(자본 ${sizing.marginPctOfSeed.toFixed(0)}%)`} value={usd(sizing.marginUsdt)} warn={sizing.overMargin} />
+                  <Stat label="손절 시 손실" value={usd(sizing.riskUsdt)} />
+                </div>
+                {sizing.overMargin && (
+                  <p className="mt-2 text-[11px] text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-lg px-2 py-1 leading-snug">⚠ 필요 증거금이 자본보다 큼 — 레버리지를 높이거나 리스크%·손절폭을 줄이세요(현재 설정으론 이 포지션을 감당 못 함).</p>
+                )}
+                <p className="mt-2 text-[10px] text-[var(--text-muted)] opacity-70 leading-snug">손절거리가 리스크를 결정합니다: 손절 시 손실이 자본의 {riskPct}%가 되도록 명목가를 역산했습니다. 수수료·미끄러짐은 미반영(실제론 조금 더 보수적으로).</p>
               </div>
             )}
           </div>
