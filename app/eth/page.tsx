@@ -122,6 +122,7 @@ export default function EthRegimePage() {
               {data!.demand && (
                 <div className="mt-2 text-[10.5px] text-[var(--text-muted)] space-y-0.5 tabular-nums">
                   <p>코인베이스 프리미엄 {signed(data!.demand.coinbasePremiumPct, 3)}</p>
+                  <p>CVD {signed(data!.demand.cvdRatioPct, 1)}<span className="opacity-60"> /{data!.demand.cvdWindowH}h 순테이커</span></p>
                   <p>김프 {signed(data!.demand.kimchiPct, 2)}</p>
                 </div>
               )}

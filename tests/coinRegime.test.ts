@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { summarizeStables, summarizeCex, supplyState } from '../lib/coinSupply';
-import { premiumPct, demandState } from '../lib/coinPremium';
+import { premiumPct, demandState, takerDelta, cvdSummary } from '../lib/coinPremium';
 import { parseInstrument, expiryToTs, maxPain, summarizeOptions } from '../lib/coinOptions';
 import {
   supplyTilt, demandTilt, macroTilt, confluenceOf, crowdingState, synthesizeRegime, leverageGuard,
@@ -82,6 +82,26 @@ ok('demandState: 코인베이스 프리미엄 주가중', () => {
   assert.equal(demandState({ coinbasePremiumPct: 0.1, kimchiPct: 5 }), 'buying');
 });
 
+ok('takerDelta·cvdSummary: 순 테이커 델타 집계', () => {
+  // kline[5]=총거래량, kline[9]=테이커 매수량
+  const k = (vol: number, buy: number): string[] => ['0', '0', '0', '0', '0', String(vol), '0', '0', '0', String(buy)];
+  assert.equal(takerDelta(k(100, 70)), 40); // 2*70-100
+  assert.equal(takerDelta(k(100, 30)), -40);
+  const s = cvdSummary([k(100, 70), k(100, 30), k(200, 150)]); // 델타 40-40+100=100, 총 400
+  assert.equal(s.netEth, 100);
+  assert.equal(s.totalEth, 400);
+  assert.equal(s.ratioPct, 25); // 100/400*100
+  assert.equal(cvdSummary([]).ratioPct, 0);
+});
+
+ok('demandState: CVD 순매수/매도 반영', () => {
+  assert.equal(demandState({ coinbasePremiumPct: 0, cvdRatioPct: 5 }), 'buying');
+  assert.equal(demandState({ coinbasePremiumPct: 0, cvdRatioPct: -5 }), 'selling');
+  assert.equal(demandState({ coinbasePremiumPct: 0, cvdRatioPct: 1 }), 'neutral'); // ±3 미만
+  // 프리미엄 음수 + CVD 양수 → 상쇄 neutral
+  assert.equal(demandState({ coinbasePremiumPct: -0.1, cvdRatioPct: 5 }), 'neutral');
+});
+
 console.log('coinOptions.ts');
 
 ok('parseInstrument: 행사가·만기·콜풋 추출', () => {
@@ -131,7 +151,7 @@ ok('summarizeOptions: 만기별 묶기·미래 만기만·가까운 순', () => 
 console.log('coinRegime.ts');
 
 const supply = (state: SupplyLayer['state']): SupplyLayer => ({ stables: null, steth: null, cex: null, state, asof: 0 });
-const demand = (state: DemandLayer['state']): DemandLayer => ({ ethUsd: null, coinbasePremiumPct: null, kimchiPct: null, usdKrw: null, state, asof: 0 });
+const demand = (state: DemandLayer['state']): DemandLayer => ({ ethUsd: null, coinbasePremiumPct: null, kimchiPct: null, cvdNetEth: null, cvdRatioPct: null, cvdWindowH: 24, usdKrw: null, state, asof: 0 });
 const macro = (bias: MacroContext['bias']): MacroContext => ({
   dirs: { us10: 'flat', dxy: 'flat', realYield: 'flat' }, bias, strength: '보통', headline: 'test', note: '', votes: { riskOff: 0, riskOn: 0, known: 0 },
 });
