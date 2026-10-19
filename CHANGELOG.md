@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-19 (160차) — 저널·성과 시장 벤치마크 공용 컴포넌트화
+
+저널(/journal, 통화·원금 기준)과 성과(/performance, R 기준)에 중복돼 있던 벤치마크 로직을 공용 컴포넌트로 통합.
+- `components/MarketBenchmark.tsx` 신설: `useMacroDaily`·`bmSpan`·`bmCol`·`IndexReturnGrid`(기간 지수 3종 %)·`IndexChips`(지수 선택)·`MonthlyCompare`(월별 표, 내 열은 `renderMine` 주입). 계산은 lib/journalAnalytics 그대로.
+- /journal BenchmarkCard: 지수 그리드·칩·월별 표를 공용으로 교체, 원금 입력·CompareCurve 오버레이는 저널 고유로 유지. renderMine=원금>0 ? 수익률% : 월 순손익 USDT.
+- /performance MarketBenchmarkR: 동일 공용 조각 사용, renderMine=실현 R. 로컬 중복(bmFetcher·BM_IDX·표 마크업) 제거.
+- 검증: tsc 0·build 0, journalAnalytics 27 passed, 헤드리스 390px /performance·/journal 모두 벤치마크 카드·지수 3·월별 표·가로넘침 0·콘솔 0.
+
 ## 2026-10-19 (159차) — 인플레 품목 드릴다운 24/48/102개월 토글
 
 품목 드릴다운 추이에 기간 토글 추가(158차에서 24개월 고정 → 선택).

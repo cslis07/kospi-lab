@@ -27,8 +27,8 @@ import SetupConvictionCard from '@/components/SetupConvictionCard';
 import type { BreakRowSel } from '@/components/BreakdownTables';
 import EquityCurveLazy from '@/components/EquityCurveLazy';
 import CalendarHeatmap from '@/components/CalendarHeatmap';
-import useSWR from 'swr';
-import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, tradesPerDay, periodReturn, equityCurve, benchmarkCurve, monthlyPnl, type TradeValue, type PricePt } from '@/lib/journalAnalytics';
+import { streaks, resultOf, edgeSummary, kstDateKey, afterLossStreaks, tradesPerDay, equityCurve, benchmarkCurve, type TradeValue } from '@/lib/journalAnalytics';
+import { useMacroDaily, bmSpan, bmCol, IndexReturnGrid, IndexChips, MonthlyCompare, BM_IDX, type BmIdxKey } from '@/components/MarketBenchmark';
 import CompareCurveLazy from '@/components/CompareCurveLazy';
 import TradesPerDayCard from '@/components/TradesPerDayCard';
 import EdgeSummaryCard from '@/components/EdgeSummaryCard';
@@ -81,50 +81,33 @@ function periodLabel(days: number): string {
 }
 const fmtUsdt = (n: number) => (Math.abs(n) >= 1000 ? Math.round(n).toLocaleString() : String(Math.round(n * 100) / 100));
 
-const bmFetcher = (u: string) => fetch(u).then((r) => r.json());
 const PRINCIPAL_KEY = 'kospi-lab-journal-principal';
-const BM_IDX = [['btc', '비트코인'], ['nasdaq', '나스닥'], ['kospi', '코스피']] as const;
 
-/** 시장 벤치마크 — 내 매매 기간 동안 시장 + (원금 입력 시) 내 수익률%곡선 vs 지수 오버레이. */
+/** 시장 벤치마크 — 내 매매 기간 동안 시장 + (원금 입력 시) 내 수익률%곡선 vs 지수 오버레이. 공통 조각은 components/MarketBenchmark. */
 function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
-  const { data } = useSWR<{ btc: PricePt[]; nasdaq: PricePt[]; kospi: PricePt[] }>('/api/macro/daily', bmFetcher, { revalidateOnFocus: false });
+  const { data } = useMacroDaily();
   const [principal, setPrincipal] = useState('');
-  const [idx, setIdx] = useState<'btc' | 'nasdaq' | 'kospi'>('btc');
+  const [idx, setIdx] = useState<BmIdxKey>('btc');
   useEffect(() => { try { const s = localStorage.getItem(PRINCIPAL_KEY); if (s) setPrincipal(s); } catch {} }, []);
   const savePrincipal = (v: string) => { setPrincipal(v); try { localStorage.setItem(PRINCIPAL_KEY, v); } catch {} };
   if (!trades.length) return null;
-  const tsList = trades.map((t) => t.ts);
-  const from = kstDateKey(Math.min(...tsList));
-  const to = kstDateKey(Math.max(...tsList));
+  const { from, to } = bmSpan(trades);
   const net = trades.reduce((a, t) => a + t.value, 0);
-  const col = (v: number) => (v > 0 ? 'text-red-400' : v < 0 ? 'text-blue-400' : 'text-[var(--text-muted)]');
-  const rows: [string, number | null][] = [
-    ['비트코인', data ? periodReturn(data.btc, from, to) : null],
-    ['나스닥', data ? periodReturn(data.nasdaq, from, to) : null],
-    ['코스피', data ? periodReturn(data.kospi, from, to) : null],
-  ];
   const pr = Number(principal.replace(/,/g, ''));
   const curve = data && pr > 0 ? benchmarkCurve(equityCurve(trades).points, data[idx], pr) : [];
   const idxLabel = BM_IDX.find(([k]) => k === idx)![1];
-  const chip = (on: boolean) => `px-2 py-0.5 rounded-md text-[11px] font-semibold ${on ? 'bg-[var(--surface-2)] text-[var(--accent-ink)]' : 'text-[var(--text-muted)]'}`;
+  const pctStr = (v: number | null) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <h3 className="text-sm font-semibold text-[var(--text)]">시장 벤치마크 <span className="text-[11px] font-normal text-[var(--text-muted)]">· 내 매매 기간 동안 시장</span></h3>
-      <p className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-2 tabular-nums">{from} ~ {to} · 내 순손익 <b className={col(net)}>{net >= 0 ? '+' : ''}{fmtUsdt(net)} USDT</b></p>
-      <div className="grid grid-cols-3 gap-2">
-        {rows.map(([k, v]) => (
-          <div key={k} className="rounded-xl border border-[var(--border)] p-2.5">
-            <p className="text-[11px] text-[var(--text-muted)]">{k}</p>
-            <p className={`text-base font-bold tabular-nums ${v == null ? 'text-[var(--text-muted)]' : col(v)}`}>{v == null ? (data ? '—' : '…') : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`}</p>
-          </div>
-        ))}
-      </div>
+      <p className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-2 tabular-nums">{from} ~ {to} · 내 순손익 <b className={bmCol(net)}>{net >= 0 ? '+' : ''}{fmtUsdt(net)} USDT</b></p>
+      <IndexReturnGrid data={data} from={from} to={to} />
       <div className="mt-3 pt-3 border-t border-[var(--border)]">
         <div className="flex items-center gap-2 flex-wrap mb-2">
           <label className="text-[11px] text-[var(--text-muted)]">계좌 원금(USDT)</label>
           <input inputMode="decimal" value={principal} onChange={(e) => savePrincipal(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="예: 1000"
             className="w-24 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-2 py-1 text-sm text-[var(--text)] tabular-nums outline-none focus:border-[var(--accent)]" />
-          <div className="flex gap-1 ml-auto">{BM_IDX.map(([k, l]) => <button key={k} type="button" className={chip(idx === k)} onClick={() => setIdx(k)}>{l}</button>)}</div>
+          <div className="ml-auto"><IndexChips idx={idx} setIdx={setIdx} /></div>
         </div>
         {pr > 0 ? (
           <>
@@ -135,47 +118,17 @@ function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
           <p className="text-[11px] text-[var(--text-muted)]">원금을 입력하면 내 수익률%곡선을 지수와 겹쳐 비교합니다(이 기기에만 저장).</p>
         )}
       </div>
-      <MonthlyTable trades={trades} series={data ? data[idx] : undefined} idxLabel={idxLabel} principal={pr} />
-    </div>
-  );
-}
-
-/** 월별 수익률 표 — 내(원금 기준 %, 없으면 월 순손익) vs 선택 지수 월간 %. */
-function MonthlyTable({ trades, series, idxLabel, principal }: { trades: TradeValue[]; series?: PricePt[]; idxLabel: string; principal: number }) {
-  const monPnl = monthlyPnl(trades);
-  const months = [...monPnl.keys()].sort().reverse();
-  if (!months.length) return null;
-  const col = (v: number | null) => (v == null ? 'text-[var(--text-muted)]' : v > 0 ? 'text-red-400' : v < 0 ? 'text-blue-400' : 'text-[var(--text-muted)]');
-  const pctStr = (v: number | null) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
-  return (
-    <div className="mt-3 pt-3 border-t border-[var(--border)]">
-      <p className="text-[12px] font-semibold text-[var(--text)] mb-1.5">월별 수익률 <span className="text-[10px] font-normal text-[var(--text-muted)]">내 vs {idxLabel}</span></p>
-      <div className="overflow-hidden rounded-xl border border-[var(--border)]">
-        <table className="w-full text-[11px] tabular-nums">
-          <thead>
-            <tr className="bg-[var(--bg)] border-b border-[var(--border)] text-[var(--text-muted)]">
-              <th className="text-left px-2.5 py-1.5 font-semibold">월</th>
-              <th className="text-right px-2.5 py-1.5 font-semibold">내 수익률</th>
-              <th className="text-right px-2.5 py-1.5 font-semibold">{idxLabel}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {months.map((m) => {
-              const pnl = monPnl.get(m) ?? 0;
-              const mine = principal > 0 ? (pnl / principal) * 100 : null;
-              const idxRet = series ? periodReturn(series, `${m}-01`, `${m}-31`) : null;
-              return (
-                <tr key={m} className="border-b border-[var(--border)]/50">
-                  <td className="px-2.5 py-1.5 text-[var(--text)]">{m}</td>
-                  <td className={`px-2.5 py-1.5 text-right font-bold ${col(mine)}`}>{mine == null ? <span className="text-[var(--text-muted)]">{pnl >= 0 ? '+' : ''}{fmtUsdt(pnl)}</span> : pctStr(mine)}</td>
-                  <td className={`px-2.5 py-1.5 text-right ${col(idxRet)}`}>{pctStr(idxRet)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className="mt-3 pt-3 border-t border-[var(--border)]">
+        <p className="text-[12px] font-semibold text-[var(--text)] mb-1.5">월별 수익률 <span className="text-[10px] font-normal text-[var(--text-muted)]">내 vs {idxLabel}</span></p>
+        <MonthlyCompare trades={trades} series={data ? data[idx] : undefined} idxLabel={idxLabel} mineHeader="내 수익률"
+          renderMine={(pnl) => {
+            const mine = pr > 0 ? (pnl / pr) * 100 : null;
+            return mine == null
+              ? <span className="text-[var(--text-muted)]">{pnl >= 0 ? '+' : ''}{fmtUsdt(pnl)}</span>
+              : <span className={bmCol(mine)}>{pctStr(mine)}</span>;
+          }} />
+        {pr <= 0 && <p className="text-[10px] text-[var(--text-muted)] mt-1.5">내 열은 원금 입력 시 %로 바뀝니다(지금은 월 순손익 USDT). 지수는 그 달 종가 기준 월간 변화.</p>}
       </div>
-      {principal <= 0 && <p className="text-[10px] text-[var(--text-muted)] mt-1.5">내 열은 원금 입력 시 %로 바뀝니다(지금은 월 순손익 USDT). 지수는 그 달 종가 기준 월간 변화.</p>}
     </div>
   );
 }
