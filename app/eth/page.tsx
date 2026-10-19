@@ -15,6 +15,9 @@ interface Positioning {
   longShortRatio: number | null;
   oiEth: number | null;
   priceUsd: number | null;
+  fundingDeltaAnnual: number | null;
+  lsDelta: number | null;
+  oi24hChgPct: number | null;
 }
 interface RegimePayload {
   regime: RegimeRead;
@@ -38,6 +41,17 @@ function signed(v: number | null | undefined, dec = 2, unit = '%') {
 }
 function usd(v: number | null | undefined) {
   return v == null || !Number.isFinite(v) ? '—' : `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+}
+// Δ 화살표 — 상승=빨강/하락=파랑(국내 관행). null이면 아무것도 안 그림(지어내지 않음).
+function Dlt({ v, dec = 2, unit = '%p', label = '어제比' }: { v: number | null | undefined; dec?: number; unit?: string; label?: string }) {
+  if (v == null || !Number.isFinite(v)) return null;
+  const cls = v > 0 ? 'text-red-400' : v < 0 ? 'text-blue-400' : 'text-[var(--text-muted)]';
+  const arrow = v > 0 ? '▲' : v < 0 ? '▼' : '·';
+  return (
+    <span className={`ml-1 ${cls}`} title={label}>
+      {arrow}{Math.abs(v).toFixed(dec)}{unit}
+    </span>
+  );
 }
 
 const TILT_STYLE: Record<number, { cls: string; badge: string }> = {
@@ -101,7 +115,7 @@ export default function EthRegimePage() {
           {/* 종합 헤드라인 */}
           <div className="rounded-xl border border-[var(--accent)]/50 bg-[var(--surface-2)] p-4 mb-5">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] font-semibold text-[var(--text-muted)]">현재 체제 · ETH {usd(price)}</span>
+              <span className="text-[11px] font-semibold text-[var(--text-muted)]">현재 체제 · ETH {usd(price)}<Dlt v={data!.demand?.eth24hChgPct} dec={2} unit="%" label="24h" /></span>
               <span className={`text-[12px] font-bold ${STRENGTH_CLS[r.confluence.strength] ?? ''}`}>정렬도 {r.confluence.strength} (net {signed(r.confluence.net, 0, '')})</span>
             </div>
             <p className="text-[15px] font-extrabold text-[var(--text)] leading-snug">{r.headline}</p>
@@ -113,8 +127,8 @@ export default function EthRegimePage() {
             <TiltCard t={r.tilts[0]}>
               {data!.supply && (
                 <div className="mt-2 text-[10.5px] text-[var(--text-muted)] space-y-0.5 tabular-nums">
-                  <p>스테이블 공급 {signed(data!.supply.stables?.weekChangePct, 2)}<span className="opacity-60"> /주</span></p>
-                  <p>stETH peg {signed(data!.supply.steth?.pegPct, 3)}</p>
+                  <p>스테이블 공급 {signed(data!.supply.stables?.weekChangePct, 2)}<span className="opacity-60"> /주</span><Dlt v={data!.supply.stables?.dayChangePct} dec={2} unit="%" /></p>
+                  <p>stETH peg {signed(data!.supply.steth?.pegPct, 3)}<Dlt v={data!.supply.steth?.peg24hChg} dec={3} /></p>
                 </div>
               )}
             </TiltCard>
@@ -138,8 +152,9 @@ export default function EthRegimePage() {
               <p className="text-[11px] text-[var(--text-muted)] mt-1 leading-snug">{r.crowdingNote}</p>
               {data!.positioning && (
                 <div className="mt-2 text-[10.5px] text-[var(--text-muted)] space-y-0.5 tabular-nums">
-                  <p>펀딩(연율) {signed(data!.positioning.fundingPctAnnual, 1)}</p>
-                  <p>롱숏비율 {fmt(data!.positioning.longShortRatio, 2)}</p>
+                  <p>펀딩(연율) {signed(data!.positioning.fundingPctAnnual, 1)}<Dlt v={data!.positioning.fundingDeltaAnnual} dec={1} /></p>
+                  <p>롱숏비율 {fmt(data!.positioning.longShortRatio, 2)}<Dlt v={data!.positioning.lsDelta} dec={2} unit="" /></p>
+                  <p>OI 24h <Dlt v={data!.positioning.oi24hChgPct} dec={1} unit="%" label="24h" /></p>
                 </div>
               )}
             </div>

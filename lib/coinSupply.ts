@@ -25,6 +25,8 @@ export interface StethSummary {
   stethUsd: number;
   pegPct: number; // (stETH/ETH - 1) * 100, 음수면 디스카운트(매도압력)
   stakedMcapUsd: number; // stETH 시총 = 스테이킹 잠김 프록시(Lido 우세)
+  eth24hChg: number | null; // ETH 24h 변화율 %
+  peg24hChg: number | null; // peg 24h 변화 근사(%p) = stETH 24h변화 - ETH 24h변화
 }
 export interface CexSummary {
   totalReserveUsd: number; // 전 거래소 cleanAssetsTvl 합(전자산, ETH 아님)
@@ -102,20 +104,24 @@ export async function getSupplyLayer(): Promise<SupplyLayer> {
       .then((j) => summarizeStables(((j as { peggedAssets?: PeggedAsset[] }).peggedAssets) ?? []))
       .catch(() => null),
     jget(
-      'https://api.coingecko.com/api/v3/simple/price?ids=staked-ether,ethereum&vs_currencies=usd&include_market_cap=true',
+      'https://api.coingecko.com/api/v3/simple/price?ids=staked-ether,ethereum&vs_currencies=usd&include_market_cap=true&include_24hr_change=true',
       8000,
       300,
     )
       .then((j) => {
-        const d = j as Record<string, { usd?: number; usd_market_cap?: number }>;
+        const d = j as Record<string, { usd?: number; usd_market_cap?: number; usd_24h_change?: number }>;
         const eth = d.ethereum?.usd ?? 0;
         const st = d['staked-ether']?.usd ?? 0;
         if (!eth || !st) return null;
+        const ethChg = d.ethereum?.usd_24h_change;
+        const stChg = d['staked-ether']?.usd_24h_change;
         return {
           ethUsd: eth,
           stethUsd: st,
           pegPct: (st / eth - 1) * 100,
           stakedMcapUsd: d['staked-ether']?.usd_market_cap ?? 0,
+          eth24hChg: ethChg ?? null,
+          peg24hChg: ethChg != null && stChg != null ? stChg - ethChg : null,
         } satisfies StethSummary;
       })
       .catch(() => null),

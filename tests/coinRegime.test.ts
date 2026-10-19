@@ -151,7 +151,7 @@ ok('summarizeOptions: 만기별 묶기·미래 만기만·가까운 순', () => 
 console.log('coinRegime.ts');
 
 const supply = (state: SupplyLayer['state']): SupplyLayer => ({ stables: null, steth: null, cex: null, state, asof: 0 });
-const demand = (state: DemandLayer['state']): DemandLayer => ({ ethUsd: null, coinbasePremiumPct: null, kimchiPct: null, cvdNetEth: null, cvdRatioPct: null, cvdWindowH: 24, usdKrw: null, state, asof: 0 });
+const demand = (state: DemandLayer['state']): DemandLayer => ({ ethUsd: null, eth24hChgPct: null, coinbasePremiumPct: null, kimchiPct: null, cvdNetEth: null, cvdRatioPct: null, cvdWindowH: 24, usdKrw: null, state, asof: 0 });
 const macro = (bias: MacroContext['bias']): MacroContext => ({
   dirs: { us10: 'flat', dxy: 'flat', realYield: 'flat' }, bias, strength: '보통', headline: 'test', note: '', votes: { riskOff: 0, riskOn: 0, known: 0 },
 });

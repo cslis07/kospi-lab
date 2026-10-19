@@ -16,6 +16,7 @@ export type DemandState = 'buying' | 'selling' | 'neutral';
 
 export interface DemandLayer {
   ethUsd: number | null;
+  eth24hChgPct: number | null; // ETH 24h 가격 변화율 % (방금 vs 어제)
   coinbasePremiumPct: number | null; // (Coinbase - Binance)/Binance * 100
   kimchiPct: number | null; // (Upbit / (Binance×USDKRW) - 1) * 100
   cvdNetEth: number | null; // 윈도 내 순 테이커 델타(매수-매도, ETH)
@@ -87,9 +88,12 @@ export async function getDemandLayer(): Promise<DemandLayer> {
     jget('https://api.coinbase.com/v2/prices/ETH-USD/spot', 6000, 20)
       .then((j) => Number((j as { data?: { amount?: string } }).data?.amount))
       .catch(() => NaN),
-    jget('https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT', 6000, 20)
-      .then((j) => Number((j as { price?: string }).price))
-      .catch(() => NaN),
+    jget('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDT', 6000, 20)
+      .then((j) => {
+        const t = j as { lastPrice?: string; priceChangePercent?: string };
+        return { price: Number(t.lastPrice), chg: Number(t.priceChangePercent) };
+      })
+      .catch(() => ({ price: NaN, chg: NaN })),
     jget('https://api.upbit.com/v1/ticker?markets=KRW-ETH', 6000, 20)
       .then((j) => Number((j as { trade_price?: number }[])[0]?.trade_price))
       .catch(() => NaN),
@@ -101,17 +105,19 @@ export async function getDemandLayer(): Promise<DemandLayer> {
       .catch(() => null),
   ]);
 
-  const ethUsd = Number.isFinite(binance) ? binance : Number.isFinite(coinbase) ? coinbase : null;
+  const bPrice = binance.price;
+  const ethUsd = Number.isFinite(bPrice) ? bPrice : Number.isFinite(coinbase) ? coinbase : null;
   const coinbasePremiumPct =
-    Number.isFinite(coinbase) && Number.isFinite(binance) ? premiumPct(coinbase, binance) : null;
+    Number.isFinite(coinbase) && Number.isFinite(bPrice) ? premiumPct(coinbase, bPrice) : null;
   const kimchiPct =
-    Number.isFinite(upbit) && Number.isFinite(binance) && Number.isFinite(fx)
-      ? premiumPct(upbit, binance * fx)
+    Number.isFinite(upbit) && Number.isFinite(bPrice) && Number.isFinite(fx)
+      ? premiumPct(upbit, bPrice * fx)
       : null;
   const cvd = klines && klines.length ? cvdSummary(klines) : null;
 
   return {
     ethUsd,
+    eth24hChgPct: Number.isFinite(binance.chg) ? binance.chg : null,
     coinbasePremiumPct,
     kimchiPct,
     cvdNetEth: cvd ? Math.round(cvd.netEth) : null,
