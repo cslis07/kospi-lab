@@ -6,6 +6,16 @@ import assert from 'node:assert/strict';
 import { summarizeStables, summarizeCex, supplyState } from '../lib/coinSupply';
 import { premiumPct, demandState } from '../lib/coinPremium';
 import { parseInstrument, expiryToTs, maxPain, summarizeOptions } from '../lib/coinOptions';
+import {
+  supplyTilt, demandTilt, macroTilt, confluenceOf, crowdingState, synthesizeRegime, leverageGuard,
+} from '../lib/coinRegime';
+import {
+  sma, trueRange, atrPct, forwardMovePct, maxAdverseFwd, median, quantile, classifyState, baseRates,
+  type Candle,
+} from '../lib/regimeEdge';
+import type { SupplyLayer } from '../lib/coinSupply';
+import type { DemandLayer } from '../lib/coinPremium';
+import type { MacroContext } from '../lib/coinMacroContext';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -116,6 +126,127 @@ ok('summarizeOptions: 만기별 묶기·미래 만기만·가까운 순', () => 
   assert.equal(r.nearest!.totalOiEth, 80);
   assert.ok(r.nearest!.daysToExpiry >= 0);
   assert.equal(r.expiries[1].expiry, '27NOV26');
+});
+
+console.log('coinRegime.ts');
+
+const supply = (state: SupplyLayer['state']): SupplyLayer => ({ stables: null, steth: null, cex: null, state, asof: 0 });
+const demand = (state: DemandLayer['state']): DemandLayer => ({ ethUsd: null, coinbasePremiumPct: null, kimchiPct: null, usdKrw: null, state, asof: 0 });
+const macro = (bias: MacroContext['bias']): MacroContext => ({
+  dirs: { us10: 'flat', dxy: 'flat', realYield: 'flat' }, bias, strength: '보통', headline: 'test', note: '', votes: { riskOff: 0, riskOn: 0, known: 0 },
+});
+
+ok('레이어 기울기: 상태 → -1/0/+1', () => {
+  assert.equal(supplyTilt(supply('supportive')).tilt, 1);
+  assert.equal(supplyTilt(supply('headwind')).tilt, -1);
+  assert.equal(supplyTilt(null).tilt, 0);
+  assert.equal(demandTilt(demand('buying')).tilt, 1);
+  assert.equal(demandTilt(demand('selling')).tilt, -1);
+  assert.equal(macroTilt(macro('long')).tilt, 1);
+  assert.equal(macroTilt(macro('short')).tilt, -1);
+  assert.equal(macroTilt(macro('mixed')).tilt, 0);
+});
+
+ok('confluence: net·agree·strength', () => {
+  assert.deepEqual(
+    confluenceOf([supplyTilt(supply('supportive')), demandTilt(demand('buying')), macroTilt(macro('long'))]),
+    { net: 3, agree: 3, known: 3, strength: '강' },
+  );
+  const mixed = confluenceOf([supplyTilt(supply('supportive')), demandTilt(demand('selling')), macroTilt(macro('mixed'))]);
+  assert.equal(mixed.net, 0);
+  assert.equal(mixed.strength, '혼조');
+  assert.equal(confluenceOf([supplyTilt(null), demandTilt(null), macroTilt(null)]).strength, '혼조');
+});
+
+ok('crowdingState: 고펀딩+롱쏠림=crowded_long, 음펀딩=crowded_short', () => {
+  assert.equal(crowdingState({ fundingPctAnnual: 40, longShortRatio: 1.5 }).crowding, 'crowded_long');
+  assert.equal(crowdingState({ fundingPctAnnual: -20 }).crowding, 'crowded_short');
+  assert.equal(crowdingState({ fundingPctAnnual: 10, longShortRatio: 1.1 }).crowding, 'balanced');
+  assert.equal(crowdingState(null).crowding, 'unknown');
+});
+
+ok('synthesizeRegime: 태그 — amplifier / supply_no_demand / macro_headwind', () => {
+  const amp = synthesizeRegime({ supply: supply('supportive'), demand: demand('buying'), macro: macro('long'), positioning: null });
+  assert.ok(amp.tags.includes('amplifier'));
+  assert.equal(amp.confluence.strength, '강');
+  const snd = synthesizeRegime({ supply: supply('supportive'), demand: demand('selling'), macro: macro('mixed'), positioning: { fundingPctAnnual: 40, longShortRatio: 1.5 } });
+  assert.ok(snd.tags.includes('supply_no_demand'));
+  assert.ok(snd.tags.includes('crowded'));
+  const mh = synthesizeRegime({ supply: supply('neutral'), demand: demand('neutral'), macro: macro('short'), positioning: null });
+  assert.ok(mh.tags.includes('macro_headwind'));
+  const mix = synthesizeRegime({ supply: supply('neutral'), demand: demand('neutral'), macro: macro('mixed'), positioning: null });
+  assert.deepEqual(mix.tags, ['mixed']);
+});
+
+ok('leverageGuard: 청산거리·손절안전·최대역행 경고(isolatedLiqPrice 재사용)', () => {
+  const g = leverageGuard({ entry: 2000, leverage: 10, isShort: false, stopPct: 5, maxAdversePct: 12 });
+  // 롱 10배 청산거리 ≈ 9.5%
+  assert.ok(g.liqDistPct > 9 && g.liqDistPct < 10);
+  assert.ok(g.stopSafety !== null && g.stopSafety < 2); // 9.5/5 ≈ 1.9
+  assert.equal(g.survivesMaxAdverse, false); // 9.5 < 12
+  assert.ok(g.warnings.some((w) => w.includes('10배')));
+  assert.ok(g.warnings.length >= 2);
+  // 저레버리지·여유 충분
+  const safe = leverageGuard({ entry: 2000, leverage: 2, isShort: false, stopPct: 5, maxAdversePct: 12 });
+  assert.equal(safe.survivesMaxAdverse, true);
+  assert.equal(safe.warnings.length, 0);
+});
+
+console.log('regimeEdge.ts');
+
+ok('sma·trueRange·atrPct 기본', () => {
+  assert.equal(sma([1, 2, 3, 4], 3, 2), 3.5);
+  assert.equal(sma([1, 2], 0, 2), null);
+  assert.equal(trueRange({ ts: 1, close: 10, high: 12, low: 9 }, { ts: 0, close: 10, high: 10, low: 10 }), 3);
+});
+
+ok('forwardMovePct·maxAdverseFwd', () => {
+  const cs: Candle[] = [
+    { ts: 0, close: 100, high: 100, low: 100 },
+    { ts: 1, close: 90, high: 101, low: 88 }, // 롱 진입 후 저점 88 = -12% 역행
+    { ts: 2, close: 110, high: 110, low: 90 },
+  ];
+  assert.ok(Math.abs(forwardMovePct(cs, 0, 2)! - 10) < 1e-9); // 100→110
+  assert.ok(Math.abs(maxAdverseFwd(cs, 0, 2, false)! - 12) < 1e-9); // (100-88)/100
+  assert.equal(forwardMovePct(cs, 2, 2), null); // 범위 밖
+});
+
+ok('median·quantile', () => {
+  assert.equal(median([3, 1, 2]), 2);
+  assert.equal(median([4, 1, 2, 3]), 2.5);
+  assert.equal(quantile([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 0.9), 9); // round(0.9*9)=8 → s[8]
+  assert.equal(quantile([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 1), 10);
+  assert.equal(median([]), null);
+});
+
+// 결정적 합성 시계열 — 상승추세 확인 + base rate 구조
+function genUp(n: number): Candle[] {
+  const cs: Candle[] = [];
+  for (let i = 0; i < n; i++) {
+    const close = 100 + i; // 단조 증가
+    cs.push({ ts: i, close, high: close + 0.5, low: close - 0.5 });
+  }
+  return cs;
+}
+
+ok('classifyState: 단조 상승은 상승추세', () => {
+  const cs = genUp(60);
+  const st = classifyState(cs, cs.length - 1);
+  assert.ok(st !== null && st.trend === 'up');
+  assert.equal(classifyState(cs, 10), null); // 과거 부족
+});
+
+ok('baseRates: 단조 상승이면 상승비율 1·판정 분류', () => {
+  const br = baseRates(genUp(300), 2);
+  assert.ok(br.current !== null && br.current.trend === 'up');
+  assert.ok(br.control !== null && br.control.upRatio === 1);
+  assert.ok(br.matched !== null && br.matched.upRatio === 1);
+  assert.ok(['edge-unclear', 'vol-differs', 'insufficient'].includes(br.verdict));
+});
+
+ok('baseRates: 표본 부족이면 insufficient', () => {
+  const br = baseRates(genUp(40), 2);
+  assert.equal(br.verdict, 'insufficient');
 });
 
 console.log(`\n${passed} passed`);
