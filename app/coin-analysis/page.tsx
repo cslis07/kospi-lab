@@ -16,7 +16,6 @@ import { SETUPS, MISTAKES } from '@/lib/tradeTags';
 import { TagPickRow, ConvictionPickRow } from '@/components/TagPicker';
 const WhaleLiquidationPanel = dynamic(() => import('@/components/WhaleLiquidationPanel'), { ssr: false });
 import { useCoinAlerts } from '@/hooks/useCoinAlerts';
-import BriefingModelPicker from '@/components/BriefingModelPicker';
 import LivePriceTag from '@/components/LivePriceTag';
 import Range52Bar from '@/components/Range52Bar';
 import SourceStatus, { type SourceStat } from '@/components/SourceStatus';
@@ -418,7 +417,7 @@ function OrderbookPanel({ ob, price, digits }: {
           {ob.bidWall ? (
             <>
               <p className="font-bold text-emerald-400 tabular-nums">${fmtP(ob.bidWall.price, digits)}</p>
-              <p className="text-[10px] text-[var(--text-muted)]">{ob.bidWall.distPct.toFixed(2)}% 아래 · {usd(ob.bidWall.size, 0)}개</p>
+              <p className="text-[10px] text-[var(--text-muted)] tabular-nums">{ob.bidWall.distPct.toFixed(2)}% 아래 · ${(ob.bidWall.size * ob.bidWall.price / 1e6).toFixed(1)}M</p>
             </>
           ) : <p className="text-[var(--text-muted)]">-</p>}
         </div>
@@ -427,7 +426,7 @@ function OrderbookPanel({ ob, price, digits }: {
           {ob.askWall ? (
             <>
               <p className="font-bold text-red-400 tabular-nums">${fmtP(ob.askWall.price, digits)}</p>
-              <p className="text-[10px] text-[var(--text-muted)]">{ob.askWall.distPct.toFixed(2)}% 위 · {usd(ob.askWall.size, 0)}개</p>
+              <p className="text-[10px] text-[var(--text-muted)] tabular-nums">{ob.askWall.distPct.toFixed(2)}% 위 · ${(ob.askWall.size * ob.askWall.price / 1e6).toFixed(1)}M</p>
             </>
           ) : <p className="text-[var(--text-muted)]">-</p>}
         </div>
@@ -499,7 +498,7 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-      <h3 className="text-sm font-bold text-[var(--text)] mb-1">리스크 패널 <span className="text-[10px] font-normal text-[var(--text-muted)]">사이징 · 청산가 · 펀딩</span></h3>
+      <h3 className="text-sm font-bold text-[var(--text)] mb-1">리스크 패널 <span className="text-[10px] font-normal text-sky-400/90">이 화면의 핵심</span> <span className="text-[10px] font-normal text-[var(--text-muted)]">사이징 · 청산가 · 펀딩</span></h3>
       <p className="text-[10px] text-[var(--text-muted)] mb-3">노션 = 시드 × 허용손실% ÷ 손절거리({stopPct.toFixed(2)}%) — 리스크는 손절거리가 결정, 레버리지는 증거금 효율만 바꿉니다.</p>
       {direction === 'wait' && (
         <p className="text-[10px] text-amber-400 mb-2">현재 판정은 관망 — 아래 수치는 롱 기준 참고용입니다.</p>
@@ -616,7 +615,8 @@ export default function CoinAnalysisPage() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [chartTf, setChartTf] = useState<'m5' | 'm15' | 'h1'>('m5');
-  const { model: aiModel, setModel: setAiModel, ready: modelReady } = useBriefingModel();
+  const { model: aiModel, ready: modelReady } = useBriefingModel();
+  const [showBt, setShowBt] = useState(false); // 룰 엔진 성적표 상세 접기(기본 접힘 — 엣지 미검증이라 전면 노출 불필요)
   // symbol·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
   const [run, setRun] = useState<{ symbol: string; model: string } | null>(null);
   // 관심종목에서 '분석'으로 진입(?symbol=…&run=1)하면 해당 코인으로 자동 실행. 그 외에는 버튼으로만.
@@ -1145,7 +1145,7 @@ export default function CoinAnalysisPage() {
               </div>
             </div>
             <ul className="space-y-1.5">
-              {data.movement.drivers.map((d, i) => (
+              {data.movement.drivers.slice(0, 3).map((d, i) => (
                 <li key={i} className={`text-[11px] flex gap-1.5 leading-relaxed ${
                   d.tone === 'up' ? 'text-emerald-400/90' : d.tone === 'down' ? 'text-red-400/90' : d.tone === 'warn' ? 'text-amber-400/90' : 'text-[var(--text-muted)]'
                 }`}>
@@ -1395,30 +1395,6 @@ export default function CoinAnalysisPage() {
             />
           </div>
 
-          {/* AI 브리핑 */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-              <h3 className="text-sm font-bold text-[var(--text)]">🤖 AI 종합 브리핑 <span className="text-[10px] font-normal text-[var(--text-muted)]">차트 + 뉴스 동향</span></h3>
-              <BriefingModelPicker value={aiModel} onChange={setAiModel} busy={isValidating} />
-            </div>
-            {data.aiBriefing ? (
-              <div className="space-y-2.5">
-                {data.aiBriefing.split(/(?=【)/).filter((s) => s.trim()).map((sec, i) => {
-                  const m = sec.match(/^【([^】]+)】([\s\S]*)$/);
-                  if (!m) return <p key={i} className="text-xs text-[var(--text)] leading-relaxed whitespace-pre-line">{sec.trim()}</p>;
-                  return (
-                    <div key={i}>
-                      <p className="text-[11px] font-bold text-sky-400 mb-0.5">{m[1]}</p>
-                      <p className="text-xs text-[var(--text)] leading-relaxed whitespace-pre-line">{m[2].trim()}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-[var(--text-muted)]">{data.aiError ?? 'AI 브리핑을 사용할 수 없습니다.'}</p>
-            )}
-          </div>
-
           {/* 오더북 유동성 */}
           {data.orderbook && <OrderbookPanel ob={data.orderbook} price={data.price} digits={priceDigits} />}
 
@@ -1458,7 +1434,12 @@ export default function CoinAnalysisPage() {
                     </p>
                   )}
                 </div>
-                {/* OI */}
+                {/* OI 금액 (Bitget 표준) */}
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-[var(--text-muted)]">미결제약정(OI) 금액 <span className="text-[9px] opacity-60">Bitget</span></span>
+                  <span className="font-bold tabular-nums text-[var(--text)]">{data.openInterest && data.markPrice ? `$${(data.openInterest * data.markPrice / 1e9).toFixed(2)}B` : '-'}</span>
+                </div>
+                {/* OI 변화 */}
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-[var(--text-muted)]">미결제약정 1시간 변화</span>
                   <span className={`font-bold tabular-nums ${
@@ -1497,6 +1478,9 @@ export default function CoinAnalysisPage() {
                     }`}>신뢰도 {low ? '낮음' : mid ? '보통' : '양호'}</span>
                   );
                 })()}
+                <button type="button" onClick={() => setShowBt((v) => !v)} className="ml-auto text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] rounded-md px-2 py-0.5">
+                  {showBt ? '상세 접기 ▲' : '상세 펼치기 ▼'}
+                </button>
               </h3>
               <p className="text-[10px] text-[var(--text-muted)] mb-2">
                 과거 캔들에서 진입 신호 발생 시 1R 익절 vs 손절 판정. ⚠ 수수료·슬리피지 미반영.
@@ -1518,7 +1502,7 @@ export default function CoinAnalysisPage() {
                   이 도구는 손절·사이징·기록 등 <strong className="text-[var(--text)]">리스크 관리</strong>에 쓰는 것이 안전합니다.
                 </p>
               </div>
-              {data.backtest.signals === 0 ? (
+              {showBt && (data.backtest.signals === 0 ? (
                 <p className="text-xs text-[var(--text-muted)] py-3 text-center">이 기간 진입 조건을 충족한 신호가 없습니다 — 엔진이 관망을 유지한 구간</p>
               ) : (
                 <>
@@ -1590,7 +1574,7 @@ export default function CoinAnalysisPage() {
                       : '표본이 짧으므로 절대 성능이 아닌 "최근 장세 적합도"로만 참고'}
                   </p>
                 </>
-              )}
+              ))}
             </div>
           </div>
 
