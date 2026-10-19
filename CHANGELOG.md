@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-19 (158차) — 인플레 품목 드릴다운 추이 12→24개월(quilt 연계)
+
+/inflation 품목 기여 드릴다운의 공식 대비 추이를 길게 확장.
+- 기존: compare.json sparks(12개월) → 변경: quilt_months_24(품목별 yoy·bls_yoy 24개월)를 우선 사용, 없으면 sparks(12개월) 폴백. compare·quilt 품목 키가 동일해 그대로 매핑.
+- `quiltCompareRows(quilt, componentKey)` 신설(분수→%, bls null 유지)·테스트. 루트 /inflation에서 quilt_months_24 중계 1회 조회해 DrilldownSheet에 전달, 캡션은 실제 개월 수 표시.
+- 품목 현재 스탯(나우캐스트·공식·격차·비중)은 기존 compare 그대로.
+- 검증: tsc 0·build 0, inflation 테스트 26 passed(quiltCompareRows 추가), 헤드리스 390px: 연료 드릴다운 '최근 24개월 YoY' + 차트 렌더·가로넘침 0·콘솔 0.
+
 ## 2026-10-19 (157차) — 성과 화면에 시장 벤치마크·월별 실현 R 표
 
 성과(/performance)에도 매매일지와 비슷한 시장 대비 맥락 추가 — 단, 성과는 R(리스크 배수) 기반이라 금액·원금 비교 대신 '시장 방향'으로 정직하게.

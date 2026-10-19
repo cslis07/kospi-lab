@@ -384,6 +384,24 @@ export function signalTone(state?: string): { cls: string; ko: string } {
 export interface QuiltCell { yoy?: number | null; mom?: number | null; bls_yoy?: number | null; spread?: number | null }
 export interface QuiltComponent { key: string; label: string; cells: QuiltCell[] }
 export interface Quilt { locked?: boolean; months: string[]; components: QuiltComponent[]; headlines?: QuiltComponent[] }
+/** quilt 한 품목(key)의 월별 cells → 공식 대비 추이 행(나우캐스트 yoy vs 공식 bls_yoy, 분수→%). sparks(12개월)보다 긴 추이용. */
+export function quiltCompareRows(quilt: Quilt | null | undefined, componentKey: string): CompareRow[] {
+  const comp = quilt?.components?.find((c) => c.key === componentKey);
+  if (!quilt || !comp) return [];
+  const r4 = (x: number) => Math.round(x * 1e6) / 1e4; // 분수→% + 부동소수 정리
+  const n = Math.min(quilt.months.length, comp.cells.length);
+  const out: CompareRow[] = [];
+  for (let i = 0; i < n; i++) {
+    const c = comp.cells[i];
+    out.push({
+      month: quilt.months[i],
+      nowcast: typeof c?.yoy === 'number' && Number.isFinite(c.yoy) ? r4(c.yoy) : null,
+      official: typeof c?.bls_yoy === 'number' && Number.isFinite(c.bls_yoy) ? r4(c.bls_yoy) : null,
+    });
+  }
+  return out;
+}
+
 /** YoY(분수) → 히트맵 배경색(디스인플레=파랑, 인플레=빨강, 강도=투명도). 색은 한국 관행(상승=빨강). */
 export function quiltCellColor(yoy?: number | null): string {
   if (yoy == null || !Number.isFinite(yoy)) return 'transparent';

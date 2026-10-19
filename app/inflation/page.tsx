@@ -8,8 +8,8 @@ import InflationChartLazy from '@/components/InflationChartLazy';
 import BottomSheet from '@/components/ui/BottomSheet';
 import {
   compareRows, forecastRows, categorize, topDrivers, pctFrac, pct, signPp,
-  sparkCompareRows, gasRanked, metrosByRent, avg,
-  type Pulse, type CompareDaily, type Forecast, type Cat, type Compare, type GeoData, type StateRow, type MetroRow,
+  sparkCompareRows, quiltCompareRows, gasRanked, metrosByRent, avg,
+  type Pulse, type CompareDaily, type Forecast, type Cat, type Compare, type GeoData, type StateRow, type MetroRow, type Quilt,
 } from '@/lib/inflation';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -52,6 +52,7 @@ export default function InflationPage() {
   const { data: groc } = useSWR<Grocery>('/api/nf/grocery_basket.json', fetcher, SWR_OPT);
   const { data: fuel } = useSWR<Fuel>('/api/nf/fuel.json', fetcher, SWR_OPT);
   const { data: citems } = useSWR<Compare>('/api/nf/compare.json', fetcher, SWR_OPT);
+  const { data: quilt } = useSWR<Quilt>('/api/nf/quilt_months_24.json', fetcher, SWR_OPT);
   const { data: geo } = useSWR<GeoData>('/api/nf/geo.json', fetcher, SWR_OPT);
   const [selComp, setSelComp] = useState<string | null>(null);
 
@@ -114,7 +115,7 @@ export default function InflationPage() {
           {/* 품목별 기여 */}
           <Card title="품목별 기여" aside={<span className="text-[10px] text-[var(--text-muted)]">막대 클릭 → 공식 대비 추이</span>}>
             <DriverBars pulse={pulse} selected={selComp} onSelect={(c) => setSelComp(c)} />
-            <DrilldownSheet comp={selComp} citems={citems} open={!!selComp} onClose={() => setSelComp(null)} />
+            <DrilldownSheet comp={selComp} citems={citems} quilt={quilt} open={!!selComp} onClose={() => setSelComp(null)} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               {/* 식품 바스켓 */}
               <div className="rounded-xl border border-[var(--border)] p-3">
@@ -238,9 +239,12 @@ function Stat({ label, value, cls }: { label: string; value: string; cls?: strin
   );
 }
 
-function DrilldownSheet({ comp, citems, open, onClose }: { comp: string | null; citems?: Compare; open: boolean; onClose: () => void }) {
+function DrilldownSheet({ comp, citems, quilt, open, onClose }: { comp: string | null; citems?: Compare; quilt?: Quilt; open: boolean; onClose: () => void }) {
   const tile = comp && citems ? citems.tiles?.find((t) => t.component === comp) : undefined;
-  const rows = comp && citems ? sparkCompareRows(citems.sparks?.[comp], citems.month) : [];
+  // 추이: quilt(최대 24개월)가 있으면 길게, 없으면 compare sparks(12개월) 폴백
+  const quiltRows = comp ? quiltCompareRows(quilt, comp) : [];
+  const rows = quiltRows.length ? quiltRows : (comp && citems ? sparkCompareRows(citems.sparks?.[comp], citems.month) : []);
+  const months = rows.length;
   const cat = comp ? categorize(comp) : '기타';
   const spreadPp = tile ? tile.spread * 100 : null; // 분수→pp
   return (
@@ -263,7 +267,7 @@ function DrilldownSheet({ comp, citems, open, onClose }: { comp: string | null; 
           )}
           {rows.length ? <InflationChartLazy kind="compare" rows={rows} height={220} /> : <p className="text-[12px] text-[var(--text-muted)] py-4 text-center">이 품목은 추이 데이터가 없습니다.</p>}
           <p className="text-[11px] text-[var(--text-muted)] mt-2 leading-relaxed">
-            12개월 YoY(%) — <span style={{ color: '#1c6cff' }}>■</span> 나우캐스트(실시간 추정) vs <span style={{ color: '#f59e0b' }}>■</span> 공식 발표치(BLS).
+            최근 {months}개월 YoY(%) — <span style={{ color: '#1c6cff' }}>■</span> 나우캐스트(실시간 추정) vs <span style={{ color: '#f59e0b' }}>■</span> 공식 발표치(BLS).
             격차가 <b className="text-red-400">+</b>면 나우캐스트가 공식보다 높다는 뜻(발표 전 선반영일 수 있음). 매매 신호 아님.
           </p>
         </>
