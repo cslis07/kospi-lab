@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import useSWR from 'swr';
 import type { BriefData, BriefMarket, MacroNum, BriefNews, NewsTag } from '@/lib/brief';
 import type { EdgeReport, EdgeRow } from '@/lib/briefEdge';
@@ -242,6 +243,16 @@ export default function BriefPage() {
           </button>
         ))}
       </div>
+
+      {market === 'coin' && (
+        <Link href="/eth" className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3.5 py-2.5 mb-4 hover:border-[var(--text-muted)]">
+          <div>
+            <p className="text-[13px] font-bold text-[var(--text)]">ETH 체제 보드 <span className="text-[10px] font-normal text-sky-400 align-middle">심층</span></p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">공급·수요·포지셔닝·거시 4층 + 레버리지 가드 · 예측 아님</p>
+          </div>
+          <span className="text-sky-400 text-lg">→</span>
+        </Link>
+      )}
 
       {isLoading && <Skeleton />}
 
