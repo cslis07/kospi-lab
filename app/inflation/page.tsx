@@ -52,7 +52,6 @@ export default function InflationPage() {
   const { data: groc } = useSWR<Grocery>('/api/nf/grocery_basket.json', fetcher, SWR_OPT);
   const { data: fuel } = useSWR<Fuel>('/api/nf/fuel.json', fetcher, SWR_OPT);
   const { data: citems } = useSWR<Compare>('/api/nf/compare.json', fetcher, SWR_OPT);
-  const { data: quilt } = useSWR<Quilt>('/api/nf/quilt_months_24.json', fetcher, SWR_OPT);
   const { data: geo } = useSWR<GeoData>('/api/nf/geo.json', fetcher, SWR_OPT);
   const [selComp, setSelComp] = useState<string | null>(null);
 
@@ -115,7 +114,7 @@ export default function InflationPage() {
           {/* 품목별 기여 */}
           <Card title="품목별 기여" aside={<span className="text-[10px] text-[var(--text-muted)]">막대 클릭 → 공식 대비 추이</span>}>
             <DriverBars pulse={pulse} selected={selComp} onSelect={(c) => setSelComp(c)} />
-            <DrilldownSheet comp={selComp} citems={citems} quilt={quilt} open={!!selComp} onClose={() => setSelComp(null)} />
+            <DrilldownSheet comp={selComp} citems={citems} open={!!selComp} onClose={() => setSelComp(null)} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               {/* 식품 바스켓 */}
               <div className="rounded-xl border border-[var(--border)] p-3">
@@ -239,14 +238,21 @@ function Stat({ label, value, cls }: { label: string; value: string; cls?: strin
   );
 }
 
-function DrilldownSheet({ comp, citems, quilt, open, onClose }: { comp: string | null; citems?: Compare; quilt?: Quilt; open: boolean; onClose: () => void }) {
+const QUILT_WINS = [24, 48, 102] as const;
+type QuiltWin = typeof QUILT_WINS[number];
+
+function DrilldownSheet({ comp, citems, open, onClose }: { comp: string | null; citems?: Compare; open: boolean; onClose: () => void }) {
+  const [win, setWin] = useState<QuiltWin>(24);
+  const { data: quilt } = useSWR<Quilt>(`/api/nf/quilt_months_${win}.json`, fetcher, SWR_OPT);
   const tile = comp && citems ? citems.tiles?.find((t) => t.component === comp) : undefined;
-  // 추이: quilt(최대 24개월)가 있으면 길게, 없으면 compare sparks(12개월) 폴백
+  // 추이: quilt(선택 창 24/48/102개월)가 있으면 길게, 없으면 compare sparks(12개월) 폴백
   const quiltRows = comp ? quiltCompareRows(quilt, comp) : [];
   const rows = quiltRows.length ? quiltRows : (comp && citems ? sparkCompareRows(citems.sparks?.[comp], citems.month) : []);
   const months = rows.length;
+  const usingQuilt = quiltRows.length > 0;
   const cat = comp ? categorize(comp) : '기타';
   const spreadPp = tile ? tile.spread * 100 : null; // 분수→pp
+  const winBtn = (on: boolean) => `px-2 py-0.5 rounded-md text-[11px] font-semibold border ${on ? 'border-[var(--accent)] bg-[var(--surface-2)] text-[var(--accent-ink)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`;
   return (
     <BottomSheet open={open} onClose={onClose} title={tile?.label ?? comp ?? '품목'}>
       {!citems || citems.locked ? (
@@ -263,6 +269,11 @@ function DrilldownSheet({ comp, citems, quilt, open, onClose }: { comp: string |
               <Stat label="공식 BLS YoY" value={pctFrac(tile.bls_yoy, 1)} />
               <Stat label="격차(나우−공식)" value={spreadPp != null ? signPp(spreadPp, 2) : '—'} cls={spreadPp != null ? sign(spreadPp) : undefined} />
               <Stat label="CPI 비중" value={pctFrac(tile.weight, 1)} />
+            </div>
+          )}
+          {usingQuilt && (
+            <div className="flex justify-end gap-1 mb-2">
+              {QUILT_WINS.map((w) => <button key={w} type="button" className={winBtn(win === w)} onClick={() => setWin(w)}>{w}개월</button>)}
             </div>
           )}
           {rows.length ? <InflationChartLazy kind="compare" rows={rows} height={220} /> : <p className="text-[12px] text-[var(--text-muted)] py-4 text-center">이 품목은 추이 데이터가 없습니다.</p>}
