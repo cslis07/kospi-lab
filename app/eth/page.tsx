@@ -8,6 +8,7 @@ import type { DemandLayer } from '@/lib/coinPremium';
 import type { OptionsLayer } from '@/lib/coinOptions';
 import type { BaseRates } from '@/lib/regimeEdge';
 import type { MacroContext } from '@/lib/coinMacroContext';
+import { upcomingCatalysts, CRYPTO_CATALYSTS, CATALYSTS_ASOF, type CatalystKind } from '@/lib/cryptoCatalysts';
 
 interface Positioning {
   fundingRate: number | null;
@@ -54,6 +55,12 @@ function Dlt({ v, dec = 2, unit = '%p', label = '어제比' }: { v: number | nul
   );
 }
 
+const KIND_LABEL: Record<CatalystKind, string> = { regulation: '규제', institution: '기관', politics: '정치' };
+const KIND_CLS: Record<CatalystKind, string> = { regulation: 'text-sky-400', institution: 'text-emerald-400', politics: 'text-amber-400' };
+function ddayLabel(d: number) {
+  return d > 0 ? `D-${d}` : d === 0 ? 'D-DAY' : `${-d}일 전`;
+}
+
 const TILT_STYLE: Record<number, { cls: string; badge: string }> = {
   1: { cls: 'text-emerald-400', badge: '순풍' },
   0: { cls: 'text-[var(--text-muted)]', badge: '중립' },
@@ -96,6 +103,7 @@ export default function EthRegimePage() {
     () => recommendSizing({ seedUsdt: Number(seed), riskPct, stopPct: stop, leverage: lev, entry: entryNum }),
     [seed, riskPct, stop, lev, entryNum],
   );
+  const catalysts = useMemo(() => upcomingCatalysts(CRYPTO_CATALYSTS, Date.now()), []);
 
   const r = data?.regime;
   const STRENGTH_CLS: Record<string, string> = { '강': 'text-emerald-400', '보통': 'text-[var(--accent)]', '약': 'text-amber-400', '혼조': 'text-[var(--text-muted)]' };
@@ -182,6 +190,27 @@ export default function EthRegimePage() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* 정책·규제 이벤트 워치 (큐레이션·변동성 일정, 방향 아님) */}
+          {catalysts.length > 0 && (
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 mb-2">
+              <p className="text-[12px] font-bold text-[var(--text)] mb-1.5">정책·규제 이벤트 워치 <span className="text-[10px] font-normal text-[var(--text-muted)]">(큐레이션 {CATALYSTS_ASOF} 기준 · 변동성 주의 · 매수 신호 아님)</span></p>
+              <ul className="space-y-1.5">
+                {catalysts.map((c) => (
+                  <li key={c.date + c.title} className="rounded-lg bg-[var(--surface-2)] px-2.5 py-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[12px] font-semibold text-[var(--text)] leading-snug">
+                        <span className={`${KIND_CLS[c.kind]} mr-1`}>[{KIND_LABEL[c.kind]}]</span>{c.title}
+                      </p>
+                      <span className="text-[10.5px] text-[var(--text-muted)] tabular-nums shrink-0 text-right">{c.dateLabel}<br />{ddayLabel(c.dday)}</span>
+                    </div>
+                    <p className="text-[10.5px] text-[var(--text-muted)] mt-1 leading-snug">{c.desc} <span className="opacity-80">{c.note}</span> <span className="opacity-50">({c.source})</span></p>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[10px] text-[var(--text-muted)] opacity-60 mt-1.5 leading-snug">규제는 대부분 제안/의견수렴 단계이며 마감일은 승인일이 아닙니다. 수동 큐레이션이라 자동 갱신되지 않습니다.</p>
             </div>
           )}
 

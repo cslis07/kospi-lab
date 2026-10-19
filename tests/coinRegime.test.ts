@@ -13,6 +13,7 @@ import {
   sma, trueRange, atrPct, forwardMovePct, maxAdverseFwd, median, quantile, classifyState, baseRates,
   type Candle,
 } from '../lib/regimeEdge';
+import { upcomingCatalysts, CRYPTO_CATALYSTS, type CryptoCatalyst } from '../lib/cryptoCatalysts';
 import type { SupplyLayer } from '../lib/coinSupply';
 import type { DemandLayer } from '../lib/coinPremium';
 import type { MacroContext } from '../lib/coinMacroContext';
@@ -282,6 +283,32 @@ ok('baseRates: 단조 상승이면 상승비율 1·판정 분류', () => {
 ok('baseRates: 표본 부족이면 insufficient', () => {
   const br = baseRates(genUp(40), 2);
   assert.equal(br.verdict, 'insufficient');
+});
+
+console.log('cryptoCatalysts.ts');
+
+ok('upcomingCatalysts: 최근~미래 창 필터·가까운 순·dday', () => {
+  const now = Date.UTC(2026, 9, 19); // 2026-10-19
+  const list: CryptoCatalyst[] = [
+    { date: '2026-08-01', title: '오래됨', kind: 'regulation', dateLabel: '', desc: '', note: '', source: '' }, // dday -79 → 제외
+    { date: '2026-10-16', title: '최근', kind: 'institution', dateLabel: '', desc: '', note: '', source: '' }, // -3 포함
+    { date: '2026-10-20', title: '임박', kind: 'regulation', dateLabel: '', desc: '', note: '', source: '' }, // +1
+    { date: '2027-06-01', title: '먼미래', kind: 'politics', dateLabel: '', desc: '', note: '', source: '' }, // +225 → 제외
+  ];
+  const r = upcomingCatalysts(list, now);
+  assert.equal(r.length, 2);
+  assert.equal(r[0].title, '최근');
+  assert.equal(r[0].dday, -3);
+  assert.equal(r[1].title, '임박');
+  assert.equal(r[1].dday, 1);
+});
+
+ok('CRYPTO_CATALYSTS: 날짜 형식·종류 유효', () => {
+  for (const c of CRYPTO_CATALYSTS) {
+    assert.match(c.date, /^\d{4}-\d{2}-\d{2}$/);
+    assert.ok(['regulation', 'institution', 'politics'].includes(c.kind));
+    assert.ok(c.title && c.note);
+  }
 });
 
 console.log(`\n${passed} passed`);
