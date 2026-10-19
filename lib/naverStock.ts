@@ -263,16 +263,17 @@ export async function etfThemes(region: 'kr' | 'us'): Promise<EtfTheme[]> {
   })));
 }
 
-export interface ThemeEtf { code: string; name: string; price: number; change: number; changeRate: number; return1w?: number; return1m?: number; type: string; currency: 'KRW' | 'USD' }
+export interface ThemeEtf { code: string; name: string; price: number; change: number; changeRate: number; return1w?: number; return1m?: number; return3m?: number; type: string; currency: 'KRW' | 'USD' }
 export async function themeEtfs(region: 'kr' | 'us', themeCode: string, size = 8): Promise<ThemeEtf[]> {
   if (region === 'kr') {
-    // 국내: 테마(중분류) ETF → 1주 수익률 내림차순
-    const d = await nget<Record<string, string>[]>(
-      `/domestic/market/home/notableETF?${qs({ middleCodeList: themeCode, orderType: 'up_etf', startIdx: 0, pageSize: 40 })}`, LIVE);
-    return (d ?? []).map((x) => ({
-      code: x.itemcode, name: x.itemname, price: n(x.nowPrice), change: n(x.prevChangePrice), changeRate: r2(n(x.prevChangeRate)),
-      return1w: r2(n(x.oneWeekEarnRate)), return1m: r2(n(x.oneMonthEarnRate)), type: x.etfType ?? '', currency: 'KRW' as const,
-    })).sort((a, b) => (b.return1w ?? 0) - (a.return1w ?? 0)).slice(0, size);
+    // 국내: 테마(중분류) ETF → 1개월 수익률 내림차순.
+    // (구 notableETF 엔드포인트는 네이버가 폐기 → v2 domestic 으로 교체. 1주 수익률 필드는 더 이상 없어 1개월 사용.)
+    const d = await nget<{ items?: Record<string, string>[] }>(
+      `/stockSecurity/etfs/v2/domestic?${qs({ listingType: 'returnRate1mDesc', middleCategoryCode: themeCode, index: 0, size })}`, LIVE);
+    return (d?.items ?? []).map((x) => ({
+      code: x.itemCode, name: x.itemName, price: n(x.currentPrice), change: n(x.changePrice), changeRate: r2(n(x.changeRate)),
+      return1m: r2(n(x.returnRate1m)), return3m: r2(n(x.returnRate3m)), type: x.etfType ?? '', currency: 'KRW' as const,
+    }));
   }
   // 미국: 1주 수익률 필드가 없어 거래대금 순(정직하게 '거래대금 상위'로 표기)
   const d = await nget<{ items?: Record<string, string>[] }>(

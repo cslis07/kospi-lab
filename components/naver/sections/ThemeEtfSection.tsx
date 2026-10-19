@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { fetcher, colorOf, signPct, Seg, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, fmtUsd, MoreLink, Flash } from '@/components/naver/ui';
 
 interface Theme { code: string; name: string; large: string; count: number; return1d?: number; return3m?: number }
-interface Etf { code: string; name: string; price: number; change: number; changeRate: number; return1w?: number; return1m?: number; type: string; currency: 'KRW' | 'USD' }
+interface Etf { code: string; name: string; price: number; change: number; changeRate: number; return1w?: number; return1m?: number; return3m?: number; type: string; currency: 'KRW' | 'USD' }
 interface Resp { region: 'kr' | 'us'; theme: string; themes: Theme[]; etfs: Etf[]; sortedBy: string; asOf?: string }
 
 function EtfCard({ e, rank }: { e: Etf; rank: number }) {
@@ -30,10 +30,10 @@ function EtfCard({ e, rank }: { e: Etf; rank: number }) {
           <span style={{ fontSize: 12.5, color: colorOf(e.changeRate) }}>({signPct(e.changeRate)})</span>
         </div>
       </div>
-      {e.return1w != null && (
+      {e.return1m != null && (
         <div>
-          <div style={{ fontSize: 11, color: 'var(--faint)' }}>1주일 수익률</div>
-          <div className="tabular-nums" style={{ fontSize: 18, fontWeight: 800, color: colorOf(e.return1w) }}>{signPct(e.return1w)}</div>
+          <div style={{ fontSize: 11, color: 'var(--faint)' }}>1개월 수익률{e.return3m != null && <span style={{ color: 'var(--faint)', fontWeight: 400 }}> · 3개월 {signPct(e.return3m)}</span>}</div>
+          <div className="tabular-nums" style={{ fontSize: 18, fontWeight: 800, color: colorOf(e.return1m) }}>{signPct(e.return1m)}</div>
         </div>
       )}
     </Link>
@@ -95,7 +95,7 @@ export default function ThemeEtfSection({ home = false }: { home?: boolean }) {
         </div>
       </div>
 
-      <SourceNote>출처: 네이버페이 증권 ETF 테마 분류. 국내는 1주일 수익률, 미국은 거래대금 순위입니다. 과거 수익률은 미래 수익을 보장하지 않으며 추천이 아닙니다.</SourceNote>
+      <SourceNote>출처: 네이버페이 증권 ETF 테마 분류. 국내는 1개월 수익률, 미국은 거래대금 순위입니다. 과거 수익률은 미래 수익을 보장하지 않으며 추천이 아닙니다.</SourceNote>
     </div>
   );
 }

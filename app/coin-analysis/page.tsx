@@ -1055,8 +1055,8 @@ export default function CoinAnalysisPage() {
                   <p className={`font-bold tabular-nums ${nextFundingMin !== null && nextFundingMin <= 10 ? 'text-red-400' : 'text-[var(--text)]'}`}>
                     {nextFundingMin !== null ? `${Math.floor(nextFundingMin / 60)}시간 ${nextFundingMin % 60}분` : '-'}
                   </p></div>
-                <div><p className="text-[var(--text-muted)]">미결제약정(OI)</p>
-                  <p className="font-bold tabular-nums text-[var(--text)]">{data.openInterest ? data.openInterest.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '-'}</p></div>
+                <div><p className="text-[var(--text-muted)]">미결제약정(OI)<span className="text-[9px] opacity-60 ml-1">Bitget</span></p>
+                  <p className="font-bold tabular-nums text-[var(--text)]">{data.openInterest && data.markPrice ? `$${(data.openInterest * data.markPrice / 1e9).toFixed(2)}B` : data.openInterest ? data.openInterest.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '-'}</p></div>
                 <div><p className="text-[var(--text-muted)]">24h 거래대금</p>
                   <p className="font-bold tabular-nums text-[var(--text)]">{data.quoteVolume ? `$${(data.quoteVolume / 1e9).toFixed(2)}B` : '-'}</p></div>
                 <div><p className="text-[var(--text-muted)]">공포탐욕지수</p>
@@ -1479,7 +1479,7 @@ export default function CoinAnalysisPage() {
                       : '⚠ 개미는 숏 쏠림, 큰손(금액)은 롱 우위 — 상승 스퀴즈 여지'}
                   </p>
                 )}
-                <p className="text-[10px] text-[var(--text-muted)] opacity-60">테이커·포지션: Bitget / OI: Bybit — 주문흐름 불균형은 단기 가격 변동의 주 요인(학술 근거)</p>
+                <p className="text-[10px] text-[var(--text-muted)] opacity-60">테이커·포지션·OI 금액: Bitget 표준 / OI 1시간 변화: Bybit 히스토리 — 주문흐름 불균형은 단기 가격 변동의 주 요인(학술 근거)</p>
               </div>
             </div>
 

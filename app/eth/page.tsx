@@ -169,7 +169,7 @@ export default function EthRegimePage() {
                 <div className="mt-2 text-[10.5px] text-[var(--text-muted)] space-y-0.5 tabular-nums">
                   <p>펀딩(연율) {signed(data!.positioning.fundingPctAnnual, 1)}<Dlt v={data!.positioning.fundingDeltaAnnual} dec={1} /></p>
                   <p>롱숏비율 {fmt(data!.positioning.longShortRatio, 2)}<Dlt v={data!.positioning.lsDelta} dec={2} unit="" /></p>
-                  <p>OI 24h <Dlt v={data!.positioning.oi24hChgPct} dec={1} unit="%" label="24h" /></p>
+                  <p>OI {data!.positioning.oiEth != null && price ? `$${((data!.positioning.oiEth * price) / 1e9).toFixed(2)}B` : '—'}<span className="opacity-50"> Bitget</span><Dlt v={data!.positioning.oi24hChgPct} dec={1} unit="%" label="24h" /></p>
                 </div>
               )}
             </div>
