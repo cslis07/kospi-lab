@@ -5,7 +5,9 @@
  * 예측·신호가 아니다. 기록·복기·거래소 대조는 관리 › 매매일지에서 한다.
  */
 import { useMemo, useState } from 'react';
+import useSWR from 'swr';
 import Link from 'next/link';
+import { periodReturn, monthlyPnl, kstDateKey, type TradeValue, type PricePt } from '@/lib/journalAnalytics';
 import { useCoinJournal } from '@/hooks/useCoinJournal';
 import { useStockJournal } from '@/hooks/useStockJournal';
 import { scoreboard } from '@/lib/journalStats';
@@ -40,6 +42,79 @@ function LinkRow({ href, icon, title, sub }: { href: string; icon: string; title
       </div>
       <svg className="w-4 h-4 text-[var(--faint)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 5l7 7-7 7" /></svg>
     </Link>
+  );
+}
+
+const bmFetcher = (u: string) => fetch(u).then((r) => r.json());
+const BM_IDX = [['btc', '비트코인'], ['nasdaq', '나스닥'], ['kospi', '코스피']] as const;
+
+/** 시장 벤치마크 — 내 매매 기간 동안 지수 변화 + 월별 실현 R vs 지수 월간 %. 성과는 R(리스크 배수)이라 금액·원금 비교 대신 '시장 방향' 참고. */
+function MarketBenchmarkR({ trades }: { trades: TradeValue[] }) {
+  const { data } = useSWR<{ btc: PricePt[]; nasdaq: PricePt[]; kospi: PricePt[] }>('/api/macro/daily', bmFetcher, { revalidateOnFocus: false });
+  const [idx, setIdx] = useState<'btc' | 'nasdaq' | 'kospi'>('btc');
+  if (!trades.length) return null;
+  const tsList = trades.map((t) => t.ts);
+  const from = kstDateKey(Math.min(...tsList));
+  const to = kstDateKey(Math.max(...tsList));
+  const netR = trades.reduce((a, t) => a + t.value, 0);
+  const col = (v: number | null) => (v == null ? 'text-[var(--text-muted)]' : v > 0 ? 'text-red-400' : v < 0 ? 'text-blue-400' : 'text-[var(--text-muted)]');
+  const rows: [string, number | null][] = [
+    ['비트코인', data ? periodReturn(data.btc, from, to) : null],
+    ['나스닥', data ? periodReturn(data.nasdaq, from, to) : null],
+    ['코스피', data ? periodReturn(data.kospi, from, to) : null],
+  ];
+  const series = data?.[idx];
+  const idxLabel = BM_IDX.find(([k]) => k === idx)![1];
+  const monR = monthlyPnl(trades);
+  const months = [...monR.keys()].sort().reverse();
+  const pctStr = (v: number | null) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
+  const chip = (on: boolean) => `px-2 py-0.5 rounded-md text-[11px] font-semibold ${on ? 'bg-[var(--surface-2)] text-[var(--accent-ink)]' : 'text-[var(--text-muted)]'}`;
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <h3 className="text-sm font-semibold text-[var(--text)]">시장 벤치마크 <span className="text-[11px] font-normal text-[var(--text-muted)]">· 내 매매 기간 동안 시장</span></h3>
+      <p className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-2 tabular-nums">{from} ~ {to} · 내 실현 <b style={{ color: RCOLOR(netR) }}>{fmtR(netR)}</b> · {trades.length}건</p>
+      <div className="grid grid-cols-3 gap-2">
+        {rows.map(([k, v]) => (
+          <div key={k} className="rounded-xl border border-[var(--border)] p-2.5">
+            <p className="text-[11px] text-[var(--text-muted)]">{k}</p>
+            <p className={`text-base font-bold tabular-nums ${v == null ? 'text-[var(--text-muted)]' : col(v)}`}>{v == null ? (data ? '—' : '…') : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`}</p>
+          </div>
+        ))}
+      </div>
+      {months.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-[var(--border)]">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <p className="text-[12px] font-semibold text-[var(--text)]">월별 <span className="text-[10px] font-normal text-[var(--text-muted)]">내 실현 R vs {idxLabel} 월간</span></p>
+            <div className="flex gap-1">{BM_IDX.map(([k, l]) => <button key={k} type="button" className={chip(idx === k)} onClick={() => setIdx(k)}>{l}</button>)}</div>
+          </div>
+          <div className="overflow-hidden rounded-xl border border-[var(--border)]">
+            <table className="w-full text-[11px] tabular-nums">
+              <thead>
+                <tr className="bg-[var(--bg)] border-b border-[var(--border)] text-[var(--text-muted)]">
+                  <th className="text-left px-2.5 py-1.5 font-semibold">월</th>
+                  <th className="text-right px-2.5 py-1.5 font-semibold">내 실현 R</th>
+                  <th className="text-right px-2.5 py-1.5 font-semibold">{idxLabel}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {months.map((m) => {
+                  const r = monR.get(m) ?? 0;
+                  const idxRet = series ? periodReturn(series, `${m}-01`, `${m}-31`) : null;
+                  return (
+                    <tr key={m} className="border-b border-[var(--border)]/50">
+                      <td className="px-2.5 py-1.5 text-[var(--text)]">{m}</td>
+                      <td className="px-2.5 py-1.5 text-right font-bold" style={{ color: RCOLOR(r) }}>{fmtR(r)}</td>
+                      <td className={`px-2.5 py-1.5 text-right ${col(idxRet)}`}>{pctStr(idxRet)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">R(리스크 배수)과 지수 %는 단위가 달라 수익률 직접 비교가 아니라, 내가 매매한 <b className="text-[var(--text)]">기간에 시장이 어느 방향이었는지</b> 참고용입니다. 지수는 그 달 종가 기준 월간 변화.</p>
+    </div>
   );
 }
 
@@ -134,6 +209,10 @@ export default function PerformancePage() {
             CSV 내보내기
           </button>
         </div>
+      )}
+
+      {ready && breakItems.length > 0 && (
+        <MarketBenchmarkR trades={breakItems.filter((b) => Number.isFinite(b.value)).map((b) => ({ ts: b.ts, value: b.value as number }))} />
       )}
 
       {ready && breakItems.length > 0 && (

@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-19 (157차) — 성과 화면에 시장 벤치마크·월별 실현 R 표
+
+성과(/performance)에도 매매일지와 비슷한 시장 대비 맥락 추가 — 단, 성과는 R(리스크 배수) 기반이라 금액·원금 비교 대신 '시장 방향'으로 정직하게.
+- `MarketBenchmarkR` 카드: 내 매매 기간(첫~마지막 청산, 코인+주식 합산) 동안 비트코인·나스닥·코스피 수익률%(periodReturn + /api/macro/daily 재사용) + 내 기간 실현 R·건수.
+- 월별 표: 월별 실현 R 합계(monthlyPnl) vs 선택 지수 월간 %(지수 칩으로 BTC·나스닥·코스피 전환). R과 %는 단위가 달라 직접 비교가 아니라 기간 방향 참고임을 명시.
+- lib/journalAnalytics의 periodReturn·monthlyPnl·kstDateKey 재사용(신규 로직 없음).
+- 검증: tsc 0·build 0, 헤드리스 390px(저널 시드): 벤치마크 카드·지수 3개·월별 R 표 2행·지수 전환·가로넘침 0·콘솔 0.
+
 ## 2026-10-19 (156차) — 코인·해외 목록 정렬 옵션(등락·52주 위치)
 
 목록 정렬을 /domestic과 일관되게 확장.
