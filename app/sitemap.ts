@@ -5,7 +5,7 @@ const ROUTES = [
   '', '/brief', '/stock-analysis', '/coin-analysis', '/journal', '/growth', '/screener', '/krx', '/news',
   '/report', '/calendar', '/domestic', '/overseas', '/futures', '/my-stocks',
   '/assets', '/invest', '/tax', '/simulate', '/brokerage', '/principles', '/study', '/study/chart', '/study/indicators', '/study/fibonacci', '/study/macro', '/study/execution', '/study/reentry',
-  '/industry', '/ranking', '/indicators', '/theme-etf', '/research', '/coins', '/overseas-analysis', '/macro', '/releases',
+  '/industry', '/ranking', '/indicators', '/theme-etf', '/research', '/coins', '/overseas-analysis', '/macro', '/releases', '/eth',
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

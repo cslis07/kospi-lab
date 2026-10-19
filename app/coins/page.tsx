@@ -61,6 +61,13 @@ export default function CoinsPage() {
 
   return (
     <div className="space-y-7 pb-6">
+      <Link href="/eth" className="flex items-center justify-between fin-card px-4 py-3 hover:border-[var(--text-muted)]">
+        <div>
+          <p className="text-sm font-bold text-[var(--text)]">ETH 체제 보드 <span className="text-[10px] font-normal text-[var(--accent)] align-middle">NEW</span></p>
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">공급·수요·포지셔닝·거시 4층 + 레버리지 가드 · 예측 아님</p>
+        </div>
+        <span className="text-[var(--accent)] text-lg">→</span>
+      </Link>
       <section>
         <div className="fin-sec">
           <h3>관심 코인 시세 <span className="ml-1 text-[11px] font-semibold text-[var(--faint)] align-middle">USDT · 24시간 변동</span></h3>

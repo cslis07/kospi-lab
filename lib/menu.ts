@@ -119,6 +119,7 @@ export const EXTRAS: MenuItem[] = [
   { href: '/screener',   icon: 'screener',   label: '종목 비교',   desc: '여러 종목 재무 비교', alias: ['/growth'] },
   { href: '/report',     icon: 'report',     label: '리포트',      desc: '증권사 리포트' },
   { href: '/journal',    icon: 'journal',    label: '매매일지',    desc: '거래소 대조·기분·손익 분해·CSV' },
+  { href: '/eth',        icon: 'risk',       label: 'ETH 체제 보드', desc: '공급·수요·포지셔닝·거시 4층 + 레버리지 가드(예측 아님)' },
   { href: '/alerts',     icon: 'bell',       label: '가격 알림',   desc: '흩어진 알림 한 화면 관리' },
   { href: '/news',       icon: 'news',       label: '뉴스',        desc: '시장 소식' },
   { href: '/calendar',   icon: 'calendar',   label: '경제 캘린더', desc: 'FOMC·CPI·실적 등 주요 일정' },
@@ -195,7 +196,7 @@ export function drillTitle(pathname: string): string {
  */
 export const OWN_H1_ROUTES = [
   '/bitget', '/brokerage', '/crypto/', '/futures', '/growth', '/invest', '/journal', '/krx',
-  '/overseas/', '/overseas-analysis', '/macro', '/inflation', '/principles', '/releases', '/screener', '/simulate', '/stock/', '/study', '/tax', '/virtual',
+  '/overseas/', '/overseas-analysis', '/macro', '/inflation', '/principles', '/releases', '/screener', '/simulate', '/stock/', '/study', '/tax', '/virtual', '/eth',
 ];
 export const pageOwnsH1 = (pathname: string) =>
   OWN_H1_ROUTES.some((r) => (r.endsWith('/') ? pathname.startsWith(r) : under(pathname, r)));
