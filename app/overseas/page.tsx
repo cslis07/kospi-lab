@@ -63,14 +63,23 @@ function fmtVol(n: number): string {
   return String(n);
 }
 
-type SortKey = 'default' | 'changeRateDesc' | 'changeRateAsc' | 'marketCap' | 'volume';
+type SortKey = 'default' | 'changeRateDesc' | 'changeRateAsc' | 'marketCap' | 'volume' | 'pos52Asc' | 'pos52Desc';
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'default',        label: '기본순'        },
   { key: 'marketCap',      label: '시가총액순'     },
   { key: 'changeRateDesc', label: '등락률 높은순'  },
   { key: 'changeRateAsc',  label: '등락률 낮은순'  },
   { key: 'volume',         label: '거래량순'       },
+  { key: 'pos52Asc',       label: '52주 저점 근접' },
+  { key: 'pos52Desc',      label: '52주 고점 근접' },
 ];
+
+/** 현재가의 52주 범위 내 위치(0=저점,1=고점). 데이터·범위 없으면 null */
+function pos52(d?: OverseasStockData): number | null {
+  const hi = d?.high52w, lo = d?.low52w, px = d?.price;
+  if (hi == null || lo == null || px == null || hi <= lo) return null;
+  return (px - lo) / (hi - lo);
+}
 
 type ExchangeFilter = 'all' | 'NASDAQ' | 'NYSE';
 
@@ -201,6 +210,13 @@ export default function OverseasPage() {
     if (sort === 'changeRateAsc')  return [...list].sort((a, b) => (allData[a.symbol]?.changeRate ?? 0) - (allData[b.symbol]?.changeRate ?? 0));
     if (sort === 'marketCap')      return [...list].sort((a, b) => (allData[b.symbol]?.marketCap  ?? 0) - (allData[a.symbol]?.marketCap  ?? 0));
     if (sort === 'volume')         return [...list].sort((a, b) => (allData[b.symbol]?.volume      ?? 0) - (allData[a.symbol]?.volume      ?? 0));
+    if (sort === 'pos52Asc' || sort === 'pos52Desc') {
+      return [...list].sort((a, b) => {
+        const pa = pos52(allData[a.symbol]), pb = pos52(allData[b.symbol]);
+        if (pa == null) return 1; if (pb == null) return -1;
+        return sort === 'pos52Asc' ? pa - pb : pb - pa;
+      });
+    }
     return list;
   }, [query, sort, exchFilter, watchOnly, watchSet, mounted, allData, remoteItems]);
   // 긴 목록은 40행씩 점진 렌더(검색·정렬·필터가 바뀌면 처음부터)

@@ -4,6 +4,7 @@
  * 시장 › 코인 — 관심 코인 시세(고밀도 목록) + 코인 거시 환경(금리·유가·심리) + 현물 ETF 순유입.
  * 관심 코인만 노출한다(추가·편집은 관심종목 탭 또는 검색 ☆). 행을 누르면 코인 상세(차트)로 드릴다운.
  */
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import WatchRow from '@/components/WatchRow';
@@ -20,8 +21,18 @@ const ANALYZABLE = ['BTC', 'ETH', 'XRP', 'SOL'];
 const MAJOR_BASES = ['BTC', 'ETH', 'XRP', 'SOL', 'BNB', 'DOGE', 'ADA', 'TRX', 'LINK', 'AVAX'];
 const openSearch = () => window.dispatchEvent(new Event('kl:open-search'));
 
+type SortKey = 'default' | 'changeDesc' | 'changeAsc' | 'pos52Asc' | 'pos52Desc';
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'default',    label: '기본순'        },
+  { key: 'changeDesc', label: '등락률 높은순'  },
+  { key: 'changeAsc',  label: '등락률 낮은순'  },
+  { key: 'pos52Asc',   label: '52주 저점 근접' },
+  { key: 'pos52Desc',  label: '52주 고점 근접' },
+];
+
 export default function CoinsPage() {
   const { watchlist, mounted } = useCryptoWatchlist();
+  const [sort, setSort] = useState<SortKey>('default');
   const symbols = watchlist.map((w) => w.symbol).join(',');
   const { data, error } = useSWR<Record<string, CryptoData>>(
     symbols ? `/api/crypto/batch?symbols=${symbols}` : null, fetcher, { refreshInterval: 15000 });
@@ -30,6 +41,24 @@ export default function CoinsPage() {
   const { data: w52 } = useSWR<Record<string, { high52w: number; low52w: number }>>(
     w52syms ? `/api/crypto/week52?symbols=${w52syms}` : null, fetcher, { revalidateOnFocus: false });
 
+  // 정렬 — 등락률(배치)·52주 위치(주요 코인만, 없으면 뒤로). 기본순은 관심목록 순서 유지.
+  const sorted = useMemo(() => {
+    if (sort === 'default') return watchlist;
+    const cr = (s: string) => data?.[s]?.changeRate ?? null;
+    const pos = (s: string) => {
+      const w = w52?.[s], px = data?.[s]?.price;
+      if (!w || px == null || w.high52w <= w.low52w) return null;
+      return (px - w.low52w) / (w.high52w - w.low52w);
+    };
+    const by = (f: (s: string) => number | null, dir: 1 | -1) =>
+      [...watchlist].sort((a, b) => { const va = f(a.symbol), vb = f(b.symbol); if (va == null) return 1; if (vb == null) return -1; return dir * (va - vb); });
+    if (sort === 'changeDesc') return by(cr, -1);
+    if (sort === 'changeAsc') return by(cr, 1);
+    if (sort === 'pos52Asc') return by(pos, 1);
+    if (sort === 'pos52Desc') return by(pos, -1);
+    return watchlist;
+  }, [watchlist, data, w52, sort]);
+
   return (
     <div className="space-y-7 pb-6">
       <section>
@@ -37,6 +66,15 @@ export default function CoinsPage() {
           <h3>관심 코인 시세 <span className="ml-1 text-[11px] font-semibold text-[var(--faint)] align-middle">USDT · 24시간 변동</span></h3>
           <Link href="/my-stocks?market=crypto" className="fin-more">추가·편집</Link>
         </div>
+
+        {mounted && watchlist.length > 1 && (
+          <div className="flex justify-end mb-2">
+            <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="코인 정렬"
+              className="px-2.5 py-1 text-[11px] bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-[var(--text)] outline-none">
+              {SORT_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+          </div>
+        )}
 
         {!mounted ? (
           <div className="fin-card overflow-hidden">
@@ -55,7 +93,7 @@ export default function CoinsPage() {
           </div>
         ) : (
           <div className="fin-card overflow-hidden md:grid md:grid-cols-2">
-            {watchlist.map((w) => {
+            {sorted.map((w) => {
               const meta = COINS.find((c) => c.symbol === w.symbol);
               const d = data?.[w.symbol];
               return (
