@@ -2,6 +2,14 @@
 
 > 최신이 위. 배포 URL: https://kospi-lab.vercel.app (git push → Vercel 자동 배포)
 
+## 2026-10-19 (161차) — 인플레 품목 드릴다운에 전체 CPI 게이지 오버레이
+
+품목 기여 드릴다운 추이 차트에 전체 CPI 게이지(헤드라인)를 겹쳐 '품목 vs 전체'를 한눈에.
+- `quiltGaugeRow(quilt)` 신설: quilt.headlines의 ours_cpi_comparable 월별 YoY(분수→%)를 months 순서로 정렬. +테스트.
+- `CompareRow`에 선택 필드 `gauge` 추가, InflationChart compare에 `gaugeOverlay` prop → 초록 점선 '전체 CPI 게이지' 라인(없으면 미표시). Lazy 패스스루.
+- 드릴다운: '전체 게이지' 토글(quilt 추이일 때만, 기본 꺼짐) → rows에 gauge 부착, 캡션에 범례 추가.
+- 검증: tsc 0·build 0·inflation 27 passed, 헤드리스 390px(relay 워밍): 토글 노출·기본 꺼짐·클릭 시 오버레이 표시·가로넘침 0·콘솔 0.
+
 ## 2026-10-19 (160차) — 저널·성과 시장 벤치마크 공용 컴포넌트화
 
 저널(/journal, 통화·원금 기준)과 성과(/performance, R 기준)에 중복돼 있던 벤치마크 로직을 공용 컴포넌트로 통합.

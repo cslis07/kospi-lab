@@ -9,6 +9,6 @@ const Chart = dynamic(() => import('./InflationChart'), {
   loading: () => <div className="skeleton rounded-xl" style={{ height: 260 }} aria-label="차트 로딩 중" />,
 });
 
-export default function InflationChartLazy(props: { kind: 'compare' | 'forecast' | 'trend' | 'price'; rows: CompareRow[] | ForecastRow[] | TrendRow[] | PriceRow[]; height?: number }) {
+export default function InflationChartLazy(props: { kind: 'compare' | 'forecast' | 'trend' | 'price'; rows: CompareRow[] | ForecastRow[] | TrendRow[] | PriceRow[]; height?: number; gaugeOverlay?: boolean }) {
   return <Chart {...props} />;
 }

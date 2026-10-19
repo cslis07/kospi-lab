@@ -4,7 +4,7 @@ import {
   monthsEndingAt, sparkCompareRows, gasRanked, metrosByRent, avg,
   snapDrivers, truflationTrendRows, acctForecasters, usHighImpact, printFile, nfLink,
   priceRows, valueYearAgo, cartTotals, seriesLast, signalTone, quiltCellColor,
-  yoyAnchors, inflateByYears, personalYoY, quiltCompareRows,
+  yoyAnchors, inflateByYears, personalYoY, quiltCompareRows, quiltGaugeRow,
   type CompareDaily, type Forecast, type PulseDriver, type StateRow, type MetroRow, type LatestSnapshot,
   type AcctPrint, type EconCalWindow, type GroceryItem, type CompareTile, type Quilt,
 } from '../lib/inflation';
@@ -277,6 +277,17 @@ ok('quiltCompareRows: 품목 cells → 월별 나우캐스트/공식(분수→%)
   ]);
   assert.deepEqual(quiltCompareRows(q, 'nope'), []);
   assert.deepEqual(quiltCompareRows(null, 'fuel'), []);
+});
+
+ok('quiltGaugeRow: headlines 전체 게이지 yoy(분수→%)·months 정렬, 없으면 []', () => {
+  const q: Quilt = {
+    months: ['2025-09', '2025-10'],
+    components: [{ key: 'fuel', label: 'Fuel', cells: [{ yoy: 0.03 }, { yoy: 0.031 }] }],
+    headlines: [{ key: 'ours_cpi_comparable', label: 'OURS', cells: [{ yoy: 0.0289 }, { yoy: null }] }],
+  };
+  assert.deepEqual(quiltGaugeRow(q), [2.89, null]);
+  assert.deepEqual(quiltGaugeRow({ months: [], components: [] }), []);
+  assert.deepEqual(quiltGaugeRow(null), []);
 });
 
 console.log(`inflation: ${passed} passed\n`);

@@ -39,8 +39,8 @@ export interface Forecast {
   disclaimer?: string;
 }
 
-/** 공식 CPI vs 나우캐스트 — 월별(그 달 마지막 게이지값 + 공식 발표치)로 압축 */
-export interface CompareRow { month: string; nowcast: number | null; official: number | null }
+/** 공식 CPI vs 나우캐스트 — 월별(그 달 마지막 게이지값 + 공식 발표치). gauge 는 선택: 전체 CPI 게이지 오버레이용 */
+export interface CompareRow { month: string; nowcast: number | null; official: number | null; gauge?: number | null }
 export function compareRows(cd?: CompareDaily | null): CompareRow[] {
   if (!cd?.dates?.length) return [];
   const g = cd.series?.gauge?.data ?? [];
@@ -400,6 +400,14 @@ export function quiltCompareRows(quilt: Quilt | null | undefined, componentKey: 
     });
   }
   return out;
+}
+
+/** quilt.headlines 의 전체 게이지(ours_cpi_comparable) 월별 YoY(%) — quilt.months 순서에 정렬. 품목 드릴다운 오버레이용. */
+export function quiltGaugeRow(quilt: Quilt | null | undefined): (number | null)[] {
+  const h = quilt?.headlines?.find((x) => /cpi.comparable|ours/i.test(x.key)) ?? quilt?.headlines?.[0];
+  if (!h) return [];
+  const r4 = (x: number) => Math.round(x * 1e6) / 1e4;
+  return h.cells.map((c) => (typeof c?.yoy === 'number' && Number.isFinite(c.yoy) ? r4(c.yoy) : null));
 }
 
 /** YoY(분수) → 히트맵 배경색(디스인플레=파랑, 인플레=빨강, 강도=투명도). 색은 한국 관행(상승=빨강). */

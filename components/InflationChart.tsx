@@ -27,10 +27,11 @@ function TipBox({ active, payload, label, price }: TP) {
   );
 }
 
-export default function InflationChart({ kind, rows, height = 260 }: {
+export default function InflationChart({ kind, rows, height = 260, gaugeOverlay = false }: {
   kind: 'compare' | 'forecast' | 'trend' | 'price';
   rows: CompareRow[] | ForecastRow[] | TrendRow[] | PriceRow[];
   height?: number;
+  gaugeOverlay?: boolean;
 }) {
   if (!rows.length) {
     return <div style={{ height }} className="grid place-items-center text-[12px] text-[var(--text-muted)]">표시할 데이터가 없습니다.</div>;
@@ -53,6 +54,7 @@ export default function InflationChart({ kind, rows, height = 260 }: {
             <>
               <Line type="monotone" dataKey="nowcast" name="나우캐스트(게이지)" stroke={BLUE} strokeWidth={2} dot={false} connectNulls />
               <Line type="monotone" dataKey="official" name="공식 CPI" stroke={AMBER} strokeWidth={2} dot={{ r: 2 }} connectNulls />
+              {gaugeOverlay && <Line type="monotone" dataKey="gauge" name="전체 CPI 게이지" stroke={GREEN} strokeWidth={1.5} strokeDasharray="4 3" dot={false} connectNulls />}
             </>
           ) : kind === 'trend' ? (
             <>

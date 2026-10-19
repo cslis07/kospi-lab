@@ -8,7 +8,7 @@ import InflationChartLazy from '@/components/InflationChartLazy';
 import BottomSheet from '@/components/ui/BottomSheet';
 import {
   compareRows, forecastRows, categorize, topDrivers, pctFrac, pct, signPp,
-  sparkCompareRows, quiltCompareRows, gasRanked, metrosByRent, avg,
+  sparkCompareRows, quiltCompareRows, quiltGaugeRow, gasRanked, metrosByRent, avg,
   type Pulse, type CompareDaily, type Forecast, type Cat, type Compare, type GeoData, type StateRow, type MetroRow, type Quilt,
 } from '@/lib/inflation';
 
@@ -243,13 +243,17 @@ type QuiltWin = typeof QUILT_WINS[number];
 
 function DrilldownSheet({ comp, citems, open, onClose }: { comp: string | null; citems?: Compare; open: boolean; onClose: () => void }) {
   const [win, setWin] = useState<QuiltWin>(24);
+  const [showGauge, setShowGauge] = useState(false);
   const { data: quilt } = useSWR<Quilt>(`/api/nf/quilt_months_${win}.json`, fetcher, SWR_OPT);
   const tile = comp && citems ? citems.tiles?.find((t) => t.component === comp) : undefined;
   // 추이: quilt(선택 창 24/48/102개월)가 있으면 길게, 없으면 compare sparks(12개월) 폴백
   const quiltRows = comp ? quiltCompareRows(quilt, comp) : [];
-  const rows = quiltRows.length ? quiltRows : (comp && citems ? sparkCompareRows(citems.sparks?.[comp], citems.month) : []);
-  const months = rows.length;
   const usingQuilt = quiltRows.length > 0;
+  // 전체 CPI 게이지 오버레이(quilt.headlines) — quilt 추이일 때만, 같은 월축에 정렬
+  const gaugeArr = usingQuilt && showGauge ? quiltGaugeRow(quilt) : [];
+  const baseRows = usingQuilt ? quiltRows : (comp && citems ? sparkCompareRows(citems.sparks?.[comp], citems.month) : []);
+  const rows = usingQuilt && showGauge ? baseRows.map((r, i) => ({ ...r, gauge: gaugeArr[i] ?? null })) : baseRows;
+  const months = rows.length;
   const cat = comp ? categorize(comp) : '기타';
   const spreadPp = tile ? tile.spread * 100 : null; // 분수→pp
   const winBtn = (on: boolean) => `px-2 py-0.5 rounded-md text-[11px] font-semibold border ${on ? 'border-[var(--accent)] bg-[var(--surface-2)] text-[var(--accent-ink)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`;
@@ -272,13 +276,20 @@ function DrilldownSheet({ comp, citems, open, onClose }: { comp: string | null; 
             </div>
           )}
           {usingQuilt && (
-            <div className="flex justify-end gap-1 mb-2">
-              {QUILT_WINS.map((w) => <button key={w} type="button" className={winBtn(win === w)} onClick={() => setWin(w)}>{w}개월</button>)}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <button type="button" onClick={() => setShowGauge((v) => !v)}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${showGauge ? 'border-[var(--accent)] bg-[var(--surface-2)] text-[var(--accent-ink)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`}
+                aria-pressed={showGauge}>
+                <span className="w-2 h-0.5 inline-block" style={{ background: '#10b981' }} aria-hidden /> 전체 게이지
+              </button>
+              <div className="flex gap-1">
+                {QUILT_WINS.map((w) => <button key={w} type="button" className={winBtn(win === w)} onClick={() => setWin(w)}>{w}개월</button>)}
+              </div>
             </div>
           )}
-          {rows.length ? <InflationChartLazy kind="compare" rows={rows} height={220} /> : <p className="text-[12px] text-[var(--text-muted)] py-4 text-center">이 품목은 추이 데이터가 없습니다.</p>}
+          {rows.length ? <InflationChartLazy kind="compare" rows={rows} height={220} gaugeOverlay={usingQuilt && showGauge} /> : <p className="text-[12px] text-[var(--text-muted)] py-4 text-center">이 품목은 추이 데이터가 없습니다.</p>}
           <p className="text-[11px] text-[var(--text-muted)] mt-2 leading-relaxed">
-            최근 {months}개월 YoY(%) — <span style={{ color: '#1c6cff' }}>■</span> 나우캐스트(실시간 추정) vs <span style={{ color: '#f59e0b' }}>■</span> 공식 발표치(BLS).
+            최근 {months}개월 YoY(%) — <span style={{ color: '#1c6cff' }}>■</span> 나우캐스트(실시간 추정) vs <span style={{ color: '#f59e0b' }}>■</span> 공식 발표치(BLS){showGauge && usingQuilt ? <> · <span style={{ color: '#10b981' }}>┄</span> 전체 CPI 게이지(품목 vs 전체)</> : null}.
             격차가 <b className="text-red-400">+</b>면 나우캐스트가 공식보다 높다는 뜻(발표 전 선반영일 수 있음). 매매 신호 아님.
           </p>
         </>
