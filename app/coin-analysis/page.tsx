@@ -167,26 +167,6 @@ function DirectionBadge({ direction }: { direction: 'long' | 'short' | 'wait' })
   );
 }
 
-function ScoreGauge({ score }: { score: number }) {
-  const pct = (score + 100) / 2; // 0~100
-  return (
-    <div className="w-full">
-      <div className="flex justify-between text-[10px] text-[var(--text-muted)] mb-1">
-        <span>숏 -100</span><span>0</span><span>롱 +100</span>
-      </div>
-      <div className="relative h-2.5 rounded-full bg-gradient-to-r from-red-500/60 via-slate-500/40 to-emerald-500/60">
-        <div
-          className="absolute w-1 rounded bg-white shadow"
-          style={{ left: `calc(${pct}% - 2px)`, height: '18px', top: '-4px' }}
-        />
-      </div>
-      <p className="text-center text-sm font-bold mt-1.5 tabular-nums text-[var(--text)]">
-        종합 점수 {score > 0 ? '+' : ''}{score}
-      </p>
-    </div>
-  );
-}
-
 /**
  * 시간대 한 칸의 조건들을 롱 쪽/숏 쪽/중립으로 나눈다 — "어느 쪽 조건이 더 많이 갖춰졌나"의 체크리스트.
  * ⚠ 조건이 한쪽에 많다고 그 방향이 이긴다는 뜻이 아니다(이 조건 조합은 측정상 우위 없음, 49.7%).
@@ -797,7 +777,6 @@ export default function CoinAnalysisPage() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [chartTf, setChartTf] = useState<'m5' | 'm15' | 'h1'>('m5');
   const { model: aiModel, ready: modelReady } = useBriefingModel();
-  const [showBt, setShowBt] = useState(false); // 룰 엔진 성적표 상세 접기(기본 접힘 — 엣지 미검증이라 전면 노출 불필요)
   const [modal, setModal] = useState<null | 'flow' | 'macro' | 'risk' | 'journal' | 'entry' | 'timeframes'>(null); // 상단 버튼 → 팝업(BottomSheet)
   // symbol·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
   const [run, setRun] = useState<{ symbol: string; model: string } | null>(null);
@@ -1451,84 +1430,6 @@ export default function CoinAnalysisPage() {
           })()}
           </BottomSheet>
 
-          {/* 종합 판단 — 추가 정보(기본 접힘) */}
-          <Collapsible title="엔진 종합 판단 · 근거" sub="점수·레버리지·경고·상위추세">
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              <DirectionBadge direction={v.direction} />
-              <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-[var(--border)] text-xs font-semibold text-[var(--text)]">{v.state}</span>
-              {v.regime && (() => {
-                const arrow = (t: string) => t === 'up' ? '▲' : t === 'down' ? '▼' : '—';
-                const style = v.regime.aligned === true ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                  : v.regime.aligned === false ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                  : 'bg-white/5 text-[var(--text-muted)] border-[var(--border)]';
-                return (
-                  <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${style}`}
-                    title="상위 타임프레임 추세. 결 방향이면 초록, 역행이면 빨강.">
-                    상위추세 {arrow(v.regime.d1)}1D {arrow(v.regime.h4)}4H{v.regime.aligned === false ? ' · 역행' : v.regime.aligned === true ? ' · 정렬' : ''}
-                  </span>
-                );
-              })()}
-              {/* 엣지 미검증(대규모 백테스트 승률 49.7%)이므로 초록불이 '사도 된다'로 읽히지 않게 한다.
-                  체크리스트 통과라는 사실만 말하고, 우위를 뜻하지 않음을 배지 자체에 붙인다. */}
-              <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
-                v.entryOk ? 'bg-sky-500/10 text-sky-400 border-sky-500/30' : 'bg-slate-500/10 text-[var(--text-muted)] border-[var(--border)]'
-              }`} title="체크리스트를 모두 통과했다는 뜻입니다. 이 엔진은 대규모 백테스트에서 승률 49.7%로 엣지가 확인되지 않았으므로, 통과가 곧 우위를 뜻하지 않습니다.">
-                {v.entryOk ? '체크리스트 통과 (우위 아님)' : '진입 대기'}
-              </span>
-              <button onClick={saveToJournal}
-                className="ml-auto px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-hover)] transition-colors">
-                📓 매매일지 기록
-              </button>
-            </div>
-
-            {/* 진입가·손절·목표·체크리스트는 위 '진입 판단' 섹션으로 통합됨. 여기는 근거(점수·레버리지)만. */}
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr] gap-4 items-start">
-              <ScoreGauge score={v.score} />
-              <div className="space-y-3">
-                <p className="text-xs text-[var(--text)] bg-white/3 border border-[var(--border)] rounded-xl p-3 leading-relaxed">{v.entryNote}</p>
-                <div className="rounded-xl border border-[var(--border)] p-3">
-                  <p className="text-[10px] text-[var(--text-muted)] mb-1.5">권장 레버리지</p>
-                  <p className="text-base font-bold text-[var(--text)]">
-                    보수 <span className="text-sky-400">{v.leverage.conservative}배</span>
-                    <span className="mx-2 text-[var(--text-dim)]">·</span>
-                    적극 <span className="text-amber-400">{v.leverage.aggressive}배</span>
-                    <span className="mx-2 text-[var(--text-dim)]">·</span>
-                    <span className="text-sm font-semibold text-[var(--text-muted)]">청산한계 {v.leverage.max}배</span>
-                  </p>
-                  <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">{v.leverage.note}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* 근거·경고 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
-              <div>
-                <p className="text-xs font-bold text-[var(--text)] mb-2">분석 근거</p>
-                <ul className="space-y-1">
-                  {v.reasons.map((r, i) => (
-                    <li key={i} className="text-[11px] text-[var(--text-muted)] flex gap-1.5">
-                      <span className="text-sky-400 shrink-0">•</span>{r}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-amber-400 mb-2">경고·회피 규칙</p>
-                {v.warnings.length ? (
-                  <ul className="space-y-1">
-                    {v.warnings.map((w, i) => (
-                      <li key={i} className="text-[11px] text-amber-400/90 flex gap-1.5">
-                        <span className="shrink-0">⚠</span>{w}
-                      </li>
-                    ))}
-                  </ul>
-                ) : <p className="text-[11px] text-[var(--text-muted)]">현재 특이 경고 없음</p>}
-              </div>
-            </div>
-          </div>
-          </Collapsible>
-
           {/* 오더북 유동성 — 추가 정보(기본 접힘) */}
           {data.orderbook && (
             <Collapsible title="오더북 유동성" sub="상위 50호가 스냅샷">
@@ -1536,123 +1437,32 @@ export default function CoinAnalysisPage() {
             </Collapsible>
           )}
 
-          {/* 룰 엔진 성적표 — 추가 정보(기본 접힘) · 파생 수급 정밀은 상단 우측으로 이동 */}
-          <Collapsible title="룰 엔진 성적표" sub="최근 장세 자동 백테스트 · 엣지 미검증(49.7%)">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mt-1">
-              <h3 className="text-sm font-bold text-[var(--text)] mb-1 flex items-center gap-2 flex-wrap">
-                룰 엔진 성적표 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 {Math.round(data.backtest.spanHours)}시간 자동 백테스트</span>
-                {(() => {
-                  const h = data.backtest.spanHours; const n = data.backtest.signals;
-                  const low = h < 48 || n < 8;
-                  const mid = !low && (h < 96 || n < 15);
-                  return (
-                    <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${
-                      low ? 'bg-red-500/10 text-red-400 border-red-500/30' : mid ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                    }`}>신뢰도 {low ? '낮음' : mid ? '보통' : '양호'}</span>
-                  );
-                })()}
-                <button type="button" onClick={() => setShowBt((v) => !v)} className="ml-auto text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] rounded-md px-2 py-0.5">
-                  {showBt ? '상세 접기 ▲' : '상세 펼치기 ▼'}
-                </button>
-              </h3>
-              <p className="text-[10px] text-[var(--text-muted)] mb-2">
-                과거 캔들에서 진입 신호 발생 시 1R 익절 vs 손절 판정. ⚠ 수수료·슬리피지 미반영.
-              </p>
 
-              {/* 대규모 표본 측정 결과 — 이 화면의 짧은 표본이 잘 나와도 그게 엣지의 근거가 아니다 */}
-              <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-2.5">
-                <p className="text-[11px] font-bold text-amber-400 mb-1">⚠ 이 엔진은 엣지가 검증되지 않았습니다</p>
-                <p className="text-[10px] leading-relaxed text-[var(--text-muted)]">
-                  별도 대규모 백테스트(2026-08-07 · 45일 · 4코인 · 727건)에서 <strong className="text-[var(--text)]">승률 49.7%</strong>,
-                  파생 수급 신호를 포함해도 <strong className="text-[var(--text)]">48.4%</strong>(28일·407건)로
-                  <strong className="text-[var(--text)]"> 동전 던지기와 구분되지 않았습니다</strong>.
-                  1R 손절·1R 익절의 손익분기가 50%이고, 왕복 수수료 0.12%가 손절폭 0.2% 기준
-                  <strong className="text-[var(--text)]"> 1R의 60%</strong>를 먹으므로 실제로는 마이너스입니다.
-                  <br />
-                  아래 성적표는 <strong className="text-[var(--text)]">최근 장세 적합도</strong>일 뿐,
-                  좋게 나와도 표본이 짧아(수십 건) 우연과 구분되지 않습니다 —
-                  <strong className="text-[var(--text)]"> 진입 근거로 쓰지 마세요.</strong>
-                  이 도구는 손절·사이징·기록 등 <strong className="text-[var(--text)]">리스크 관리</strong>에 쓰는 것이 안전합니다.
-                </p>
-              </div>
-              {showBt && (data.backtest.signals === 0 ? (
-                <p className="text-xs text-[var(--text-muted)] py-3 text-center">이 기간 진입 조건을 충족한 신호가 없습니다 — 엔진이 관망을 유지한 구간</p>
-              ) : (
-                <>
-                  <div className="grid grid-cols-4 gap-2 mb-3">
-                    {[
-                      { k: '신호', v: String(data.backtest.signals), cls: 'text-[var(--text)]' },
-                      { k: '승률', v: data.backtest.winRate !== null ? `${data.backtest.winRate.toFixed(0)}%` : '-', cls: data.backtest.winRate !== null && data.backtest.winRate >= 50 ? 'text-emerald-400' : 'text-red-400' },
-                      { k: '기대값', v: data.backtest.avgR !== null ? `${data.backtest.avgR >= 0 ? '+' : ''}${data.backtest.avgR.toFixed(2)}R` : '-', cls: data.backtest.avgR !== null && data.backtest.avgR >= 0 ? 'text-emerald-400' : 'text-red-400' },
-                      { k: '롱/숏', v: `${data.backtest.longSignals}/${data.backtest.shortSignals}`, cls: 'text-[var(--text)]' },
-                    ].map((c) => (
-                      <div key={c.k} className="rounded-xl border border-[var(--border)] p-2 text-center">
-                        <p className="text-[10px] text-[var(--text-muted)]">{c.k}</p>
-                        <p className={`text-sm font-bold tabular-nums ${c.cls}`}>{c.v}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mb-2 rounded-lg border border-sky-500/30 bg-sky-500/[0.06] p-2.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
-                    <p>
-                      <b className="text-[var(--text)]">아래 표는 &lsquo;지금 방향&rsquo;이 아니라 과거 신호 기록입니다.</b>{' '}
-                      지난 {Math.round(data.backtest.spanHours)}시간 동안 엔진 조건을 통과했던 가상 진입을 최신순으로 나열한 것이고, 방향은 <b className="text-[var(--text)]">그 시각 당시</b>의 판정입니다
-                      (손절가가 진입가 아래면 롱, 위면 숏).
-                    </p>
-                    <p className="mt-1">
-                      지금 엔진 방향: <b className={data.verdict.direction === 'long' ? 'text-emerald-400' : data.verdict.direction === 'short' ? 'text-red-400' : 'text-amber-400'}>
-                        {data.verdict.direction === 'long' ? '롱' : data.verdict.direction === 'short' ? '숏' : '관망'} ({data.verdict.score > 0 ? '+' : ''}{data.verdict.score})
-                      </b>{' '}· 진입 조건 {data.verdict.entryOk ? '충족' : '미충족'}
-                    </p>
-                    {data.backtest.leanCounts && data.backtest.blocked && (
-                      <p className="mt-1">
-                        이 기간 엔진이 기울었던 횟수 — 롱 {data.backtest.leanCounts.long} · 숏 {data.backtest.leanCounts.short} · 관망 {data.backtest.leanCounts.wait}회(포지션이 없을 때 15분마다 평가).
-                        {data.backtest.shortSignals === 0 && data.backtest.longSignals > 0 && (
-                          <> <b className="text-[var(--text)]">숏 신호가 0건인 이유:</b> 숏 쪽으로 점수가 충분했던(−45 이하) 평가 {data.backtest.blocked.short.total}회 중 {data.backtest.blocked.short.counterTrend}회는 상위 추세(4H·1D)를 거스르는 진입이라 차단됐습니다{data.backtest.blocked.short.total > data.backtest.blocked.short.counterTrend ? ' — 나머지는 5분 트리거 미확인·목표까지 여유 부족 등으로 통과하지 못했습니다' : ''}. 즉 숏이 불리해서가 아니라, 엔진이 큰 흐름을 거스르는 진입을 막도록 설계돼 있어서입니다.</>
-                        )}
-                        {data.backtest.longSignals === 0 && data.backtest.shortSignals > 0 && (
-                          <> <b className="text-[var(--text)]">롱 신호가 0건인 이유:</b> 롱 쪽으로 점수가 충분했던(+45 이상) 평가 {data.backtest.blocked.long.total}회 중 {data.backtest.blocked.long.counterTrend}회는 상위 추세(4H·1D)를 거스르는 진입이라 차단됐습니다{data.backtest.blocked.long.total > data.backtest.blocked.long.counterTrend ? ' — 나머지는 5분 트리거 미확인·목표까지 여유 부족 등으로 통과하지 못했습니다' : ''}. 즉 롱이 불리해서가 아니라, 엔진이 큰 흐름을 거스르는 진입을 막도록 설계돼 있어서입니다.</>
-                        )}
-                      </p>
-                    )}
-                  </div>
-                  <div className="max-h-32 overflow-y-auto rounded-lg border border-[var(--border)]">
-                    <table className="w-full text-[10px] tabular-nums">
-                      <thead>
-                        <tr className="text-[var(--text-muted)] bg-[var(--bg)] sticky top-0">
-                          <th className="text-left px-2 py-1 font-medium">시각</th>
-                          <th className="text-left px-2 py-1 font-medium">당시 방향(점수)</th>
-                          <th className="text-right px-2 py-1 font-medium">진입가</th>
-                          <th className="text-right px-2 py-1 font-medium">손절가</th>
-                          <th className="text-right px-2 py-1 font-medium">보유</th>
-                          <th className="text-right px-2 py-1 font-medium">결과</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.backtest.trades.map((tr, i) => (
-                          <tr key={i} className={i % 2 === 1 ? 'bg-[var(--bg)]/30' : ''}>
-                            <td className="px-2 py-1 text-[var(--text-muted)]">{new Date(tr.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                            <td className={`px-2 py-1 ${tr.direction === 'long' ? 'text-emerald-400' : 'text-red-400'}`}>{tr.direction === 'long' ? '롱' : '숏'} ({tr.score > 0 ? '+' : ''}{tr.score})</td>
-                            <td className="px-2 py-1 text-right text-[var(--text)]">${fmtP(tr.entry, priceDigits)}</td>
-                            <td className="px-2 py-1 text-right text-[var(--text-muted)]">${fmtP(tr.stop, priceDigits)}</td>
-                            <td className="px-2 py-1 text-right text-[var(--text-muted)]">{(tr.bars * 5 / 60).toFixed(1)}h</td>
-                            <td className={`px-2 py-1 text-right font-bold ${tr.result === 'win' ? 'text-emerald-400' : 'text-red-400'}`}>{tr.result === 'win' ? '+1R' : '-1R'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-60">
-                    {data.backtest.winRate !== null && data.backtest.winRate < 45
-                      ? '⚠ 최근 장세에서 엔진 적중률이 낮습니다 — 신호를 보수적으로 해석하세요'
-                      : '표본이 짧으므로 절대 성능이 아닌 "최근 장세 적합도"로만 참고'}
-                  </p>
-                </>
-              ))}
-            </div>
-          </Collapsible>
-
-          {/* 리스크 패널 — 상단 버튼 → 팝업 (피보나치는 진입 판단 › 상세보기로 이동) */}
+          {/* 리스크 패널 — 상단 버튼 → 팝업 (권장 레버리지·경고는 엔진 종합 판단에서 이 리스크 관점으로 통합) */}
           <BottomSheet open={modal === 'risk'} onClose={() => setModal(null)} title="리스크 패널 — 사이징·청산가·펀딩">
+            {/* 권장 레버리지 — 리스크 관리용(방향·점수 아님) */}
+            <div className="rounded-xl border border-[var(--border)] p-3 mb-3">
+              <p className="text-[10px] text-[var(--text-muted)] mb-1.5">권장 레버리지 <span className="opacity-70">리스크 관리용 · 방향 예측 아님</span></p>
+              <p className="text-base font-bold text-[var(--text)]">
+                보수 <span className="text-sky-400">{v.leverage.conservative}배</span>
+                <span className="mx-2 text-[var(--text-dim)]">·</span>
+                적극 <span className="text-amber-400">{v.leverage.aggressive}배</span>
+                <span className="mx-2 text-[var(--text-dim)]">·</span>
+                <span className="text-sm font-semibold text-[var(--text-muted)]">청산한계 {v.leverage.max}배</span>
+              </p>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">{v.leverage.note}</p>
+            </div>
+            {/* 경고·회피 규칙 */}
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-3 mb-3">
+              <p className="text-xs font-bold text-amber-400 mb-2">⚠ 경고·회피 규칙</p>
+              {v.warnings.length ? (
+                <ul className="space-y-1">
+                  {v.warnings.map((w, i) => (
+                    <li key={i} className="text-[11px] text-amber-400/90 flex gap-1.5"><span className="shrink-0">⚠</span>{w}</li>
+                  ))}
+                </ul>
+              ) : <p className="text-[11px] text-[var(--text-muted)]">현재 특이 경고 없음</p>}
+            </div>
             <RiskPanel
               entry={v.entry} stop={v.stop} stopPct={v.stopPct}
               target1={v.target1} target2={v.target2} direction={v.direction}
