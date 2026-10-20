@@ -56,7 +56,7 @@ function MarketBenchmarkR({ trades }: { trades: TradeValue[] }) {
   const idxLabel = BM_IDX.find(([k]) => k === idx)![1];
   const hasMonths = new Set(trades.map((t) => kstDateKey(t.ts).slice(0, 7))).size > 0;
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="fin-card p-4">
       <h3 className="text-sm font-semibold text-[var(--text)]">시장 벤치마크 <span className="text-[11px] font-normal text-[var(--text-muted)]">· 내 매매 기간 동안 시장</span></h3>
       <p className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-2 tabular-nums">{from} ~ {to} · 내 실현 <b style={{ color: RCOLOR(netR) }}>{fmtR(netR)}</b> · {trades.length}건</p>
       <IndexReturnGrid data={data} from={from} to={to} />

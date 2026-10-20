@@ -70,7 +70,7 @@ function PerfGraph({ bars }: { bars: Bar[] }) {
 /* ── 전체보기 시트의 상세 링크 카드 ──────────────── */
 function NavCard({ href, icon, title, sub, onNavigate }: { href: string; icon: string; title: string; sub: string; onNavigate: () => void }) {
   return (
-    <Link href={href} onClick={onNavigate} className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 hover-lift">
+    <Link href={href} onClick={onNavigate} className="flex items-center gap-3 fin-card p-4 hover-lift">
       <span className="w-10 h-10 rounded-xl grid place-items-center bg-[var(--surface-2)] text-[var(--accent)] shrink-0">
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d={ICON[icon]} /></svg>
       </span>
@@ -189,7 +189,7 @@ export default function AssetsPage() {
 
             {/* USDT 선물 포지션 */}
             {pos?.positions && pos.positions.length > 0 && (
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+              <div className="fin-card p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-sm font-bold text-[var(--text)]">USDT 선물 포지션 <span className="text-[10px] font-normal text-[var(--text-muted)]">{pos.positions.length}건</span></h4>
                   {pos.account && (
@@ -299,7 +299,7 @@ export default function AssetsPage() {
 
       {/* ── 전체보기 ── */}
       <button type="button" onClick={() => setSheet(true)}
-        className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 flex items-center justify-center gap-2 font-bold text-[var(--text)] hover-lift">
+        className="w-full fin-card p-4 flex items-center justify-center gap-2 font-bold text-[var(--text)] hover-lift">
         <svg className="w-5 h-5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
         전체보기
       </button>

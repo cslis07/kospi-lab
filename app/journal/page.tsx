@@ -98,7 +98,7 @@ function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
   const idxLabel = BM_IDX.find(([k]) => k === idx)![1];
   const pctStr = (v: number | null) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="fin-card p-4">
       <h3 className="text-sm font-semibold text-[var(--text)]">시장 벤치마크 <span className="text-[11px] font-normal text-[var(--text-muted)]">· 내 매매 기간 동안 시장</span></h3>
       <p className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-2 tabular-nums">{from} ~ {to} · 내 순손익 <b className={bmCol(net)}>{net >= 0 ? '+' : ''}{fmtUsdt(net)} USDT</b></p>
       <IndexReturnGrid data={data} from={from} to={to} />
@@ -410,7 +410,7 @@ export default function JournalPage() {
       {open.length > 0 && (
         <section className="mb-5">
           <h2 className="text-sm font-bold text-[var(--text)] mb-2">현재 포지션 <span className="text-[10px] font-normal text-[var(--text-muted)]">미청산 · 눌러서 기분·태그 기록</span></h2>
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+          <div className="fin-card overflow-hidden">
             {open.map((p, i) => {
               const id = openId(p);
               const mood = moods[id];
@@ -568,7 +568,7 @@ export default function JournalPage() {
       {months.length > 0 && (
         <section id="sec-months" className="scroll-mt-16 mb-5">
           <h2 className="text-sm font-bold text-[var(--text)] mb-2">월별 보고서 <span className="text-[10px] font-normal text-[var(--text-muted)]">월을 누르면 상세가 열립니다</span></h2>
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+          <div className="fin-card overflow-hidden">
             {months.map((m, i) => {
               const isOpen = selMonth === m.month;
               const trades = monthGroups.get(m.month) ?? [];
@@ -643,7 +643,7 @@ export default function JournalPage() {
       )}
 
       {loaded && !busy && !err && positions.length === 0 && open.length === 0 && (
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-8 text-center text-sm text-[var(--text-muted)]">
+        <div className="fin-card p-8 text-center text-sm text-[var(--text-muted)]">
           표시할 매매가 없습니다. 기간을 늘리거나 다시 가져와 보세요.
         </div>
       )}
