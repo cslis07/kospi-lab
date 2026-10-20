@@ -126,14 +126,14 @@ export default function HomeMenu({ onNavigate }: { onNavigate?: () => void }) {
               <div>
                 <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 tracking-wide">더보기 도구</p>
                 <div className="hm-grid">
-                  {EXTRAS.map((t) => <GridItem key={t.href} t={t} color="c-violet" active={isActive(t.href)} onNavigate={onNavigate} />)}
+                  {EXTRAS.filter((t) => !t.hidden).map((t) => <GridItem key={t.href} t={t} color="c-violet" active={isActive(t.href)} onNavigate={onNavigate} />)}
                 </div>
               </div>
               {/* 실시간 물가 허브 하위 섹션 — 18페이지 허브 진입점 노출 */}
               <div>
                 <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 tracking-wide">실시간 물가 허브</p>
                 <div className="hm-grid">
-                  {INFLATION_SECTIONS.map((t) => <GridItem key={t.href} t={t} color="c-violet" active={isActive(t.href)} onNavigate={onNavigate} />)}
+                  {INFLATION_SECTIONS.filter((t) => !t.hidden).map((t) => <GridItem key={t.href} t={t} color="c-violet" active={isActive(t.href)} onNavigate={onNavigate} />)}
                 </div>
               </div>
             </div>

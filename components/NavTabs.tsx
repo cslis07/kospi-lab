@@ -9,7 +9,14 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect } from 'react';
-import { MENU, ICON, GUIDE, activeItem, itemIsActive } from '@/lib/menu';
+import { MENU, EXTRAS, INFLATION_SECTIONS, ICON, GUIDE, activeItem, itemIsActive, type MenuItem } from '@/lib/menu';
+
+/** 상단 알약 = 5섹션(MENU) + 보조 도구 드릴다운 2개(물가·더보기). 숨김 항목은 제외. */
+const NAV_GROUPS: { key: string; label: string; navIcon: string; items: MenuItem[] }[] = [
+  ...MENU.map((g) => ({ key: g.key, label: g.label, navIcon: g.navIcon, items: g.items })),
+  { key: 'inflation', label: '물가',   navIcon: 'signal', items: INFLATION_SECTIONS.filter((t) => !t.hidden) },
+  { key: 'more',      label: '더보기', navIcon: 'tools',  items: EXTRAS.filter((t) => !t.hidden) },
+];
 
 function NavIcon({ name, className = 'w-4 h-4' }: { name: string; className?: string }) {
   return (
@@ -47,8 +54,10 @@ function NavTabsInner() {
 
   const hit = activeItem(pathname, searchParams);
   const tabGroup = MENU.find((g) => g.matchFn(pathname, searchParams)) ?? null;
-  const shown = shownGroup ?? hit?.group.key ?? tabGroup?.key ?? null;
-  const shownItems = MENU.find((g) => g.key === shown)?.items ?? null;
+  // 물가·더보기 등 보조 그룹도 현재 경로가 속하면 알약 강조·칩 자동 노출
+  const activeNav = NAV_GROUPS.find((g) => g.items.some((it) => itemIsActive(it, pathname, searchParams)))?.key ?? null;
+  const shown = shownGroup ?? hit?.group.key ?? tabGroup?.key ?? activeNav ?? null;
+  const shownItems = NAV_GROUPS.find((g) => g.key === shown)?.items ?? null;
 
   return (
     <>
@@ -72,8 +81,8 @@ function NavTabsInner() {
       <nav className="hidden md:block relative mb-6 space-y-3">
         <div className="flex items-center gap-3">
           <div className="topnav">
-            {MENU.map((g) => {
-              // 항목이 하나뿐인 섹션(관심종목·자산)은 서브칩 단계 없이 알약을 바로 링크로 → 한 번에 진입
+            {NAV_GROUPS.map((g) => {
+              // 항목이 하나뿐인 섹션(자산)은 서브칩 단계 없이 알약을 바로 링크로 → 한 번에 진입
               if (g.items.length === 1) {
                 const it = g.items[0];
                 const on = itemIsActive(it, pathname, searchParams);
@@ -84,10 +93,11 @@ function NavTabsInner() {
                   </Link>
                 );
               }
+              const childActive = g.items.some((it) => itemIsActive(it, pathname, searchParams));
               return (
                 <button key={g.key} type="button"
                   onClick={() => setShownGroup(shown === g.key ? null : g.key)}
-                  className={`navlink ${shown === g.key ? 'active' : ''}`}>
+                  className={`navlink ${shown === g.key || childActive ? 'active' : ''}`}>
                   <NavIcon name={g.navIcon} />
                   {g.label}
                   <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">

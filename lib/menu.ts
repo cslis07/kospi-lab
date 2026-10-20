@@ -13,6 +13,8 @@ export interface MenuItem {
   href: string; label: string; icon: string; desc?: string; external?: boolean;
   /** 같은 항목으로 취급할 다른 경로(예: 종목 분석 = 국내주식·코인선물 두 화면) */
   alias?: string[];
+  /** 메뉴·검색에서 숨김(페이지·경로는 유지, 목록에만 노출 안 함) */
+  hidden?: boolean;
 }
 export interface MenuGroup {
   key: string; label: string; color: string; qc: string; navIcon: string;
@@ -117,7 +119,7 @@ export const EXTRAS: MenuItem[] = [
   { href: '/brief',      icon: 'sunrise',    label: '모닝 브리핑',  desc: '증시별 거시·금리·유가·뉴스 아침 정리' },
   { href: '/my-stocks',  icon: 'star',       label: '관심종목',    desc: '국내·해외·코인 저장 목록' },
   { href: '/screener',   icon: 'screener',   label: '종목 비교',   desc: '여러 종목 재무 비교', alias: ['/growth'] },
-  { href: '/report',     icon: 'report',     label: '리포트',      desc: '증권사 리포트' },
+  { href: '/report',     icon: 'report',     label: '리포트',      desc: '증권사 리포트', hidden: true },
   { href: '/journal',    icon: 'journal',    label: '매매일지',    desc: '거래소 대조·기분·손익 분해·CSV' },
   { href: '/eth',        icon: 'risk',       label: 'ETH 체제 보드', desc: '공급·수요·포지셔닝·거시 4층 + 레버리지 가드(예측 아님)' },
   { href: '/alerts',     icon: 'bell',       label: '가격 알림',   desc: '흩어진 알림 한 화면 관리' },
@@ -151,14 +153,14 @@ export const INFLATION_SECTIONS: MenuItem[] = [
   { href: '/inflation/brief',       icon: 'sunrise', label: '데일리 브리핑',  desc: '하루치 인플레 요약' },
   { href: '/inflation/analysis',    icon: 'report', label: '발표일 분석',    desc: '예측 대 실제' },
   { href: '/inflation/articles',    icon: 'news',   label: '경제 기사',      desc: 'Nowflation 해설' },
-  { href: '/inflation/prices',      icon: 'krx',    label: '품목별 가격',    desc: '식료품·연료 추이' },
-  { href: '/inflation/cart',        icon: 'tools',  label: '장바구니',       desc: '월 비용·전년대비' },
+  { href: '/inflation/prices',      icon: 'krx',    label: '품목별 가격',    desc: '식료품·연료 추이', hidden: true },
+  { href: '/inflation/cart',        icon: 'tools',  label: '장바구니',       desc: '월 비용·전년대비', hidden: true },
   { href: '/inflation/jobs',        icon: 'growth', label: '고용',          desc: 'NFP·실업·임금' },
-  { href: '/inflation/heatcheck',   icon: 'risk',   label: '경기 열지수',    desc: '침체 신호 점검' },
+  { href: '/inflation/heatcheck',   icon: 'risk',   label: '경기 열지수',    desc: '침체 신호 점검', hidden: true },
   { href: '/inflation/quilt',       icon: 'analysis', label: '인플레 히트맵', desc: '품목×월 YoY' },
-  { href: '/inflation/calculator',  icon: 'simulate', label: '인플레 계산기', desc: '구매력 환산' },
-  { href: '/inflation/my',          icon: 'portfolio', label: '내 물가',     desc: '내 소비 가중 체감' },
-  { href: '/inflation/methodology', icon: 'principles', label: '방법론',     desc: '구성·현황·소스' },
+  { href: '/inflation/calculator',  icon: 'simulate', label: '인플레 계산기', desc: '구매력 환산', hidden: true },
+  { href: '/inflation/my',          icon: 'portfolio', label: '내 물가',     desc: '내 소비 가중 체감', hidden: true },
+  { href: '/inflation/methodology', icon: 'principles', label: '방법론',     desc: '구성·현황·소스', hidden: true },
 ];
 
 /** 종목·코인 상세 — 섹션 항목 하위 경로여도 드릴다운(뒤로가기)으로 취급 */
@@ -208,7 +210,9 @@ export const FLAT: FlatMenuItem[] = [
   ...MENU.flatMap((g) => g.items.map((it) => ({ ...it, color: g.color, qc: g.qc }))),
   ...EXTRAS.map((it) => ({ ...it, color: 'c-violet', qc: 'qc-violet' })),
   ...INFLATION_SECTIONS.map((it) => ({ ...it, color: 'c-violet', qc: 'qc-violet' })),
-].filter((it, i, arr) => arr.findIndex((x) => x.href === it.href) === i);
+]
+  .filter((it) => !it.hidden) // 숨김 항목은 검색·자주쓰는 후보에서도 제외
+  .filter((it, i, arr) => arr.findIndex((x) => x.href === it.href) === i);
 export const BY_HREF = new Map(FLAT.map((f) => [f.href, f]));
 
 /** 방문 데이터 없을 때 기본 '자주 쓰는' — 손이 가는 자동 데이터 위주 */
