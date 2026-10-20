@@ -520,7 +520,7 @@ export async function GET(req: NextRequest) {
   const briefingModel = resolveBriefingModel(req.nextUrl.searchParams.get('model')).id;
 
   try {
-    const [c1hFull, c15mFull, c5mFull, c4hFull, c1dFull, funding, tickers, news, longShort, fundingHist, fearGreed, takerFlow, positionLS, oiHist, dvol, dominance, orderbook, macroRates] = await Promise.all([
+    const [c1hFull, c15mFull, c5mFull, c4hFull, c1dFull, funding, tickers, news, longShort, fundingHist, fearGreed, takerFlow, positionLS, oiHist, dvol, dominance, orderbook, macroRates, c1mFull] = await Promise.all([
       fetchCandles(symbol, '1H', 250),
       fetchCandles(symbol, '15m', 500),
       fetchCandles(symbol, '5m', 1000),
@@ -539,6 +539,7 @@ export async function GET(req: NextRequest) {
       fetchDominance(),
       fetchOrderbook(symbol).catch(() => null),
       coinMacroRates().catch(() => null),
+      fetchCandles(symbol, '1m', 300).catch(() => [] as Candle[]),
     ]);
     // 실시간 분석은 최근 200봉, 백테스트는 전체 사용
     const c1h = c1hFull.slice(-200);
@@ -552,6 +553,8 @@ export async function GET(req: NextRequest) {
     const h1  = analyzeTimeframe('1H', c1h);
     const m15 = analyzeTimeframe('15m', c15m);
     const m5  = analyzeTimeframe('5m', c5m);
+    // 분봉별 지표 표(1·5·15·1h·4h)용 — 1분봉(신규 fetch)·4시간봉(c4hFull 재사용), 봉 부족 시 null
+    const m1  = c1mFull.length >= 30 ? analyzeTimeframe('1m', c1mFull.slice(-200)) : null;
     // 상위 타임프레임 레짐 (봉 부족 시 null)
     const h4  = c4hFull.length >= 60 ? analyzeTimeframe('4H', c4hFull) : null;
     const d1  = c1dFull.length >= 60 ? analyzeTimeframe('1D', c1dFull) : null;
@@ -774,7 +777,7 @@ export async function GET(req: NextRequest) {
         latest: longShort.latest,
         history: longShort.history,
       },
-      timeframes: { h1, m15, m5 },
+      timeframes: { h4, h1, m15, m5, m1 },
       zones,
       fib,
       charts,

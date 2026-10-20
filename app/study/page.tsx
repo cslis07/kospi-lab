@@ -55,6 +55,14 @@ export default function StudyPage() {
         <p className="text-[12px] text-[var(--text-muted)] mt-1.5 leading-relaxed">진입 전 7문항 + 손절 후 재진입 프로토콜(60분 대기·새 근거 4단계). 주문 전에 조건을 직접 체크하는 규율 도구.</p>
       </Link>
 
+      <Link href="/study/entry-signals" className="fin-card p-4 block mb-7 border border-[var(--accent)]/30">
+        <div className="flex items-center justify-between">
+          <b className="text-[14px] text-[var(--text)]">📈 롱·숏 진입 신호 가이드</b>
+          <span className="text-[12px] font-semibold text-[var(--accent-ink)]">열기 →</span>
+        </div>
+        <p className="text-[12px] text-[var(--text-muted)] mt-1.5 leading-relaxed">단기 상승/하락 신호 평가·중요한 가격대·상승 지속 5기준·RSI/MACD 해석·최종 진입 규칙. 분석 화면의 &lsquo;진입 판단&rsquo;을 읽는 기준.</p>
+      </Link>
+
       {/* 과정 */}
       <h2 className="text-[15px] font-bold text-[var(--text)] mb-2">과정</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-7">
