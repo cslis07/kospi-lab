@@ -12,7 +12,8 @@ import EventRow, { kstToday } from '@/components/EventRow';
 import BottomSheet from '@/components/ui/BottomSheet';
 import EconCalendarMonth, { type CalEvt } from '@/components/EconCalendarMonth';
 import NextReleases from '@/components/NextReleases';
-import type { ReleaseCalendar } from '@/lib/inflation';
+import PastReleases from '@/components/PastReleases';
+import type { ReleaseCalendar, EconCalWindow } from '@/lib/inflation';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const KIND_KO: Record<string, string> = { cpi: 'CPI', pce: 'PCE', ppi: 'PPI', jobs: '고용', nfp: '고용', gdp: 'GDP', retail: '소매판매' };
@@ -89,6 +90,7 @@ export default function CalendarPage() {
 
   // 달력(월간 그리드)용 — 정적 일정 + 나우캐스트 미국 지표 발표일을 모두 표시(필터는 아래 목록에만 적용)
   const { data: relCal } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, { revalidateOnFocus: false });
+  const { data: econWin } = useSWR<EconCalWindow>('/api/nf/econcal_window.json', fetcher, { revalidateOnFocus: false });
   const calEvents = useMemo<CalEvt[]>(() => {
     const out: CalEvt[] = CALENDAR_EVENTS.map((e) => ({ date: e.date, label: e.title, tone: CAT_TONE[e.category] ?? 'ind' }));
     for (const e of relCal?.events ?? []) {
@@ -120,6 +122,14 @@ export default function CalendarPage() {
 
       {/* 월간 달력 — 모든 지표 발표일·FOMC·한은·실적·휴장 */}
       <div className="fin-card p-4 mb-4"><EconCalendarMonth events={calEvents} /></div>
+
+      {/* 지난 발표 — 실제 vs 컨센서스 서프라이즈(Nowflation 참고) */}
+      {econWin?.events?.length ? (
+        <div className="mb-4">
+          <div className="fin-sec"><h3 className="!text-[15px]">지난 발표 · 서프라이즈</h3><span className="text-[11px] text-[var(--text-muted)]">실제 vs 컨센서스</span></div>
+          <PastReleases ec={econWin} limit={12} />
+        </div>
+      ) : null}
 
       <div className="chip-scroll mb-2">
         <button type="button" className={`chip ${nFilters ? 'active' : ''}`} onClick={() => setSheet(true)}>

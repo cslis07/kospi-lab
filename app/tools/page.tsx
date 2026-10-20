@@ -12,8 +12,9 @@ import { EXTRAS, ICON } from '@/lib/menu';
 import HomeNews from '@/components/home/naver/HomeNews';
 import EconCalendarMonth, { type CalEvt } from '@/components/EconCalendarMonth';
 import NextReleases from '@/components/NextReleases';
+import PastReleases from '@/components/PastReleases';
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
-import type { ReleaseCalendar } from '@/lib/inflation';
+import type { ReleaseCalendar, EconCalWindow } from '@/lib/inflation';
 import type { MacroIndicator } from '@/lib/macroData';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
@@ -37,6 +38,7 @@ export default function ToolsPage() {
   const mi = (id: string) => (macro ?? []).find((x) => x.id === id);
   // 경제 캘린더(달력) — 정적 일정 + 나우캐스트 미국 지표 발표일을 모두 표시
   const { data: relCal } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, { revalidateOnFocus: false });
+  const { data: econWin } = useSWR<EconCalWindow>('/api/nf/econcal_window.json', fetcher, { revalidateOnFocus: false });
   const calEvents = useMemo<CalEvt[]>(() => {
     const out: CalEvt[] = CALENDAR_EVENTS.map((e) => ({ date: e.date, label: e.title, tone: CAT_TONE[e.category] ?? 'ind' }));
     for (const e of relCal?.events ?? []) {
@@ -73,7 +75,8 @@ export default function ToolsPage() {
       {/* 경제 캘린더 — 다음 발표 카운트다운 + 달력(월간 그리드), 모든 지표 발표일 */}
       <div className="fin-sec"><h3 className="!text-[15px]">경제 캘린더</h3><Link href="/calendar" className="fin-more">전체보기</Link></div>
       {relCal?.events?.length ? <div className="mb-3"><NextReleases rc={relCal} limit={2} /></div> : null}
-      <div className="fin-card p-4 mb-5"><EconCalendarMonth events={calEvents} /></div>
+      <div className="fin-card p-4 mb-3"><EconCalendarMonth events={calEvents} /></div>
+      {econWin?.events?.length ? <div className="mb-5"><PastReleases ec={econWin} limit={8} /></div> : null}
 
       {/* 최신 뉴스 — 홈 위젯 재사용 */}
       <div className="fin-sec"><h3 className="!text-[15px]">최신 뉴스</h3><Link href="/news" className="fin-more">전체보기</Link></div>
