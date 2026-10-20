@@ -24,6 +24,9 @@ import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '@/lib/pos
 import { jsonFetcher, ApiError } from '@/lib/fetcher';
 import TradeGate from '@/components/TradeGate';
 import CircuitBreakerBar from '@/components/CircuitBreakerBar';
+import BottomSheet from '@/components/ui/BottomSheet';
+import Collapsible from '@/components/ui/Collapsible';
+import RotatingTicker from '@/components/ui/RotatingTicker';
 import { useRiskLimits } from '@/hooks/useRiskLimits';
 import { evaluateBreaker, type BreakerEntry } from '@/lib/circuitBreaker';
 
@@ -156,68 +159,37 @@ const MODE_META: { key: 'scalp' | 'swing' | 'position'; label: string; sub: stri
   { key: 'swing', label: '중장기 SWING', sub: '1H·4H·1D' },
   { key: 'position', label: '장기 POSITION', sub: '1D·거시' },
 ];
-const STATE_KO: Record<string, string> = { TRADE: '체크리스트 통과', WATCH: '관망', NO_TRADE: '조건 미달', PAUSED: '정지' };
 const DIR_KO: Record<string, string> = { LONG: '롱', SHORT: '숏', WAIT: '대기' };
 
-function ModesSection({ modes, symbol }: { modes: NonNullable<AnalysisData['modes']>; symbol: string }) {
+function ModesSection({ modes }: { modes: NonNullable<AnalysisData['modes']> }) {
   const [mode, setMode] = useState<'scalp' | 'swing' | 'position'>('scalp');
   const m = modes[mode];
-  const dg = (n: number) => (symbol === 'BTCUSDT' ? 1 : symbol === 'ETHUSDT' ? 2 : symbol === 'SOLUSDT' ? 2 : 4);
-  const fp = (v: number | null) => v == null ? '-' : v.toLocaleString('en-US', { minimumFractionDigits: dg(v), maximumFractionDigits: dg(v) });
   const dirCls = m.dirLabel === 'LONG' ? 'text-emerald-400' : m.dirLabel === 'SHORT' ? 'text-red-400' : 'text-amber-400';
-  // 엣지 미검증(자체 측정 승률 41.7%)이므로 TRADE를 초록불로 표시하지 않는다 — '사도 된다'로 읽히지 않게 옛 룰엔진 배지와 같은 톤(sky)으로 통일
-  const stateCls = m.state === 'TRADE' ? 'bg-sky-500/15 text-sky-400 border border-sky-500/40' : m.state === 'WATCH' ? 'bg-amber-500/25 text-amber-300' : m.state === 'PAUSED' ? 'bg-red-500/25 text-red-300' : 'bg-white/10 text-[var(--text-muted)]';
-  const bar = (v: number, cls: string) => (
-    <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className={`h-full rounded-full ${cls}`} style={{ width: `${Math.min(100, v)}%` }} /></div>
+  // 한 줄 요약 — 방향·진입적합도·신뢰도·이벤트위험 수치만. (상세 바·표·근거는 제거, 진입 판단 섹션으로 통합)
+  const num = (v: number, warnHigh = false) => (
+    <b className={warnHigh ? (v >= 60 ? 'text-red-400' : v >= 35 ? 'text-amber-400' : 'text-[var(--text)]') : 'text-[var(--text)]'}>{v}</b>
   );
-  const dirBarStyle = () => { const half = Math.min(Math.abs(m.direction), 100) / 2; return m.direction >= 0 ? { left: '50%', width: `${half}%` } : { left: `${50 - half}%`, width: `${half}%` }; };
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 mb-4">
-      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-        <h3 className="text-sm font-bold text-[var(--text)]">진입 모드 <span className="text-[10px] font-normal text-[var(--text-muted)]">단타·중장기·장기 · 방향·타이밍 분리 · 리스크 체크리스트(엣지 미검증)</span></h3>
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3 mb-4">
+      <div className="flex items-center gap-2 flex-wrap">
+        <h3 className="text-[13px] font-bold text-[var(--text)] shrink-0">진입 모드</h3>
         <div className="flex gap-1">
           {MODE_META.map((mm) => (
-            <button key={mm.key} onClick={() => setMode(mm.key)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex flex-col items-center leading-tight ${mode === mm.key ? 'bg-[var(--accent)]/15 text-[var(--text)] border border-[var(--accent)]/50' : 'bg-white/5 text-[var(--text-muted)] border border-transparent'}`}>
-              {mm.label}<span className="text-[9px] font-normal opacity-70">{mm.sub}</span>
+            <button key={mm.key} onClick={() => setMode(mm.key)} title={mm.sub}
+              className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${mode === mm.key ? 'bg-[var(--accent)]/15 text-[var(--text)] border border-[var(--accent)]/50' : 'bg-white/5 text-[var(--text-muted)] border border-transparent'}`}>
+              {mm.label.split(' ')[0]}
             </button>
           ))}
         </div>
+        <span className="text-[9px] text-[var(--text-muted)] hidden sm:inline">체크리스트 충족도 · 방향 예측 아님</span>
       </div>
-      <div className="flex items-center gap-2 flex-wrap mb-3">
-        <span className={`text-lg font-extrabold ${dirCls}`}>{m.dirLabel} {DIR_KO[m.dirLabel]}</span>
-        <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${stateCls}`}>{(m.state === 'NO_TRADE' ? 'NO TRADE' : m.state)} · {STATE_KO[m.state]}</span>
-        {m.ultra && <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full text-white" style={{ background: 'linear-gradient(90deg,#4f8cff,#a04fff)' }}>ULTRA · 다수조건 충족(우위 아님)</span>}
+      <div className="mt-2 flex items-center gap-x-4 gap-y-1 flex-wrap text-[12px] tabular-nums">
+        <span className="text-[var(--text-muted)]">방향 <span className={`font-extrabold ${dirCls}`}>{DIR_KO[m.dirLabel]}({m.direction >= 0 ? '+' : ''}{m.direction})</span></span>
+        <span className="text-[var(--text-muted)]">진입적합도 {num(m.entryQuality)}</span>
+        <span className="text-[var(--text-muted)]">신뢰도 {num(m.confidence)}</span>
+        <span className="text-[var(--text-muted)]">이벤트위험 {num(m.eventRisk, true)}</span>
+        {m.ultra && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ background: 'linear-gradient(90deg,#4f8cff,#a04fff)' }}>ULTRA</span>}
       </div>
-      <div className="grid grid-cols-[80px_1fr_34px] gap-x-2 gap-y-1.5 items-center text-[11px] text-[var(--text)] mb-3">
-        <span>방향<span className="block text-[8px] text-[var(--text-muted)]">Direction</span></span>
-        <div className="relative h-2 rounded-full bg-white/10"><div className={`absolute h-full rounded-full ${m.direction >= 0 ? 'bg-gradient-to-r from-emerald-500 to-emerald-300' : 'bg-gradient-to-l from-red-500 to-red-300'}`} style={dirBarStyle()} /></div>
-        <span className="text-right tabular-nums">{m.direction}</span>
-        <span>진입적합<span className="block text-[8px] text-[var(--text-muted)]">Entry</span></span>{bar(m.entryQuality, 'bg-gradient-to-r from-sky-400 to-indigo-500')}<span className="text-right tabular-nums">{m.entryQuality}</span>
-        <span>신뢰도<span className="block text-[8px] text-[var(--text-muted)]">Confidence</span></span>{bar(m.confidence, 'bg-gradient-to-r from-violet-400 to-fuchsia-500')}<span className="text-right tabular-nums">{m.confidence}</span>
-        <span>이벤트위험<span className="block text-[8px] text-[var(--text-muted)]">Event Risk</span></span>{bar(m.eventRisk, 'bg-gradient-to-r from-amber-400 to-red-500')}<span className="text-right tabular-nums">{m.eventRisk}</span>
-      </div>
-      <table className="w-full text-[12px] mb-2">
-        <tbody>
-          <tr className="border-b border-dashed border-[var(--border)]"><td className="py-1 text-[var(--text-muted)]">진입구간 (Entry Zone)</td><td className="py-1 text-right tabular-nums">{fp(m.entryZone[0])} ~ {fp(m.entryZone[1])}</td></tr>
-          <tr className="border-b border-dashed border-[var(--border)]"><td className="py-1 text-[var(--text-muted)]">무효화·손절 (SL)</td><td className="py-1 text-right tabular-nums">{fp(m.invalidation)}</td></tr>
-          <tr className="border-b border-dashed border-[var(--border)]"><td className="py-1 text-[var(--text-muted)]">목표가 TP1 / TP2</td><td className="py-1 text-right tabular-nums">{fp(m.tp1)} / {fp(m.tp2)}</td></tr>
-          <tr><td className="py-1 text-[var(--text-muted)]">손익비 (R:R)</td><td className="py-1 text-right tabular-nums">{m.rr ?? '-'}</td></tr>
-        </tbody>
-      </table>
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[var(--text-muted)] mb-2">
-        <span>RSI <b className="text-[var(--text)]">{m.rsi ?? '-'}</b></span>
-        <span>VWAP <b className="text-[var(--text)]">{fp(m.vwap)}</b></span>
-        <span>지지 <b className="text-[var(--text)]">{fp(m.support)}</b></span>
-        <span>저항 <b className="text-[var(--text)]">{fp(m.resistance)}</b></span>
-      </div>
-      <ul className="text-[11px] text-[var(--text-muted)] list-disc pl-4 space-y-0.5">
-        {m.reasons.map((r, i) => <li key={i}>{r}</li>)}
-      </ul>
-      <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
-        <strong className="text-amber-400">TRADE·ULTRA는 진입 신호가 아니라 체크리스트 충족도입니다.</strong> 이 3모드 엔진도 자체 측정(45일·4코인·81신호)에서 승률 <strong className="text-[var(--text)]">41.7%</strong>로 예측 우위가 확인되지 않았습니다 — 방향은 직접 판단하고 이 화면은 손절·사이징·기록에 쓰세요.
-        방향(Direction)과 진입 적합도(Entry)는 별개이며, 방향이 강해도 현재가가 추격 구간이면 Entry가 낮아져 조건 미달로 표시됩니다.
-      </p>
     </section>
   );
 }
@@ -284,60 +256,6 @@ function tfBias(tf: TF): { long: string[]; short: string[]; neutral: string[]; l
 }
 const LEAN_KO = { long: '롱 쪽 조건 우세', short: '숏 쪽 조건 우세', mixed: '엇갈림(한쪽 우세 아님)' } as const;
 const LEAN_CLS = { long: 'text-emerald-400', short: 'text-red-400', mixed: 'text-amber-400' } as const;
-
-/** 세 시간대를 합쳐 "지금 롱/숏 어느 쪽 조건이 갖춰졌나"를 풀어 쓴다 */
-function TFSummary({ h1, m15, m5, verdict }: { h1: TF; m15: TF; m5: TF; verdict: AnalysisData['verdict'] }) {
-  const b = { h1: tfBias(h1), m15: tfBias(m15), m5: tfBias(m5) };
-  const leans = [b.h1.lean, b.m15.lean, b.m5.lean];
-  const all = (x: 'long' | 'short') => leans.every((l) => l === x);
-  let head: string, cls: string;
-  if (all('long')) { head = '세 시간대 모두 롱 쪽 조건이 더 많이 갖춰져 있습니다'; cls = 'text-emerald-400'; }
-  else if (all('short')) { head = '세 시간대 모두 숏 쪽 조건이 더 많이 갖춰져 있습니다'; cls = 'text-red-400'; }
-  else if (b.h1.lean !== 'mixed' && (b.m15.lean === b.h1.lean || b.m5.lean === b.h1.lean) && !leans.includes(b.h1.lean === 'long' ? 'short' : 'long')) {
-    head = `큰 방향(1시간봉)과 하위 시간대 일부가 ${b.h1.lean === 'long' ? '롱' : '숏'} 쪽 — 완전히 정렬되진 않았습니다`; cls = LEAN_CLS[b.h1.lean];
-  } else { head = '시간대끼리 엇갈립니다 — 지금은 롱·숏 어느 쪽도 조건이 갖춰졌다고 보기 어렵습니다'; cls = 'text-amber-400'; }
-  const notes: string[] = [];
-  if (h1.emaAlign === '정배열' && h1.priceVsEma20 === 'below') notes.push('1시간봉 EMA는 아직 정배열인데 가격이 EMA20 아래로 내려왔습니다 — 상승 추세 안의 눌림인지, 추세가 꺾이는 시작인지 아직 가려지지 않은 자리입니다.');
-  if (h1.emaAlign === '역배열' && h1.priceVsEma20 === 'above') notes.push('1시간봉 EMA는 역배열인데 가격이 EMA20 위로 올라왔습니다 — 하락 추세 안의 반등인지, 추세 전환 시작인지 아직 가려지지 않은 자리입니다.');
-  if (m5.macd.hist < 0 && m5.macd.histSlope > 0 && b.m15.lean === 'short') notes.push('5분봉 MACD 음(−)이 줄어드는 중 — 단기 하락 힘이 약해지고 있어 지금 숏 추격은 반등에 걸리기 쉽습니다.');
-  if (m5.macd.hist > 0 && m5.macd.histSlope < 0 && b.m15.lean === 'long') notes.push('5분봉 MACD 양(+)이 줄어드는 중 — 단기 상승 힘이 약해지고 있어 지금 롱 추격은 눌림에 걸리기 쉽습니다.');
-  // 더 큰 시간대(4H·1D)와 엇갈리면 엔진 종합 점수가 깎인다 — 조건 수와 엔진 판정이 다른 이유
-  const rg = verdict.regime;
-  if (rg && all('short') && (rg.h4 === 'up' || rg.d1 === 'up')) notes.push(`더 큰 시간대(${rg.label})는 상승입니다 — 숏은 큰 흐름을 거스르는 쪽이라, 아래 조건이 숏에 많아도 엔진 종합 점수는 깎이고 진입은 차단됩니다.`);
-  if (rg && all('long') && (rg.h4 === 'down' || rg.d1 === 'down')) notes.push(`더 큰 시간대(${rg.label})는 하락입니다 — 롱은 큰 흐름을 거스르는 쪽이라, 아래 조건이 롱에 많아도 엔진 종합 점수는 깎이고 진입은 차단됩니다.`);
-  if (m5.volumeRatio < 0.8) notes.push(`5분봉 거래량이 평균의 ${m5.volumeRatio.toFixed(1)}배로 적습니다 — 지금 움직임에 참여자가 적어 신뢰가 낮습니다.`);
-  if (m15.volumeRatio >= 1.5) notes.push(`15분봉 거래량이 평균의 ${m15.volumeRatio.toFixed(1)}배 — 직전 15분 움직임에는 참여자가 많았습니다.`);
-  const row = (name: string, role: string, x: ReturnType<typeof tfBias>) => (
-    <div className="flex items-baseline gap-2 text-xs flex-wrap">
-      <span className="w-[92px] shrink-0 text-[var(--text-muted)]">{name} <span className="opacity-70">{role}</span></span>
-      <span className={`font-bold ${LEAN_CLS[x.lean]}`}>{LEAN_KO[x.lean]}</span>
-      <span className="tabular-nums text-[var(--text-muted)]">롱 {x.long.length} · 숏 {x.short.length} · 중립 {x.neutral.length}</span>
-    </div>
-  );
-  return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-      <h3 className="text-sm font-bold text-[var(--text)] mb-1">롱·숏 어느 쪽 조건이 갖춰졌나 <span className="text-[10px] font-normal text-[var(--text-muted)]">아래 세 시간대 종합</span></h3>
-      <p className={`text-[13px] font-bold mb-2 ${cls}`}>{head}</p>
-      <div className="space-y-1 mb-2">
-        {row('1시간봉', '큰 방향', b.h1)}
-        {row('15분봉', '구조', b.m15)}
-        {row('5분봉', '타이밍', b.m5)}
-      </div>
-      {notes.length > 0 && (
-        <ul className="space-y-1 mb-2">
-          {notes.map((n, i) => <li key={i} className="text-[11.5px] leading-relaxed text-[var(--text)] flex gap-1.5"><span className="text-amber-400 shrink-0">·</span><span>{n}</span></li>)}
-        </ul>
-      )}
-      <p className="text-[11.5px] text-[var(--text-muted)] leading-relaxed">
-        엔진 종합: <b className="text-[var(--text)]">{verdict.direction === 'long' ? '롱' : verdict.direction === 'short' ? '숏' : '관망'} ({verdict.score > 0 ? '+' : ''}{verdict.score})</b> — {verdict.entryNote}
-      </p>
-      <p className="text-[10.5px] text-[var(--text-muted)] opacity-80 leading-relaxed mt-1.5">
-        읽는 법: 1시간봉으로 큰 방향을 정하고, 15분봉에서 그 방향의 구조가 유지되는지, 5분봉에서 들어갈 타이밍을 봅니다. 세 개가 같은 쪽일 때만 &lsquo;정렬&rsquo;입니다.
-        ⚠ 조건이 한쪽에 많다는 건 체크리스트 결과일 뿐 그 방향이 이긴다는 뜻이 아닙니다(이 조건 조합은 측정상 승률 49.7%로 우위가 확인되지 않았습니다).
-      </p>
-    </div>
-  );
-}
 
 function TFCard({ tf }: { tf: TF }) {
   const rows: { k: string; v: string; tone?: 'pos' | 'neg' | 'warn' }[] = [
@@ -683,6 +601,7 @@ function TimeframeTable({ tfs }: { tfs: { k: string; tf: TF | null | undefined }
 
 /** 🎯 진입 판단 — 흩어진 verdict/zones/timeframes를 간결한 실행 계획으로 통합. 매수 신호가 아니라 조건 충족도·리스크 계획. */
 function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; digits: number }) {
+  const [detail, setDetail] = useState(false);
   const price = data.markPrice ?? data.price;
   const h1 = data.timeframes.h1;
   const dirBadge = v.direction === 'long' ? { t: '반등·상승 우세', c: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' }
@@ -710,6 +629,15 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
   const dn1 = supBelow[0]; const dn2 = v.direction !== 'wait' ? v.stop : supBelow[1];
   const pass = v.checklist.filter((c) => c.pass).length;
 
+  // 추천 진입가 — 엔진이 산출한 진입 계획(entryPlan)이 "가장 좋은 가격대". now=지금 시장가, pullback=되돌림 대기, wait=관망
+  const ep = v.entryPlan;
+  const sideP = v.direction !== 'wait' ? v.plans[v.direction] : null;
+  const bestEntryText = v.direction === 'wait' ? '관망 — 지금 추천 진입가 없음'
+    : ep.type === 'pullback' ? `되돌림 대기 $${fmtP(ep.zoneLow, digits)} ~ $${fmtP(ep.zoneHigh, digits)}`
+    : `지금 시장가 ($${fmtP(price, digits)})`;
+  const gradeC = v.confidence.grade === '견고' ? 'text-emerald-400' : v.confidence.grade === '약함' ? 'text-red-400' : 'text-amber-400';
+  const recDirCls = v.direction === 'long' ? 'text-emerald-400' : v.direction === 'short' ? 'text-red-400' : 'text-amber-400';
+
   return (
     <div className="rounded-2xl border border-sky-500/30 bg-[var(--bg-card)] p-5 space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -719,96 +647,152 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
         <span className="ml-auto text-[10px] text-[var(--text-muted)]">조건 충족도·리스크 계획 · 매수 신호 아님(엔진 백테스트 49.7%)</span>
       </div>
 
-      {/* 1. 단기 신호 평가 */}
-      <div>
-        <p className="text-[11px] font-bold text-[var(--text-muted)] mb-1.5">① 단기 신호 평가 <span className="font-normal">(1시간봉 기준)</span></p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-          {signals.map((s) => (
-            <div key={s.k} className="rounded-lg bg-white/[0.02] border border-[var(--border)] px-2 py-1.5">
-              <p className="text-[10px] text-[var(--text-muted)]">{s.k}</p>
-              <p className="text-[12px] font-semibold text-[var(--text)] leading-tight">{s.val} <span className={`text-[10px] ${JC[s.j]}`}>{JT[s.j]}</span></p>
-            </div>
-          ))}
+      {/* 추천 진입가 — 중요 가격대 종합해 가장 좋은 진입가 1개 + 엔진추천 요약(방향·진입·손절·목표·R:R) */}
+      <div className={`rounded-xl border p-3.5 ${v.direction === 'long' ? 'border-emerald-500/40 bg-emerald-500/[0.06]' : v.direction === 'short' ? 'border-red-500/40 bg-red-500/[0.06]' : 'border-amber-500/30 bg-amber-500/[0.05]'}`}>
+        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+          <span className="text-[11px] font-bold text-[var(--text-muted)]">🏆 추천 진입</span>
+          <span className={`text-[14px] font-extrabold ${recDirCls}`}>{v.direction === 'long' ? '▲ 롱' : v.direction === 'short' ? '▼ 숏' : '⏸ 관망'}</span>
+          <span className="text-[13px] font-bold text-[var(--text)]">{bestEntryText}</span>
+          {v.direction !== 'wait' && <span className={`ml-auto text-[10px] font-bold ${gradeC}`}>신뢰 {v.confidence.grade} {v.confidence.pct}%</span>}
         </div>
+        {sideP ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] tabular-nums">
+            <span className="text-[var(--text-muted)]">진입 <b className="text-[var(--text)]">${fmtP(v.entry, digits)}</b></span>
+            <span className="text-[var(--text-muted)]">손절 <b className="text-red-400">${fmtP(v.stop, digits)}</b> <span className="text-[10px] text-[var(--text-muted)]">({v.direction === 'short' ? '+' : '-'}{v.stopPct.toFixed(2)}%)</span></span>
+            <span className="text-[var(--text-muted)]">목표1 <b className="text-emerald-400">${fmtP(v.target1, digits)}</b></span>
+            <span className="text-[var(--text-muted)]">목표2 <b className="text-emerald-400">${fmtP(v.target2, digits)}</b></span>
+            <span className="text-[var(--text-muted)]">손익비 <b className={v.rr >= 1.5 ? 'text-emerald-400' : 'text-amber-400'}>{v.rr.toFixed(2)}</b></span>
+          </div>
+        ) : (
+          <p className="text-[11px] text-[var(--text-muted)]">{ep.note || '양쪽 모두 조건 미충족 — 방향·트리거가 생기면 진입가가 표시됩니다.'}</p>
+        )}
+        <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-snug">지지저항+15m ATR 구조 기준 · R:R 1.5 미만이면 건너뛰는 게 안전. 롱·숏 양쪽 수치·근거는 상세보기.</p>
       </div>
 
-      {/* 2. 중요한 가격대 */}
-      <div>
-        <p className="text-[11px] font-bold text-[var(--text-muted)] mb-1.5">② 중요한 가격대 <span className="font-normal">(비트겟 현재가 ${fmtP(price, digits)} 기준)</span></p>
-        <PriceLadder data={data} v={v} price={price} digits={digits} />
-      </div>
-
-      {/* 3. 시나리오 */}
+      {/* 시나리오 (짧게) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2">
-          <p className="text-[11px] font-bold text-emerald-400 mb-0.5">↗ 상승 시나리오</p>
-          <p className="text-[11px] text-[var(--text-muted)] leading-snug">{up1 ? <>{`$${fmtP(up1, digits)}`} 돌파 + 거래량 증가 시 {up2 ? `$${fmtP(up2, digits)}` : '다음 저항'} 재도전</> : '위쪽 저항 없음 — 고점 부근'}</p>
+        <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-1.5">
+          <span className="text-[11px] font-bold text-emerald-400">↗ 상승 </span>
+          <span className="text-[11px] text-[var(--text-muted)]">{up1 ? <>{`$${fmtP(up1, digits)}`} 돌파→{up2 ? `$${fmtP(up2, digits)}` : '다음 저항'}</> : '위 저항 없음'}</span>
         </div>
-        <div className="rounded-lg border border-red-500/25 bg-red-500/5 px-3 py-2">
-          <p className="text-[11px] font-bold text-red-400 mb-0.5">↘ 하락 시나리오</p>
-          <p className="text-[11px] text-[var(--text-muted)] leading-snug">{dn1 ? <>{`$${fmtP(dn1, digits)}`} 붕괴 시 {dn2 ? `$${fmtP(dn2, digits)}` : '다음 지지'} 재시험</> : '아래 지지 없음 — 저점 부근'}</p>
+        <div className="rounded-lg border border-red-500/25 bg-red-500/5 px-3 py-1.5">
+          <span className="text-[11px] font-bold text-red-400">↘ 하락 </span>
+          <span className="text-[11px] text-[var(--text-muted)]">{dn1 ? <>{`$${fmtP(dn1, digits)}`} 붕괴→{dn2 ? `$${fmtP(dn2, digits)}` : '다음 지지'}</> : '아래 지지 없음'}</span>
         </div>
       </div>
 
-      {/* 4. 진입 체크리스트 */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <p className="text-[11px] font-bold text-[var(--text-muted)]">④ 진입 체크리스트</p>
-          <span className={`text-[12px] font-bold ${pass === v.checklist.length ? 'text-sky-400' : 'text-[var(--text-muted)]'}`}>{pass}/{v.checklist.length} 충족</span>
-        </div>
-        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
-          {v.checklist.map((c, i) => (
-            <li key={i} className="flex items-start gap-1.5 text-[11px] leading-snug">
-              <span className={c.pass ? 'text-emerald-400' : 'text-[var(--text-dim)]'}>{c.pass ? '✓' : '○'}</span>
-              <span className={c.pass ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}>{c.label}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* 상세보기 토글 */}
+      <button type="button" onClick={() => setDetail((d) => !d)}
+        className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] py-1.5 text-[12px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-hover)]">
+        {detail ? '상세 접기' : '상세보기 — 단기신호·가격대·롱숏 양방향·체크리스트·분봉표·피보나치'}
+        <svg className={`w-3.5 h-3.5 transition-transform ${detail ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 9l6 6 6-6" /></svg>
+      </button>
 
-      {/* 5. 최종 진입 규칙 — 롱·숏 양방향(현재가 진입 가정) */}
-      <div className="rounded-xl border border-[var(--border)] bg-white/[0.02] p-3">
-        <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
-          <p className="text-[11px] font-bold text-[var(--text-muted)]">⑤ 최종 진입 규칙 — 롱·숏 양쪽 <span className="font-normal">(현재가 ${fmtP(price, digits)} 진입 가정)</span></p>
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${v.direction === 'long' ? 'bg-emerald-500/15 text-emerald-400' : v.direction === 'short' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'}`}>
-            엔진 추천: {v.direction === 'long' ? '롱' : v.direction === 'short' ? '숏' : '관망(양쪽 미충족)'}
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {(['long', 'short'] as const).map((side) => {
-            const p = v.plans[side]; const isRec = v.direction === side;
-            return (
-              <div key={side} className={`rounded-lg border p-2.5 ${side === 'long' ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : 'border-red-500/30 bg-red-500/[0.06]'} ${isRec ? 'ring-1 ring-sky-500/50' : ''}`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className={`text-[13px] font-extrabold ${side === 'long' ? 'text-emerald-400' : 'text-red-400'}`}>{side === 'long' ? '▲ 롱' : '▼ 숏'}</span>
-                  {isRec && <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 font-bold">엔진 추천</span>}
-                </div>
-                <div className="space-y-0.5 text-[11px] tabular-nums">
-                  <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">진입(현재가)</span><span className="text-[var(--text)] font-semibold">${fmtP(price, digits)}</span></p>
-                  <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">손절</span><span className="text-red-400 font-semibold">${fmtP(p.stop, digits)} <span className="text-[9px]">({side === 'short' ? '+' : '-'}{p.stopPct.toFixed(2)}%)</span></span></p>
-                  <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">목표1·2</span><span className="text-emerald-400 font-semibold">${fmtP(p.target1, digits)}<span className="text-[var(--text-muted)]">/</span>${fmtP(p.target2, digits)}</span></p>
-                  <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">손익비(R:R)</span><span className={`font-bold ${p.rr >= 1.5 ? 'text-emerald-400' : 'text-amber-400'}`}>{p.rr.toFixed(2)}</span></p>
-                </div>
+      {detail && (<div className="space-y-4 pt-1">
+        {/* ① 단기 신호 평가 */}
+        <div>
+          <p className="text-[11px] font-bold text-[var(--text-muted)] mb-1.5">① 단기 신호 평가 <span className="font-normal">(1시간봉 기준)</span></p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            {signals.map((s) => (
+              <div key={s.k} className="rounded-lg bg-white/[0.02] border border-[var(--border)] px-2 py-1.5">
+                <p className="text-[10px] text-[var(--text-muted)]">{s.k}</p>
+                <p className="text-[12px] font-semibold text-[var(--text)] leading-tight">{s.val} <span className={`text-[10px] ${JC[s.j]}`}>{JT[s.j]}</span></p>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
-        <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-snug">
-          진입가=현재가(시장가 가정) · 손절·목표는 지지저항+15m ATR 구조 기준. {v.direction === 'wait' ? '엔진은 양쪽 모두 조건 미충족(관망) — 아래는 참고용 수치.' : <>엔진은 &lsquo;{v.direction === 'long' ? '롱' : '숏'}&rsquo; 쪽 조건이 더 갖춰졌다고 판정(신호 안정성 <b className={v.confidence.grade === '견고' ? 'text-emerald-400' : v.confidence.grade === '약함' ? 'text-red-400' : 'text-amber-400'}>{v.confidence.grade} {v.confidence.pct}%</b>).</>} R:R 1.5 미만이면 건너뛰는 게 안전.
-        </p>
-      </div>
 
-      {/* 6. 분봉별 지표 */}
-      <div>
-        <p className="text-[11px] font-bold text-[var(--text-muted)] mb-1.5">⑥ 분봉별 지표 <span className="font-normal">(종합 판정은 조건 충족도 · 우위 아님)</span></p>
-        <TimeframeTable tfs={[
-          { k: '1m', tf: data.timeframes.m1 },
-          { k: '5m', tf: data.timeframes.m5 },
-          { k: '15m', tf: data.timeframes.m15 },
-          { k: '1H', tf: data.timeframes.h1 },
-          { k: '4H', tf: data.timeframes.h4 },
-        ]} />
-      </div>
+        {/* ② 중요한 가격대 */}
+        <div>
+          <p className="text-[11px] font-bold text-[var(--text-muted)] mb-1.5">② 중요한 가격대 <span className="font-normal">(비트겟 현재가 ${fmtP(price, digits)} 기준)</span></p>
+          <PriceLadder data={data} v={v} price={price} digits={digits} />
+        </div>
+
+        {/* ③ 롱·숏 양방향(현재가 진입 가정) */}
+        <div className="rounded-xl border border-[var(--border)] bg-white/[0.02] p-3">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
+            <p className="text-[11px] font-bold text-[var(--text-muted)]">③ 롱·숏 양쪽 <span className="font-normal">(현재가 ${fmtP(price, digits)} 진입 가정)</span></p>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${v.direction === 'long' ? 'bg-emerald-500/15 text-emerald-400' : v.direction === 'short' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'}`}>
+              엔진 추천: {v.direction === 'long' ? '롱' : v.direction === 'short' ? '숏' : '관망(양쪽 미충족)'}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {(['long', 'short'] as const).map((side) => {
+              const p = v.plans[side]; const isRec = v.direction === side;
+              return (
+                <div key={side} className={`rounded-lg border p-2.5 ${side === 'long' ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : 'border-red-500/30 bg-red-500/[0.06]'} ${isRec ? 'ring-1 ring-sky-500/50' : ''}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className={`text-[13px] font-extrabold ${side === 'long' ? 'text-emerald-400' : 'text-red-400'}`}>{side === 'long' ? '▲ 롱' : '▼ 숏'}</span>
+                    {isRec && <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 font-bold">엔진 추천</span>}
+                  </div>
+                  <div className="space-y-0.5 text-[11px] tabular-nums">
+                    <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">진입(현재가)</span><span className="text-[var(--text)] font-semibold">${fmtP(price, digits)}</span></p>
+                    <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">손절</span><span className="text-red-400 font-semibold">${fmtP(p.stop, digits)} <span className="text-[9px]">({side === 'short' ? '+' : '-'}{p.stopPct.toFixed(2)}%)</span></span></p>
+                    <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">목표1·2</span><span className="text-emerald-400 font-semibold">${fmtP(p.target1, digits)}<span className="text-[var(--text-muted)]">/</span>${fmtP(p.target2, digits)}</span></p>
+                    <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">손익비(R:R)</span><span className={`font-bold ${p.rr >= 1.5 ? 'text-emerald-400' : 'text-amber-400'}`}>{p.rr.toFixed(2)}</span></p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ④ 진입 체크리스트 */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[11px] font-bold text-[var(--text-muted)]">④ 진입 체크리스트</p>
+            <span className={`text-[12px] font-bold ${pass === v.checklist.length ? 'text-sky-400' : 'text-[var(--text-muted)]'}`}>{pass}/{v.checklist.length} 충족</span>
+          </div>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
+            {v.checklist.map((c, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-[11px] leading-snug">
+                <span className={c.pass ? 'text-emerald-400' : 'text-[var(--text-dim)]'}>{c.pass ? '✓' : '○'}</span>
+                <span className={c.pass ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}>{c.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* ⑤ 분봉별 지표 */}
+        <div>
+          <p className="text-[11px] font-bold text-[var(--text-muted)] mb-1.5">⑤ 분봉별 지표 <span className="font-normal">(종합 판정은 조건 충족도 · 우위 아님)</span></p>
+          <TimeframeTable tfs={[
+            { k: '1m', tf: data.timeframes.m1 },
+            { k: '5m', tf: data.timeframes.m5 },
+            { k: '15m', tf: data.timeframes.m15 },
+            { k: '1H', tf: data.timeframes.h1 },
+            { k: '4H', tf: data.timeframes.h4 },
+          ]} />
+        </div>
+
+        {/* ⑥ 피보나치 (하단에서 이동) */}
+        <div>
+          <p className="text-[11px] font-bold text-[var(--text-muted)] mb-1.5">⑥ 피보나치 <span className="font-normal">(최근 15m 스윙)</span></p>
+          {data.fib ? (
+            <>
+              <p className="text-[10px] text-[var(--text-muted)] mb-2">
+                {data.fib.direction === 'up' ? '상승' : '하락'} 스윙 ${fmtP(data.fib.swingLow, digits)} → ${fmtP(data.fib.swingHigh, digits)}
+                {data.fib.nearest && <span className="ml-1 text-amber-400 font-semibold">· 현재 {data.fib.nearest} 관찰</span>}
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px] tabular-nums">
+                {[
+                  { k: '38.2% 얕은 눌림', v: data.fib.r382 },
+                  { k: '50% 중간 조정', v: data.fib.r50 },
+                  { k: '61.8% 깊은 조정', v: data.fib.r618 },
+                  { k: '확장 127.2% 익절', v: data.fib.e1272 },
+                  { k: '확장 161.8% 익절', v: data.fib.e1618 },
+                ].map((r) => (
+                  <div key={r.k} className="flex justify-between rounded-lg bg-white/[0.02] border border-[var(--border)] px-2 py-1">
+                    <span className="text-[var(--text-muted)]">{r.k}</span>
+                    <span className="font-semibold text-[var(--text)]">${fmtP(r.v, digits)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1.5">되돌림은 진입 관찰 구간, 확장은 익절 후보 — 선 단독 신호 아님, 캔들 반응 확인 필수.</p>
+            </>
+          ) : <p className="text-xs text-[var(--text-muted)]">스윙 식별 불가</p>}
+        </div>
+      </div>)}
     </div>
   );
 }
@@ -883,6 +867,42 @@ function BeginnerSummary({ data, v, digits }: { data: AnalysisData; v: Verdict; 
   );
 }
 
+/** 파생 수급 정밀(작게) — 헤더 요약 카드 오른쪽. 주문흐름·OI·포지셔닝 핵심만. */
+function DerivFlowCompact({ data }: { data: AnalysisData }) {
+  const tk = data.taker.ratio;
+  const oi1h = data.oi.change1hPct;
+  const oiUsd = data.openInterest && data.markPrice ? (data.openInterest * data.markPrice) / 1e9 : null;
+  const ls = data.longShort.latest?.ratio ?? null;
+  const pos = data.positionLS.latest ?? null;
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
+      <h3 className="text-[12px] font-bold text-[var(--text)] mb-2">파생 수급 정밀 <span className="text-[9px] font-normal text-[var(--text-muted)]">주문흐름·OI·포지셔닝</span></h3>
+      <div className="space-y-2 text-[11px]">
+        <div>
+          <div className="flex justify-between mb-0.5">
+            <span className="text-[var(--text-muted)]">테이커 매수/매도(30분)</span>
+            <span className={`font-bold tabular-nums ${tk == null ? 'text-[var(--text-muted)]' : tk >= 1.2 ? 'text-emerald-400' : tk <= 0.85 ? 'text-red-400' : 'text-[var(--text)]'}`}>{tk?.toFixed(2) ?? '-'}</span>
+          </div>
+          {tk != null && (
+            <div className="flex h-1.5 rounded-full overflow-hidden">
+              <div className="bg-emerald-500/70" style={{ width: `${(tk / (1 + tk)) * 100}%` }} />
+              <div className="bg-red-500/70" style={{ width: `${(1 / (1 + tk)) * 100}%` }} />
+            </div>
+          )}
+          {data.taker.divergence && <p className={`text-[9px] mt-0.5 font-semibold ${data.taker.divergence === 'bearish' ? 'text-red-400' : 'text-emerald-400'}`}>⚡ 주문흐름 {data.taker.divergence === 'bearish' ? '약세' : '강세'} 다이버전스</p>}
+        </div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">OI 금액 <span className="text-[9px] opacity-60">Bitget</span></span><span className="font-bold tabular-nums text-[var(--text)]">{oiUsd != null ? `$${oiUsd.toFixed(2)}B` : '-'}</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">OI 1시간 변화</span><span className={`font-bold tabular-nums ${oi1h == null ? 'text-[var(--text-muted)]' : oi1h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{oi1h != null ? `${oi1h >= 0 ? '+' : ''}${oi1h.toFixed(2)}%` : '-'}</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">계정 롱숏 vs 포지션</span><span className="font-bold tabular-nums text-[var(--text)]">{ls?.toFixed(2) ?? '-'} <span className="text-[var(--text-dim)]">vs</span> {pos?.toFixed(2) ?? '-'}</span></div>
+        {ls != null && pos != null && Math.abs(ls - pos) >= 0.5 && (
+          <p className="text-[9px] text-amber-400 leading-snug">{ls > pos ? '⚠ 개미 롱 쏠림·큰손 중립 — 하락 시 청산 연료' : '⚠ 개미 숏 쏠림·큰손 롱 — 상승 스퀴즈 여지'}</p>
+        )}
+        <p className="text-[9px] text-[var(--text-muted)] opacity-60 leading-snug">주문흐름 불균형은 단기 가격 변동의 주 요인(학술 근거) · 방향 예측 아님</p>
+      </div>
+    </div>
+  );
+}
+
 export default function CoinAnalysisPage() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -890,6 +910,7 @@ export default function CoinAnalysisPage() {
   const { model: aiModel, ready: modelReady } = useBriefingModel();
   const [showBt, setShowBt] = useState(false); // 룰 엔진 성적표 상세 접기(기본 접힘 — 엣지 미검증이라 전면 노출 불필요)
   const [simple, setSimple] = useState(true); // 간결(초보자) 보기 — 기본 켜짐. 이 기기 전용(kl- 접두)
+  const [modal, setModal] = useState<null | 'flow' | 'macro' | 'risk' | 'journal'>(null); // 상단 버튼 → 팝업(BottomSheet)
   useEffect(() => { try { const r = localStorage.getItem('kl-coin-simple'); if (r != null) setSimple(r === '1'); } catch {} }, []);
   const toggleSimple = (vSim: boolean) => { setSimple(vSim); try { localStorage.setItem('kl-coin-simple', vSim ? '1' : '0'); } catch {} };
   // symbol·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
@@ -1186,9 +1207,10 @@ export default function CoinAnalysisPage() {
       {/* 손실 서킷브레이커 — 진입 화면 상단에서 '오늘 멈춰야 하는지'부터 보여준다 */}
       <CircuitBreakerBar />
 
-      {/* 3모드 진입 신호 + 실시간 청산·고래 — 코인 선택만으로 즉시 표시(분석 불필요) */}
-      {fastSig?.modes && <ModesSection modes={fastSig.modes} symbol={fastSig.symbol} />}
-      <WhaleLiquidationPanel />
+      {/* 진입 모드 한 줄 — 코인 선택만으로 즉시 표시(분석 불필요) */}
+      {fastSig?.modes && <ModesSection modes={fastSig.modes} />}
+      {/* 실시간 청산·고래(현재 코인) — 분석 전엔 여기, 분석 후엔 화면 하단 뉴스 옆으로 이동 */}
+      {!run && <WhaleLiquidationPanel symbol={symbol} />}
 
       {/* 아직 실행 전 — 심화 분석(AI브리핑·백테스트·오더북·뉴스) 안내 */}
       {!run && !isValidating && (
@@ -1312,6 +1334,8 @@ export default function CoinAnalysisPage() {
           <BeginnerSummary data={data} v={v} digits={priceDigits} />
 
           {!simple && (<>
+          {/* 상단: 헤더 요약 카드(좌) + 버튼·파생수급 정밀(우) */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-4 items-start">
           {/* 헤더: 가격·파생 지표 */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
             <div className="flex flex-wrap items-start gap-x-8 gap-y-3">
@@ -1411,11 +1435,71 @@ export default function CoinAnalysisPage() {
               </div>
             )}
           </div>
+          {/* 우측: 상단 버튼(팝업) + 파생 수급 정밀(작게) */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-1.5">
+              {([
+                ['flow', '📊 흐름 읽기'],
+                ...(data.macro && data.macro.values && (data.macro.values.us10 || data.macro.values.dxy) ? [['macro', '🌐 거시 배경'] as const] : []),
+                ['risk', '🧮 리스크 패널'],
+                ['journal', '📓 매매일지'],
+              ] as const).map(([k, label]) => (
+                <button key={k} onClick={() => setModal(k)}
+                  className="px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[11px] font-semibold text-[var(--text)] hover:border-[var(--border-hover)]">{label}</button>
+              ))}
+              <button onClick={saveToJournal}
+                className="px-2.5 py-1.5 rounded-lg border border-sky-500/40 bg-sky-500/10 text-[11px] font-semibold text-sky-400 hover:bg-sky-500/15">＋ 일지 기록</button>
+            </div>
+            <DerivFlowCompact data={data} />
+          </div>
+          </div>
 
           {/* 🎯 진입 판단 — 흩어진 판단을 간결한 실행 계획으로(맨 위) */}
           <EntryDecision data={data} v={v} digits={priceDigits} />
 
-          {/* 지금 왜 움직이나 */}
+          {/* 시간대별 지표 — 1시간봉·15분 구조·5분 타이밍 (기본 접힘) */}
+          <Collapsible title="시간대별 지표" sub="1시간봉 · 15분 구조 · 5분 타이밍">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+              <TFCard tf={{ ...data.timeframes.h1, tf: '1H' }} />
+              <TFCard tf={{ ...data.timeframes.m15, tf: '15m' }} />
+              <TFCard tf={{ ...data.timeframes.m5, tf: '5m' }} />
+            </div>
+          </Collapsible>
+
+          {/* 캔들 차트 (5m/15m/1H, EMA·지지저항·진입레벨 오버레이) */}
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-[var(--text)]">캔들 차트 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 60봉 · EMA20/60 · 지지저항·피보나치·진입레벨</span></h3>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="flex gap-1">
+                  {([['m5', '5분'], ['m15', '15분'], ['h1', '1시간']] as const).map(([k, label]) => (
+                    <button key={k} onClick={() => setChartTf(k)}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] border transition-colors ${
+                        chartTf === k ? 'bg-sky-500/20 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
+                      }`}>{label}</button>
+                  ))}
+                </div>
+                <div className="hidden sm:flex items-center gap-2 text-[10px]">
+                  <span className="text-purple-400">— EMA20</span>
+                  <span className="text-sky-400">— EMA60</span>
+                </div>
+              </div>
+            </div>
+            <CoinCandleChart
+              candles={data.charts[chartTf]}
+              supports={data.zones.filter((z) => z.kind === 'support').map((z) => z.price)}
+              resistances={data.zones.filter((z) => z.kind === 'resistance').map((z) => z.price)}
+              fib={data.fib}
+              entry={v.entry} stop={v.stop} target1={v.target1} target2={v.target2}
+              direction={v.direction}
+              digits={priceDigits}
+            />
+          </div>
+
+          {/* 흐름 읽기(지금 왜 움직이나) — 상단 버튼 → 팝업 */}
+          <BottomSheet open={modal === 'flow'} onClose={() => setModal(null)} title="흐름 읽기 — 지금 왜 움직이나">
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <h3 className="text-sm font-bold text-[var(--text)]">
@@ -1447,8 +1531,10 @@ export default function CoinAnalysisPage() {
             </ul>
             <p className="text-[10px] text-[var(--text-muted)] mt-2.5 opacity-60">수급·파생·뉴스 신호 기반 자동 추정 — 정확한 인과가 아닌 참고용 해석입니다.</p>
           </div>
+          </BottomSheet>
 
-          {/* 거시 배경 (금리·달러·실질금리) — 교육자료 프레임, 배경 환경일 뿐 매매 신호 아님 */}
+          {/* 거시 배경(금리·달러) — 상단 버튼 → 팝업 */}
+          <BottomSheet open={modal === 'macro'} onClose={() => setModal(null)} title="거시 배경 — 금리·달러">
           {data.macro && data.macro.values && (data.macro.values.us10 || data.macro.values.dxy) && (() => {
             const m = data.macro;
             const arrow = (d: 'up' | 'down' | 'flat') => d === 'up' ? '↑' : d === 'down' ? '↓' : '→';
@@ -1484,8 +1570,10 @@ export default function CoinAnalysisPage() {
               </div>
             );
           })()}
+          </BottomSheet>
 
-          {/* 종합 판단 */}
+          {/* 종합 판단 — 추가 정보(기본 접힘) */}
+          <Collapsible title="엔진 종합 판단 · 근거" sub="점수·레버리지·경고·상위추세">
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
             <div className="flex flex-wrap items-center gap-3 mb-4">
               <DirectionBadge direction={v.direction} />
@@ -1560,110 +1648,18 @@ export default function CoinAnalysisPage() {
               </div>
             </div>
           </div>
+          </Collapsible>
 
-          {/* 캔들 차트 (5m/15m/1H, EMA·지지저항·진입레벨 오버레이) */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-[var(--text)]">캔들 차트 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 60봉 · EMA20/60 · 지지저항·피보나치·진입레벨</span></h3>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <div className="flex gap-1">
-                  {([['m5', '5분'], ['m15', '15분'], ['h1', '1시간']] as const).map(([k, label]) => (
-                    <button key={k} onClick={() => setChartTf(k)}
-                      className={`px-2 py-0.5 rounded-lg text-[10px] border transition-colors ${
-                        chartTf === k ? 'bg-sky-500/20 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
-                      }`}>{label}</button>
-                  ))}
-                </div>
-                <div className="hidden sm:flex items-center gap-2 text-[10px]">
-                  <span className="text-purple-400">— EMA20</span>
-                  <span className="text-sky-400">— EMA60</span>
-                </div>
-              </div>
-            </div>
-            <CoinCandleChart
-              candles={data.charts[chartTf]}
-              supports={data.zones.filter((z) => z.kind === 'support').map((z) => z.price)}
-              resistances={data.zones.filter((z) => z.kind === 'resistance').map((z) => z.price)}
-              fib={data.fib}
-              entry={v.entry} stop={v.stop} target1={v.target1} target2={v.target2}
-              direction={v.direction}
-              digits={priceDigits}
-            />
-          </div>
+          {/* 오더북 유동성 — 추가 정보(기본 접힘) */}
+          {data.orderbook && (
+            <Collapsible title="오더북 유동성" sub="상위 50호가 스냅샷">
+              <div className="pt-1"><OrderbookPanel ob={data.orderbook} price={data.price} digits={priceDigits} /></div>
+            </Collapsible>
+          )}
 
-          {/* 오더북 유동성 */}
-          {data.orderbook && <OrderbookPanel ob={data.orderbook} price={data.price} digits={priceDigits} />}
-
-          {/* 롱·숏 조건 종합 */}
-          <TFSummary h1={{ ...data.timeframes.h1, tf: '1H' }} m15={{ ...data.timeframes.m15, tf: '15m' }} m5={{ ...data.timeframes.m5, tf: '5m' }} verdict={data.verdict} />
-
-          {/* 타임프레임 3분할 */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <TFCard tf={{ ...data.timeframes.h1, tf: '1H' }} />
-            <TFCard tf={{ ...data.timeframes.m15, tf: '15m' }} />
-            <TFCard tf={{ ...data.timeframes.m5, tf: '5m' }} />
-          </div>
-
-          {/* 수급 정밀 + 백테스트 성적표 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* 파생 수급 정밀 */}
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-              <h3 className="text-sm font-bold text-[var(--text)] mb-3">파생 수급 정밀 <span className="text-[10px] font-normal text-[var(--text-muted)]">주문흐름·OI·포지셔닝</span></h3>
-              <div className="space-y-3">
-                {/* 테이커 매수/매도 게이지 */}
-                <div>
-                  <div className="flex justify-between text-[10px] mb-1">
-                    <span className="text-[var(--text-muted)]">테이커 매수/매도 (최근 30분)</span>
-                    <span className={`font-bold tabular-nums ${
-                      data.taker.ratio === null ? 'text-[var(--text-muted)]' : data.taker.ratio >= 1.2 ? 'text-emerald-400' : data.taker.ratio <= 0.85 ? 'text-red-400' : 'text-[var(--text)]'
-                    }`}>{data.taker.ratio?.toFixed(2) ?? '-'}</span>
-                  </div>
-                  {data.taker.ratio !== null && (
-                    <div className="flex h-2 rounded-full overflow-hidden">
-                      <div className="bg-emerald-500/70" style={{ width: `${(data.taker.ratio / (1 + data.taker.ratio)) * 100}%` }} />
-                      <div className="bg-red-500/70" style={{ width: `${(1 / (1 + data.taker.ratio)) * 100}%` }} />
-                    </div>
-                  )}
-                  {data.taker.divergence && (
-                    <p className={`text-[10px] mt-1 font-semibold ${data.taker.divergence === 'bearish' ? 'text-red-400' : 'text-emerald-400'}`}>
-                      ⚡ 주문흐름 {data.taker.divergence === 'bearish' ? '약세' : '강세'} 다이버전스 감지
-                    </p>
-                  )}
-                </div>
-                {/* OI 금액 (Bitget 표준) */}
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-[var(--text-muted)]">미결제약정(OI) 금액 <span className="text-[9px] opacity-60">Bitget</span></span>
-                  <span className="font-bold tabular-nums text-[var(--text)]">{data.openInterest && data.markPrice ? `$${(data.openInterest * data.markPrice / 1e9).toFixed(2)}B` : '-'}</span>
-                </div>
-                {/* OI 변화 */}
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-[var(--text-muted)]">미결제약정 1시간 변화</span>
-                  <span className={`font-bold tabular-nums ${
-                    data.oi.change1hPct === null ? 'text-[var(--text-muted)]' : data.oi.change1hPct >= 0 ? 'text-emerald-400' : 'text-red-400'
-                  }`}>{data.oi.change1hPct !== null ? `${data.oi.change1hPct >= 0 ? '+' : ''}${data.oi.change1hPct.toFixed(2)}%` : '-'}</span>
-                </div>
-                {/* 포지션 vs 계정 */}
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-[var(--text-muted)]">계정 롱숏 vs 포지션 금액</span>
-                  <span className="font-bold tabular-nums text-[var(--text)]">
-                    {data.longShort.latest?.ratio.toFixed(2) ?? '-'} <span className="text-[var(--text-dim)]">vs</span> {data.positionLS.latest?.toFixed(2) ?? '-'}
-                  </span>
-                </div>
-                {data.longShort.latest && data.positionLS.latest !== null && Math.abs(data.longShort.latest.ratio - data.positionLS.latest) >= 0.5 && (
-                  <p className="text-[10px] text-amber-400">
-                    {data.longShort.latest.ratio > data.positionLS.latest
-                      ? '⚠ 개미는 롱 쏠림, 큰손(금액)은 중립 — 하락 시 개미 롱이 청산 연료가 될 수 있음'
-                      : '⚠ 개미는 숏 쏠림, 큰손(금액)은 롱 우위 — 상승 스퀴즈 여지'}
-                  </p>
-                )}
-                <p className="text-[10px] text-[var(--text-muted)] opacity-60">테이커·포지션·OI 금액: Bitget 표준 / OI 1시간 변화: Bybit 히스토리 — 주문흐름 불균형은 단기 가격 변동의 주 요인(학술 근거)</p>
-              </div>
-            </div>
-
-            {/* 룰 엔진 성적표 (백테스트) */}
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+          {/* 룰 엔진 성적표 — 추가 정보(기본 접힘) · 파생 수급 정밀은 상단 우측으로 이동 */}
+          <Collapsible title="룰 엔진 성적표" sub="최근 장세 자동 백테스트 · 엣지 미검증(49.7%)">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mt-1">
               <h3 className="text-sm font-bold text-[var(--text)] mb-1 flex items-center gap-2 flex-wrap">
                 룰 엔진 성적표 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 {Math.round(data.backtest.spanHours)}시간 자동 백테스트</span>
                 {(() => {
@@ -1774,37 +1770,10 @@ export default function CoinAnalysisPage() {
                 </>
               ))}
             </div>
-          </div>
+          </Collapsible>
 
-          {/* 레벨: 피보나치 + 계산기 (지지·저항 구간은 위 '진입 판단 › 중요한 가격대' 사다리로 통합) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-              <h3 className="text-sm font-bold text-[var(--text)] mb-1">피보나치 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 15m 스윙</span></h3>
-              {data.fib ? (
-                <>
-                  <p className="text-[10px] text-[var(--text-muted)] mb-3">
-                    {data.fib.direction === 'up' ? '상승' : '하락'} 스윙 ${fmtP(data.fib.swingLow, priceDigits)} → ${fmtP(data.fib.swingHigh, priceDigits)}
-                    {data.fib.nearest && <span className="ml-1 text-amber-400 font-semibold">· 현재 {data.fib.nearest} 관찰 구간</span>}
-                  </p>
-                  <div className="space-y-1.5 text-xs">
-                    {[
-                      { k: '38.2% (얕은 눌림)', v: data.fib.r382 },
-                      { k: '50% (중간 조정)', v: data.fib.r50 },
-                      { k: '61.8% (깊은 조정)', v: data.fib.r618 },
-                      { k: '확장 127.2% (익절 후보)', v: data.fib.e1272 },
-                      { k: '확장 161.8% (익절 후보)', v: data.fib.e1618 },
-                    ].map((r) => (
-                      <div key={r.k} className="flex justify-between">
-                        <span className="text-[var(--text-muted)]">{r.k}</span>
-                        <span className="font-semibold tabular-nums text-[var(--text)]">${fmtP(r.v, priceDigits)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-[var(--text-muted)] mt-2.5">되돌림은 진입 관찰 구간, 확장은 익절 후보 — 선 단독 신호가 아니라 캔들 반응 확인 필수.</p>
-                </>
-              ) : <p className="text-xs text-[var(--text-muted)]">스윙 식별 불가</p>}
-            </div>
-
+          {/* 리스크 패널 — 상단 버튼 → 팝업 (피보나치는 진입 판단 › 상세보기로 이동) */}
+          <BottomSheet open={modal === 'risk'} onClose={() => setModal(null)} title="리스크 패널 — 사이징·청산가·펀딩">
             <RiskPanel
               entry={v.entry} stop={v.stop} stopPct={v.stopPct}
               target1={v.target1} target2={v.target2} direction={v.direction}
@@ -1817,30 +1786,41 @@ export default function CoinAnalysisPage() {
               account={accountCtx}
               breaker={breaker.status === 'blocked' ? { blocked: true, reason: breaker.reasons[0] ?? '서킷브레이커 작동' } : null}
             />
-          </div>
+          </BottomSheet>
 
-          {/* 최신 뉴스 (매매 전 체크리스트는 위 '진입 판단' 섹션으로 통합됨) */}
-          <div>
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-              <h3 className="text-sm font-bold text-[var(--text)] mb-3">최신 뉴스 <span className="text-[10px] font-normal text-[var(--text-muted)]">{data.name}</span></h3>
-              {data.news.length ? (
-                <div className="space-y-2.5">
-                  {data.news.slice(0, 7).map((n, i) => (
-                    <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" className="block group">
-                      <p className="text-xs text-[var(--text)] group-hover:text-sky-400 transition-colors leading-snug">
-                        {n.sentiment === 'pos' && <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 mr-1 align-middle">호재</span>}
-                        {n.sentiment === 'neg' && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/15 text-red-400 mr-1 align-middle">악재</span>}
-                        {n.title}
-                      </p>
-                      <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{n.source}{n.pubDate ? ` · ${new Date(n.pubDate).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}</p>
-                    </a>
-                  ))}
-                </div>
-              ) : <p className="text-xs text-[var(--text-muted)]">뉴스를 가져올 수 없습니다.</p>}
+          {/* 최신 뉴스 — 3초마다 한 줄 회전 + 펼치기(드롭다운) */}
+          <RotatingTicker
+            title={<>📰 최신 뉴스</>}
+            badge={<span className="text-[10px] font-normal text-[var(--text-muted)]">{data.name}</span>}
+            emptyText="뉴스를 가져올 수 없습니다."
+            lines={data.news.slice(0, 12).map((n, i) => (
+              <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" className="flex items-baseline gap-1.5 group">
+                {n.sentiment === 'pos' && <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 shrink-0">호재</span>}
+                {n.sentiment === 'neg' && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/15 text-red-400 shrink-0">악재</span>}
+                <span className="truncate text-[var(--text)] group-hover:text-sky-400">{n.title}</span>
+                <span className="ml-auto text-[10px] text-[var(--text-muted)] shrink-0">{n.source}</span>
+              </a>
+            ))}
+          >
+            <div className="space-y-2.5">
+              {data.news.slice(0, 10).map((n, i) => (
+                <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" className="block group">
+                  <p className="text-xs text-[var(--text)] group-hover:text-sky-400 transition-colors leading-snug">
+                    {n.sentiment === 'pos' && <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 mr-1 align-middle">호재</span>}
+                    {n.sentiment === 'neg' && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/15 text-red-400 mr-1 align-middle">악재</span>}
+                    {n.title}
+                  </p>
+                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{n.source}{n.pubDate ? ` · ${new Date(n.pubDate).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}</p>
+                </a>
+              ))}
             </div>
-          </div>
+          </RotatingTicker>
 
-          {/* 매매일지 */}
+          {/* 실시간 청산·온체인 고래 (현재 코인) — 3초 회전 티커 */}
+          <WhaleLiquidationPanel symbol={data.symbol} />
+
+          {/* 매매일지 — 상단 버튼 → 팝업 */}
+          <BottomSheet open={modal === 'journal'} onClose={() => setModal(null)} title="매매일지 — 복기용·기기에만 저장" full>
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-[var(--text)]">매매일지 <span className="text-[10px] font-normal text-[var(--text-muted)]">복기용 · 기기에만 저장</span></h3>
@@ -1952,6 +1932,7 @@ export default function CoinAnalysisPage() {
               </div>
             )}
           </div>
+          </BottomSheet>
 
           </>)}
 

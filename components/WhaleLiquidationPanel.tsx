@@ -1,7 +1,8 @@
 'use client';
 // 실시간 청산(브라우저 WS: Binance→Bybit) + 온체인 고래 피드 — coin-signal에서 이식
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import useSWR from 'swr';
+import RotatingTicker from '@/components/ui/RotatingTicker';
 
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT'];
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
@@ -23,7 +24,7 @@ function ago(ts: number) {
   const h = Math.floor(m / 60); return h < 24 ? `${h}시간 전` : `${Math.floor(h / 24)}일 전`;
 }
 
-export default function WhaleLiquidationPanel() {
+export default function WhaleLiquidationPanel({ symbol }: { symbol?: string }) {
   const [liqs, setLiqs] = useState<Liq[]>([]);
   const [liqSrc, setLiqSrc] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -68,39 +69,60 @@ export default function WhaleLiquidationPanel() {
     return () => { alive = false; try { wsRef.current?.close(); } catch { /* noop */ } };
   }, []);
 
+  // 현재 코인만 보기 — ETH 화면이면 ETH 청산·고래만, SOL 화면이면 SOL만
+  const sym = symbol && SYMBOLS.includes(symbol) ? symbol : null;
+  const short = sym ? sym.replace('USDT', '') : null;
+  const fLiqs = sym ? liqs.filter((it) => it.sym === sym) : liqs;
+  const fWhale = (whale?.items ?? []).filter((it) => !short || (it.symbol ?? '').toUpperCase().includes(short));
+
+  const liqLine = (it: Liq): ReactNode => (
+    <span className="flex items-baseline gap-2">
+      <span className={`min-w-[52px] text-center text-[10px] font-bold rounded px-1 py-0.5 ${it.long ? 'bg-red-500/15 text-red-400' : 'bg-emerald-500/15 text-emerald-400'}`}>{it.long ? '롱 청산' : '숏 청산'}</span>
+      <span className="font-bold">{it.sym.replace('USDT', '')}</span>
+      <span className="font-bold tabular-nums">{fmtUsd(it.usd)}</span>
+      <span className="text-[var(--text-muted)] text-[11px]">@ {fmtPx(it.sym, it.price)}</span>
+      <span className="ml-auto text-[var(--text-muted)] text-[10px]">{new Date(it.ts).toLocaleTimeString('ko-KR')}</span>
+    </span>
+  );
+  const whaleLine = (it: WhaleItem): ReactNode => (
+    <span className="flex items-baseline gap-2 flex-wrap">
+      <span className={`min-w-[42px] text-center text-[10px] font-bold rounded px-1 py-0.5 ${it.side === 'BUY' ? 'bg-emerald-500/15 text-emerald-400' : it.side === 'SELL' ? 'bg-red-500/15 text-red-400' : 'bg-white/10 text-amber-400'}`}>{it.side === 'BUY' ? '매수' : it.side === 'SELL' ? '매도' : '이동'}</span>
+      <span className="font-bold tabular-nums min-w-[64px]">{fmtUsd(it.usd)}</span>
+      <span className="text-[var(--text)]">{it.label}{it.from ? <span className="text-[10px] text-[var(--text-muted)] ml-1">{it.from} → {it.to}</span> : null}</span>
+      <span className="ml-auto text-[var(--text-muted)] text-[10px]">{ago(it.ts)}</span>
+    </span>
+  );
+
+  // 한 줄 회전용 — 청산·고래를 최신순으로 섞어 흘린다
+  const merged: { ts: number; node: ReactNode }[] = [
+    ...fLiqs.map((it) => ({ ts: it.ts, node: liqLine(it) })),
+    ...fWhale.map((it) => ({ ts: it.ts, node: whaleLine(it) })),
+  ].sort((a, b) => b.ts - a.ts).slice(0, 24);
+
+  const title = <>⚡ 실시간 청산 · 🐋 온체인 고래{short ? <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1">{short}</span> : null}</>;
+  const badge = (
+    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${liqSrc ? 'bg-emerald-500/15 text-emerald-400' : 'bg-white/10 text-[var(--text-muted)]'}`}>
+      {liqSrc ? `LIVE · ${liqSrc}` : '연결 중…'}
+    </span>
+  );
+
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 mb-4">
-      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-        <h3 className="text-sm font-bold text-[var(--text)]">⚡ 실시간 청산 · 🐋 온체인 고래 <span className="text-[10px] font-normal text-[var(--text-muted)]">강제청산 = 반대 포지션 유동성</span></h3>
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${liqSrc ? 'bg-emerald-500/15 text-emerald-400' : 'bg-white/10 text-[var(--text-muted)]'}`}>
-          {liqSrc ? `청산 LIVE · ${liqSrc}` : '청산 연결 중…'}
-        </span>
-      </div>
-      <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">실시간 청산 (Liquidation)</p>
+    <RotatingTicker
+      title={title} badge={badge}
+      lines={merged.map((m) => m.node)}
+      emptyText={short ? `${short} 청산·고래 대기 중… (발생 시 실시간 표시)` : '청산·고래 대기 중…'}
+    >
+      <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">실시간 청산 (Liquidation){short ? ` · ${short}` : ''}</p>
       <ul className="mb-3 max-h-56 overflow-y-auto">
-        {liqs.length ? liqs.map((it, i) => (
-          <li key={i} className="flex items-baseline gap-2 py-1 border-b border-[var(--border)] text-[12px]">
-            <span className={`min-w-[52px] text-center text-[10px] font-bold rounded px-1 py-0.5 ${it.long ? 'bg-red-500/15 text-red-400' : 'bg-emerald-500/15 text-emerald-400'}`}>{it.long ? '롱 청산' : '숏 청산'}</span>
-            <span className="font-bold">{it.sym.replace('USDT', '')}</span>
-            <span className="font-bold tabular-nums">{fmtUsd(it.usd)}</span>
-            <span className="text-[var(--text-muted)] text-[11px]">@ {fmtPx(it.sym, it.price)}</span>
-            <span className="ml-auto text-[var(--text-muted)] text-[10px]">{new Date(it.ts).toLocaleTimeString('ko-KR')}</span>
-          </li>
-        )) : <li className="text-[11px] text-[var(--text-muted)] py-1">청산 대기 중… (발생 시 실시간 표시)</li>}
+        {fLiqs.length ? fLiqs.map((it, i) => <li key={i} className="py-1 border-b border-[var(--border)] text-[12px]">{liqLine(it)}</li>)
+          : <li className="text-[11px] text-[var(--text-muted)] py-1">청산 대기 중… (발생 시 실시간 표시)</li>}
       </ul>
-      <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">대량 체결 · 온체인 이동</p>
+      <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">대량 체결 · 온체인 이동{short ? ` · ${short}` : ''}</p>
       <ul className="max-h-72 overflow-y-auto">
-        {(whale?.items ?? []).slice(0, 30).map((it, i) => (
-          <li key={i} className="flex items-baseline gap-2 py-1 border-b border-[var(--border)] text-[12px] flex-wrap">
-            <span className={`min-w-[42px] text-center text-[10px] font-bold rounded px-1 py-0.5 ${it.side === 'BUY' ? 'bg-emerald-500/15 text-emerald-400' : it.side === 'SELL' ? 'bg-red-500/15 text-red-400' : 'bg-white/10 text-amber-400'}`}>{it.side === 'BUY' ? '매수' : it.side === 'SELL' ? '매도' : '이동'}</span>
-            <span className="font-bold tabular-nums min-w-[64px]">{fmtUsd(it.usd)}</span>
-            <span className="text-[var(--text)]">{it.label}{it.from ? <span className="text-[10px] text-[var(--text-muted)] ml-1">{it.from} → {it.to}</span> : null}</span>
-            <span className="ml-auto text-[var(--text-muted)] text-[10px]">{ago(it.ts)}</span>
-          </li>
-        ))}
-        {!whale?.items?.length && <li className="text-[11px] text-[var(--text-muted)] py-1">고래 데이터 로딩 중…</li>}
+        {fWhale.slice(0, 30).map((it, i) => <li key={i} className="py-1 border-b border-[var(--border)] text-[12px]">{whaleLine(it)}</li>)}
+        {!fWhale.length && <li className="text-[11px] text-[var(--text-muted)] py-1">{short ? `${short} 고래 데이터 대기 중…` : '고래 데이터 로딩 중…'}</li>}
       </ul>
       {whale?.note && <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-70">{whale.note}</p>}
-    </section>
+    </RotatingTicker>
   );
 }

@@ -23,8 +23,9 @@ export default function CircuitBreakerBar() {
   );
 
   if (!mounted) return null;
-  // 정상이고 한도도 안 정했으면 조용히 접어 둔다(설정만 노출)
-  const idle = state.status === 'ok' && state.lossStreak === 0;
+  // 정상(경고·차단 아님)이면 바 자체를 숨긴다 — 화면을 어지럽히지 않는다.
+  // 연패가 쌓이는 중(warn)이거나 차단(blocked)일 때만 노출. 한도 설정은 리스크 패널에서.
+  if (state.status === 'ok') return null;
 
   const box = state.status === 'blocked' ? 'border-red-500/50 bg-red-500/[0.08]'
     : state.status === 'warn' ? 'border-amber-500/40 bg-amber-500/[0.06]'
@@ -45,19 +46,14 @@ export default function CircuitBreakerBar() {
         </button>
       </div>
 
-      {!idle && (
-        <div className="mt-1.5 space-y-1">
-          {state.reasons.map((r, i) => (
-            <p key={i} className={`text-[11px] leading-relaxed ${state.status === 'blocked' ? 'text-red-300' : 'text-[var(--text-muted)]'}`}>• {r}</p>
-          ))}
-          <p className="text-[10px] text-[var(--text-muted)] tabular-nums">
-            현재 연속손절 {state.lossStreak} · 오늘 실현 {state.todayRealized == null ? '-' : `${state.todayRealized >= 0 ? '+' : ''}${Math.round(state.todayRealized)}`} · 최근7일 {state.weekRealized == null ? '-' : `${state.weekRealized >= 0 ? '+' : ''}${Math.round(state.weekRealized)}`} USDT
-          </p>
-        </div>
-      )}
-      {idle && (
-        <p className="text-[10px] text-[var(--text-muted)] mt-1">연패·손실 한도를 정해두면, 넘었을 때 신규 진입을 막고 실행가능 판정에서 NO로 처리합니다.</p>
-      )}
+      <div className="mt-1.5 space-y-1">
+        {state.reasons.map((r, i) => (
+          <p key={i} className={`text-[11px] leading-relaxed ${state.status === 'blocked' ? 'text-red-300' : 'text-[var(--text-muted)]'}`}>• {r}</p>
+        ))}
+        <p className="text-[10px] text-[var(--text-muted)] tabular-nums">
+          현재 연속손절 {state.lossStreak} · 오늘 실현 {state.todayRealized == null ? '-' : `${state.todayRealized >= 0 ? '+' : ''}${Math.round(state.todayRealized)}`} · 최근7일 {state.weekRealized == null ? '-' : `${state.weekRealized >= 0 ? '+' : ''}${Math.round(state.weekRealized)}`} USDT
+        </p>
+      </div>
 
       {openCfg && (
         <div className="mt-2.5 pt-2.5 border-t border-[var(--border)] grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
