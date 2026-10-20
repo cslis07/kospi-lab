@@ -11,6 +11,7 @@ import type { CalendarEvent } from '@/lib/types';
 import EventRow, { kstToday } from '@/components/EventRow';
 import BottomSheet from '@/components/ui/BottomSheet';
 import EconCalendarMonth, { type CalEvt } from '@/components/EconCalendarMonth';
+import NextReleases from '@/components/NextReleases';
 import type { ReleaseCalendar } from '@/lib/inflation';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
@@ -109,6 +110,14 @@ export default function CalendarPage() {
 
   return (
     <div className="max-w-3xl mx-auto pb-8">
+      {/* 다음 주요 발표 카운트다운 — 컨센서스·나우캐스트·직전(Nowflation 참고) */}
+      {relCal?.events?.length ? (
+        <div className="mb-4">
+          <div className="fin-sec"><h3 className="!text-[15px]">다음 주요 발표</h3><span className="text-[11px] text-[var(--text-muted)]">컨센서스·나우캐스트</span></div>
+          <NextReleases rc={relCal} detailHref="/inflation/calendar" />
+        </div>
+      ) : null}
+
       {/* 월간 달력 — 모든 지표 발표일·FOMC·한은·실적·휴장 */}
       <div className="fin-card p-4 mb-4"><EconCalendarMonth events={calEvents} /></div>
 

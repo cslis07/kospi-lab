@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { EXTRAS, ICON } from '@/lib/menu';
 import HomeNews from '@/components/home/naver/HomeNews';
 import EconCalendarMonth, { type CalEvt } from '@/components/EconCalendarMonth';
+import NextReleases from '@/components/NextReleases';
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 import type { ReleaseCalendar } from '@/lib/inflation';
 import type { MacroIndicator } from '@/lib/macroData';
@@ -69,8 +70,9 @@ export default function ToolsPage() {
         </div>
       </div>
 
-      {/* 경제 캘린더 — 달력(월간 그리드), 모든 지표 발표일 표시 */}
+      {/* 경제 캘린더 — 다음 발표 카운트다운 + 달력(월간 그리드), 모든 지표 발표일 */}
       <div className="fin-sec"><h3 className="!text-[15px]">경제 캘린더</h3><Link href="/calendar" className="fin-more">전체보기</Link></div>
+      {relCal?.events?.length ? <div className="mb-3"><NextReleases rc={relCal} limit={2} /></div> : null}
       <div className="fin-card p-4 mb-5"><EconCalendarMonth events={calEvents} /></div>
 
       {/* 최신 뉴스 — 홈 위젯 재사용 */}

@@ -246,7 +246,7 @@ export interface Backtest {
 
 /** release_calendar.json — 미국 주요 지표 발표 일정(나우캐스트 예측 포함) */
 export interface ReleaseEvent {
-  kind: string; date: string; data_month?: string; unit?: string; summary?: string; url?: string;
+  kind: string; date: string; datetime_utc?: string; data_month?: string; unit?: string; summary?: string; url?: string; preview_url?: string;
   street?: number; prior?: number; cleveland?: number; kalshi?: number; nowflation_forecast?: number;
 }
 export interface ReleaseCalendar { locked?: boolean; from?: string; events: ReleaseEvent[] }
