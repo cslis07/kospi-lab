@@ -181,6 +181,7 @@ export function drillTitle(pathname: string): string {
   if (pathname.startsWith('/crypto/')) return '코인 상세';
   if (pathname.startsWith('/overseas/')) return '해외 상세';
   if (under(pathname, '/more')) return '전체 메뉴';
+  if (under(pathname, '/tools')) return '더보기 도구';
   // 자산 허브에서 진입하는 상세 페이지
   if (under(pathname, '/bitget')) return '계좌 상세';
   if (under(pathname, '/performance')) return '성과';
@@ -199,7 +200,7 @@ export function drillTitle(pathname: string): string {
  */
 export const OWN_H1_ROUTES = [
   '/bitget', '/brokerage', '/crypto/', '/futures', '/growth', '/invest', '/journal', '/krx',
-  '/overseas/', '/overseas-analysis', '/macro', '/inflation', '/principles', '/releases', '/screener', '/simulate', '/stock/', '/study', '/tax', '/virtual', '/eth',
+  '/overseas/', '/overseas-analysis', '/macro', '/inflation', '/principles', '/releases', '/screener', '/simulate', '/stock/', '/study', '/tax', '/tools', '/virtual', '/eth',
 ];
 export const pageOwnsH1 = (pathname: string) =>
   OWN_H1_ROUTES.some((r) => (r.endsWith('/') ? pathname.startsWith(r) : under(pathname, r)));

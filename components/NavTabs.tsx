@@ -9,12 +9,12 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect } from 'react';
-import { MENU, EXTRAS, ICON, GUIDE, activeItem, itemIsActive, type MenuItem } from '@/lib/menu';
+import { MENU, ICON, GUIDE, activeItem, itemIsActive, type MenuItem } from '@/lib/menu';
 
-/** 상단 알약 = 5섹션(MENU) + '더보기' 도구 드릴다운 1개. 숨김 항목 제외. */
+/** 상단 알약 = 5섹션(MENU) + '더보기' 1개(도구 대시보드 /tools 로 바로 이동, 항목 1개라 알약=링크). */
 const NAV_GROUPS: { key: string; label: string; navIcon: string; items: MenuItem[] }[] = [
   ...MENU.map((g) => ({ key: g.key, label: g.label, navIcon: g.navIcon, items: g.items })),
-  { key: 'more', label: '더보기', navIcon: 'tools', items: EXTRAS.filter((t) => !t.hidden) },
+  { key: 'more', label: '더보기', navIcon: 'tools', items: [{ href: '/tools', label: '더보기', icon: 'tools' }] },
 ];
 
 function NavIcon({ name, className = 'w-4 h-4' }: { name: string; className?: string }) {
