@@ -798,7 +798,7 @@ export default function CoinAnalysisPage() {
   const [chartTf, setChartTf] = useState<'m5' | 'm15' | 'h1'>('m5');
   const { model: aiModel, ready: modelReady } = useBriefingModel();
   const [showBt, setShowBt] = useState(false); // 룰 엔진 성적표 상세 접기(기본 접힘 — 엣지 미검증이라 전면 노출 불필요)
-  const [modal, setModal] = useState<null | 'flow' | 'macro' | 'risk' | 'journal'>(null); // 상단 버튼 → 팝업(BottomSheet)
+  const [modal, setModal] = useState<null | 'flow' | 'macro' | 'risk' | 'journal' | 'entry' | 'timeframes'>(null); // 상단 버튼 → 팝업(BottomSheet)
   // symbol·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
   const [run, setRun] = useState<{ symbol: string; model: string } | null>(null);
   // 관심종목에서 '분석'으로 진입(?symbol=…&run=1)하면 해당 코인으로 자동 실행. 그 외에는 버튼으로만.
@@ -1314,6 +1314,8 @@ export default function CoinAnalysisPage() {
           <div className="space-y-3">
             <div className="flex flex-wrap gap-1.5">
               {([
+                ['entry', '🎯 진입 판단'],
+                ['timeframes', '📈 시간대별 지표'],
                 ['flow', '📊 흐름 읽기'],
                 ...(data.macro && data.macro.values && (data.macro.values.us10 || data.macro.values.dxy) ? [['macro', '🌐 거시 배경'] as const] : []),
                 ['risk', '🧮 리스크 패널'],
@@ -1329,17 +1331,19 @@ export default function CoinAnalysisPage() {
           </div>
           </div>
 
-          {/* 🎯 진입 판단 — 흩어진 판단을 간결한 실행 계획으로(맨 위) */}
-          <EntryDecision data={data} v={v} digits={priceDigits} />
+          {/* 🎯 진입 판단 — 상단 버튼 → 팝업 */}
+          <BottomSheet open={modal === 'entry'} onClose={() => setModal(null)} title="진입 판단" full>
+            <EntryDecision data={data} v={v} digits={priceDigits} />
+          </BottomSheet>
 
-          {/* 시간대별 지표 — 1시간봉·15분 구조·5분 타이밍 (기본 접힘) */}
-          <Collapsible title="시간대별 지표" sub="1시간봉 · 15분 구조 · 5분 타이밍">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+          {/* 시간대별 지표 — 상단 버튼 → 팝업 */}
+          <BottomSheet open={modal === 'timeframes'} onClose={() => setModal(null)} title="시간대별 지표 — 1시간봉·15분·5분">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <TFCard tf={{ ...data.timeframes.h1, tf: '1H' }} />
               <TFCard tf={{ ...data.timeframes.m15, tf: '15m' }} />
               <TFCard tf={{ ...data.timeframes.m5, tf: '5m' }} />
             </div>
-          </Collapsible>
+          </BottomSheet>
 
           {/* 캔들 차트 (5m/15m/1H, EMA·지지저항·진입레벨 오버레이) */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
