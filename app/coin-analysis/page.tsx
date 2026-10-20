@@ -621,7 +621,7 @@ function PriceLadder({ data, v, price, digits }: { data: AnalysisData; v: Verdic
   const rows: Row[] = [];
   if (data.high24h) rows.push({ price: data.high24h, label: '24h 고점 · 강한 저항', tone: 'res' });
   if (data.low24h) rows.push({ price: data.low24h, label: '24h 저점', tone: 'sup' });
-  data.zones.forEach((z) => rows.push({ price: z.price, label: `${z.kind === 'resistance' ? '저항' : '지지'} · 터치 ${z.touches}회`, tone: z.kind === 'resistance' ? 'res' : 'sup' }));
+  data.zones.forEach((z) => rows.push({ price: z.price, label: `${z.kind === 'resistance' ? '저항' : '지지'} · 터치 ${z.touches}회(${z.touches >= 6 ? '강함' : z.touches >= 3 ? '보통' : '약함'})`, tone: z.kind === 'resistance' ? 'res' : 'sup' }));
   // 롱·숏 양쪽 손절선(롱 손절은 아래 지지, 숏 손절은 위 저항)
   if (v.plans) {
     rows.push({ price: v.plans.long.stop, label: '롱 손절선', tone: 'stop' });
@@ -1776,34 +1776,8 @@ export default function CoinAnalysisPage() {
             </div>
           </div>
 
-          {/* 레벨: 지지저항 + 피보나치 + 계산기 */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
-              <h3 className="text-sm font-bold text-[var(--text)] mb-3">지지·저항 구간 <span className="text-[10px] font-normal text-[var(--text-muted)]">15m 스윙 기준</span></h3>
-              <div className="space-y-1.5">
-                {data.zones.map((z, i) => (
-                  <div key={i} className={`flex items-center justify-between text-xs rounded-lg px-2.5 py-1.5 border ${
-                    z.kind === 'resistance' ? 'border-red-500/20 bg-red-500/5' : 'border-emerald-500/20 bg-emerald-500/5'
-                  }`}>
-                    <span className={z.kind === 'resistance' ? 'text-red-400' : 'text-emerald-400'}>
-                      {z.kind === 'resistance' ? '저항' : '지지'}
-                    </span>
-                    <span className="font-bold tabular-nums text-[var(--text)]">${fmtP(z.price, priceDigits)}</span>
-                    <span className="text-[10px] text-[var(--text-muted)]">터치 {z.touches}회 · <b className={z.touches >= 6 ? 'text-[var(--text)]' : ''}>{z.touches >= 6 ? '강함' : z.touches >= 3 ? '보통' : '약함'}</b></span>
-                  </div>
-                ))}
-                {!data.zones.length && <p className="text-xs text-[var(--text-muted)]">식별된 구간 없음</p>}
-              </div>
-              {data.zones.length > 0 && (
-                <div className="mt-2.5 text-[10.5px] leading-relaxed text-[var(--text-muted)] space-y-1">
-                  <p><b className="text-[var(--text)]">터치</b> = 최근 15분봉에서 이 가격대에 고점·저점(꺾인 자리)이 생긴 횟수.</p>
-                  <p><b className="text-[var(--text)]">많을수록(6회+)</b> 많은 사람이 의식하는 가격 — 닿으면 반응(멈춤·되돌림)이 나올 가능성이 크고 손절·목표 기준으로 쓰기 좋습니다. 다만 같은 자리를 여러 번 두드릴수록 대기 주문이 소진돼 <b className="text-[var(--text)]">결국 뚫릴 가능성도 커지고</b>, 뚫리면 움직임이 큽니다.</p>
-                  <p><b className="text-[var(--text)]">적을수록(2회)</b> 우연히 겹친 자리일 수 있는 약한 참고선 — 쉽게 지나칠 수 있으니 이것만 믿고 손절을 바짝 대지 마세요.</p>
-                  <p>뚫린 저항은 지지로, 깨진 지지는 저항으로 역할이 바뀌는 경우가 많습니다. 서로 가까운 구간은 하나의 넓은 띠로 보세요.</p>
-                </div>
-              )}
-            </div>
-
+          {/* 레벨: 피보나치 + 계산기 (지지·저항 구간은 위 '진입 판단 › 중요한 가격대' 사다리로 통합) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
               <h3 className="text-sm font-bold text-[var(--text)] mb-1">피보나치 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 15m 스윙</span></h3>
               {data.fib ? (
