@@ -40,7 +40,7 @@ function DisclosureList({ items }: { items: DisclosureItem[] }) {
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-start gap-3 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-sky-500/40 hover:bg-sky-500/5 transition-colors group"
+          className="flex items-start gap-3 p-3 rounded-xl border border-[var(--line-2)] bg-[var(--bg-card)] hover:border-sky-500/40 hover:bg-sky-500/5 transition-colors group"
         >
           <span className={`mt-0.5 shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${
             item.source === 'DART'
@@ -72,7 +72,7 @@ function SkeletonHorizontal() {
   return (
     <div className="space-y-2">
       {[...Array(10)].map((_, i) => (
-        <div key={i} className="flex h-[88px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] animate-pulse overflow-hidden">
+        <div key={i} className="flex h-[88px] rounded-xl border border-[var(--line-2)] bg-[var(--bg-card)] animate-pulse overflow-hidden">
           <div className="w-[90px] bg-white/5" />
           <div className="flex-1 p-3 space-y-2">
             <div className="h-4 bg-white/10 rounded w-full" />
@@ -204,13 +204,13 @@ export default function NewsPage() {
         tab === 'disclosure' ? (
           <div className="space-y-2">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 animate-pulse h-16" />
+              <div key={i} className="rounded-xl border border-[var(--line-2)] bg-[var(--bg-card)] p-3 animate-pulse h-16" />
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(9)].map((_, i) => (
-              <div key={i} className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4 animate-pulse h-28" />
+              <div key={i} className="rounded-xl border border-[var(--line-2)] bg-[var(--bg-card)] p-4 animate-pulse h-28" />
             ))}
           </div>
         )

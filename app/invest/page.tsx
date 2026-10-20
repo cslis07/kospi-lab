@@ -154,7 +154,7 @@ function StockPicks({ risk }: { risk: RiskType }) {
   );
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+    <div className="fin-card p-5">
       <h2 className="text-sm font-semibold text-[var(--text)] mb-1">
         성향 맞춤 국내 우량주{' '}
         <span className="text-[var(--text-muted)] font-normal text-xs">({RISK_LABELS[risk]} · 실시간 KIS)</span>
@@ -282,7 +282,7 @@ export default function InvestPage() {
 
       <div className="space-y-5">
         {/* 기본 정보 */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-4">
+        <div className="fin-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-[var(--text)]">기본 정보</h2>
           <label className="flex flex-col gap-1.5">
             <span className="text-xs text-[var(--text-muted)]">나이</span>
@@ -317,7 +317,7 @@ export default function InvestPage() {
         </div>
 
         {/* 계좌 보유 여부 */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+        <div className="fin-card p-5">
           <h2 className="text-sm font-semibold text-[var(--text)] mb-3">보유 계좌</h2>
           <div className="grid grid-cols-3 gap-2">
             {(['isa','irp','pension'] as const).map((key) => {
@@ -337,7 +337,7 @@ export default function InvestPage() {
         </div>
 
         {/* 투자 성향 */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+        <div className="fin-card p-5">
           <h2 className="text-sm font-semibold text-[var(--text)] mb-3">투자 성향</h2>
           <div className="grid grid-cols-2 gap-2">
             {(Object.keys(RISK_LABELS) as RiskType[]).map((r) => (
@@ -354,7 +354,7 @@ export default function InvestPage() {
         </div>
 
         {/* 투자 목표 */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+        <div className="fin-card p-5">
           <h2 className="text-sm font-semibold text-[var(--text)] mb-3">투자 목표</h2>
           <div className="grid grid-cols-3 gap-2">
             {(Object.keys(GOAL_LABELS) as GoalType[]).map((g) => (
@@ -397,7 +397,7 @@ export default function InvestPage() {
 
       <div className="space-y-4">
         {/* 추천 계좌 */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+        <div className="fin-card p-5">
           <h2 className="text-sm font-semibold text-[var(--text)] mb-3">추천 계좌 순위</h2>
           <div className="space-y-2">
             {accounts.slice(0, 3).map((a) => (
@@ -416,7 +416,7 @@ export default function InvestPage() {
         </div>
 
         {/* 자산 배분 도넛 */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+        <div className="fin-card p-5">
           <h2 className="text-sm font-semibold text-[var(--text)] mb-4">추천 자산 배분</h2>
           <div className="flex items-center gap-6">
             <DonutChart assets={assets} />
@@ -433,7 +433,7 @@ export default function InvestPage() {
         </div>
 
         {/* 월 투자금 배분 */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+        <div className="fin-card p-5">
           <h2 className="text-sm font-semibold text-[var(--text)] mb-1">매월 투자금 배분</h2>
           <p className="text-xs text-[var(--text-muted)] mb-3">총 {fmtW(inp.monthly)}/월</p>
           <div className="overflow-hidden rounded-xl border border-[var(--border)]">
@@ -493,13 +493,13 @@ export default function InvestPage() {
         {/* 다음 단계 */}
         <div className="grid grid-cols-2 gap-3">
           <a href="/tax"
-            className="flex flex-col items-center py-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-sky-500/30 transition-colors">
+            className="flex flex-col items-center py-4 fin-card hover:border-sky-500/30 transition-colors">
             <span className="text-lg mb-1">🧾</span>
             <span className="text-xs font-semibold text-[var(--text)]">세제혜택 계산</span>
             <span className="text-[10px] text-[var(--text-muted)]">정확한 환급액 계산</span>
           </a>
           <a href="/simulate"
-            className="flex flex-col items-center py-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-sky-500/30 transition-colors">
+            className="flex flex-col items-center py-4 fin-card hover:border-sky-500/30 transition-colors">
             <span className="text-lg mb-1">📈</span>
             <span className="text-xs font-semibold text-[var(--text)]">수익 시뮬레이션</span>
             <span className="text-[10px] text-[var(--text-muted)]">복리 계산기</span>

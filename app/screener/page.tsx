@@ -485,7 +485,7 @@ function ScreenerInner() {
       </div>
 
       {/* ── Buffett guide accordion ── */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] mb-4 overflow-hidden">
+      <div className="fin-card mb-4 overflow-hidden">
         <button
           onClick={() => setShowGuide((v) => !v)}
           className="w-full flex items-center justify-between p-4 text-sm font-medium text-[var(--text)] hover:bg-white/2 transition-colors"
@@ -520,7 +520,7 @@ function ScreenerInner() {
       </div>
 
       {/* ── Settings card ── */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-6 space-y-4">
+      <div className="fin-card p-5 mb-6 space-y-4">
         {/* Market tabs */}
         <div className="flex gap-2">
           {(['KR', 'US'] as Market[]).map((m) => (

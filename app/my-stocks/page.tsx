@@ -247,7 +247,7 @@ function RailIndicesCard() {
   const { pref, save } = useRailPref();
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-3 mb-3">
+    <div className="fin-card p-3 mb-3">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[13px] font-bold text-[var(--text)]">관심 지수 <span className="text-[11px] font-normal text-[var(--text-muted)]">· 홈 상단 레일</span></p>

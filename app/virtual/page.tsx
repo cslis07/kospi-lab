@@ -226,7 +226,7 @@ export default function VirtualPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-4 pb-12">
       {/* ── 포트폴리오 요약 ── */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-6">
+      <div className="fin-card p-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-base font-bold text-[var(--text)]">가상 포트폴리오</h1>
           <button
@@ -275,7 +275,7 @@ export default function VirtualPage() {
       </div>
 
       {/* ── 탭 ── */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+      <div className="fin-card overflow-hidden">
         {/* 탭 헤더 */}
         <div className="flex border-b border-[var(--border)]">
           {TABS.map((t) => (
@@ -518,7 +518,7 @@ export default function VirtualPage() {
         </div>
       </div>
       {/* ── 데이터 관리 ── */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-6">
+      <div className="fin-card p-6">
         <h2 className="text-sm font-semibold text-[var(--text)] mb-1">데이터 관리</h2>
         <p className="text-xs text-[var(--text-muted)] mb-4">
           이 브라우저에 저장된 <strong>KOSPI LAB 데이터 전체</strong>를 JSON 파일로 저장하거나 복원합니다.<br />

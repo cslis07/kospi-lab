@@ -266,7 +266,7 @@ export default function BriefPage() {
       {!isLoading && !error && data && (
         <div className="space-y-5">
           {/* AI 요약 */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+          <div className="fin-card p-4">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">AI 요약</span>
               {ai?.at && <span className="text-[10px] text-[var(--text-muted)] opacity-70 tabular-nums">{hhmm(ai.at)} 작성</span>}

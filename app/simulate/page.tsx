@@ -97,7 +97,7 @@ function CompoundSim() {
   const final = data[data.length - 1];
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-4">
+      <div className="fin-card p-5 space-y-4">
         <h2 className="text-sm font-semibold text-[var(--text)]">투자 조건 설정</h2>
         <div>
           <p className="text-xs text-[var(--text-muted)] mb-2">수익률 프리셋</p>
@@ -125,11 +125,11 @@ function CompoundSim() {
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 text-center">
+        <div className="fin-card p-4 text-center">
           <p className="text-xs text-[var(--text-muted)] mb-1">예상 자산</p>
           <p className="text-lg font-bold text-sky-400">{fmtW(final?.fv ?? 0)}</p>
         </div>
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 text-center">
+        <div className="fin-card p-4 text-center">
           <p className="text-xs text-[var(--text-muted)] mb-1">투자 원금</p>
           <p className="text-lg font-bold text-[var(--text)]">{fmtW(final?.principal ?? 0)}</p>
         </div>
@@ -140,7 +140,7 @@ function CompoundSim() {
       </div>
 
       {final && final.principal > 0 && (
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 flex items-center justify-between">
+        <div className="fin-card p-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-[var(--text-muted)]">총 수익률</p>
             <p className="text-2xl font-bold text-emerald-400">+{((final.profit / final.principal) * 100).toFixed(1)}%</p>
@@ -152,12 +152,12 @@ function CompoundSim() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+      <div className="fin-card p-5">
         <h2 className="text-sm font-semibold text-[var(--text)] mb-4">자산 성장 그래프</h2>
         <SimulateChart data={data} years={years} />
       </div>
 
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+      <div className="fin-card p-5">
         <h2 className="text-sm font-semibold text-[var(--text)] mb-3">연도별 자산 추이</h2>
         <div className="overflow-hidden rounded-xl border border-[var(--border)]">
           <table className="w-full text-xs">
@@ -328,7 +328,7 @@ function LeverageCalc() {
       </div>
 
       {/* 입력 */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-4">
+      <div className="fin-card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-[var(--text)]">{coin.name} 선물 손익 계산</h2>
           <span className="text-xs text-[var(--text-muted)] tabular-nums">
@@ -428,7 +428,7 @@ function LeverageCalc() {
       </div>
 
       {/* 손익 결과 */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+      <div className="fin-card p-5">
         <div className="text-center mb-4">
           <p className="text-xs text-[var(--text-muted)] mb-1">{feeOn ? '예상 실손익 (수수료·펀딩 반영)' : '예상 손익'}</p>
           <p className={`text-3xl font-bold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -470,7 +470,7 @@ function LeverageCalc() {
       </div>
 
       {/* 리스크 기반 역산 — "계좌의 X%만 잃으려면?" */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-4">
+      <div className="fin-card p-5 space-y-4">
         <div>
           <h2 className="text-sm font-semibold text-[var(--text)]">리스크 기반 역산</h2>
           <p className="text-[11px] text-[var(--text-muted)] mt-0.5">손절가를 정하면 “계좌의 일부만 잃도록” 적정 증거금·포지션을 거꾸로 계산합니다. 리스크는 배율이 아니라 <b>손절 거리</b>가 정합니다.</p>
@@ -531,7 +531,7 @@ function LeverageCalc() {
       </div>
 
       {/* 가격 변동별 빠른 손익표 */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+      <div className="fin-card p-5">
         <h2 className="text-sm font-semibold text-[var(--text)] mb-3">가격별 손익 사다리 <span className="text-[10px] font-normal text-[var(--text-muted)]">{coin.short} {dir === 'long' ? '롱' : '숏'} · {lev}배 · {margin} USDT · 수수료 전</span></h2>
         <div className="overflow-hidden rounded-xl border border-[var(--border)]">
           <table className="w-full text-xs">

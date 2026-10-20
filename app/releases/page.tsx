@@ -112,7 +112,7 @@ export default function ReleasesPage() {
 
       {meta && file ? (
         <>
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
+          <div className="fin-card p-4 mb-3">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="text-sm font-bold text-[var(--text)]">{file.name}</p>
@@ -125,7 +125,7 @@ export default function ReleasesPage() {
           </div>
 
           {/* 결과 추이 차트 + 기간 토글 */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
+          <div className="fin-card p-4 mb-3">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-semibold text-[var(--text)]">결과 추이</h2>
               <div className="flex gap-1">
@@ -152,7 +152,7 @@ export default function ReleasesPage() {
           </div>
 
           {/* 발표 내역 표 */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+          <div className="fin-card overflow-hidden">
             <div className="max-h-[70vh] overflow-auto">
               <table className="w-full text-xs">
                 <thead className="sticky top-0 z-10">
@@ -181,7 +181,7 @@ export default function ReleasesPage() {
           <p className="text-[11px] text-[var(--text-muted)] mt-2">결과 색: <span className="text-blue-400 font-semibold">예측 상회</span> · <span className="text-red-400 font-semibold">예측 하회</span> (인베스팅 표기와 동일). 표시행 {rows.length}건.</p>
 
           {/* 서프라이즈 → 다음 거래일 시장 반응 */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mt-4">
+          <div className="fin-card p-5 mt-4">
             <h2 className="text-sm font-semibold text-[var(--text)]">서프라이즈 → 다음 거래일 반응</h2>
             <p className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-3">결과가 <b className="text-[var(--text)]">예측을 벗어난 날</b>, 그 다음 시장이 어떻게 움직였나(과거 평균). 美 지표라 S&P·BTC는 발표 당일, 코스피는 다음 거래일 기준.</p>
             {reaction && 'tooFew' in reaction ? (

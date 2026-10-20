@@ -96,7 +96,7 @@ export default function TaxPage() {
 
       <div className="space-y-4">
         {/* 연봉 */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-3">
+        <div className="fin-card p-5 space-y-3">
           <h2 className="text-sm font-semibold text-[var(--text)]">소득 정보</h2>
           <div className="space-y-1.5">
             <div className="flex justify-between">
@@ -120,7 +120,7 @@ export default function TaxPage() {
         </div>
 
         {/* IRP */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-3">
+        <div className="fin-card p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-[var(--text)]">IRP (개인형 퇴직연금)</h2>
             <button onClick={() => setHasIrp(!hasIrp)}
@@ -147,7 +147,7 @@ export default function TaxPage() {
         </div>
 
         {/* 연금저축 */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-3">
+        <div className="fin-card p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-[var(--text)]">연금저축</h2>
             <button onClick={() => setHasPension(!hasPension)}
@@ -180,7 +180,7 @@ export default function TaxPage() {
         </div>
 
         {/* ISA */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-3">
+        <div className="fin-card p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-[var(--text)]">ISA (개인종합자산관리계좌)</h2>
             <button onClick={() => setHasIsa(!hasIsa)}

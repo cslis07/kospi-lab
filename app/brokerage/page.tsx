@@ -90,7 +90,7 @@ export default function BrokeragePage() {
           {/* 카드 목록 */}
           <div className="space-y-3">
             {filtered.map((b) => (
-              <div key={b.name} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+              <div key={b.name} className="fin-card p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold text-[var(--text)]">{b.name}</h3>

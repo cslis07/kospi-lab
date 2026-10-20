@@ -42,7 +42,7 @@ export default function MacroDetail({ cur }: { cur: MacroIndicator }) {
   return (
     <div className="space-y-4">
       {/* 현재값 요약 */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+      <div className="fin-card p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-[var(--text)]">{FLAG[cur.country]} {cur.label}</p>
@@ -77,13 +77,13 @@ export default function MacroDetail({ cur }: { cur: MacroIndicator }) {
       </div>
 
       {/* 차트 */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+      <div className="fin-card p-5">
         <h2 className="text-sm font-semibold text-[var(--text)] mb-3">히스토리 <span className="text-[10px] font-normal text-[var(--text-muted)]">{cur.periodicity === 'monthly' ? '최근 24개월' : '최근 60영업일'}</span></h2>
         <MacroChartLazy data={cur.history} decimals={cur.decimals} monthly={cur.periodicity === 'monthly'} unit={cur.unit} />
       </div>
 
       {/* 발표 내역 표 */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+      <div className="fin-card p-5">
         <h2 className="text-sm font-semibold text-[var(--text)] mb-3">발표 내역</h2>
         <div className="overflow-hidden rounded-xl border border-[var(--border)]">
           <table className="w-full text-xs">
@@ -112,7 +112,7 @@ export default function MacroDetail({ cur }: { cur: MacroIndicator }) {
       </div>
 
       {/* 설명·영향 */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 space-y-3">
+      <div className="fin-card p-5 space-y-3">
         <div>
           <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-1">지표 설명</p>
           <p className="text-[13px] text-[var(--text)] leading-relaxed">{cur.desc}</p>
