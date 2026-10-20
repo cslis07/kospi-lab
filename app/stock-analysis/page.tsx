@@ -329,7 +329,7 @@ export default function StockAnalysisPage() {
           {/* 데이터 결측 공시 — 판정이 어떤 결측 위에서 나왔는지 먼저 알린다 */}
           <SourceStatus sources={data.sources} />
           {/* 헤더 */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+          <div className="fin-card p-5">
             <div className="flex flex-wrap items-start gap-x-8 gap-y-3">
               <div>
                 <p className="text-xs text-[var(--text-muted)]">{data.name} · {data.ticker} · {data.market}</p>
@@ -390,7 +390,7 @@ export default function StockAnalysisPage() {
           </div>
 
           {/* 지금 왜 움직이나 */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+          <div className="fin-card p-5">
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <h3 className="text-sm font-bold text-[var(--text)]">{data.movement.direction === 'up' ? '📈 지금 왜 오르나' : data.movement.direction === 'down' ? '📉 지금 왜 내리나' : '📊 지금 흐름 읽기'}</h3>
               <div className="flex gap-1.5 ml-auto">
@@ -410,7 +410,7 @@ export default function StockAnalysisPage() {
           </div>
 
           {/* 종합 판단 */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+          <div className="fin-card p-5">
             <div className="flex flex-wrap items-center gap-3 mb-4">
               <StanceBadge stance={v.stance} />
               <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-[var(--border)] text-xs font-semibold text-[var(--text)]">{v.state}</span>
@@ -469,7 +469,7 @@ export default function StockAnalysisPage() {
           </div>
 
           {/* AI 브리핑 */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+          <div className="fin-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
               <h3 className="text-sm font-bold text-[var(--text)]">🤖 AI 종합 브리핑 <span className="text-[10px] font-normal text-[var(--text-muted)]">수급 + 뉴스</span></h3>
               <BriefingModelPicker value={aiModel} onChange={setAiModel} busy={isValidating} />
@@ -486,7 +486,7 @@ export default function StockAnalysisPage() {
           </div>
 
           {/* 차트 */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+          <div className="fin-card p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-[var(--text)]">일봉 차트 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 60일 · EMA20/60 · 지지저항·피보나치·매매레벨</span></h3>
               <div className="hidden sm:flex items-center gap-2 text-[10px]"><span className="text-purple-400">— EMA20</span><span className="text-sky-400">— EMA60</span></div>
@@ -500,7 +500,7 @@ export default function StockAnalysisPage() {
 
           {/* 투자자 수급 추이 + 백테스트 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+            <div className="fin-card p-4">
               <h3 className="text-sm font-bold text-[var(--text)] mb-3">투자자별 순매수 추이 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 10일 · 수량(주)</span></h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-[10px] tabular-nums">
@@ -521,7 +521,7 @@ export default function StockAnalysisPage() {
               <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-60">외국인·기관 동반 순매수 지속이 한국 시장에서 가장 신뢰도 높은 상승 신호</p>
             </div>
 
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+            <div className="fin-card p-4">
               <h3 className="text-sm font-bold text-[var(--text)] mb-1 flex items-center gap-2 flex-wrap">
                 룰 엔진 성적표 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 {Math.round(data.backtest.spanDays)}일 자동 백테스트</span>
                 {(() => {
@@ -591,7 +591,7 @@ export default function StockAnalysisPage() {
 
           {/* 체크리스트 + 뉴스 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+            <div className="fin-card p-4">
               <h3 className="text-sm font-bold text-[var(--text)] mb-3">매수 전 체크리스트</h3>
               <div className="space-y-1.5">
                 {v.checklist.map((c) => (
@@ -609,7 +609,7 @@ export default function StockAnalysisPage() {
               )}
             </div>
 
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+            <div className="fin-card p-4">
               <h3 className="text-sm font-bold text-[var(--text)] mb-3">최신 뉴스 <span className="text-[10px] font-normal text-[var(--text-muted)]">{data.name}</span></h3>
               {data.news.length ? (
                 <div className="space-y-2.5">
@@ -678,7 +678,7 @@ export default function StockAnalysisPage() {
           {/* 공시 + 정책 */}
           {(data.disclosures.length > 0 || data.policy.length > 0) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+              <div className="fin-card p-4">
                 <h3 className="text-sm font-bold text-[var(--text)] mb-3">DART 공시 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 30일 · 자동 분류</span></h3>
                 {data.disclosures.length ? (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -700,7 +700,7 @@ export default function StockAnalysisPage() {
                 ) : <p className="text-xs text-[var(--text-muted)]">최근 30일 공시 없음</p>}
               </div>
 
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+              <div className="fin-card p-4">
                 <h3 className="text-sm font-bold text-[var(--text)] mb-3">정책·테마 신호 <span className="text-[10px] font-normal text-[var(--text-muted)]">뉴스·공시 기반</span></h3>
                 {data.policy.length ? (
                   <div className="space-y-2">
@@ -717,7 +717,7 @@ export default function StockAnalysisPage() {
           )}
 
           {/* 판정 기록 (매매일지) */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+          <div className="fin-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <h3 className="text-sm font-bold text-[var(--text)]">📓 판정 기록 <span className="text-[10px] font-normal text-[var(--text-muted)]">신호가 실제로 맞았는지 추적</span></h3>
               {journal.stats.closed > 0 && (
