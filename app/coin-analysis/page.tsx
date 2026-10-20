@@ -909,10 +909,7 @@ export default function CoinAnalysisPage() {
   const [chartTf, setChartTf] = useState<'m5' | 'm15' | 'h1'>('m5');
   const { model: aiModel, ready: modelReady } = useBriefingModel();
   const [showBt, setShowBt] = useState(false); // 룰 엔진 성적표 상세 접기(기본 접힘 — 엣지 미검증이라 전면 노출 불필요)
-  const [simple, setSimple] = useState(true); // 간결(초보자) 보기 — 기본 켜짐. 이 기기 전용(kl- 접두)
-  const [modal, setModal] = useState<null | 'flow' | 'macro' | 'risk' | 'journal'>(null); // 상단 버튼 → 팝업(BottomSheet)
-  useEffect(() => { try { const r = localStorage.getItem('kl-coin-simple'); if (r != null) setSimple(r === '1'); } catch {} }, []);
-  const toggleSimple = (vSim: boolean) => { setSimple(vSim); try { localStorage.setItem('kl-coin-simple', vSim ? '1' : '0'); } catch {} };
+  const [modal, setModal] = useState<null | 'flow' | 'macro' | 'risk' | 'journal' | 'modes' | 'beginner'>(null); // 상단 버튼 → 팝업(BottomSheet)
   // symbol·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
   const [run, setRun] = useState<{ symbol: string; model: string } | null>(null);
   // 관심종목에서 '분석'으로 진입(?symbol=…&run=1)하면 해당 코인으로 자동 실행. 그 외에는 버튼으로만.
@@ -1207,9 +1204,7 @@ export default function CoinAnalysisPage() {
       {/* 손실 서킷브레이커 — 진입 화면 상단에서 '오늘 멈춰야 하는지'부터 보여준다 */}
       <CircuitBreakerBar />
 
-      {/* 진입 모드 한 줄 — 코인 선택만으로 즉시 표시(분석 불필요) */}
-      {fastSig?.modes && <ModesSection modes={fastSig.modes} />}
-      {/* 실시간 청산·고래(현재 코인) — 분석 전엔 여기, 분석 후엔 화면 하단 뉴스 옆으로 이동 */}
+      {/* 실시간 청산·고래(현재 코인) — 분석 전엔 여기, 분석 후엔 상단 뉴스 옆으로 이동 */}
       {!run && <WhaleLiquidationPanel symbol={symbol} />}
 
       {/* 아직 실행 전 — 심화 분석(AI브리핑·백테스트·오더북·뉴스) 안내 */}
@@ -1321,19 +1316,37 @@ export default function CoinAnalysisPage() {
             </div>
           )}
 
-          {/* 간결(초보자)/상세 보기 토글 */}
-          <div className="flex items-center justify-end gap-2">
-            <span className="text-[11px] text-[var(--text-muted)]">보기</span>
-            <div className="flex rounded-lg overflow-hidden border border-[var(--border)]">
-              <button onClick={() => toggleSimple(true)} className={`px-3 py-1 text-[12px] font-semibold ${simple ? 'bg-sky-500/20 text-sky-400' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>🔰 간결</button>
-              <button onClick={() => toggleSimple(false)} className={`px-3 py-1 text-[12px] font-semibold ${!simple ? 'bg-sky-500/20 text-sky-400' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>상세</button>
+          {/* 최신 뉴스 — 상단 3초 회전 티커(이미지1 구성) */}
+          <RotatingTicker
+            title={<>📰 최신 뉴스</>}
+            badge={<span className="text-[10px] font-normal text-[var(--text-muted)]">{data.name}</span>}
+            emptyText="뉴스를 가져올 수 없습니다."
+            lines={data.news.slice(0, 12).map((n, i) => (
+              <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" className="flex items-baseline gap-1.5 group">
+                {n.sentiment === 'pos' && <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 shrink-0">호재</span>}
+                {n.sentiment === 'neg' && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/15 text-red-400 shrink-0">악재</span>}
+                <span className="truncate text-[var(--text)] group-hover:text-sky-400">{n.title}</span>
+                <span className="ml-auto text-[10px] text-[var(--text-muted)] shrink-0">{n.source}</span>
+              </a>
+            ))}
+          >
+            <div className="space-y-2.5">
+              {data.news.slice(0, 10).map((n, i) => (
+                <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" className="block group">
+                  <p className="text-xs text-[var(--text)] group-hover:text-sky-400 transition-colors leading-snug">
+                    {n.sentiment === 'pos' && <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 mr-1 align-middle">호재</span>}
+                    {n.sentiment === 'neg' && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/15 text-red-400 mr-1 align-middle">악재</span>}
+                    {n.title}
+                  </p>
+                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{n.source}{n.pubDate ? ` · ${new Date(n.pubDate).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}</p>
+                </a>
+              ))}
             </div>
-          </div>
+          </RotatingTicker>
 
-          {/* 초보자 간결 요약 — 항상 맨 위 */}
-          <BeginnerSummary data={data} v={v} digits={priceDigits} />
+          {/* 실시간 청산·온체인 고래 (현재 코인) — 상단 3초 회전 티커 */}
+          <WhaleLiquidationPanel symbol={data.symbol} />
 
-          {!simple && (<>
           {/* 상단: 헤더 요약 카드(좌) + 버튼·파생수급 정밀(우) */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-4 items-start">
           {/* 헤더: 가격·파생 지표 */}
@@ -1439,6 +1452,8 @@ export default function CoinAnalysisPage() {
           <div className="space-y-3">
             <div className="flex flex-wrap gap-1.5">
               {([
+                ['beginner', '🔰 쉽게 보기'],
+                ...(fastSig?.modes ? [['modes', '🎚 진입 모드'] as const] : []),
                 ['flow', '📊 흐름 읽기'],
                 ...(data.macro && data.macro.values && (data.macro.values.us10 || data.macro.values.dxy) ? [['macro', '🌐 거시 배경'] as const] : []),
                 ['risk', '🧮 리스크 패널'],
@@ -1788,36 +1803,15 @@ export default function CoinAnalysisPage() {
             />
           </BottomSheet>
 
-          {/* 최신 뉴스 — 3초마다 한 줄 회전 + 펼치기(드롭다운) */}
-          <RotatingTicker
-            title={<>📰 최신 뉴스</>}
-            badge={<span className="text-[10px] font-normal text-[var(--text-muted)]">{data.name}</span>}
-            emptyText="뉴스를 가져올 수 없습니다."
-            lines={data.news.slice(0, 12).map((n, i) => (
-              <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" className="flex items-baseline gap-1.5 group">
-                {n.sentiment === 'pos' && <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 shrink-0">호재</span>}
-                {n.sentiment === 'neg' && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/15 text-red-400 shrink-0">악재</span>}
-                <span className="truncate text-[var(--text)] group-hover:text-sky-400">{n.title}</span>
-                <span className="ml-auto text-[10px] text-[var(--text-muted)] shrink-0">{n.source}</span>
-              </a>
-            ))}
-          >
-            <div className="space-y-2.5">
-              {data.news.slice(0, 10).map((n, i) => (
-                <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" className="block group">
-                  <p className="text-xs text-[var(--text)] group-hover:text-sky-400 transition-colors leading-snug">
-                    {n.sentiment === 'pos' && <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 mr-1 align-middle">호재</span>}
-                    {n.sentiment === 'neg' && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/15 text-red-400 mr-1 align-middle">악재</span>}
-                    {n.title}
-                  </p>
-                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{n.source}{n.pubDate ? ` · ${new Date(n.pubDate).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}</p>
-                </a>
-              ))}
-            </div>
-          </RotatingTicker>
+          {/* 진입 모드 — 상단 버튼 → 팝업 */}
+          <BottomSheet open={modal === 'modes'} onClose={() => setModal(null)} title="진입 모드 — 단타·중장기·장기">
+            {fastSig?.modes ? <ModesSection modes={fastSig.modes} /> : <p className="text-sm text-[var(--text-muted)] p-2">진입 모드 신호를 불러오는 중…</p>}
+          </BottomSheet>
 
-          {/* 실시간 청산·온체인 고래 (현재 코인) — 3초 회전 티커 */}
-          <WhaleLiquidationPanel symbol={data.symbol} />
+          {/* 쉽게 보기(초보자 요약) — 상단 버튼 → 팝업 */}
+          <BottomSheet open={modal === 'beginner'} onClose={() => setModal(null)} title="쉽게 보기 — 초보자 요약">
+            <BeginnerSummary data={data} v={v} digits={priceDigits} />
+          </BottomSheet>
 
           {/* 매매일지 — 상단 버튼 → 팝업 */}
           <BottomSheet open={modal === 'journal'} onClose={() => setModal(null)} title="매매일지 — 복기용·기기에만 저장" full>
@@ -1933,8 +1927,6 @@ export default function CoinAnalysisPage() {
             )}
           </div>
           </BottomSheet>
-
-          </>)}
 
           {/* 면책 */}
           <p className="text-[10px] text-[var(--text-muted)] text-center opacity-60 leading-relaxed">
