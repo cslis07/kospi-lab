@@ -211,7 +211,7 @@ function TFCard({ tf }: { tf: TF }) {
   const title = tf.tf === '1H' ? '1시간봉 · 방향' : tf.tf === '15m' ? '15분봉 · 구조' : '5분봉 · 타이밍';
   const bias = tfBias(tf);
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="fin-card p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold text-[var(--text)]">{title}</h3>
         <span className="text-[10px] text-[var(--text-muted)]">{tf.tf}</span>
@@ -251,7 +251,7 @@ function OrderbookPanel({ ob, price, digits }: {
   const bidW = ob.bidVol + ob.askVol > 0 ? (ob.bidVol / (ob.bidVol + ob.askVol)) * 100 : 50;
   const strong = Math.abs(ob.imbalance) >= 0.2;
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="fin-card p-4">
       <h3 className="text-sm font-bold text-[var(--text)] mb-1">오더북 유동성 <span className="text-[10px] font-normal text-[var(--text-muted)]">상위 50호가 스냅샷</span></h3>
       <p className="text-[10px] text-[var(--text-muted)] mb-3">진입 직전 유동성 확인 — 위 매도벽은 돌파 저항, 아래 매수벽은 지지. 스냅샷 1회(실시간 스트림 아님).</p>
 
@@ -356,7 +356,7 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
   const paysFunding = direction === 'wait' ? null : (direction === 'long' ? fundingRatePct > 0 : fundingRatePct < 0);
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="fin-card p-4">
       <h3 className="text-sm font-bold text-[var(--text)] mb-1">리스크 패널 <span className="text-[10px] font-normal text-sky-400/90">이 화면의 핵심</span> <span className="text-[10px] font-normal text-[var(--text-muted)]">사이징 · 청산가 · 펀딩</span></h3>
       <p className="text-[10px] text-[var(--text-muted)] mb-3">노션 = 시드 × 허용손실% ÷ 손절거리({stopPct.toFixed(2)}%) — 리스크는 손절거리가 결정, 레버리지는 증거금 효율만 바꿉니다.</p>
       {direction === 'wait' && (
@@ -744,7 +744,7 @@ function DerivFlowCompact({ data }: { data: AnalysisData }) {
   const ls = data.longShort.latest?.ratio ?? null;
   const pos = data.positionLS.latest ?? null;
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
+    <div className="fin-card p-3">
       <h3 className="text-[12px] font-bold text-[var(--text)] mb-2">파생 수급 정밀 <span className="text-[9px] font-normal text-[var(--text-muted)]">주문흐름·OI·포지셔닝</span></h3>
       <div className="space-y-2 text-[11px]">
         <div>
@@ -1191,7 +1191,7 @@ export default function CoinAnalysisPage() {
           {/* 상단: 헤더 요약 카드(좌) + 버튼·파생수급 정밀(우) */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-4 items-start">
           {/* 헤더: 가격·파생 지표 */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+          <div className="fin-card p-5">
             <div className="flex flex-wrap items-start gap-x-8 gap-y-3">
               <div>
                 <p className="text-xs text-[var(--text-muted)]">{data.name} · USDT 무기한</p>
@@ -1325,7 +1325,7 @@ export default function CoinAnalysisPage() {
           </BottomSheet>
 
           {/* 캔들 차트 (5m/15m/1H, EMA·지지저항·진입레벨 오버레이) */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+          <div className="fin-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-[var(--text)]">캔들 차트 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 60봉 · EMA20/60 · 지지저항·피보나치·진입레벨</span></h3>
@@ -1358,7 +1358,7 @@ export default function CoinAnalysisPage() {
 
           {/* 흐름 읽기(지금 왜 움직이나) — 상단 버튼 → 팝업 */}
           <BottomSheet open={modal === 'flow'} onClose={() => setModal(null)} title="흐름 읽기 — 지금 왜 움직이나">
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+          <div className="fin-card p-5">
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <h3 className="text-sm font-bold text-[var(--text)]">
                 {data.movement.direction === 'up' ? '📈 지금 왜 오르나' : data.movement.direction === 'down' ? '📉 지금 왜 내리나' : '📊 지금 흐름 읽기'}
@@ -1408,7 +1408,7 @@ export default function CoinAnalysisPage() {
               m.values.realYield && { k: '美 10년 실질금리', v: `${m.values.realYield.value.toFixed(2)}%`, c: m.values.realYield.changePp != null ? `${m.values.realYield.changePp >= 0 ? '+' : ''}${m.values.realYield.changePp.toFixed(2)}%p` : '—', d: m.dirs.realYield },
             ].filter(Boolean) as { k: string; v: string; c: string; d: 'up' | 'down' | 'flat' }[];
             return (
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+              <div className="fin-card p-5">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   <h3 className="text-sm font-bold text-[var(--text)]">🌐 거시 배경 — 금리·달러</h3>
                   <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ml-auto ${biasStyle}`}>{biasLabel} · 강도 {m.strength}</span>
@@ -1479,7 +1479,7 @@ export default function CoinAnalysisPage() {
 
           {/* 매매일지 — 상단 버튼 → 팝업 */}
           <BottomSheet open={modal === 'journal'} onClose={() => setModal(null)} title="매매일지 — 복기용·기기에만 저장" full>
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+          <div className="fin-card p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-[var(--text)]">매매일지 <span className="text-[10px] font-normal text-[var(--text-muted)]">복기용 · 기기에만 저장</span></h3>
               {journal.stats.closed > 0 && (
