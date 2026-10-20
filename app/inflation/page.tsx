@@ -34,7 +34,7 @@ interface FcCurrent {
 
 function Card({ title, children, aside }: { title: string; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
+    <div className="fin-card p-4 mb-3">
       <div className="flex items-center justify-between gap-2 mb-2">
         <h2 className="text-sm font-semibold text-[var(--text)]">{title}</h2>
         {aside}
@@ -70,7 +70,7 @@ export default function InflationPage() {
       {!locked && pulse && (
         <>
           {/* 게이지 헤더 */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
+          <div className="fin-card p-4 mb-3">
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <p className="text-[11px] text-[var(--text-muted)]">CPI 게이지(나우캐스트)</p>
@@ -117,7 +117,7 @@ export default function InflationPage() {
             <DrilldownSheet comp={selComp} citems={citems} open={!!selComp} onClose={() => setSelComp(null)} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               {/* 식품 바스켓 */}
-              <div className="rounded-xl border border-[var(--border)] p-3">
+              <div className="rounded-xl border border-[var(--line-2)] p-3">
                 <p className="text-[12px] font-semibold text-amber-400 mb-2">식품 바스켓{groc?.asof ? ` · ${groc.asof}` : ''}</p>
                 {groc?.items?.length ? (
                   <ul className="space-y-1">
@@ -131,7 +131,7 @@ export default function InflationPage() {
                 ) : <p className="text-[11px] text-[var(--text-muted)]">불러오는 중…</p>}
               </div>
               {/* 연료 */}
-              <div className="rounded-xl border border-[var(--border)] p-3">
+              <div className="rounded-xl border border-[var(--line-2)] p-3">
                 <p className="text-[12px] font-semibold text-sky-400 mb-2">연료(휘발유)</p>
                 {fuel && !fuel.locked ? (
                   <div className="text-[12px] tabular-nums space-y-1">
@@ -161,7 +161,7 @@ export default function InflationPage() {
                   ['Kalshi(시장)', fcc.kalshi_implied],
                   ['직전 발표', fcc.prior_print],
                 ] as [string, number | undefined][]).map(([label, v]) => (
-                  <div key={label} className="rounded-xl border border-[var(--border)] p-2.5">
+                  <div key={label} className="rounded-xl border border-[var(--line-2)] p-2.5">
                     <p className="text-[10px] text-[var(--text-muted)]">{label}</p>
                     <p className={`text-base font-bold tabular-nums ${sign(v)}`}>{pct(v)}</p>
                   </div>
@@ -231,7 +231,7 @@ function DriverBars({ pulse, selected, onSelect }: { pulse: Pulse; selected: str
 
 function Stat({ label, value, cls }: { label: string; value: string; cls?: string }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] p-2.5">
+    <div className="rounded-xl border border-[var(--line-2)] p-2.5">
       <p className="text-[10px] text-[var(--text-muted)]">{label}</p>
       <p className={`text-base font-bold tabular-nums ${cls ?? 'text-[var(--text)]'}`}>{value}</p>
     </div>
@@ -313,7 +313,7 @@ function GeoSection({ geo }: { geo: GeoData }) {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* 주별 휘발유·전기 */}
-        <div className="rounded-xl border border-[var(--border)] p-3">
+        <div className="rounded-xl border border-[var(--line-2)] p-3">
           <p className="text-[12px] font-semibold text-sky-400 mb-1.5">주별 휘발유 (높은 순)</p>
           {gasAvg != null && <p className="text-[10px] text-[var(--text-muted)] mb-1.5">전국 평균 ${gasAvg.toFixed(3)}/gal · {gas.length}개 주</p>}
           <ul className="space-y-1">
@@ -326,7 +326,7 @@ function GeoSection({ geo }: { geo: GeoData }) {
           </ul>
         </div>
         {/* 도시 임대료 */}
-        <div className="rounded-xl border border-[var(--border)] p-3">
+        <div className="rounded-xl border border-[var(--line-2)] p-3">
           <p className="text-[12px] font-semibold text-violet-400 mb-1.5">도시 임대료 (높은 순)</p>
           <ul className="space-y-1">
             {rents.map((m) => (
