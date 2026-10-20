@@ -18,7 +18,7 @@ const WhaleLiquidationPanel = dynamic(() => import('@/components/WhaleLiquidatio
 import { useCoinAlerts } from '@/hooks/useCoinAlerts';
 import LivePriceTag from '@/components/LivePriceTag';
 import Range52Bar from '@/components/Range52Bar';
-import SourceStatus, { type SourceStat } from '@/components/SourceStatus';
+import { type SourceStat } from '@/components/SourceStatus';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '@/lib/positionSizing';
 import { jsonFetcher, ApiError } from '@/lib/fetcher';
@@ -151,47 +151,6 @@ function fmtP(n: number | null | undefined, digits?: number): string {
 function timeAgo(ts: number): string {
   const kst = new Date(ts + 9 * 3600_000);
   return `${String(kst.getUTCHours()).padStart(2, '0')}:${String(kst.getUTCMinutes()).padStart(2, '0')}:${String(kst.getUTCSeconds()).padStart(2, '0')}`;
-}
-
-/* ── 3모드 진입 엔진 (coin-signal 이식) ─────────────────── */
-const MODE_META: { key: 'scalp' | 'swing' | 'position'; label: string; sub: string }[] = [
-  { key: 'scalp', label: '단타 SCALP', sub: '5m·15m' },
-  { key: 'swing', label: '중장기 SWING', sub: '1H·4H·1D' },
-  { key: 'position', label: '장기 POSITION', sub: '1D·거시' },
-];
-const DIR_KO: Record<string, string> = { LONG: '롱', SHORT: '숏', WAIT: '대기' };
-
-function ModesSection({ modes }: { modes: NonNullable<AnalysisData['modes']> }) {
-  const [mode, setMode] = useState<'scalp' | 'swing' | 'position'>('scalp');
-  const m = modes[mode];
-  const dirCls = m.dirLabel === 'LONG' ? 'text-emerald-400' : m.dirLabel === 'SHORT' ? 'text-red-400' : 'text-amber-400';
-  // 한 줄 요약 — 방향·진입적합도·신뢰도·이벤트위험 수치만. (상세 바·표·근거는 제거, 진입 판단 섹션으로 통합)
-  const num = (v: number, warnHigh = false) => (
-    <b className={warnHigh ? (v >= 60 ? 'text-red-400' : v >= 35 ? 'text-amber-400' : 'text-[var(--text)]') : 'text-[var(--text)]'}>{v}</b>
-  );
-  return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3 mb-4">
-      <div className="flex items-center gap-2 flex-wrap">
-        <h3 className="text-[13px] font-bold text-[var(--text)] shrink-0">진입 모드</h3>
-        <div className="flex gap-1">
-          {MODE_META.map((mm) => (
-            <button key={mm.key} onClick={() => setMode(mm.key)} title={mm.sub}
-              className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${mode === mm.key ? 'bg-[var(--accent)]/15 text-[var(--text)] border border-[var(--accent)]/50' : 'bg-white/5 text-[var(--text-muted)] border border-transparent'}`}>
-              {mm.label.split(' ')[0]}
-            </button>
-          ))}
-        </div>
-        <span className="text-[9px] text-[var(--text-muted)] hidden sm:inline">체크리스트 충족도 · 방향 예측 아님</span>
-      </div>
-      <div className="mt-2 flex items-center gap-x-4 gap-y-1 flex-wrap text-[12px] tabular-nums">
-        <span className="text-[var(--text-muted)]">방향 <span className={`font-extrabold ${dirCls}`}>{DIR_KO[m.dirLabel]}({m.direction >= 0 ? '+' : ''}{m.direction})</span></span>
-        <span className="text-[var(--text-muted)]">진입적합도 {num(m.entryQuality)}</span>
-        <span className="text-[var(--text-muted)]">신뢰도 {num(m.confidence)}</span>
-        <span className="text-[var(--text-muted)]">이벤트위험 {num(m.eventRisk, true)}</span>
-        {m.ultra && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ background: 'linear-gradient(90deg,#4f8cff,#a04fff)' }}>ULTRA</span>}
-      </div>
-    </section>
-  );
 }
 
 /* ── 서브 컴포넌트 ───────────────────────────────────── */
@@ -797,76 +756,6 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
   );
 }
 
-/** 초보자 간결 요약 — 독립 3차원(추세·수급·상위추세) 신호등 + 한 줄 결론 + 핵심 가격·진입. 지표 나열 대신 '지금 들어가도 되나'만. */
-function BeginnerSummary({ data, v, digits }: { data: AnalysisData; v: Verdict; digits: number }) {
-  const price = data.markPrice ?? data.price;
-  const h1 = data.timeframes.h1;
-  type Sig = 'long' | 'short' | 'neu';
-  const trend: Sig = (h1.emaAlign === '정배열' && h1.priceVsEma20 === 'above') ? 'long'
-    : (h1.emaAlign === '역배열' && h1.priceVsEma20 === 'below') ? 'short'
-    : h1.structure === '상승' ? 'long' : h1.structure === '하락' ? 'short' : 'neu';
-  const tk = data.taker.ratio;
-  const flow: Sig = tk == null ? 'neu' : tk >= 1.15 ? 'long' : tk <= 0.87 ? 'short' : 'neu';
-  const htf: Sig = v.regime ? (v.regime.h4 === 'up' && v.regime.d1 !== 'down' ? 'long' : v.regime.h4 === 'down' && v.regime.d1 !== 'up' ? 'short' : 'neu') : 'neu';
-  const conflict = trend !== 'neu' && flow !== 'neu' && trend !== flow;
-  const SIG = (s: Sig) => s === 'long' ? { dot: '🟢', c: 'text-emerald-400', t: '롱' } : s === 'short' ? { dot: '🔴', c: 'text-red-400', t: '숏' } : { dot: '⚪', c: 'text-[var(--text-muted)]', t: '중립' };
-  const lights: { k: string; sub: string; s: Sig }[] = [
-    { k: '추세', sub: '가격 흐름', s: trend },
-    { k: '수급', sub: '실제 체결', s: flow },
-    { k: '상위추세', sub: '4H·1D', s: htf },
-  ];
-  const dirKo = v.direction === 'long' ? '롱(상승)' : v.direction === 'short' ? '숏(하락)' : '관망';
-  let headline: string, tone: string;
-  if (conflict) { headline = `${dirKo} 쪽이지만 추세와 수급이 엇갈려요 — 지금은 쉬는 게 나아요`; tone = 'text-amber-400'; }
-  else if (v.direction === 'wait') { headline = '방향이 아직 안 정해졌어요 — 관망'; tone = 'text-amber-400'; }
-  else if (v.entryOk) { headline = `${dirKo} 조건이 갖춰졌어요 — 손절 정하고 소액부터`; tone = v.direction === 'long' ? 'text-emerald-400' : 'text-red-400'; }
-  else { headline = `${dirKo} 쪽이지만 아직 조건 미충족 — 기다리세요`; tone = 'text-[var(--text)]'; }
-  const resAbove = data.zones.filter((z) => z.kind === 'resistance' && z.price > price).sort((a, b) => a.price - b.price)[0]?.price ?? data.high24h ?? price;
-  const supBelow = data.zones.filter((z) => z.kind === 'support' && z.price < price).sort((a, b) => b.price - a.price)[0]?.price ?? data.low24h ?? price;
-  const p = v.direction !== 'wait' ? v.plans[v.direction] : null;
-  const gradeC = v.confidence.grade === '견고' ? 'text-emerald-400' : v.confidence.grade === '약함' ? 'text-red-400' : 'text-amber-400';
-  return (
-    <div className="rounded-2xl border-2 border-sky-500/30 bg-[var(--bg-card)] p-4 space-y-3">
-      <div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <DirectionBadge direction={v.direction} />
-          <span className={`text-[12px] font-bold ${gradeC}`}>신뢰 {v.confidence.grade}</span>
-          <span className="text-[11px] px-2 py-0.5 rounded-lg bg-white/5 border border-[var(--border)] text-[var(--text-muted)]">{v.entryOk ? '진입 조건 충족' : '진입 대기'}</span>
-        </div>
-        <p className={`text-[15px] font-extrabold mt-1.5 leading-snug ${tone}`}>{headline}</p>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {lights.map((l) => { const g = SIG(l.s); return (
-          <div key={l.k} className="rounded-xl border border-[var(--border)] bg-white/[0.02] px-2 py-2 text-center">
-            <p className="text-[10px] text-[var(--text-muted)]">{l.k} <span className="opacity-60">{l.sub}</span></p>
-            <p className={`text-[14px] font-bold ${g.c}`}>{g.dot} {g.t}</p>
-          </div>
-        ); })}
-      </div>
-      {conflict && <p className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5 leading-snug">⚠ 추세와 수급이 반대 — <b>엇갈리는 자리는 자주 뒤집혀요.</b> 신뢰 낮음, 소액 또는 건너뛰기.</p>}
-      <div className="grid grid-cols-3 gap-2 text-center tabular-nums">
-        <div className="rounded-lg bg-red-500/[0.06] px-2 py-1.5"><p className="text-[10px] text-[var(--text-muted)]">가까운 저항</p><p className="text-[12px] font-bold text-red-400">${fmtP(resAbove, digits)}</p></div>
-        <div className="rounded-lg bg-sky-500/10 px-2 py-1.5"><p className="text-[10px] text-[var(--text-muted)]">현재가</p><p className="text-[12px] font-bold text-sky-400">${fmtP(price, digits)}</p></div>
-        <div className="rounded-lg bg-emerald-500/[0.06] px-2 py-1.5"><p className="text-[10px] text-[var(--text-muted)]">가까운 지지</p><p className="text-[12px] font-bold text-emerald-400">${fmtP(supBelow, digits)}</p></div>
-      </div>
-      {p ? (
-        <div className="rounded-lg border border-[var(--border)] px-3 py-2 text-[12px]">
-          <p className="font-bold text-[var(--text)] mb-0.5">진입한다면 ({v.direction === 'long' ? '롱' : '숏'})</p>
-          <div className="flex flex-wrap gap-x-4 gap-y-0.5 tabular-nums">
-            <span className="text-[var(--text-muted)]">진입 <b className="text-[var(--text)]">${fmtP(price, digits)}</b></span>
-            <span className="text-[var(--text-muted)]">손절 <b className="text-red-400">${fmtP(p.stop, digits)}</b></span>
-            <span className="text-[var(--text-muted)]">목표 <b className="text-emerald-400">${fmtP(p.target1, digits)}</b></span>
-            <span className="text-[var(--text-muted)]">손익비 <b className={p.rr >= 1.5 ? 'text-emerald-400' : 'text-amber-400'}>{p.rr.toFixed(2)}</b></span>
-          </div>
-        </div>
-      ) : (
-        <p className="text-[11px] text-[var(--text-muted)] rounded-lg border border-dashed border-[var(--border)] px-3 py-2">관망 구간 — 지금은 진입가 없음. 방향·트리거가 생기면 바뀝니다.</p>
-      )}
-      <p className="text-[10px] text-[var(--text-muted)] opacity-80 leading-snug">👣 초보자 원칙: <b className="text-[var(--text)]">신뢰 &lsquo;견고&rsquo;일 때만</b>, 손절 먼저 정하고, 한 번에 시드의 <b className="text-[var(--text)]">1~2%만</b>. 엇갈리면 쉬기. (방향 예측 아님 — 조건 충족도)</p>
-    </div>
-  );
-}
-
 /** 파생 수급 정밀(작게) — 헤더 요약 카드 오른쪽. 주문흐름·OI·포지셔닝 핵심만. */
 function DerivFlowCompact({ data }: { data: AnalysisData }) {
   const tk = data.taker.ratio;
@@ -909,7 +798,7 @@ export default function CoinAnalysisPage() {
   const [chartTf, setChartTf] = useState<'m5' | 'm15' | 'h1'>('m5');
   const { model: aiModel, ready: modelReady } = useBriefingModel();
   const [showBt, setShowBt] = useState(false); // 룰 엔진 성적표 상세 접기(기본 접힘 — 엣지 미검증이라 전면 노출 불필요)
-  const [modal, setModal] = useState<null | 'flow' | 'macro' | 'risk' | 'journal' | 'modes' | 'beginner'>(null); // 상단 버튼 → 팝업(BottomSheet)
+  const [modal, setModal] = useState<null | 'flow' | 'macro' | 'risk' | 'journal'>(null); // 상단 버튼 → 팝업(BottomSheet)
   // symbol·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
   const [run, setRun] = useState<{ symbol: string; model: string } | null>(null);
   // 관심종목에서 '분석'으로 진입(?symbol=…&run=1)하면 해당 코인으로 자동 실행. 그 외에는 버튼으로만.
@@ -935,13 +824,6 @@ export default function CoinAnalysisPage() {
   );
   const dirty = !!run && (run.symbol !== symbol || run.model !== aiModel);
   const analyze = () => { if (modelReady) setRun({ symbol, model: aiModel }); };
-
-  // 3모드 진입 신호 — '분석'과 무관하게 선택된 코인 기준 즉시 로딩 + 45초 자동 갱신 (경량 엔드포인트)
-  const { data: fastSig } = useSWR<{ symbol: string; price: number; modes: NonNullable<AnalysisData['modes']> }>(
-    `/api/coin-signal?symbol=${symbol}`,
-    jsonFetcher,
-    { refreshInterval: 45000, revalidateOnFocus: false, keepPreviousData: true },
-  );
 
   // 분석(무거운 스냅샷)과 별개로 시세만 5초 폴링 — Bitget 공개 티커라 저렴하다
   const { data: liveMap } = useSWR<Record<string, { price: number; changeRate: number }>>(
@@ -1107,14 +989,6 @@ export default function CoinAnalysisPage() {
   return (
     <div className="pb-12">
       <AnalysisSwitch />
-      {/* 도구의 성격 — 점수를 진입 신호로 읽지 않게 화면 최상단에 고정 */}
-      <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3.5 py-2.5">
-        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
-          🛡 <strong className="text-[var(--text)]">방향은 직접 판단하시고, 이 화면은 손절·사이징·청산가·기록에 쓰세요.</strong>{' '}
-          룰 엔진 점수는 체크리스트이며 진입 신호가 아닙니다 — 자체 백테스트(45일·4코인·727건)에서
-          승률 <strong className="text-[var(--text)]">49.7%</strong>로 예측 우위가 확인되지 않았습니다.
-        </p>
-      </div>
 
       {/* 코인 탭 + 새로고침 */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -1160,16 +1034,6 @@ export default function CoinAnalysisPage() {
           </button>
         </div>
       </div>
-
-      {symbol === 'ETHUSDT' && (
-        <Link href="/eth" className="flex items-center justify-between rounded-xl border border-sky-500/30 bg-sky-500/5 px-3.5 py-2.5 mb-4 hover:border-sky-500/50">
-          <div>
-            <p className="text-[13px] font-bold text-[var(--text)]">ETH 체제 보드 <span className="text-[10px] font-normal text-sky-400 align-middle">심층</span></p>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">공급·수요·포지셔닝·거시 4층 + 과거 통계 + 레버리지 가드 · 예측 아님</p>
-          </div>
-          <span className="text-sky-400 text-lg">→</span>
-        </Link>
-      )}
 
       {/* 전체 스캔 스트립 — 어떤 코인이 지금 신호가 강한가 */}
       {scanOn && scan?.items && scan.items.length > 0 && (
@@ -1299,8 +1163,6 @@ export default function CoinAnalysisPage() {
 
       {data && !data.error && v && (
         <div className="space-y-4">
-          {/* 데이터 결측 공시 — 파생·수급 소스가 IP 차단으로 빌 수 있다 */}
-          <SourceStatus sources={data.sources} />
           {/* 임박 경제 이벤트 경고 */}
           {data.event && (
             <div className={`flex items-center gap-2.5 rounded-2xl border px-4 py-3 text-sm font-semibold ${
@@ -1452,8 +1314,6 @@ export default function CoinAnalysisPage() {
           <div className="space-y-3">
             <div className="flex flex-wrap gap-1.5">
               {([
-                ['beginner', '🔰 쉽게 보기'],
-                ...(fastSig?.modes ? [['modes', '🎚 진입 모드'] as const] : []),
                 ['flow', '📊 흐름 읽기'],
                 ...(data.macro && data.macro.values && (data.macro.values.us10 || data.macro.values.dxy) ? [['macro', '🌐 거시 배경'] as const] : []),
                 ['risk', '🧮 리스크 패널'],
@@ -1801,16 +1661,6 @@ export default function CoinAnalysisPage() {
               account={accountCtx}
               breaker={breaker.status === 'blocked' ? { blocked: true, reason: breaker.reasons[0] ?? '서킷브레이커 작동' } : null}
             />
-          </BottomSheet>
-
-          {/* 진입 모드 — 상단 버튼 → 팝업 */}
-          <BottomSheet open={modal === 'modes'} onClose={() => setModal(null)} title="진입 모드 — 단타·중장기·장기">
-            {fastSig?.modes ? <ModesSection modes={fastSig.modes} /> : <p className="text-sm text-[var(--text-muted)] p-2">진입 모드 신호를 불러오는 중…</p>}
-          </BottomSheet>
-
-          {/* 쉽게 보기(초보자 요약) — 상단 버튼 → 팝업 */}
-          <BottomSheet open={modal === 'beginner'} onClose={() => setModal(null)} title="쉽게 보기 — 초보자 요약">
-            <BeginnerSummary data={data} v={v} digits={priceDigits} />
           </BottomSheet>
 
           {/* 매매일지 — 상단 버튼 → 팝업 */}
