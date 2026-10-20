@@ -8,9 +8,33 @@ import InflationChartLazy from '@/components/InflationChartLazy';
 import BottomSheet from '@/components/ui/BottomSheet';
 import {
   compareRows, forecastRows, categorize, topDrivers, pctFrac, pct, signPp,
-  sparkCompareRows, quiltCompareRows, quiltGaugeRow, gasRanked, metrosByRent, avg,
+  sparkCompareRows, quiltCompareRows, quiltGaugeRow, gasRanked, metrosByRent, avg, seriesLast,
   type Pulse, type CompareDaily, type Forecast, type Cat, type Compare, type GeoData, type StateRow, type MetroRow, type Quilt,
+  type FedWatch, type Labor, type ReleaseCalendar, type PredMarkets,
 } from '@/lib/inflation';
+
+// 하위 섹션 요약 카드용
+const KIND_KO: Record<string, string> = { cpi: 'CPI', pce: 'PCE', ppi: 'PPI', jobs: '고용', nfp: '고용', gdp: 'GDP', retail: '소매판매' };
+const dShort = (d?: string) => (d ? d.slice(0, 10).replace(/-/g, '.').slice(2) : '—');
+const nfpK = (v?: number | null) => (v == null || !Number.isFinite(v) ? '—' : `${v >= 0 ? '+' : ''}${Math.round(v)}K`);
+// 요약 카드로 끌어오지 않은 나머지 물가 도구 — 허브 한 곳에서 전부 진입(드릴다운)
+const INFLATION_TOOLS: { href: string; label: string }[] = [
+  { href: '/inflation/why', label: '오늘 왜' },
+  { href: '/inflation/gap', label: 'CPI 격차' },
+  { href: '/inflation/truflation', label: 'vs Truflation' },
+  { href: '/inflation/lead', label: '리드 테스트' },
+  { href: '/inflation/scoreboard', label: '예측 스코어보드' },
+  { href: '/inflation/quilt', label: '인플레 히트맵' },
+  { href: '/inflation/brief', label: '데일리 브리핑' },
+  { href: '/inflation/analysis', label: '발표일 분석' },
+  { href: '/inflation/articles', label: '경제 기사' },
+  { href: '/inflation/prices', label: '품목별 가격' },
+  { href: '/inflation/cart', label: '장바구니' },
+  { href: '/inflation/heatcheck', label: '경기 열지수' },
+  { href: '/inflation/calculator', label: '인플레 계산기' },
+  { href: '/inflation/my', label: '내 물가' },
+  { href: '/inflation/methodology', label: '방법론' },
+];
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const SWR_OPT = { revalidateOnFocus: false };
@@ -53,6 +77,11 @@ export default function InflationPage() {
   const { data: fuel } = useSWR<Fuel>('/api/nf/fuel.json', fetcher, SWR_OPT);
   const { data: citems } = useSWR<Compare>('/api/nf/compare.json', fetcher, SWR_OPT);
   const { data: geo } = useSWR<GeoData>('/api/nf/geo.json', fetcher, SWR_OPT);
+  // 하위 섹션 요약 — 흩어진 물가 도구를 이 한 대시보드로 합침
+  const { data: fw } = useSWR<FedWatch>('/api/nf/fedwatch.json', fetcher, SWR_OPT);
+  const { data: lb } = useSWR<Labor>('/api/nf/labor.json', fetcher, SWR_OPT);
+  const { data: rc } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, SWR_OPT);
+  const { data: pm } = useSWR<PredMarkets>('/api/nf/predmarkets_summary.json', fetcher, SWR_OPT);
   const [selComp, setSelComp] = useState<string | null>(null);
 
   const locked = pulse?.locked || cmp?.locked;
@@ -175,6 +204,49 @@ export default function InflationPage() {
               {fc?.disclaimer ? ` ${fc.disclaimer}` : ' 모델 추정치이며 매매 신호가 아닙니다.'}
             </p>
           </Card>
+
+          {/* ── 하위 섹션 요약 — 흩어진 물가 도구를 한 대시보드로 합침 ── */}
+          <div className="fin-sec mt-1"><h3 className="!text-[15px]">한눈에 더 보기</h3><span className="text-[11px] text-[var(--text-muted)]">Fed·발표·고용·예측시장</span></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            {/* Fed Watch */}
+            <Link href="/inflation/fed" className="fin-card p-4 hover-lift">
+              <div className="flex items-center justify-between mb-1"><span className="text-[13px] font-bold text-[var(--text)]">Fed Watch</span><span className="text-[11px] text-[var(--accent-ink)]">전체보기 →</span></div>
+              {fw?.market?.modal
+                ? <p className="text-[12px] text-[var(--text-muted)] leading-snug">다음 FOMC{fw.next_meeting?.days_to != null ? ` D-${fw.next_meeting.days_to}` : ''} · 시장 기대 <b className="text-[var(--text)]">{fw.market.modal.label} {(fw.market.modal.prob * 100).toFixed(0)}%</b></p>
+                : <p className="text-[12px] text-[var(--text-muted)]">불러오는 중…</p>}
+            </Link>
+            {/* 발표 일정 */}
+            <Link href="/inflation/calendar" className="fin-card p-4 hover-lift">
+              <div className="flex items-center justify-between mb-1"><span className="text-[13px] font-bold text-[var(--text)]">발표 일정</span><span className="text-[11px] text-[var(--accent-ink)]">전체보기 →</span></div>
+              {rc?.events?.length
+                ? <ul className="space-y-0.5">{rc.events.slice(0, 3).map((e, i) => <li key={i} className="flex justify-between gap-2 text-[11px] tabular-nums"><span className="text-[var(--text)] truncate pr-2">{KIND_KO[e.kind] ?? e.kind.toUpperCase()} {e.data_month ?? ''}</span><span className="text-[var(--text-muted)] shrink-0">{dShort(e.date)}</span></li>)}</ul>
+                : <p className="text-[12px] text-[var(--text-muted)]">불러오는 중…</p>}
+            </Link>
+            {/* 고용 */}
+            <Link href="/inflation/jobs" className="fin-card p-4 hover-lift">
+              <div className="flex items-center justify-between mb-1"><span className="text-[13px] font-bold text-[var(--text)]">고용</span><span className="text-[11px] text-[var(--accent-ink)]">전체보기 →</span></div>
+              {lb?.nfp
+                ? (() => { const u = seriesLast(lb.unemployment?.series); return <p className="text-[12px] text-[var(--text-muted)] leading-snug">NFP 나우캐스트 <b className="text-[var(--text)]">{nfpK(lb.nfp.nowcast_k)}</b>{u ? <> · 실업률 <b className="text-[var(--text)]">{u.value.toFixed(1)}%</b></> : null}</p>; })()
+                : <p className="text-[12px] text-[var(--text-muted)]">불러오는 중…</p>}
+            </Link>
+            {/* 예측시장 */}
+            <Link href="/inflation/markets" className="fin-card p-4 hover-lift">
+              <div className="flex items-center justify-between mb-1"><span className="text-[13px] font-bold text-[var(--text)]">예측시장</span><span className="text-[11px] text-[var(--accent-ink)]">전체보기 →</span></div>
+              {(() => { const g = (pm?.groups ?? []).find((x) => x.markets?.length); const m = g?.markets?.[0]; const o = [...(m?.outcomes ?? [])].sort((a, b) => (b.prob ?? 0) - (a.prob ?? 0))[0]; return m && o
+                ? <p className="text-[12px] text-[var(--text-muted)] leading-snug"><span className="block truncate">{m.title}</span><b className="text-[var(--text)]">{o.name} {(o.prob ?? 0).toFixed(0)}%</b></p>
+                : <p className="text-[12px] text-[var(--text-muted)]">불러오는 중…</p>; })()}
+            </Link>
+          </div>
+
+          {/* 물가 도구 전체 — 허브 한 곳에서 모든 하위 페이지 진입 */}
+          <div className="fin-card p-4 mb-3">
+            <p className="text-[13px] font-bold text-[var(--text)] mb-2">물가 도구 전체</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+              {INFLATION_TOOLS.map((t) => (
+                <Link key={t.href} href={t.href} className="text-[12px] px-2.5 py-2 rounded-lg border border-[var(--line-2)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent-ink)] truncate">{t.label}</Link>
+              ))}
+            </div>
+          </div>
 
           <div className="flex gap-2 text-[11px] mb-2">
             <Link href="/macro" className="font-semibold text-[var(--accent-ink)]">경제지표(FRED) →</Link>
