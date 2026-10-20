@@ -5,10 +5,17 @@
  * 날짜별 묶음 카드 안에 중요도 막대·D-day 행. 날짜 기준은 KST(마운트 후 계산).
  */
 import { useEffect, useMemo, useState } from 'react';
+import useSWR from 'swr';
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 import type { CalendarEvent } from '@/lib/types';
 import EventRow, { kstToday } from '@/components/EventRow';
 import BottomSheet from '@/components/ui/BottomSheet';
+import EconCalendarMonth, { type CalEvt } from '@/components/EconCalendarMonth';
+import type { ReleaseCalendar } from '@/lib/inflation';
+
+const fetcher = (u: string) => fetch(u).then((r) => r.json());
+const KIND_KO: Record<string, string> = { cpi: 'CPI', pce: 'PCE', ppi: 'PPI', jobs: '고용', nfp: '고용', gdp: 'GDP', retail: '소매판매' };
+const CAT_TONE: Record<string, CalEvt['tone']> = { fomc: 'fomc', bok: 'bok', earnings: 'earn', holiday: 'holi', indicator: 'ind' };
 
 type Cat = 'all' | CalendarEvent['category'];
 type Country = 'all' | 'KR' | 'US';
@@ -79,6 +86,17 @@ export default function CalendarPage() {
 
   const nFilters = (country !== 'all' ? 1 : 0) + (imp !== 'all' ? 1 : 0) + (showPast ? 1 : 0);
 
+  // 달력(월간 그리드)용 — 정적 일정 + 나우캐스트 미국 지표 발표일을 모두 표시(필터는 아래 목록에만 적용)
+  const { data: relCal } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, { revalidateOnFocus: false });
+  const calEvents = useMemo<CalEvt[]>(() => {
+    const out: CalEvt[] = CALENDAR_EVENTS.map((e) => ({ date: e.date, label: e.title, tone: CAT_TONE[e.category] ?? 'ind' }));
+    for (const e of relCal?.events ?? []) {
+      if (!e.date) continue;
+      out.push({ date: e.date.slice(0, 10), label: `${KIND_KO[e.kind] ?? e.kind.toUpperCase()}${e.data_month ? ` ${e.data_month}` : ''}`, tone: 'ind' });
+    }
+    return out;
+  }, [relCal]);
+
   // 대상 날짜 섹션으로 스크롤 + 2.6초 후 강조 해제
   useEffect(() => {
     if (!target || !grouped.some(([d]) => d === target)) return;
@@ -91,6 +109,9 @@ export default function CalendarPage() {
 
   return (
     <div className="max-w-3xl mx-auto pb-8">
+      {/* 월간 달력 — 모든 지표 발표일·FOMC·한은·실적·휴장 */}
+      <div className="fin-card p-4 mb-4"><EconCalendarMonth events={calEvents} /></div>
+
       <div className="chip-scroll mb-2">
         <button type="button" className={`chip ${nFilters ? 'active' : ''}`} onClick={() => setSheet(true)}>
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 5h18l-7 8.5V20l-4-2.5v-4L3 5Z" /></svg>
