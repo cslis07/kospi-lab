@@ -72,6 +72,7 @@ interface ModeSignal {
   support: number | null; resistance: number | null; atr: number | null; reasons: string[];
 }
 
+interface DirPlan { stop: number; target1: number; target2: number; stopPct: number; rr: number }
 interface AnalysisData {
   symbol: string; name: string; updatedAt: number;
   price: number; change24h: number | null; high24h: number | null; low24h: number | null;
@@ -124,6 +125,7 @@ interface AnalysisData {
     entryQuality: { roomPct: number; rrToObstacle: number; roomOk: boolean; obstacle: number | null };
     entryPlan: { type: 'now' | 'pullback' | 'wait'; zoneLow: number; zoneHigh: number; ref: number | null; note: string };
     confidence: { grade: '견고' | '보통' | '약함'; pct: number; note: string };
+    plans: { long: DirPlan; short: DirPlan };
   };
   orderbook: {
     bidVol: number; askVol: number; imbalance: number; spreadPct: number;
@@ -620,10 +622,10 @@ function PriceLadder({ data, v, price, digits }: { data: AnalysisData; v: Verdic
   if (data.high24h) rows.push({ price: data.high24h, label: '24h 고점 · 강한 저항', tone: 'res' });
   if (data.low24h) rows.push({ price: data.low24h, label: '24h 저점', tone: 'sup' });
   data.zones.forEach((z) => rows.push({ price: z.price, label: `${z.kind === 'resistance' ? '저항' : '지지'} · 터치 ${z.touches}회`, tone: z.kind === 'resistance' ? 'res' : 'sup' }));
-  if (v.direction !== 'wait') {
-    rows.push({ price: v.target1, label: '1차 목표', tone: 'tgt' });
-    rows.push({ price: v.target2, label: '2차 목표', tone: 'tgt' });
-    rows.push({ price: v.stop, label: '손절선', tone: 'stop' });
+  // 롱·숏 양쪽 손절선(롱 손절은 아래 지지, 숏 손절은 위 저항)
+  if (v.plans) {
+    rows.push({ price: v.plans.long.stop, label: '롱 손절선', tone: 'stop' });
+    rows.push({ price: v.plans.short.stop, label: '숏 손절선', tone: 'stop' });
   }
   rows.push({ price, label: '현재가', tone: 'cur' });
   const res = rows.filter((r) => r.tone === 'res' && r.price > price).sort((a, b) => a.price - b.price)[0];
@@ -707,8 +709,6 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
   const up1 = resAbove[0]; const up2 = v.direction !== 'wait' ? v.target1 : resAbove[1];
   const dn1 = supBelow[0]; const dn2 = v.direction !== 'wait' ? v.stop : supBelow[1];
   const pass = v.checklist.filter((c) => c.pass).length;
-  const zoneTxt = v.entryPlan.zoneLow === v.entryPlan.zoneHigh || Math.abs(v.entryPlan.zoneHigh - v.entryPlan.zoneLow) / v.entryPlan.zoneHigh < 0.0005
-    ? `$${fmtP(v.entryPlan.zoneHigh, digits)}` : `$${fmtP(v.entryPlan.zoneLow, digits)} ~ $${fmtP(v.entryPlan.zoneHigh, digits)}`;
 
   return (
     <div className="rounded-2xl border border-sky-500/30 bg-[var(--bg-card)] p-5 space-y-4">
@@ -766,29 +766,37 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
         </ul>
       </div>
 
-      {/* 5. 최종 진입 규칙 + 진입가 */}
-      {v.direction !== 'wait' ? (
-        <div className="rounded-xl border border-[var(--border)] bg-white/[0.02] p-3">
-          <p className="text-[11px] font-bold text-[var(--text-muted)] mb-2">⑤ 최종 진입 규칙 <span className="font-normal">({v.entryPlan.type === 'now' ? '지금 시장가' : v.entryPlan.type === 'pullback' ? '눌림 대기' : '대기'})</span></p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-            <div className="rounded-lg bg-[var(--surface-2)] px-2 py-1.5"><p className="text-[10px] text-[var(--text-muted)]">진입가</p><p className="text-[13px] font-bold tabular-nums text-[var(--text)]">{zoneTxt}</p></div>
-            <div className="rounded-lg bg-[var(--surface-2)] px-2 py-1.5"><p className="text-[10px] text-[var(--text-muted)]">손절</p><p className="text-[13px] font-bold tabular-nums text-red-400">${fmtP(v.stop, digits)} <span className="text-[10px]">({v.direction === 'short' ? '+' : '-'}{v.stopPct.toFixed(2)}%)</span></p></div>
-            <div className="rounded-lg bg-[var(--surface-2)] px-2 py-1.5"><p className="text-[10px] text-[var(--text-muted)]">목표 1·2</p><p className="text-[13px] font-bold tabular-nums text-emerald-400">${fmtP(v.target1, digits)}<span className="text-[10px] text-[var(--text-muted)]"> / </span>${fmtP(v.target2, digits)}</p></div>
-            <div className="rounded-lg bg-[var(--surface-2)] px-2 py-1.5"><p className="text-[10px] text-[var(--text-muted)]">손익비(R:R)</p><p className={`text-[13px] font-bold tabular-nums ${v.rr >= 1.5 ? 'text-emerald-400' : 'text-amber-400'}`}>{v.rr.toFixed(2)}</p></div>
-          </div>
-          <p className="text-[10.5px] text-[var(--text-muted)] mt-2 leading-snug">
-            {v.entryPlan.type === 'now' ? '✅ ' : '⏳ '}{v.entryPlan.note}
-            {v.entryQuality.obstacle != null && <> · 다음 장애물까지 여유 {v.entryQuality.roomPct.toFixed(1)}%</>}
-            {' · 신호 안정성 '}<b className={v.confidence.grade === '견고' ? 'text-emerald-400' : v.confidence.grade === '약함' ? 'text-red-400' : 'text-amber-400'}>{v.confidence.grade} {v.confidence.pct}%</b>
-          </p>
-          <p className="text-[10px] text-[var(--text-muted)] opacity-70 mt-1">진입과 동시에 손절·익절 주문(reduce-only) 등록 권장 · R:R 1.5 미만이면 건너뛰는 게 안전.</p>
+      {/* 5. 최종 진입 규칙 — 롱·숏 양방향(현재가 진입 가정) */}
+      <div className="rounded-xl border border-[var(--border)] bg-white/[0.02] p-3">
+        <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
+          <p className="text-[11px] font-bold text-[var(--text-muted)]">⑤ 최종 진입 규칙 — 롱·숏 양쪽 <span className="font-normal">(현재가 ${fmtP(price, digits)} 진입 가정)</span></p>
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${v.direction === 'long' ? 'bg-emerald-500/15 text-emerald-400' : v.direction === 'short' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'}`}>
+            엔진 추천: {v.direction === 'long' ? '롱' : v.direction === 'short' ? '숏' : '관망(양쪽 미충족)'}
+          </span>
         </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-amber-500/40 bg-amber-500/5 p-3">
-          <p className="text-[12px] font-bold text-amber-400">⑤ 지금은 진입 금지 — 방향 미확정</p>
-          <p className="text-[10.5px] text-[var(--text-muted)] mt-1 leading-snug">점수 {v.score > 0 ? `롱 쪽 +${v.score}` : v.score < 0 ? `숏 쪽 ${v.score}` : '중립 0'} · 진입 문턱 ±20을 넘어야 신호 전환. {v.entryPlan.note}</p>
+        <div className="grid grid-cols-2 gap-2">
+          {(['long', 'short'] as const).map((side) => {
+            const p = v.plans[side]; const isRec = v.direction === side;
+            return (
+              <div key={side} className={`rounded-lg border p-2.5 ${side === 'long' ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : 'border-red-500/30 bg-red-500/[0.06]'} ${isRec ? 'ring-1 ring-sky-500/50' : ''}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className={`text-[13px] font-extrabold ${side === 'long' ? 'text-emerald-400' : 'text-red-400'}`}>{side === 'long' ? '▲ 롱' : '▼ 숏'}</span>
+                  {isRec && <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 font-bold">엔진 추천</span>}
+                </div>
+                <div className="space-y-0.5 text-[11px] tabular-nums">
+                  <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">진입(현재가)</span><span className="text-[var(--text)] font-semibold">${fmtP(price, digits)}</span></p>
+                  <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">손절</span><span className="text-red-400 font-semibold">${fmtP(p.stop, digits)} <span className="text-[9px]">({side === 'short' ? '+' : '-'}{p.stopPct.toFixed(2)}%)</span></span></p>
+                  <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">목표1·2</span><span className="text-emerald-400 font-semibold">${fmtP(p.target1, digits)}<span className="text-[var(--text-muted)]">/</span>${fmtP(p.target2, digits)}</span></p>
+                  <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">손익비(R:R)</span><span className={`font-bold ${p.rr >= 1.5 ? 'text-emerald-400' : 'text-amber-400'}`}>{p.rr.toFixed(2)}</span></p>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      )}
+        <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-snug">
+          진입가=현재가(시장가 가정) · 손절·목표는 지지저항+15m ATR 구조 기준. {v.direction === 'wait' ? '엔진은 양쪽 모두 조건 미충족(관망) — 아래는 참고용 수치.' : <>엔진은 &lsquo;{v.direction === 'long' ? '롱' : '숏'}&rsquo; 쪽 조건이 더 갖춰졌다고 판정(신호 안정성 <b className={v.confidence.grade === '견고' ? 'text-emerald-400' : v.confidence.grade === '약함' ? 'text-red-400' : 'text-amber-400'}>{v.confidence.grade} {v.confidence.pct}%</b>).</>} R:R 1.5 미만이면 건너뛰는 게 안전.
+        </p>
+      </div>
 
       {/* 6. 분봉별 지표 */}
       <div>

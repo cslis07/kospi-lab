@@ -605,6 +605,12 @@ export async function GET(req: NextRequest) {
     verdict.target2 = cleanPx(verdict.target2);
     verdict.stopPct = Math.round(verdict.stopPct * 100) / 100;
     verdict.rr = Math.round(verdict.rr * 100) / 100;
+    // 양방향 플랜 px·비율도 동일하게 정리
+    (['long', 'short'] as const).forEach((d) => {
+      const p = verdict.plans[d];
+      p.stop = cleanPx(p.stop); p.target1 = cleanPx(p.target1); p.target2 = cleanPx(p.target2);
+      p.stopPct = Math.round(p.stopPct * 100) / 100; p.rr = Math.round(p.rr * 100) / 100;
+    });
 
     // 백테스트 (전체 캔들, 10분 캐시)
     const backtest = cachedBacktest(symbol, c5mFull, c15mFull, c1hFull, funding.rate,

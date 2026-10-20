@@ -50,6 +50,32 @@ export interface FibLevels {
 
 export type TfTrend = 'up' | 'down' | 'flat';
 
+export interface DirPlan { stop: number; target1: number; target2: number; stopPct: number; rr: number }
+
+/** 한 방향의 손절·목표·손익비를 구조+ATR로 계산(현재가 진입 가정). buildVerdict 의 로직을 방향별로 재사용. */
+export function dirPlan(dir: 'long' | 'short', price: number, atr15: number, supports: number[], resistances: number[], fib: FibLevels | null): DirPlan {
+  let stop: number, target1: number, target2: number;
+  if (dir === 'short') {
+    const structStop = resistances.length ? Math.min(...resistances) : price + atr15 * 1.2;
+    stop = Math.max(structStop, price + atr15 * 1.0);
+    const risk = stop - price;
+    target1 = price - risk;
+    target2 = price - risk * 1.5;
+    if (fib && fib.direction === 'down' && fib.e1272 < target2) target2 = fib.e1272;
+  } else {
+    const structStop = supports.length ? Math.max(...supports) : price - atr15 * 1.2;
+    stop = Math.min(structStop, price - atr15 * 1.0);
+    const risk = price - stop;
+    target1 = price + risk;
+    target2 = price + risk * 1.5;
+    if (fib && fib.direction === 'up' && fib.e1272 > target2) target2 = fib.e1272;
+  }
+  const stopPct = Math.abs((stop - price) / price) * 100;
+  const riskAbs = Math.abs(price - stop);
+  const rr = riskAbs > 0 ? Math.abs(target2 - price) / riskAbs : 0;
+  return { stop, target1, target2, stopPct, rr };
+}
+
 export interface Verdict {
   state: string;
   score: number;                    // -100(숏 강) ~ +100(롱 강)
@@ -68,6 +94,8 @@ export interface Verdict {
   entryQuality: { roomPct: number; rrToObstacle: number; roomOk: boolean; obstacle: number | null };
   /** 진입 플랜 — 지금 시장가 vs 눌림 대기 + 구체 가격대 */
   entryPlan: { type: 'now' | 'pullback' | 'wait'; zoneLow: number; zoneHigh: number; ref: number | null; note: string };
+  /** 롱·숏 양방향 진입 플랜 — 엔진 추천 방향과 무관하게 둘 다 계산(현재가 진입 가정) */
+  plans: { long: DirPlan; short: DirPlan };
   /** 신호 안정성 — 이 방향을 얼마나 믿어도 되나 (상위 시간대 정렬 = 견고) */
   confidence: { grade: '견고' | '보통' | '약함'; pct: number; note: string };
 }
@@ -763,11 +791,17 @@ export function buildVerdict(
     { label: '변동성 적정', pass: !extremeVol, note: `15m ATR ${m15.atrPct.toFixed(2)}%` },
   ];
 
+  // 롱·숏 양방향 플랜(엔진 추천과 무관하게 둘 다 — 현재가 진입 가정)
+  const plans = {
+    long: dirPlan('long', price, atr15, supports, resistances, fib),
+    short: dirPlan('short', price, atr15, supports, resistances, fib),
+  };
+
   return {
     state, score, direction, entryOk, entryNote,
     leverage: { conservative, aggressive, max: maxLevByStop, note: levNote },
     entry: price, stop, stopPct, target1, target2, rr,
     reasons, warnings, checklist,
-    regime, entryQuality, entryPlan, confidence,
+    regime, entryQuality, entryPlan, confidence, plans,
   };
 }
