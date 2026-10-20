@@ -813,12 +813,85 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
   );
 }
 
+/** 초보자 간결 요약 — 독립 3차원(추세·수급·상위추세) 신호등 + 한 줄 결론 + 핵심 가격·진입. 지표 나열 대신 '지금 들어가도 되나'만. */
+function BeginnerSummary({ data, v, digits }: { data: AnalysisData; v: Verdict; digits: number }) {
+  const price = data.markPrice ?? data.price;
+  const h1 = data.timeframes.h1;
+  type Sig = 'long' | 'short' | 'neu';
+  const trend: Sig = (h1.emaAlign === '정배열' && h1.priceVsEma20 === 'above') ? 'long'
+    : (h1.emaAlign === '역배열' && h1.priceVsEma20 === 'below') ? 'short'
+    : h1.structure === '상승' ? 'long' : h1.structure === '하락' ? 'short' : 'neu';
+  const tk = data.taker.ratio;
+  const flow: Sig = tk == null ? 'neu' : tk >= 1.15 ? 'long' : tk <= 0.87 ? 'short' : 'neu';
+  const htf: Sig = v.regime ? (v.regime.h4 === 'up' && v.regime.d1 !== 'down' ? 'long' : v.regime.h4 === 'down' && v.regime.d1 !== 'up' ? 'short' : 'neu') : 'neu';
+  const conflict = trend !== 'neu' && flow !== 'neu' && trend !== flow;
+  const SIG = (s: Sig) => s === 'long' ? { dot: '🟢', c: 'text-emerald-400', t: '롱' } : s === 'short' ? { dot: '🔴', c: 'text-red-400', t: '숏' } : { dot: '⚪', c: 'text-[var(--text-muted)]', t: '중립' };
+  const lights: { k: string; sub: string; s: Sig }[] = [
+    { k: '추세', sub: '가격 흐름', s: trend },
+    { k: '수급', sub: '실제 체결', s: flow },
+    { k: '상위추세', sub: '4H·1D', s: htf },
+  ];
+  const dirKo = v.direction === 'long' ? '롱(상승)' : v.direction === 'short' ? '숏(하락)' : '관망';
+  let headline: string, tone: string;
+  if (conflict) { headline = `${dirKo} 쪽이지만 추세와 수급이 엇갈려요 — 지금은 쉬는 게 나아요`; tone = 'text-amber-400'; }
+  else if (v.direction === 'wait') { headline = '방향이 아직 안 정해졌어요 — 관망'; tone = 'text-amber-400'; }
+  else if (v.entryOk) { headline = `${dirKo} 조건이 갖춰졌어요 — 손절 정하고 소액부터`; tone = v.direction === 'long' ? 'text-emerald-400' : 'text-red-400'; }
+  else { headline = `${dirKo} 쪽이지만 아직 조건 미충족 — 기다리세요`; tone = 'text-[var(--text)]'; }
+  const resAbove = data.zones.filter((z) => z.kind === 'resistance' && z.price > price).sort((a, b) => a.price - b.price)[0]?.price ?? data.high24h ?? price;
+  const supBelow = data.zones.filter((z) => z.kind === 'support' && z.price < price).sort((a, b) => b.price - a.price)[0]?.price ?? data.low24h ?? price;
+  const p = v.direction !== 'wait' ? v.plans[v.direction] : null;
+  const gradeC = v.confidence.grade === '견고' ? 'text-emerald-400' : v.confidence.grade === '약함' ? 'text-red-400' : 'text-amber-400';
+  return (
+    <div className="rounded-2xl border-2 border-sky-500/30 bg-[var(--bg-card)] p-4 space-y-3">
+      <div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <DirectionBadge direction={v.direction} />
+          <span className={`text-[12px] font-bold ${gradeC}`}>신뢰 {v.confidence.grade}</span>
+          <span className="text-[11px] px-2 py-0.5 rounded-lg bg-white/5 border border-[var(--border)] text-[var(--text-muted)]">{v.entryOk ? '진입 조건 충족' : '진입 대기'}</span>
+        </div>
+        <p className={`text-[15px] font-extrabold mt-1.5 leading-snug ${tone}`}>{headline}</p>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {lights.map((l) => { const g = SIG(l.s); return (
+          <div key={l.k} className="rounded-xl border border-[var(--border)] bg-white/[0.02] px-2 py-2 text-center">
+            <p className="text-[10px] text-[var(--text-muted)]">{l.k} <span className="opacity-60">{l.sub}</span></p>
+            <p className={`text-[14px] font-bold ${g.c}`}>{g.dot} {g.t}</p>
+          </div>
+        ); })}
+      </div>
+      {conflict && <p className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5 leading-snug">⚠ 추세와 수급이 반대 — <b>엇갈리는 자리는 자주 뒤집혀요.</b> 신뢰 낮음, 소액 또는 건너뛰기.</p>}
+      <div className="grid grid-cols-3 gap-2 text-center tabular-nums">
+        <div className="rounded-lg bg-red-500/[0.06] px-2 py-1.5"><p className="text-[10px] text-[var(--text-muted)]">가까운 저항</p><p className="text-[12px] font-bold text-red-400">${fmtP(resAbove, digits)}</p></div>
+        <div className="rounded-lg bg-sky-500/10 px-2 py-1.5"><p className="text-[10px] text-[var(--text-muted)]">현재가</p><p className="text-[12px] font-bold text-sky-400">${fmtP(price, digits)}</p></div>
+        <div className="rounded-lg bg-emerald-500/[0.06] px-2 py-1.5"><p className="text-[10px] text-[var(--text-muted)]">가까운 지지</p><p className="text-[12px] font-bold text-emerald-400">${fmtP(supBelow, digits)}</p></div>
+      </div>
+      {p ? (
+        <div className="rounded-lg border border-[var(--border)] px-3 py-2 text-[12px]">
+          <p className="font-bold text-[var(--text)] mb-0.5">진입한다면 ({v.direction === 'long' ? '롱' : '숏'})</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-0.5 tabular-nums">
+            <span className="text-[var(--text-muted)]">진입 <b className="text-[var(--text)]">${fmtP(price, digits)}</b></span>
+            <span className="text-[var(--text-muted)]">손절 <b className="text-red-400">${fmtP(p.stop, digits)}</b></span>
+            <span className="text-[var(--text-muted)]">목표 <b className="text-emerald-400">${fmtP(p.target1, digits)}</b></span>
+            <span className="text-[var(--text-muted)]">손익비 <b className={p.rr >= 1.5 ? 'text-emerald-400' : 'text-amber-400'}>{p.rr.toFixed(2)}</b></span>
+          </div>
+        </div>
+      ) : (
+        <p className="text-[11px] text-[var(--text-muted)] rounded-lg border border-dashed border-[var(--border)] px-3 py-2">관망 구간 — 지금은 진입가 없음. 방향·트리거가 생기면 바뀝니다.</p>
+      )}
+      <p className="text-[10px] text-[var(--text-muted)] opacity-80 leading-snug">👣 초보자 원칙: <b className="text-[var(--text)]">신뢰 &lsquo;견고&rsquo;일 때만</b>, 손절 먼저 정하고, 한 번에 시드의 <b className="text-[var(--text)]">1~2%만</b>. 엇갈리면 쉬기. (방향 예측 아님 — 조건 충족도)</p>
+    </div>
+  );
+}
+
 export default function CoinAnalysisPage() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [chartTf, setChartTf] = useState<'m5' | 'm15' | 'h1'>('m5');
   const { model: aiModel, ready: modelReady } = useBriefingModel();
   const [showBt, setShowBt] = useState(false); // 룰 엔진 성적표 상세 접기(기본 접힘 — 엣지 미검증이라 전면 노출 불필요)
+  const [simple, setSimple] = useState(true); // 간결(초보자) 보기 — 기본 켜짐. 이 기기 전용(kl- 접두)
+  useEffect(() => { try { const r = localStorage.getItem('kl-coin-simple'); if (r != null) setSimple(r === '1'); } catch {} }, []);
+  const toggleSimple = (vSim: boolean) => { setSimple(vSim); try { localStorage.setItem('kl-coin-simple', vSim ? '1' : '0'); } catch {} };
   // symbol·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
   const [run, setRun] = useState<{ symbol: string; model: string } | null>(null);
   // 관심종목에서 '분석'으로 진입(?symbol=…&run=1)하면 해당 코인으로 자동 실행. 그 외에는 버튼으로만.
@@ -1226,6 +1299,19 @@ export default function CoinAnalysisPage() {
             </div>
           )}
 
+          {/* 간결(초보자)/상세 보기 토글 */}
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-[11px] text-[var(--text-muted)]">보기</span>
+            <div className="flex rounded-lg overflow-hidden border border-[var(--border)]">
+              <button onClick={() => toggleSimple(true)} className={`px-3 py-1 text-[12px] font-semibold ${simple ? 'bg-sky-500/20 text-sky-400' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>🔰 간결</button>
+              <button onClick={() => toggleSimple(false)} className={`px-3 py-1 text-[12px] font-semibold ${!simple ? 'bg-sky-500/20 text-sky-400' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>상세</button>
+            </div>
+          </div>
+
+          {/* 초보자 간결 요약 — 항상 맨 위 */}
+          <BeginnerSummary data={data} v={v} digits={priceDigits} />
+
+          {!simple && (<>
           {/* 헤더: 가격·파생 지표 */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
             <div className="flex flex-wrap items-start gap-x-8 gap-y-3">
@@ -1892,6 +1978,8 @@ export default function CoinAnalysisPage() {
               </div>
             )}
           </div>
+
+          </>)}
 
           {/* 면책 */}
           <p className="text-[10px] text-[var(--text-muted)] text-center opacity-60 leading-relaxed">
