@@ -269,8 +269,14 @@ export default function OverseasPage() {
         })}
       </div>
 
+      {/* 섹션 헤더 — 홈 대시보드 스타일(fin-sec) */}
+      <div className="fin-sec">
+        <h3>미국 종목</h3>
+        <span className="text-xs font-medium text-[var(--faint)] tabular-nums shrink-0">미국 주식 · {updatedAt ? `${updatedAt} 갱신` : '로딩 중…'}</span>
+      </div>
+
       {/* 안내 배너 */}
-      <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] mb-4 px-1">
+      <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] mb-3 px-1">
         <span className="text-red-400">ℹ</span>
         <span>
           <span className="text-red-400">♥</span>를 누르면{' '}
@@ -279,19 +285,15 @@ export default function OverseasPage() {
       </div>
 
       {/* 필터 바 */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <span className="text-xs text-emerald-400 font-medium shrink-0">
-          미국 주식 · {updatedAt ? `${updatedAt} 갱신` : '로딩 중…'}
-        </span>
-
+      <div className="flex flex-wrap items-center gap-2 mb-3">
         {/* 거래소 탭 */}
-        <div className="flex gap-1 ml-auto">
+        <div className="flex gap-1">
           {(['all', 'NASDAQ', 'NYSE'] as ExchangeFilter[]).map((ex) => (
             <button key={ex} onClick={() => setExchFilter(ex)}
-              className={`px-2.5 py-1 rounded-lg text-xs border transition-colors ${
+              className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
                 exchFilter === ex
-                  ? 'bg-sky-500/20 text-sky-400 border-sky-500/40'
-                  : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
+                  ? 'bg-[var(--accent-soft)] text-[var(--accent-ink)] border-transparent'
+                  : 'text-[var(--text-muted)] border-[var(--line)] hover:text-[var(--text)]'
               }`}>
               {ex === 'all' ? '전체' : ex}
             </button>
@@ -299,7 +301,7 @@ export default function OverseasPage() {
         </div>
 
         {/* 검색 */}
-        <div className="relative">
+        <div className="relative ml-auto">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]"
             fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -310,7 +312,7 @@ export default function OverseasPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="종목명 또는 티커로 검색"
-            className="w-52 sm:w-60 pl-8 pr-3 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-sky-500/50"
+            className="w-44 sm:w-60 pl-8 pr-3 py-1.5 text-xs bg-[var(--surface)] border border-[var(--line)] rounded-full text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent)]"
           />
         </div>
 
@@ -318,7 +320,7 @@ export default function OverseasPage() {
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortKey)}
-          className="px-3 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-[var(--text)] outline-none"
+          className="px-3 py-1.5 text-xs bg-[var(--surface)] border border-[var(--line)] rounded-full text-[var(--text)] outline-none"
         >
           {SORT_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
         </select>
@@ -326,20 +328,20 @@ export default function OverseasPage() {
         {/* 관심 토글 */}
         <button
           onClick={() => setWatchOnly((v) => !v)}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs transition-colors ${
+          className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs transition-colors ${
             watchOnly
               ? 'bg-red-500/15 border-red-500/40 text-red-400'
-              : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
+              : 'border-[var(--line)] text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}
         >
           {watchOnly ? '♥' : '♡'} 관심
         </button>
       </div>
 
-      {/* 테이블 */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+      {/* 테이블 — 홈 대시보드 스타일(fin-card) */}
+      <div className="fin-card overflow-hidden">
         {/* 컬럼 헤더 */}
-        <div className="hidden sm:grid grid-cols-[40px_48px_1fr_120px_90px_130px] gap-2 px-4 py-2.5 border-b border-[var(--border)] text-[10px] text-[var(--text-muted)] font-medium">
+        <div className="hidden sm:grid grid-cols-[40px_48px_1fr_120px_90px_130px] gap-2 px-5 py-2.5 border-b border-[var(--line-2)] text-[10px] text-[var(--faint)] font-medium">
           <span />
           <span className="text-center">순위</span>
           <span>종목</span>
@@ -349,9 +351,9 @@ export default function OverseasPage() {
         </div>
 
         {isLoading && (
-          <div className="divide-y divide-[var(--border)]">
+          <div className="divide-y divide-[var(--line-2)]">
             {[...Array(15)].map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+              <div key={i} className="flex items-center gap-3 px-5 py-3.5 animate-pulse">
                 <div className="w-6 h-6 rounded-full bg-white/10 shrink-0" />
                 <div className="w-9 h-9 rounded-full bg-white/10 shrink-0" />
                 <div className="flex-1 space-y-1.5">
@@ -373,16 +375,17 @@ export default function OverseasPage() {
         )}
 
         {filtered.length > 0 && (
-          <div className="divide-y divide-[var(--border)]">
+          <div>
             {filtered.slice(0, prog.shown).map((item, idx) => {
               const d       = allData[item.symbol];
               const isPos   = (d?.changeRate ?? 0) >= 0;
+              const flat    = d?.changeRate === 0;
               const inWatch = watchSet.has(item.symbol);
               return (
                 <div
                   key={item.symbol}
                   onClick={() => router.push(`/overseas/${encodeURIComponent(item.symbol)}`)}
-                  className="flex items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-white/3 transition-colors sm:grid sm:grid-cols-[40px_48px_1fr_120px_90px_130px] sm:gap-2"
+                  className={`fin-row ${d ? (flat ? '' : isPos ? 'up' : 'down') : ''} cursor-pointer hover:bg-[var(--surface-2)] transition-colors sm:grid sm:grid-cols-[40px_48px_1fr_120px_90px_130px] sm:gap-2`}
                 >
                   {/* ♡ */}
                   <button
@@ -439,13 +442,7 @@ export default function OverseasPage() {
                     {/* 등락률 */}
                     <div className="flex justify-end">
                       {d ? (
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded tabular-nums ${
-                          isPos
-                            ? 'bg-red-500/90 text-white'
-                            : d.changeRate === 0
-                              ? 'bg-white/10 text-[var(--text-muted)]'
-                              : 'bg-[#1a2a40] text-blue-400'
-                        }`}>
+                        <span className={`fin-chip ${flat ? 'flat' : isPos ? 'up' : 'down'} tabular-nums`}>
                           {isPos ? '+' : ''}{d.changeRate.toFixed(2)}%
                         </span>
                       ) : (
