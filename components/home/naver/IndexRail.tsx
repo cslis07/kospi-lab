@@ -15,6 +15,15 @@ interface IndexCard {
   code: string; name: string; value: number; change: number; changeRate: number;
   live: boolean; spark: number[]; sparkLabel: string;
   week52High?: number | null; week52Low?: number | null;
+  unit?: string; dec?: number; // 시장지표 병합분 표기용(금리 % · 국내금 원 등)
+}
+
+// 환율·시장지표(/api/naver/indicators) 응답 — 홈 레일 풀에 합쳐 레일에서도 선택·표시 가능하게
+interface IndicatorQuote { code: string; name: string; cat: string; unit?: string; price: number; change: number; changeRate: number; status: string; spark: number[] }
+function fromIndicator(q: IndicatorQuote): IndexCard {
+  const dec = q.cat === 'bond' ? 4 : q.code === 'M04020000' ? 0 : 2;
+  const live = q.status === '실시간' || q.status.endsWith('지연');
+  return { code: q.code, name: q.name, value: q.price, change: q.change, changeRate: q.changeRate, live, spark: q.spark ?? [], sparkLabel: '1개월', week52High: null, week52Low: null, unit: q.unit, dec };
 }
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -45,6 +54,8 @@ function Card({ c, on }: { c: IndexCard; on?: boolean }) {
   const col = colorOf(c.change);
   const arrow = c.change > 0 ? '▲' : c.change < 0 ? '▼' : '·';
   const isKr = c.sparkLabel === '오늘';
+  const d = c.dec ?? 2; // 금리=4자리·국내금=정수 등 시장지표 소수자리
+  const f = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
   return (
     <div className={`idx-card${on ? ' on' : ''}`}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -54,10 +65,10 @@ function Card({ c, on }: { c: IndexCard; on?: boolean }) {
         </span>
       </div>
       <div className="tabular-nums" style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.02em', marginTop: 4 }}>
-        {fmt(c.value)}
+        {f(c.value)}{c.unit === '%' ? <span style={{ fontSize: 12, marginLeft: 1 }}>%</span> : null}
       </div>
       <div className="tabular-nums" style={{ fontSize: 11.5, fontWeight: 700, color: col, marginTop: 1, whiteSpace: 'nowrap' }}>
-        {arrow} {fmt(Math.abs(c.change))} ({c.changeRate >= 0 ? '+' : ''}{c.changeRate.toFixed(2)}%)
+        {arrow} {f(Math.abs(c.change))} ({c.changeRate >= 0 ? '+' : ''}{c.changeRate.toFixed(2)}%)
       </div>
       <div style={{ marginTop: 6 }}>
         <Spark points={c.spark} change={c.change} base={isKr ? c.value - c.change : undefined} />
@@ -85,7 +96,12 @@ function Pos52({ low, high, value }: { low?: number | null; high?: number | null
 
 export default function IndexRail() {
   const { data } = useSWR<{ cards: IndexCard[] }>('/api/home/indices', fetcher, { refreshInterval: 10000, revalidateOnFocus: true });
-  const cards = data?.cards ?? [];
+  // 환율·시장지표도 레일 풀에 합친다(사용자가 WTI·금·국채금리·EUR·JPY 등도 상단 레일에 올릴 수 있게)
+  const { data: indData } = useSWR<{ items: IndicatorQuote[] }>('/api/naver/indicators', fetcher, { refreshInterval: 30000 });
+  const homeCards = data?.cards ?? [];
+  const homeNames = new Set(homeCards.map((c) => c.name));
+  const marketCards = (indData?.items ?? []).filter((q) => !homeNames.has(q.name)).map(fromIndicator); // 미국 USD 중복 제외
+  const cards = [...homeCards, ...marketCards];
   const byCode = new Map(cards.map((c) => [c.code, c]));
   const poolCodes = cards.map((c) => c.code);
   const nameOf = (code: string) => byCode.get(code)?.name ?? code;
