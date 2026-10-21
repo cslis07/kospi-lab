@@ -14,6 +14,7 @@ import {
 } from '../lib/coinAnalysis';
 import { buildStockVerdict, analyzeSupply, type InvestorDay } from '../lib/stockAnalysis';
 import { analyzeTimeframe, srZones, fibonacci, atr, detectFvgs, buildSmc, exitPlan } from '../lib/coinAnalysis';
+import { mulberry32, deriveRules, simulateRule, simulateRules } from '../lib/exitSim';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '../lib/positionSizing';
 import { scoreGrowth, growthPct } from '../lib/growthScreener';
 import { scoreUsGrowth, US_UNIVERSE, US_SECTORS, US_THEMES } from '../lib/usGrowth';
@@ -972,6 +973,36 @@ console.log('\n[ journalStats — 성적 실측 (순수 함수) ]');
     assert.ok(s && s.legs[0].r === 1 && s.ladder[1].stopTo === 100);
     assert.equal(exitPlan('wait', 100, 95, 105, 110, 2, null), null);
     assert.equal(exitPlan('long', 100, 100, 105, 110, 2, null), null); // 손절=진입(risk 0) → null
+  });
+}
+
+{
+  console.log('\n[익절 규칙 몬테카를로]');
+  ok('mulberry32: 시드 고정 → 재현·[0,1)', () => {
+    const a = mulberry32(42), b = mulberry32(42);
+    for (let i = 0; i < 5; i++) assert.equal(a(), b());
+    const x = mulberry32(7)(); assert.ok(x >= 0 && x < 1);
+  });
+  ok('deriveRules: 4종·고정1.5R·손절 음수', () => {
+    const rs = deriveRules(55, 2, 1);
+    assert.equal(rs.length, 4);
+    assert.equal(rs.find((r) => r.key === 'fixed')!.winR, 1.5);
+    assert.ok(rs.every((r) => r.lossR < 0));
+  });
+  ok('simulateRule: 결정론·EV·fan 길이·분위 순서', () => {
+    const base = { key: 'a', label: 'a', winRate: 55, winR: 2, lossR: -1, note: '' };
+    const s1 = simulateRule(base, 50, 2, 500, 123);
+    const s2 = simulateRule(base, 50, 2, 500, 123);
+    assert.equal(s1.median, s2.median);         // 같은 시드 → 같은 결과
+    assert.equal(s1.evR, 0.65);                  // 0.55*2 + 0.45*(-1)
+    assert.equal(s1.fan.p50.length, 51);         // 0..50
+    assert.ok(s1.p10 <= s1.median && s1.median <= s1.p90);
+    assert.ok(s1.medMaxDD >= 0 && s1.medMaxDD <= 1);
+  });
+  ok('simulateRules: 4종·추천 키 존재', () => {
+    const { rules, bestKey } = simulateRules(55, 2, 1, { trades: 60, riskPct: 2, runs: 400 });
+    assert.equal(rules.length, 4);
+    assert.ok(rules.some((r) => r.key === bestKey));
   });
 }
 

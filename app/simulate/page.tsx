@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import dynamic from 'next/dynamic';
 import { isolatedLiqPrice, liqSafety, notionForRisk } from '@/lib/positionSizing';
 import { useRiskLimits } from '@/hooks/useRiskLimits';
+import { simulateRules, type RuleStat } from '@/lib/exitSim';
 
 // 자산 성장 그래프(recharts)는 첫 번들에서 빼고 지연 로딩
 const SimulateChart = dynamic(() => import('@/components/SimulateChart'), {
@@ -587,33 +588,145 @@ function LeverageCalc() {
   );
 }
 
+/* ══════════════════ 익절 규칙 몬테카를로 ══════════════════ */
+function FanChart({ fan, trades }: { fan: { p10: number[]; p50: number[]; p90: number[] }; trades: number }) {
+  const W = 100, H = 48;
+  const all = [...fan.p10, ...fan.p50, ...fan.p90, 1];
+  const lo = Math.min(...all), hi = Math.max(...all);
+  const span = hi - lo || 1;
+  const X = (i: number) => (i / Math.max(1, trades)) * W;
+  const Y = (v: number) => 2 + (1 - (v - lo) / span) * (H - 4);
+  const line = (arr: number[]) => arr.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const area = `${line(fan.p90)} ${fan.p10.map((v, i) => ({ v, i })).reverse().map(({ v, i }) => `L${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')} Z`;
+  const base = Y(1);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height={H} style={{ display: 'block' }} aria-hidden>
+      <path d={area} fill="var(--accent, #3b82f6)" opacity={0.13} />
+      {base >= 0 && base <= H && <line x1={0} x2={W} y1={base} y2={base} stroke="var(--text-muted)" strokeWidth={1} strokeDasharray="2 2" vectorEffect="non-scaling-stroke" opacity={0.6} />}
+      <path d={line(fan.p50)} fill="none" stroke="var(--accent, #3b82f6)" strokeWidth={1.8} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+function ExitRuleSim() {
+  const [winRate, setWinRate] = useState(50);
+  const [winR, setWinR] = useState(1.8);
+  const [lossR, setLossR] = useState(1);
+  const [trades, setTrades] = useState(100);
+  const [riskPct, setRiskPct] = useState(2);
+
+  const { rules, bestKey } = useMemo(
+    () => simulateRules(winRate, winR, lossR, { trades, riskPct, runs: 1500 }),
+    [winRate, winR, lossR, trades, riskPct],
+  );
+  const best = rules.find((r) => r.key === bestKey) ?? rules[0];
+  const xMul = (v: number) => `${v.toFixed(2)}×`;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-2 text-xs text-[var(--text-muted)] bg-white/3 border border-[var(--border)] rounded-xl px-3 py-2.5 leading-relaxed">
+        <span>🎲</span>
+        <span>내 <b className="text-[var(--text)]">매매일지 성적</b>(승률·평균 익절R·평균 손절R)을 넣으면, 서로 다른 <b className="text-[var(--text)]">익절 규칙</b>을 1,500회 몬테카를로로 돌려 <b className="text-[var(--text)]">최종 자산·낙폭·파산확률</b>을 비교합니다. 예측이 아니라 “내 분포가 유지되면 어느 규칙이 실현을 키우나”입니다. 규칙 변형(고정/분할/추적)은 표의 가정 모델.</span>
+      </div>
+
+      <div className="fin-card p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-[var(--text)]">내 매매 통계 (매매일지 성적에서)</h2>
+        <SimSlider label="승률" sliderValue={winRate} sliderMin={5} sliderMax={90} sliderStep={1} onSlider={setWinRate}
+          numValue={winRate} numMin={5} numMax={95} numStep={1} unit="%" onNum={setWinRate} numW="w-16" />
+        <SimSlider label="평균 익절 (R)" sliderValue={winR * 10} sliderMin={5} sliderMax={50} sliderStep={1}
+          onSlider={(v) => setWinR(v / 10)} numValue={winR} numMin={0.1} numMax={10} numStep={0.1} unit="R" onNum={setWinR} numW="w-16" />
+        <SimSlider label="평균 손절 (R)" sliderValue={lossR * 10} sliderMin={5} sliderMax={30} sliderStep={1}
+          onSlider={(v) => setLossR(v / 10)} numValue={lossR} numMin={0.1} numMax={5} numStep={0.1} unit="R" onNum={setLossR} numW="w-16" />
+        <SimSlider label="매매 수" sliderValue={trades} sliderMin={20} sliderMax={500} sliderStep={10} onSlider={setTrades}
+          numValue={trades} numMin={10} numMax={2000} numStep={10} unit="회" onNum={setTrades} numW="w-20" />
+        <SimSlider label="매매당 리스크 (계좌 대비)" sliderValue={riskPct * 10} sliderMin={5} sliderMax={100} sliderStep={5}
+          onSlider={(v) => setRiskPct(v / 10)} numValue={riskPct} numMin={0.1} numMax={20} numStep={0.1} unit="%" onNum={setRiskPct} numW="w-16" />
+        <p className="text-[10px] text-[var(--text-muted)]">기대값(매매당 R) = 승률×익절R − (1−승률)×손절R. 음수면 어떤 익절 규칙도 장기 우상향이 어렵습니다(규칙보다 진입·손절이 먼저).</p>
+      </div>
+
+      {/* 결과 표 */}
+      <div className="fin-card p-5">
+        <h2 className="text-sm font-semibold text-[var(--text)] mb-1">익절 규칙 비교 <span className="text-[10px] font-normal text-[var(--text-muted)]">{trades}회 매매 × 1,500회 시뮬 · 추천 ★</span></h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11.5px] tabular-nums" style={{ minWidth: 520 }}>
+            <thead>
+              <tr className="text-[10.5px] text-[var(--text-muted)] text-right border-b border-[var(--border)]">
+                <th className="text-left font-semibold py-2">규칙</th>
+                <th className="font-semibold px-1.5">기대R</th>
+                <th className="font-semibold px-1.5">중앙 자산</th>
+                <th className="font-semibold px-1.5">p10~p90</th>
+                <th className="font-semibold px-1.5">최대 낙폭</th>
+                <th className="font-semibold px-1.5">파산</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rules.map((r) => {
+                const isBest = r.key === bestKey;
+                return (
+                  <tr key={r.key} className={`border-b border-[var(--border)] text-right ${isBest ? 'bg-emerald-500/[0.06]' : ''}`}>
+                    <td className="text-left py-2">
+                      <span className="font-bold text-[var(--text)]">{isBest ? '★ ' : ''}{r.label}</span>
+                      <span className="block text-[9.5px] text-[var(--text-muted)] leading-tight">승률 {r.winRate}% · 익절 {r.winR}R · 손절 {r.lossR}R</span>
+                    </td>
+                    <td className={`px-1.5 font-semibold ${r.evR >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{r.evR >= 0 ? '+' : ''}{r.evR}</td>
+                    <td className={`px-1.5 font-bold ${r.median >= 1 ? 'text-emerald-400' : 'text-red-400'}`}>{xMul(r.median)}</td>
+                    <td className="px-1.5 text-[var(--text-muted)] text-[10.5px]">{xMul(r.p10)}~{xMul(r.p90)}</td>
+                    <td className="px-1.5 text-red-400">−{Math.round(r.medMaxDD * 100)}%</td>
+                    <td className={`px-1.5 ${r.ruinPct >= 20 ? 'text-red-400 font-bold' : 'text-[var(--text-muted)]'}`}>{r.ruinPct}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-[10px] text-[var(--text-muted)] mt-2.5 leading-relaxed">중앙 자산 = 시작 대비 최종 자산 배수(중앙값). <b>파산</b> = 1,500회 중 자산이 30% 밑으로 떨어진 비율. 추천 ★ = 파산 20% 이하 중 중앙 자산 최대. 규칙 변형(고정 1.5R·분할·추적)은 <b>명시된 가정</b>이라 네 실제 분포로 검증하세요.</p>
+      </div>
+
+      {/* 추천 규칙 자산 경로 */}
+      {best && (
+        <div className="fin-card p-5">
+          <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
+            <h2 className="text-sm font-semibold text-[var(--text)]">추천: ★ {best.label} <span className="text-[10px] font-normal text-[var(--text-muted)]">자산 경로(p10·중앙·p90)</span></h2>
+            <span className="text-[11px] tabular-nums text-[var(--text-muted)]">중앙 <b className={best.median >= 1 ? 'text-emerald-400' : 'text-red-400'}>{xMul(best.median)}</b></span>
+          </div>
+          <FanChart fan={best.fan} trades={trades} />
+          <div className="flex justify-between text-[10px] text-[var(--text-muted)] mt-1"><span>0회</span><span>시작 자산(점선) 기준 배수</span><span>{trades}회</span></div>
+          {best.evR < 0 && <p className="text-[11px] text-amber-400 mt-2">⚠ 기대값이 음수라 어떤 규칙도 장기 손실 경향입니다 — 익절 규칙보다 <b>진입·손절(손익비·승률)</b>을 먼저 개선하세요.</p>}
+        </div>
+      )}
+      <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">각 매매는 네 분포에서 독립 추출(복리, 켈리 아님)·수수료·펀딩 미반영. 시드 고정이라 같은 입력은 같은 결과입니다. 방향 적중은 측정상 우위 없음(백테스트 49.7%) — 이 도구는 <b className="text-[var(--text)]">청산 규율의 기대효과</b>를 네 통계로 가늠하는 용도입니다. 투자 권유가 아닙니다.</p>
+    </div>
+  );
+}
+
 /* ══════════════════ 메인 ══════════════════ */
 export default function SimulatePage() {
-  const [mode, setMode] = useState<'krw' | 'usdt'>('krw');
+  const [mode, setMode] = useState<'krw' | 'usdt' | 'mc'>('krw');
 
   return (
     <div className="max-w-2xl mx-auto pb-12">
       <h1 className="text-xl font-bold text-[var(--text)] mb-1">수익 시뮬레이션</h1>
       <p className="text-sm text-[var(--text-muted)] mb-4">
-        {mode === 'krw' ? '복리 적립 계산 FV = PV·(1+r)ⁿ + PMT·[(1+r)ⁿ−1]/r' : '코인 선물 레버리지 손익 계산기'}
+        {mode === 'krw' ? '복리 적립 계산 FV = PV·(1+r)ⁿ + PMT·[(1+r)ⁿ−1]/r' : mode === 'usdt' ? '코인 선물 레버리지 손익 계산기' : '내 통계로 익절 규칙을 몬테카를로 비교'}
       </p>
 
       {/* 모드 토글 */}
       <div className="flex gap-1.5 mb-4">
         {([
-          { key: 'krw',  label: '원화 · 주식·펀드 적립', icon: '₩' },
-          { key: 'usdt', label: 'USDT · 코인 선물',      icon: '₮' },
-        ] as { key: 'krw' | 'usdt'; label: string; icon: string }[]).map((m) => (
+          { key: 'krw',  label: '원화 적립', icon: '₩' },
+          { key: 'usdt', label: '코인 선물', icon: '₮' },
+          { key: 'mc',   label: '익절 규칙 시뮬', icon: '🎲' },
+        ] as { key: 'krw' | 'usdt' | 'mc'; label: string; icon: string }[]).map((m) => (
           <button key={m.key} onClick={() => setMode(m.key)}
-            className={`flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
+            className={`flex-1 py-2.5 rounded-xl border text-[13px] font-semibold transition-all ${
               mode === m.key ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
             }`}>
-            <span className="mr-1.5">{m.icon}</span>{m.label}
+            <span className="mr-1">{m.icon}</span>{m.label}
           </button>
         ))}
       </div>
 
-      {mode === 'krw' ? <CompoundSim /> : <LeverageCalc />}
+      {mode === 'krw' ? <CompoundSim /> : mode === 'usdt' ? <LeverageCalc /> : <ExitRuleSim />}
     </div>
   );
 }
