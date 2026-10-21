@@ -163,6 +163,45 @@ export function buildSmc(candles: Candle[], price: number, dir: 'long' | 'short'
   return { want, bos, fvg, orderBlock, ote, checklist, aligned };
 }
 
+/* ── 분할 익절 + 추적손절 플래너 ──────────────────────────
+ * 진입 플랜(entry/stop/target)을 '실행 계획'으로: 1차 50%·2차 30%·러너 20% 분할 청산 +
+ * 단계별 추적손절 이동. 승률 예측이 아니라 '되돌림에 수익을 반납하지 않는' 실행 규율 도구.
+ * (이 앱의 측정 결론 = 방향 예측 우위 없음. 실현을 키우는 건 진입이 아니라 청산 실행이다.) */
+export interface ExitLeg { label: string; price: number; sizePct: number; r: number; note: string }
+export interface ExitStep { trigger: string; stopTo: number | null; note: string }
+export interface ExitPlan {
+  legs: ExitLeg[]; ladder: ExitStep[];
+  scaledR: number;       // 모든 구간 도달 시 가중 실현 R(0.5·T1 + 0.3·T2 + 0.2·러너)
+  holdAllR: number;      // 전량 T2 한 번에 청산 시 R
+  lockedAfterT1: number; // T1 후 나머지를 본전 청산 시 확보 R(되돌림 방지)
+  runnerTarget: number | null; trailDistance: number;
+}
+export function exitPlan(dir: 'long' | 'short' | 'wait', entry: number, stop: number, t1: number, t2: number, atr: number, fib: FibLevels | null): ExitPlan | null {
+  const risk = Math.abs(entry - stop);
+  if (dir === 'wait' || !(risk > 0) || !(entry > 0)) return null;
+  const sign = dir === 'long' ? 1 : -1;
+  const rOf = (p: number) => (sign * (p - entry)) / risk;
+  // 러너 확장 목표 — 피보 1.618 확장이 2차 익절 너머면 사용, 아니면 2.5R 가정(추적)
+  let runnerTarget: number | null = null;
+  if (fib) {
+    if (dir === 'long' && fib.e1618 > t2) runnerTarget = fib.e1618;
+    else if (dir === 'short' && fib.e1618 < t2) runnerTarget = fib.e1618;
+  }
+  const runnerPrice = runnerTarget ?? (entry + sign * risk * 2.5);
+  const legs: ExitLeg[] = [
+    { label: '1차 익절', price: t1, sizePct: 50, r: rOf(t1), note: '절반 확정 → 손절 본전 이동' },
+    { label: '2차 익절', price: t2, sizePct: 30, r: rOf(t2), note: '손절을 1차 익절가로 이동' },
+    { label: '러너(추적)', price: runnerPrice, sizePct: 20, r: rOf(runnerPrice), note: runnerTarget ? '피보 1.618 확장까지 추적' : '추적손절로 최대한 연장' },
+  ];
+  const ladder: ExitStep[] = [
+    { trigger: '진입 직후', stopTo: stop, note: '최초 손절 (−1R)' },
+    { trigger: '1차 익절(T1) 도달', stopTo: entry, note: '남은 물량 무위험 — 본전 손절' },
+    { trigger: '2차 익절(T2) 도달', stopTo: t1, note: '러너에 최소 +1R 확보' },
+    { trigger: '러너 보유 중', stopTo: null, note: `직전 15m ${dir === 'long' ? '저점' : '고점'} 또는 현재가 ATR×1.5 ${dir === 'long' ? '아래' : '위'}로 추적` },
+  ];
+  return { legs, ladder, scaledR: 0.5 * rOf(t1) + 0.3 * rOf(t2) + 0.2 * rOf(runnerPrice), holdAllR: rOf(t2), lockedAfterT1: 0.5 * rOf(t1), runnerTarget, trailDistance: atr * 1.5 };
+}
+
 export interface Verdict {
   state: string;
   score: number;                    // -100(숏 강) ~ +100(롱 강)

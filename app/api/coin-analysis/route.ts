@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   Candle, analyzeTimeframe, buildVerdict, atr, srZones, fibonacci, emaSeries,
-  detectRsiDivergence, recentBigCandles, buildSmc,
+  detectRsiDivergence, recentBigCandles, buildSmc, exitPlan,
   TimeframeAnalysis, VerdictExtras,
 } from '@/lib/coinAnalysis';
 import { backtestEngine, BacktestResult } from '@/lib/coinBacktest';
@@ -615,6 +615,18 @@ export async function GET(req: NextRequest) {
     // SMC(BOS·FVG·오더블록·OTE) 구조 라벨 + 진입 조건 정렬 체크리스트 — 15m 기준(이미지 방식)
     const smc = buildSmc(c15m, price, verdict.direction, fib);
 
+    // 분할 익절 + 추적손절 플래너 — 진입 플랜을 실행 계획으로(되돌림 반납 방지)
+    const exit = exitPlan(verdict.direction, verdict.entry, verdict.stop, verdict.target1, verdict.target2, m15.atr, fib);
+    if (exit) {
+      exit.legs.forEach((l) => { l.price = cleanPx(l.price); l.r = Math.round(l.r * 100) / 100; });
+      exit.ladder.forEach((s) => { if (s.stopTo != null) s.stopTo = cleanPx(s.stopTo); });
+      if (exit.runnerTarget != null) exit.runnerTarget = cleanPx(exit.runnerTarget);
+      exit.scaledR = Math.round(exit.scaledR * 100) / 100;
+      exit.holdAllR = Math.round(exit.holdAllR * 100) / 100;
+      exit.lockedAfterT1 = Math.round(exit.lockedAfterT1 * 100) / 100;
+      exit.trailDistance = cleanPx(exit.trailDistance);
+    }
+
     // 백테스트 (전체 캔들, 10분 캐시)
     const backtest = cachedBacktest(symbol, c5mFull, c15mFull, c1hFull, funding.rate,
       c4hFull.length && c1dFull.length ? { c4h: c4hFull, c1d: c1dFull } : undefined);
@@ -790,6 +802,7 @@ export async function GET(req: NextRequest) {
       zones,
       fib,
       smc,
+      exit,
       charts,
       movement,
       divergence,

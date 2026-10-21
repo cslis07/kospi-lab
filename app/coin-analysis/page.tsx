@@ -93,6 +93,12 @@ interface AnalysisData {
     checklist: { label: string; pass: boolean; note: string }[];
     aligned: number;
   } | null;
+  exit?: {
+    legs: { label: string; price: number; sizePct: number; r: number; note: string }[];
+    ladder: { trigger: string; stopTo: number | null; note: string }[];
+    scaledR: number; holdAllR: number; lockedAfterT1: number;
+    runnerTarget: number | null; trailDistance: number;
+  } | null;
   charts: { m5: ChartCandle[]; m15: ChartCandle[]; h1: ChartCandle[] };
   movement: { direction: 'up' | 'down' | 'flat'; pct15m: number; pct1h: number; pct24h: number; drivers: Driver[] };
   divergence: 'bullish' | 'bearish' | null;
@@ -588,6 +594,8 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
   // 예상 청산가 — 보수 레버리지(격리 근사) 기준. 리스크 패널과 동일 공식(lib/positionSizing)
   const liqLev = v.leverage.conservative;
   const liq = v.direction !== 'wait' ? isolatedLiqPrice(v.entry, liqLev, v.direction === 'short') : null;
+  // 러너 추적손절 — 현재가에서 ATR×1.5 거리(방향 반영)
+  const trailNow = v.direction === 'long' ? price - (data.exit?.trailDistance ?? 0) : price + (data.exit?.trailDistance ?? 0);
 
   return (
     <div className="rounded-2xl border border-sky-500/30 bg-[var(--bg-card)] p-5 space-y-4">
@@ -647,6 +655,55 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
             </div>
           )}
           <p className="text-[9.5px] text-[var(--text-muted)] mt-1.5 leading-snug">BOS(구조 돌파)→FVG·오더블록 되돌림→OTE(0.618~0.786) 진입 프레임. 4개 모두 정렬될수록 자리는 깔끔하지만 방향 적중을 보장하지 않습니다(엔진 백테스트 49.7%).</p>
+        </div>
+      )}
+
+      {/* 분할 익절 + 추적손절 플래너 — 진입 플랜을 '실행 계획'으로(되돌림 반납 방지) */}
+      {data.exit && v.direction !== 'wait' && (
+        <div className="rounded-xl border border-sky-500/30 bg-sky-500/[0.05] p-3">
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <span className="text-[11px] font-bold text-sky-300">📤 분할 익절 + 추적손절</span>
+            <span className="ml-auto text-[10px] text-[var(--text-muted)]">되돌림 반납 방지 · 매수 신호 아님</span>
+          </div>
+          {/* 분할 청산 레그 */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-[11px] tabular-nums min-w-[320px]">
+              <thead>
+                <tr className="text-[var(--text-muted)] text-left">
+                  <th className="font-medium py-1">구간</th><th className="font-medium text-right">가격</th><th className="font-medium text-right px-2">비중</th><th className="font-medium text-right">R</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.exit.legs.map((l) => (
+                  <tr key={l.label} className="border-t border-[var(--line-2)]">
+                    <td className="py-1 text-[var(--text)]">{l.label}<span className="block text-[9px] text-[var(--text-muted)] leading-tight">{l.note}</span></td>
+                    <td className="text-right font-bold text-[var(--text)]">${fmtP(l.price, digits)}</td>
+                    <td className="text-right text-[var(--text-muted)] px-2">{l.sizePct}%</td>
+                    <td className="text-right font-semibold text-emerald-400">+{l.r.toFixed(2)}R</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* 추적손절 사다리 */}
+          <div className="mt-2 pt-2 border-t border-[var(--line-2)] space-y-1">
+            <p className="text-[10px] font-bold text-[var(--text-muted)]">추적손절 사다리</p>
+            {data.exit.ladder.map((s, i) => (
+              <div key={i} className="flex items-start gap-2 text-[10.5px] tabular-nums">
+                <span className="text-[var(--text-muted)] shrink-0 w-[112px]">{s.trigger}</span>
+                <span className="text-[var(--text)] min-w-0">
+                  {s.stopTo != null
+                    ? <>손절 → <b className="text-amber-400">${fmtP(s.stopTo, digits)}</b> </>
+                    : <>손절 → <b className="text-amber-400">${fmtP(trailNow, digits)}</b> <span className="text-[9px]">(추적)</span> </>}
+                  <span className="text-[var(--text-muted)]">{s.note}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+          {/* 되돌림 방지 요약 */}
+          <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-snug">
+            분할 전구간 도달 시 <b className="text-emerald-400">+{data.exit.scaledR.toFixed(2)}R</b> · 전량 2차 홀딩 <b className="text-[var(--text)]">+{data.exit.holdAllR.toFixed(2)}R</b>. 1차 익절 후 되돌림이 와도 분할은 <b className="text-emerald-400">+{data.exit.lockedAfterT1.toFixed(2)}R</b> 확정(본전 손절) — 전량 홀딩은 0R로 반납. <b className="text-[var(--text)]">큰 수익은 러너가, 반납 방지는 분할이</b> 담당합니다.
+          </p>
         </div>
       )}
 

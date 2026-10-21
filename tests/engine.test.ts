@@ -13,7 +13,7 @@ import {
   type TimeframeAnalysis, type SRZone, type Candle,
 } from '../lib/coinAnalysis';
 import { buildStockVerdict, analyzeSupply, type InvestorDay } from '../lib/stockAnalysis';
-import { analyzeTimeframe, srZones, fibonacci, atr, detectFvgs, buildSmc } from '../lib/coinAnalysis';
+import { analyzeTimeframe, srZones, fibonacci, atr, detectFvgs, buildSmc, exitPlan } from '../lib/coinAnalysis';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '../lib/positionSizing';
 import { scoreGrowth, growthPct } from '../lib/growthScreener';
 import { scoreUsGrowth, US_UNIVERSE, US_SECTORS, US_THEMES } from '../lib/usGrowth';
@@ -951,6 +951,27 @@ console.log('\n[ journalStats — 성적 실측 (순수 함수) ]');
     assert.ok(s.aligned >= 0 && s.aligned <= 4);
     assert.equal(s.want, 'bull');
     assert.equal(buildSmc(c, last, 'short', fibonacci(c, last)).want, 'bear');
+  });
+}
+
+{
+  console.log('\n[분할 익절 + 추적손절 플래너]');
+  ok('exitPlan(롱): 레그 3개·비중 100·R 단조증가·T1 후 본전', () => {
+    const p = exitPlan('long', 100, 95, 105, 110, 2, null);
+    assert.ok(p);
+    assert.equal(p!.legs.length, 3);
+    assert.equal(p!.legs.reduce((a, l) => a + l.sizePct, 0), 100);
+    assert.ok(p!.legs[0].r <= p!.legs[1].r && p!.legs[1].r <= p!.legs[2].r);
+    assert.equal(p!.legs[0].r, 1);              // T1 = 1R
+    assert.equal(p!.ladder.length, 4);
+    assert.equal(p!.ladder[1].stopTo, 100);     // T1 도달 → 본전
+    assert.ok(p!.lockedAfterT1 > 0 && p!.lockedAfterT1 < p!.scaledR); // 반납 방지분 < 전구간
+  });
+  ok('exitPlan(숏): 방향 부호·관망 null', () => {
+    const s = exitPlan('short', 100, 105, 95, 90, 2, null);
+    assert.ok(s && s.legs[0].r === 1 && s.ladder[1].stopTo === 100);
+    assert.equal(exitPlan('wait', 100, 95, 105, 110, 2, null), null);
+    assert.equal(exitPlan('long', 100, 100, 105, 110, 2, null), null); // 손절=진입(risk 0) → null
   });
 }
 
