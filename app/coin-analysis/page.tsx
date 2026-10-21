@@ -835,6 +835,128 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
   );
 }
 
+/** 보유 포지션 실시간 익절 가이드 — 내 진입가 기준 미실현 손익·추적손절 제안·모멘텀 소진·익절 판정.
+ *  승률 신호 아님: '지금 뭘 할까(익절/홀딩/손절 규율)'를 기존 지표(RSI·MACD·OI·다이버전스·지지저항)로 안내. */
+function MyPositionGuide({ data, v, digits }: { data: AnalysisData; v: Verdict; digits: number }) {
+  const price = data.markPrice ?? data.price;
+  const key = `kl_pos_${data.symbol}`;
+  const [entryStr, setEntryStr] = useState('');
+  const [stopStr, setStopStr] = useState('');
+  const [dir, setDir] = useState<'long' | 'short'>(v.direction === 'short' ? 'short' : 'long');
+  // 기기 저장 복원(심볼별) — 심볼 바뀌면 그 심볼 값으로
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) { const o = JSON.parse(raw); setEntryStr(o.entry ?? ''); setStopStr(o.stop ?? ''); if (o.dir === 'long' || o.dir === 'short') setDir(o.dir); }
+      else { setEntryStr(''); setStopStr(''); }
+    } catch { /* 저장소 비접근 */ }
+  }, [key]);
+  useEffect(() => { try { localStorage.setItem(key, JSON.stringify({ entry: entryStr, stop: stopStr, dir })); } catch { /* ignore */ } }, [key, entryStr, stopStr, dir]);
+
+  const entry = parseFloat(entryStr);
+  const hasEntry = entryStr !== '' && !isNaN(entry) && entry > 0;
+  const sign = dir === 'long' ? 1 : -1;
+  const uPct = hasEntry ? ((price - entry) / entry) * 100 * sign : 0;
+  const inProfit = uPct > 0;
+  const stop = parseFloat(stopStr);
+  const hasStop = stopStr !== '' && !isNaN(stop) && stop > 0;
+  const rMult = hasEntry && hasStop && Math.abs(entry - stop) > 0 ? ((price - entry) * sign) / Math.abs(entry - stop) : null;
+
+  // 모멘텀 소진 신호(보유 방향 기준) — 유지/둔화/소진
+  const h1 = data.timeframes.h1, m15 = data.timeframes.m15;
+  const oi = data.oi.change1hPct;
+  const fades: string[] = []; const holds: string[] = [];
+  if (dir === 'long') { if (h1.rsi >= 72) fades.push(`1H RSI ${h1.rsi.toFixed(0)} 과열`); else if (h1.rsi >= 50) holds.push(`1H RSI ${h1.rsi.toFixed(0)}`); }
+  else { if (h1.rsi <= 28) fades.push(`1H RSI ${h1.rsi.toFixed(0)} 침체`); else if (h1.rsi <= 50) holds.push(`1H RSI ${h1.rsi.toFixed(0)}`); }
+  const ms = m15.macd.histSlope, mh = m15.macd.hist;
+  if (dir === 'long') { if (mh > 0 && ms > 0) holds.push('15m MACD 상승 확장'); else if (ms < 0) fades.push('15m MACD 둔화'); }
+  else { if (mh < 0 && ms < 0) holds.push('15m MACD 하락 확장'); else if (ms > 0) fades.push('15m MACD 둔화'); }
+  if (oi != null) { if (oi <= -0.3) fades.push(`OI ${oi.toFixed(1)}% 감소`); else if (oi >= 0.3) holds.push(`OI +${oi.toFixed(1)}% 유입`); }
+  if (dir === 'long' && (data.taker.divergence === 'bearish' || data.divergence === 'bearish')) fades.push('약세 다이버전스');
+  if (dir === 'short' && (data.taker.divergence === 'bullish' || data.divergence === 'bullish')) fades.push('강세 다이버전스');
+  const momentum = fades.length >= 2 ? '소진' : fades.length === 1 ? '둔화' : '유지';
+
+  // 추적손절 제안 — 현재가에서 15m ATR×1.5(수익 중이면 최소 본전 확보)
+  const atr15 = m15.atr;
+  let trail = dir === 'long' ? price - atr15 * 1.5 : price + atr15 * 1.5;
+  if (hasEntry && inProfit) trail = dir === 'long' ? Math.max(trail, entry) : Math.min(trail, entry);
+  const trailPct = Math.abs((trail - price) / price) * 100;
+
+  // 다음 저항/지지 — 익절 후보 vs 거스르는 쪽
+  const resAbove = data.zones.filter((z) => z.kind === 'resistance' && z.price > price).map((z) => z.price).sort((a, b) => a - b)[0];
+  const supBelow = data.zones.filter((z) => z.kind === 'support' && z.price < price).map((z) => z.price).sort((a, b) => b - a)[0];
+  const tpNext = dir === 'long' ? resAbove : supBelow;
+  const tpPct = tpNext ? Math.abs((tpNext - price) / price) * 100 : null;
+
+  let guide: { label: string; tone: 'go' | 'warn' | 'hold' | 'info'; detail: string };
+  if (!hasEntry) guide = { label: '내 진입가를 입력하세요', tone: 'info', detail: '진입가(+선택 손절가)를 넣으면 미실현 손익·추적손절·익절 타이밍을 안내합니다.' };
+  else if (!inProfit) guide = { label: '아직 수익 구간 아님 — 손절 규율 우선', tone: 'warn', detail: '임의 물타기 금지. 손절선을 지키고, 계획이 깨졌으면 끊으세요.' };
+  else if (momentum === '소진') guide = { label: '동력 소진 — 적극 익절 / 추적손절 바짝', tone: 'go', detail: '상승 동력이 약해졌습니다. 일부 익절하고 추적손절을 바짝 당겨 반납을 막으세요.' };
+  else if (momentum === '둔화') guide = { label: '동력 둔화 — 일부(30~50%) 익절 + 추적손절 당기기', tone: 'warn', detail: '추세가 식는 중. 부분 익절로 확정하고 나머지는 추적손절로 보호.' };
+  else guide = { label: '동력 유지 — 추적손절로 끌고 홀딩', tone: 'hold', detail: '아직 힘이 있습니다. 추적손절을 올리며 홀딩, 저항에서 분할 익절 고려.' };
+  const toneCls = { go: 'border-red-500/40 bg-red-500/[0.07]', warn: 'border-amber-500/40 bg-amber-500/[0.06]', hold: 'border-emerald-500/40 bg-emerald-500/[0.06]', info: 'border-[var(--border)] bg-white/[0.02]' }[guide.tone];
+  const toneTx = { go: 'text-red-300', warn: 'text-amber-300', hold: 'text-emerald-300', info: 'text-[var(--text-muted)]' }[guide.tone];
+  const inCls = 'w-full bg-white/5 border border-[var(--border)] rounded-lg px-2.5 py-2 text-sm font-semibold text-right text-[var(--text)] tabular-nums placeholder:text-[var(--text-muted)] outline-none focus:border-sky-500/50';
+
+  return (
+    <div className="space-y-4">
+      <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">지금 들고 있는 포지션의 <b className="text-[var(--text)]">진입가</b>를 넣으면, 현재가 기준 <b className="text-[var(--text)]">미실현 손익·추적손절 제안·모멘텀 소진</b>을 보고 <b className="text-[var(--text)]">언제 익절할지</b> 안내합니다. 매수·매도 권유 아님.</p>
+
+      {/* 입력 */}
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => setDir('long')} className={`py-2 rounded-lg border text-[13px] font-bold ${dir === 'long' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>▲ 롱 보유</button>
+        <button type="button" onClick={() => setDir('short')} className={`py-2 rounded-lg border text-[13px] font-bold ${dir === 'short' ? 'border-red-500 bg-red-500/10 text-red-400' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>▼ 숏 보유</button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block"><span className="block text-[11px] text-[var(--text-muted)] mb-1">내 진입가</span>
+          <input type="number" inputMode="decimal" value={entryStr} onChange={(e) => setEntryStr(e.target.value)} placeholder={`현재가 ${fmtP(price, digits)}`} className={inCls} /></label>
+        <label className="block"><span className="block text-[11px] text-[var(--text-muted)] mb-1">내 손절가 <span className="opacity-60">(선택)</span></span>
+          <input type="number" inputMode="decimal" value={stopStr} onChange={(e) => setStopStr(e.target.value)} placeholder="R 계산용" className={inCls} /></label>
+      </div>
+
+      {/* 익절 가이드 판정 */}
+      <div className={`rounded-xl border p-3.5 ${toneCls}`}>
+        <p className={`text-[14px] font-extrabold ${toneTx}`}>{guide.label}</p>
+        <p className="text-[11px] text-[var(--text-muted)] mt-1 leading-snug">{guide.detail}</p>
+        {hasEntry && (
+          <div className="flex items-center gap-2 mt-2 flex-wrap text-[10px]">
+            <span className={`px-1.5 py-0.5 rounded font-bold ${momentum === '유지' ? 'bg-emerald-500/15 text-emerald-400' : momentum === '둔화' ? 'bg-amber-500/15 text-amber-400' : 'bg-red-500/15 text-red-400'}`}>동력 {momentum}</span>
+            <span className="text-[var(--text-muted)]">진입 대비 <b className={inProfit ? 'text-emerald-400' : 'text-red-400'}>{uPct >= 0 ? '+' : ''}{uPct.toFixed(2)}%</b>{rMult != null ? <> · <b className={rMult >= 0 ? 'text-emerald-400' : 'text-red-400'}>{rMult >= 0 ? '+' : ''}{rMult.toFixed(2)}R</b></> : null}</span>
+          </div>
+        )}
+      </div>
+
+      {hasEntry && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-3">
+            <p className="text-[10px] text-[var(--text-muted)]">미실현 손익</p>
+            <p className={`text-base font-bold tabular-nums ${inProfit ? 'text-emerald-400' : 'text-red-400'}`}>{uPct >= 0 ? '+' : ''}{uPct.toFixed(2)}%</p>
+            <p className="text-[10px] text-[var(--text-muted)]">{rMult != null ? `${rMult >= 0 ? '+' : ''}${rMult.toFixed(2)}R (손절 기준)` : '손절가 넣으면 R 표시'}</p>
+          </div>
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.05] p-3">
+            <p className="text-[10px] text-[var(--text-muted)]">추적손절 제안</p>
+            <p className="text-base font-bold tabular-nums text-amber-400">${fmtP(trail, digits)}</p>
+            <p className="text-[10px] text-[var(--text-muted)]">현재가 {dir === 'long' ? '−' : '+'}{trailPct.toFixed(2)}% · ATR×1.5{inProfit ? '·본전 이상' : ''}</p>
+          </div>
+          <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-3">
+            <p className="text-[10px] text-[var(--text-muted)]">다음 {dir === 'long' ? '저항(익절 후보)' : '지지(익절 후보)'}</p>
+            <p className="text-base font-bold tabular-nums text-[var(--text)]">{tpNext ? `$${fmtP(tpNext, digits)}` : '—'}</p>
+            <p className="text-[10px] text-[var(--text-muted)]">{tpPct != null ? `현재가 ${dir === 'long' ? '+' : '−'}${tpPct.toFixed(2)}% 거리` : '구간 미식별'}</p>
+          </div>
+        </div>
+      )}
+
+      {hasEntry && (fades.length > 0 || holds.length > 0) && (
+        <div className="flex flex-wrap gap-1.5">
+          {fades.map((t) => <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">↓ {t}</span>)}
+          {holds.map((t) => <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">↑ {t}</span>)}
+        </div>
+      )}
+      <p className="text-[10px] text-[var(--text-muted)] leading-snug">추적손절·익절 가이드는 <b className="text-[var(--text)]">실행 규율 보조</b>입니다(방향 예측 아님, 엔진 백테스트 49.7%). 급락 시 추적손절은 원하는 가격에 체결 안 될 수 있습니다. 입력값은 이 기기에만 저장됩니다.</p>
+    </div>
+  );
+}
+
 /** 파생 수급 정밀(작게) — 헤더 요약 카드 오른쪽. 주문흐름·OI·포지셔닝 핵심만. */
 function DerivFlowCompact({ data }: { data: AnalysisData }) {
   const tk = data.taker.ratio;
@@ -876,7 +998,7 @@ export default function CoinAnalysisPage() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [chartTf, setChartTf] = useState<'m5' | 'm15' | 'h1'>('m5');
   const { model: aiModel, ready: modelReady } = useBriefingModel();
-  const [modal, setModal] = useState<null | 'flow' | 'macro' | 'risk' | 'journal' | 'entry' | 'timeframes'>(null); // 상단 버튼 → 팝업(BottomSheet)
+  const [modal, setModal] = useState<null | 'flow' | 'macro' | 'risk' | 'journal' | 'entry' | 'timeframes' | 'position'>(null); // 상단 버튼 → 팝업(BottomSheet)
   // symbol·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
   const [run, setRun] = useState<{ symbol: string; model: string } | null>(null);
   // 관심종목에서 '분석'으로 진입(?symbol=…&run=1)하면 해당 코인으로 자동 실행. 그 외에는 버튼으로만.
@@ -1393,6 +1515,7 @@ export default function CoinAnalysisPage() {
             <div className="flex flex-wrap gap-1.5">
               {([
                 ['entry', '🎯 진입 판단'],
+                ['position', '📍 내 포지션'],
                 ['timeframes', '📈 시간대별 지표'],
                 ['flow', '📊 흐름 읽기'],
                 ...(data.macro && data.macro.values && (data.macro.values.us10 || data.macro.values.dxy) ? [['macro', '🌐 거시 배경'] as const] : []),
@@ -1412,6 +1535,11 @@ export default function CoinAnalysisPage() {
           {/* 🎯 진입 판단 — 상단 버튼 → 팝업 */}
           <BottomSheet open={modal === 'entry'} onClose={() => setModal(null)} title="진입 판단" full>
             <EntryDecision data={data} v={v} digits={priceDigits} />
+          </BottomSheet>
+
+          {/* 📍 내 포지션 — 보유 중 실시간 익절 가이드 */}
+          <BottomSheet open={modal === 'position'} onClose={() => setModal(null)} title="내 포지션 — 실시간 익절 가이드" full>
+            <MyPositionGuide data={data} v={v} digits={priceDigits} />
           </BottomSheet>
 
           {/* 시간대별 지표 — 상단 버튼 → 팝업 */}
