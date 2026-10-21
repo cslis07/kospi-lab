@@ -84,6 +84,15 @@ interface AnalysisData {
   longShort: { latest: LSPoint | null; history: LSPoint[] };
   timeframes: { h4?: TF | null; h1: TF; m15: TF; m5: TF; m1?: TF | null };
   zones: Zone[]; fib: Fib | null;
+  smc?: {
+    want: 'bull' | 'bear';
+    bos: { dir: 'bull' | 'bear'; level: number } | null;
+    fvg: { low: number; high: number; dir: 'bull' | 'bear'; filled: boolean } | null;
+    orderBlock: { low: number; high: number } | null;
+    ote: { low: number; high: number } | null;
+    checklist: { label: string; pass: boolean; note: string }[];
+    aligned: number;
+  } | null;
   charts: { m5: ChartCandle[]; m15: ChartCandle[]; h1: ChartCandle[] };
   movement: { direction: 'up' | 'down' | 'flat'; pct15m: number; pct1h: number; pct24h: number; drivers: Driver[] };
   divergence: 'bullish' | 'bearish' | null;
@@ -576,6 +585,9 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
     : `지금 시장가 ($${fmtP(price, digits)})`;
   const gradeC = v.confidence.grade === '견고' ? 'text-emerald-400' : v.confidence.grade === '약함' ? 'text-red-400' : 'text-amber-400';
   const recDirCls = v.direction === 'long' ? 'text-emerald-400' : v.direction === 'short' ? 'text-red-400' : 'text-amber-400';
+  // 예상 청산가 — 보수 레버리지(격리 근사) 기준. 리스크 패널과 동일 공식(lib/positionSizing)
+  const liqLev = v.leverage.conservative;
+  const liq = v.direction !== 'wait' ? isolatedLiqPrice(v.entry, liqLev, v.direction === 'short') : null;
 
   return (
     <div className="rounded-2xl border border-sky-500/30 bg-[var(--bg-card)] p-5 space-y-4">
@@ -601,12 +613,42 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
             <span className="text-[var(--text-muted)]">목표1 <b className="text-emerald-400">${fmtP(v.target1, digits)}</b></span>
             <span className="text-[var(--text-muted)]">목표2 <b className="text-emerald-400">${fmtP(v.target2, digits)}</b></span>
             <span className="text-[var(--text-muted)]">손익비 <b className={v.rr >= 1.5 ? 'text-emerald-400' : 'text-amber-400'}>{v.rr.toFixed(2)}</b></span>
+            {liq != null && <span className="text-[var(--text-muted)]">청산 <b className="text-amber-400">${fmtP(liq, digits)}</b> <span className="text-[10px]">({liqLev}배 격리 근사)</span></span>}
           </div>
         ) : (
           <p className="text-[11px] text-[var(--text-muted)]">{ep.note || '양쪽 모두 조건 미충족 — 방향·트리거가 생기면 진입가가 표시됩니다.'}</p>
         )}
         <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-snug">지지저항+15m ATR 구조 기준 · R:R 1.5 미만이면 건너뛰는 게 안전. 롱·숏 양쪽 수치·근거는 상세보기.</p>
       </div>
+
+      {/* SMC 진입 정렬 — BOS→FVG·오더블록→OTE (이미지 방식). 조건 정렬도이지 매수 신호 아님 */}
+      {data.smc && (
+        <div className="rounded-xl border border-violet-500/30 bg-violet-500/[0.05] p-3">
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <span className="text-[11px] font-bold text-violet-300">🧩 SMC 진입 정렬</span>
+            <span className="text-[13px] font-extrabold text-[var(--text)]">{data.smc.aligned}/4</span>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${data.smc.want === 'bull' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>{data.smc.want === 'bull' ? '상승 구조' : '하락 구조'}</span>
+            <span className="ml-auto text-[10px] text-[var(--text-muted)]">조건 정렬도 · 매수 신호 아님</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {data.smc.checklist.map((c) => (
+              <div key={c.label} className={`rounded-lg border px-2 py-1 ${c.pass ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : 'border-[var(--border)] bg-white/[0.02]'}`}>
+                <p className="text-[10.5px] font-semibold text-[var(--text)] leading-tight">{c.pass ? '✓' : '·'} {c.label}</p>
+                <p className="text-[9.5px] text-[var(--text-muted)] leading-tight">{c.note}</p>
+              </div>
+            ))}
+          </div>
+          {(data.smc.bos || data.smc.fvg || data.smc.ote || data.smc.orderBlock) && (
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] tabular-nums text-[var(--text-muted)] mt-2">
+              {data.smc.bos && <span>BOS <b className="text-[var(--text)]">${fmtP(data.smc.bos.level, digits)}</b></span>}
+              {data.smc.fvg && <span>FVG <b className="text-[var(--text)]">${fmtP(data.smc.fvg.low, digits)}~${fmtP(data.smc.fvg.high, digits)}</b></span>}
+              {data.smc.ote && <span>OTE <b className="text-[var(--text)]">${fmtP(data.smc.ote.low, digits)}~${fmtP(data.smc.ote.high, digits)}</b></span>}
+              {data.smc.orderBlock && <span>OB <b className="text-[var(--text)]">${fmtP(data.smc.orderBlock.low, digits)}~${fmtP(data.smc.orderBlock.high, digits)}</b></span>}
+            </div>
+          )}
+          <p className="text-[9.5px] text-[var(--text-muted)] mt-1.5 leading-snug">BOS(구조 돌파)→FVG·오더블록 되돌림→OTE(0.618~0.786) 진입 프레임. 4개 모두 정렬될수록 자리는 깔끔하지만 방향 적중을 보장하지 않습니다(엔진 백테스트 49.7%).</p>
+        </div>
+      )}
 
       {/* 시나리오 (짧게) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

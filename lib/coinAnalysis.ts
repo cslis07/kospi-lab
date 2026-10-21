@@ -76,6 +76,93 @@ export function dirPlan(dir: 'long' | 'short', price: number, atr15: number, sup
   return { stop, target1, target2, stopPct, rr };
 }
 
+/* ── SMC(스마트머니) 구조: BOS·FVG·오더블록·OTE ─────────────
+ * 소셜에서 흔한 ICT/SMC 프레이밍(구조 돌파→공백/오더블록 되돌림→OTE 진입)을
+ * "구조 라벨 + 리스크 플랜"으로만 제공한다. 이 앱의 측정 결론(방향 예측 우위 없음)은 그대로다 —
+ * FVG·오더블록 식별은 주관적이라 승률 신호가 아니라 "진입 조건 정렬도 + 무효화(손절) 자리"를
+ * 명확히 하는 용도. 화면에도 "조건 정렬도 · 매수 신호 아님"으로 프레이밍한다. */
+export interface FvgZone { low: number; high: number; dir: 'bull' | 'bear'; filled: boolean }
+export interface SmcAnalysis {
+  want: 'bull' | 'bear';
+  bos: { dir: 'bull' | 'bear'; level: number } | null;   // 직전 구조 돌파
+  fvg: FvgZone | null;                                     // 진입 방향의 가장 가까운 미충전 공백
+  orderBlock: { low: number; high: number } | null;       // 수요/공급 존(스윙 피벗 캔들 근사)
+  ote: { low: number; high: number } | null;              // 피보 0.618~0.786 되돌림
+  checklist: { label: string; pass: boolean; note: string }[];
+  aligned: number;                                         // 통과 개수(/4)
+}
+
+/** 3캔들 공백(FVG) 전수 탐색. bull: c[i-1].h < c[i+1].l / bear: c[i-1].l > c[i+1].h.
+ *  이후 봉이 갭 범위를 메우면 filled=true. */
+export function detectFvgs(candles: Candle[]): FvgZone[] {
+  const out: FvgZone[] = [];
+  for (let i = 1; i < candles.length - 1; i++) {
+    const a = candles[i - 1], c = candles[i + 1];
+    if (a.h < c.l) {
+      const filled = candles.slice(i + 2).some((k) => k.l <= a.h);
+      out.push({ low: a.h, high: c.l, dir: 'bull', filled });
+    } else if (a.l > c.h) {
+      const filled = candles.slice(i + 2).some((k) => k.h >= a.l);
+      out.push({ low: c.h, high: a.l, dir: 'bear', filled });
+    }
+  }
+  return out;
+}
+
+/** BOS·FVG·오더블록·OTE를 묶어 '진입 조건 정렬' 체크리스트로.
+ *  dir=엔진 추천 방향(관망이면 피보 스윙 방향으로 대체). */
+export function buildSmc(candles: Candle[], price: number, dir: 'long' | 'short' | 'wait', fib: FibLevels | null): SmcAnalysis {
+  const want: 'bull' | 'bear' = dir === 'long' ? 'bull' : dir === 'short' ? 'bear' : (fib?.direction === 'down' ? 'bear' : 'bull');
+  const swings = findSwings(candles, 3);
+  const highs = swings.filter((s) => s.kind === 'high');
+  const lows = swings.filter((s) => s.kind === 'low');
+
+  // BOS — 직전 동일 스윙 돌파(HH=상승 구조 돌파 / LL=하락 구조 돌파)
+  let bos: SmcAnalysis['bos'] = null;
+  if (want === 'bull' && highs.length >= 2 && highs[highs.length - 1].price > highs[highs.length - 2].price) {
+    bos = { dir: 'bull', level: highs[highs.length - 2].price };
+  } else if (want === 'bear' && lows.length >= 2 && lows[lows.length - 1].price < lows[lows.length - 2].price) {
+    bos = { dir: 'bear', level: lows[lows.length - 2].price };
+  }
+
+  // FVG — 진입 방향의 미충전 공백 중 현재가에 가장 가까운 것
+  let fvg: FvgZone | null = null;
+  let bestD = Infinity;
+  for (const f of detectFvgs(candles)) {
+    if (f.filled || f.dir !== want) continue;
+    const d = Math.abs((f.low + f.high) / 2 - price);
+    if (d < bestD) { bestD = d; fvg = f; }
+  }
+
+  // 오더블록 — 되돌림이 반응할 수요/공급 존. 최근 스윙 피벗 캔들의 몸통 범위로 근사.
+  let orderBlock: SmcAnalysis['orderBlock'] = null;
+  const pivotIdx = want === 'bull' ? lows[lows.length - 1]?.idx : highs[highs.length - 1]?.idx;
+  if (pivotIdx != null && candles[pivotIdx]) {
+    const k = candles[pivotIdx];
+    orderBlock = { low: k.l, high: k.h };
+  }
+
+  // OTE — 마지막 스윙의 0.618~0.786 되돌림(가장 선호되는 진입 구간)
+  let ote: SmcAnalysis['ote'] = null;
+  if (fib) {
+    const rng = fib.swingHigh - fib.swingLow;
+    ote = want === 'bull'
+      ? { low: fib.swingHigh - 0.786 * rng, high: fib.swingHigh - 0.618 * rng }
+      : { low: fib.swingLow + 0.618 * rng, high: fib.swingLow + 0.786 * rng };
+  }
+
+  const inZone = (z: { low: number; high: number } | null) => !!z && price >= z.low && price <= z.high;
+  const retraceOk = inZone(ote) || inZone(orderBlock) || inZone(fvg);
+  const checklist = [
+    { label: '구조 돌파(BOS)', pass: !!bos, note: bos ? `${bos.dir === 'bull' ? '상승' : '하락'} 구조 돌파 확인` : '직전 스윙 미돌파 — 구조 대기' },
+    { label: '가격 공백(FVG)', pass: !!fvg, note: fvg ? `${want === 'bull' ? '상승' : '하락'} FVG 미충전` : '미충전 FVG 없음' },
+    { label: '되돌림(OTE·오더블록)', pass: retraceOk, note: inZone(ote) ? 'OTE 0.618~0.786 안' : inZone(orderBlock) ? '오더블록 안' : inZone(fvg) ? 'FVG 안' : '되돌림 대기 — 진입존 밖' },
+    { label: '손절 자리 명확', pass: !!(orderBlock || bos), note: orderBlock ? `오더블록 ${want === 'bull' ? '아래' : '위'}에 손절` : bos ? '구조 돌파선 기준 손절' : '무효화 기준 불명확' },
+  ];
+  const aligned = checklist.filter((c) => c.pass).length;
+  return { want, bos, fvg, orderBlock, ote, checklist, aligned };
+}
+
 export interface Verdict {
   state: string;
   score: number;                    // -100(숏 강) ~ +100(롱 강)

@@ -13,7 +13,7 @@ import {
   type TimeframeAnalysis, type SRZone, type Candle,
 } from '../lib/coinAnalysis';
 import { buildStockVerdict, analyzeSupply, type InvestorDay } from '../lib/stockAnalysis';
-import { analyzeTimeframe, srZones, fibonacci, atr } from '../lib/coinAnalysis';
+import { analyzeTimeframe, srZones, fibonacci, atr, detectFvgs, buildSmc } from '../lib/coinAnalysis';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '../lib/positionSizing';
 import { scoreGrowth, growthPct } from '../lib/growthScreener';
 import { scoreUsGrowth, US_UNIVERSE, US_SECTORS, US_THEMES } from '../lib/usGrowth';
@@ -911,6 +911,46 @@ console.log('\n[ journalStats — 성적 실측 (순수 함수) ]');
   ok('브레이커: 한도 미설정이면 스트릭만 본다', () => {
     const rows = [be({ts:now, realizedUsdt:-9999})];
     assert.equal(evaluateBreaker(rows, DEFAULT_LIMITS, now).status, 'ok');  // 1연속 손절뿐
+  });
+}
+
+{
+  console.log('\n[SMC — FVG·BOS·OTE]');
+  ok('detectFvgs: 상승 3캔들 공백 탐지(미충전)', () => {
+    const c: Candle[] = [
+      { ts: 1, o: 100, h: 101, l: 99, c: 100, v: 1, qv: 1 },
+      { ts: 2, o: 101, h: 105, l: 101, c: 104, v: 1, qv: 1 },   // 임펄스
+      { ts: 3, o: 104, h: 106, l: 102, c: 105, v: 1, qv: 1 },   // c[0].h(101) < c[2].l(102) → bull FVG 101~102
+    ];
+    const f = detectFvgs(c).filter((x) => x.dir === 'bull');
+    assert.ok(f.length >= 1);
+    assert.equal(f[0].filled, false);
+    assert.ok(f[0].low <= f[0].high);
+  });
+  ok('detectFvgs: 이후 봉이 갭을 메우면 filled=true', () => {
+    const c: Candle[] = [
+      { ts: 1, o: 100, h: 101, l: 99, c: 100, v: 1, qv: 1 },
+      { ts: 2, o: 101, h: 105, l: 101, c: 104, v: 1, qv: 1 },
+      { ts: 3, o: 104, h: 106, l: 102, c: 105, v: 1, qv: 1 },   // bull FVG 101~102
+      { ts: 4, o: 105, h: 105, l: 100, c: 101, v: 1, qv: 1 },   // l=100 ≤ 101 → 메움
+    ];
+    const f = detectFvgs(c).find((x) => x.dir === 'bull');
+    assert.ok(f && f.filled === true);
+  });
+  ok('buildSmc: 체크리스트 4개·aligned 0~4·방향 매핑', () => {
+    const c: Candle[] = [];
+    let p = 100;
+    for (let i = 0; i < 60; i++) {                               // 완만한 상승(간헐 눌림)으로 스윙 생성
+      const o = p; const cl = p + (i % 5 === 0 ? -0.5 : 0.8);
+      c.push({ ts: i, o, h: Math.max(o, cl) + 0.5, l: Math.min(o, cl) - 0.5, c: cl, v: 1, qv: 1 });
+      p = cl;
+    }
+    const last = c[c.length - 1].c;
+    const s = buildSmc(c, last, 'long', fibonacci(c, last));
+    assert.equal(s.checklist.length, 4);
+    assert.ok(s.aligned >= 0 && s.aligned <= 4);
+    assert.equal(s.want, 'bull');
+    assert.equal(buildSmc(c, last, 'short', fibonacci(c, last)).want, 'bear');
   });
 }
 

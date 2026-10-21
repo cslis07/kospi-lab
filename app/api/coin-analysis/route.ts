@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   Candle, analyzeTimeframe, buildVerdict, atr, srZones, fibonacci, emaSeries,
-  detectRsiDivergence, recentBigCandles,
+  detectRsiDivergence, recentBigCandles, buildSmc,
   TimeframeAnalysis, VerdictExtras,
 } from '@/lib/coinAnalysis';
 import { backtestEngine, BacktestResult } from '@/lib/coinBacktest';
@@ -612,6 +612,9 @@ export async function GET(req: NextRequest) {
       p.stopPct = Math.round(p.stopPct * 100) / 100; p.rr = Math.round(p.rr * 100) / 100;
     });
 
+    // SMC(BOS·FVG·오더블록·OTE) 구조 라벨 + 진입 조건 정렬 체크리스트 — 15m 기준(이미지 방식)
+    const smc = buildSmc(c15m, price, verdict.direction, fib);
+
     // 백테스트 (전체 캔들, 10분 캐시)
     const backtest = cachedBacktest(symbol, c5mFull, c15mFull, c1hFull, funding.rate,
       c4hFull.length && c1dFull.length ? { c4h: c4hFull, c1d: c1dFull } : undefined);
@@ -786,6 +789,7 @@ export async function GET(req: NextRequest) {
       timeframes: { h4, h1, m15, m5, m1 },
       zones,
       fib,
+      smc,
       charts,
       movement,
       divergence,
