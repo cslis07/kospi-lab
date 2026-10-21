@@ -16,6 +16,8 @@ import { SETUPS, MISTAKES } from '@/lib/tradeTags';
 import { TagPickRow, ConvictionPickRow } from '@/components/TagPicker';
 const WhaleLiquidationPanel = dynamic(() => import('@/components/WhaleLiquidationPanel'), { ssr: false });
 import { useCoinAlerts } from '@/hooks/useCoinAlerts';
+import { useCoinPriceAlerts } from '@/hooks/useCoinPriceAlerts';
+import { levelsToAlerts, type LevelSpec } from '@/lib/coinPriceAlert';
 import LivePriceTag from '@/components/LivePriceTag';
 import Range52Bar from '@/components/Range52Bar';
 import { type SourceStat } from '@/components/SourceStatus';
@@ -554,6 +556,30 @@ function TimeframeTable({ tfs }: { tfs: { k: string; tf: TF | null | undefined }
 }
 
 /** 🎯 진입 판단 — 흩어진 verdict/zones/timeframes를 간결한 실행 계획으로 통합. 매수 신호가 아니라 조건 충족도·리스크 계획. */
+/** 익절·손절 가격선을 가격 알림으로 원클릭 등록 — PriceAlertWatcher(앱 열렸을 때 확인)가 발동. */
+function AlertRegisterButton({ symbol, dir, levels }: { symbol: string; dir: 'long' | 'short'; levels: LevelSpec[] }) {
+  const { alerts, addMany, removeBySymbol } = useCoinPriceAlerts();
+  const valid = levels.filter((l) => l.price > 0);
+  const mine = alerts.filter((a) => a.symbol === symbol);
+  const register = async () => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch { /* 무시 */ } }
+    addMany(levelsToAlerts(symbol, dir, valid, Date.now()));
+  };
+  if (!valid.length) return null;
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <button type="button" onClick={register}
+        className="px-3 py-1.5 rounded-lg border border-sky-500/40 bg-sky-500/10 text-[12px] font-semibold text-sky-400 hover:bg-sky-500/15">🔔 가격 알림 등록 ({valid.length})</button>
+      {mine.length > 0 && (
+        <>
+          <span className="text-[10px] text-[var(--text-muted)]">이 코인 {mine.length}개 등록됨</span>
+          <button type="button" onClick={() => removeBySymbol(symbol)} className="text-[11px] text-[var(--text-muted)] underline hover:text-red-400">지우기</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; digits: number }) {
   const [detail, setDetail] = useState(false);
   const price = data.markPrice ?? data.price;
@@ -705,6 +731,15 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
             분할 전구간 도달 시 <b className="text-emerald-400">+{data.exit.scaledR.toFixed(2)}R</b> · 전량 2차 홀딩 <b className="text-[var(--text)]">+{data.exit.holdAllR.toFixed(2)}R</b>. 1차 익절 후 되돌림이 와도 분할은 <b className="text-emerald-400">+{data.exit.lockedAfterT1.toFixed(2)}R</b> 확정(본전 손절) — 전량 홀딩은 0R로 반납. <b className="text-[var(--text)]">큰 수익은 러너가, 반납 방지는 분할이</b> 담당합니다.
           </p>
         </div>
+      )}
+
+      {/* 익절·손절선 → 가격 알림 원클릭 등록 */}
+      {v.direction !== 'wait' && (
+        <AlertRegisterButton symbol={data.symbol} dir={v.direction}
+          levels={[
+            ...(data.exit ? data.exit.legs.map((l): LevelSpec => ({ label: l.label, price: l.price, kind: 'target' })) : [{ label: '목표1', price: v.target1, kind: 'target' as const }, { label: '목표2', price: v.target2, kind: 'target' as const }]),
+            { label: '손절', price: v.stop, kind: 'stop' },
+          ]} />
       )}
 
       {/* 시나리오 (짧게) */}
@@ -952,7 +987,14 @@ function MyPositionGuide({ data, v, digits }: { data: AnalysisData; v: Verdict; 
           {holds.map((t) => <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">↑ {t}</span>)}
         </div>
       )}
-      <p className="text-[10px] text-[var(--text-muted)] leading-snug">추적손절·익절 가이드는 <b className="text-[var(--text)]">실행 규율 보조</b>입니다(방향 예측 아님, 엔진 백테스트 49.7%). 급락 시 추적손절은 원하는 가격에 체결 안 될 수 있습니다. 입력값은 이 기기에만 저장됩니다.</p>
+      {hasEntry && (
+        <AlertRegisterButton symbol={data.symbol} dir={dir}
+          levels={[
+            { label: '추적손절', price: trail, kind: 'trail' },
+            ...(tpNext ? [{ label: dir === 'long' ? '다음 저항(익절)' : '다음 지지(익절)', price: tpNext, kind: 'target' as const }] : []),
+          ]} />
+      )}
+      <p className="text-[10px] text-[var(--text-muted)] leading-snug">추적손절·익절 가이드는 <b className="text-[var(--text)]">실행 규율 보조</b>입니다(방향 예측 아님, 엔진 백테스트 49.7%). 급락 시 추적손절은 원하는 가격에 체결 안 될 수 있습니다. 입력값은 이 기기에만 저장됩니다. 알림은 앱이 열려 있을 때만 확인합니다.</p>
     </div>
   );
 }

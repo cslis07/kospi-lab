@@ -12,18 +12,29 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { useAlerts } from '@/hooks/useAlerts';
 import { checkAlert, isAlertOn } from '@/lib/priceAlert';
+import { useCoinPriceAlerts } from '@/hooks/useCoinPriceAlerts';
+import { checkCoinPriceAlert } from '@/lib/coinPriceAlert';
 
 const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); });
-interface Hit { id: string; ticker: string; name: string; side: 'above' | 'below'; price: number; target: number }
+interface Hit { id: string; ticker: string; name: string; side: 'above' | 'below'; price: number; target: number; coin?: boolean }
+const px = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: n >= 1000 ? 1 : n >= 1 ? 3 : 5 });
 
 export default function PriceAlertWatcher() {
   const { alerts, patchAlert } = useAlerts();
+  const { alerts: coinAlerts, patch: patchCoin } = useCoinPriceAlerts();
   const [hits, setHits] = useState<Hit[]>([]);
 
   const tickers = useMemo(() => Object.entries(alerts).filter(([, a]) => isAlertOn(a)).map(([t]) => t).sort().slice(0, 20), [alerts]);
   const { data } = useSWR<Record<string, { price?: number; name?: string }>>(
     tickers.length ? `/api/stock/batch?tickers=${tickers.join(',')}` : null, fetcher,
     { refreshInterval: 30000, revalidateOnFocus: true, dedupingInterval: 10000 },
+  );
+
+  // 코인 선물 가격 알림 — 켜진 알림의 심볼만 /api/crypto/batch 로 확인
+  const coinSymbols = useMemo(() => [...new Set(coinAlerts.filter((a) => a.enabled).map((a) => a.symbol))].sort().slice(0, 8), [coinAlerts]);
+  const { data: coinData } = useSWR<Record<string, { price?: number }>>(
+    coinSymbols.length ? `/api/crypto/batch?symbols=${coinSymbols.join(',')}` : null, fetcher,
+    { refreshInterval: 20000, revalidateOnFocus: true, dedupingInterval: 8000 },
   );
 
   useEffect(() => {
@@ -46,6 +57,23 @@ export default function PriceAlertWatcher() {
   }, [data, tickers, alerts, patchAlert]);
 
   useEffect(() => {
+    if (!coinData) return;
+    for (const a of coinAlerts) {
+      const price = coinData[a.symbol]?.price;
+      if (!a.enabled || !price) continue;
+      const side = checkCoinPriceAlert(a, price);
+      if (!side) continue;
+      patchCoin(a.id, { enabled: false, firedAt: Date.now(), firedPrice: price });
+      const name = `${a.symbol.replace('USDT', '')} ${a.label}`;
+      const body = `$${px(price)} — 기준 $${px(a.price)} ${side === 'above' ? '이상' : '이하'} 도달`;
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try { new Notification(`${name} 도달`, { body, icon: '/icon-192.png', tag: `kl-coin-${a.id}` }); } catch { /* 모바일 제약 */ }
+      }
+      setHits((h) => [...h.slice(-2), { id: `${a.id}-${Date.now()}`, ticker: a.symbol, name, side, price, target: a.price, coin: true }]);
+    }
+  }, [coinData, coinAlerts, patchCoin]);
+
+  useEffect(() => {
     if (!hits.length) return;
     const tm = setTimeout(() => setHits((h) => h.slice(1)), 9000);
     return () => clearTimeout(tm);
@@ -58,10 +86,12 @@ export default function PriceAlertWatcher() {
         <div key={h.id} className="fin-card" style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', maxWidth: 440, width: '100%', boxShadow: 'var(--shadow-card)', borderLeft: `4px solid ${h.side === 'above' ? 'var(--warn)' : 'var(--accent)'}` }}>
           <span aria-hidden style={{ fontSize: 18 }}>🔔</span>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>{h.name} {h.side === 'above' ? '목표가 도달' : '하한가 도달'}</div>
-            <div className="tabular-nums" style={{ fontSize: 12, color: 'var(--muted)' }}>{h.price.toLocaleString()}원 · 기준 {h.target.toLocaleString()}원 {h.side === 'above' ? '이상' : '이하'} · 알림은 꺼졌습니다</div>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>{h.name} {h.coin ? '도달' : h.side === 'above' ? '목표가 도달' : '하한가 도달'}</div>
+            <div className="tabular-nums" style={{ fontSize: 12, color: 'var(--muted)' }}>
+              {h.coin ? `$${px(h.price)} · 기준 $${px(h.target)}` : `${h.price.toLocaleString()}원 · 기준 ${h.target.toLocaleString()}원`} {h.side === 'above' ? '이상' : '이하'} · 알림은 꺼졌습니다
+            </div>
           </div>
-          <Link href={`/stock/${h.ticker}`} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>보기</Link>
+          <Link href={h.coin ? `/coin-analysis?symbol=${h.ticker}` : `/stock/${h.ticker}`} style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>{h.coin ? '분석' : '보기'}</Link>
           <button type="button" aria-label="닫기" onClick={() => setHits((x) => x.filter((y) => y.id !== h.id))}
             style={{ border: 'none', background: 'transparent', color: 'var(--faint)', fontSize: 16, cursor: 'pointer', padding: 2 }}>×</button>
         </div>

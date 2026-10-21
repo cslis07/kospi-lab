@@ -15,6 +15,7 @@ import {
 import { buildStockVerdict, analyzeSupply, type InvestorDay } from '../lib/stockAnalysis';
 import { analyzeTimeframe, srZones, fibonacci, atr, detectFvgs, buildSmc, exitPlan } from '../lib/coinAnalysis';
 import { mulberry32, deriveRules, simulateRule, simulateRules } from '../lib/exitSim';
+import { checkCoinPriceAlert, levelsToAlerts } from '../lib/coinPriceAlert';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '../lib/positionSizing';
 import { scoreGrowth, growthPct } from '../lib/growthScreener';
 import { scoreUsGrowth, US_UNIVERSE, US_SECTORS, US_THEMES } from '../lib/usGrowth';
@@ -1003,6 +1004,31 @@ console.log('\n[ journalStats — 성적 실측 (순수 함수) ]');
     const { rules, bestKey } = simulateRules(55, 2, 1, { trades: 60, riskPct: 2, runs: 400 });
     assert.equal(rules.length, 4);
     assert.ok(rules.some((r) => r.key === bestKey));
+  });
+}
+
+{
+  console.log('\n[코인 가격 알림]');
+  const base = { id: 'x', symbol: 'BTCUSDT', label: 't', createdAt: 0, enabled: true };
+  ok('checkCoinPriceAlert: above/below·꺼짐', () => {
+    assert.equal(checkCoinPriceAlert({ ...base, price: 100, side: 'above' }, 101), 'above');
+    assert.equal(checkCoinPriceAlert({ ...base, price: 100, side: 'above' }, 99), null);
+    assert.equal(checkCoinPriceAlert({ ...base, price: 100, side: 'below' }, 99), 'below');
+    assert.equal(checkCoinPriceAlert({ ...base, price: 100, side: 'above', enabled: false }, 101), null);
+  });
+  ok('levelsToAlerts: 롱 목표=above·손절=below, 숏 반대, 중복·0 제거', () => {
+    const L = (dir: 'long' | 'short') => levelsToAlerts('BTCUSDT', dir, [
+      { label: '목표', price: 110, kind: 'target' },
+      { label: '손절', price: 95, kind: 'stop' },
+      { label: '목표중복', price: 110, kind: 'target' }, // 같은 price·kind → 1개
+      { label: '제외', price: 0, kind: 'target' },        // price 0 → 제외
+    ], 0);
+    const lo = L('long'), sh = L('short');
+    assert.equal(lo.length, 2);
+    assert.equal(lo.find((a) => a.label === '목표')!.side, 'above');
+    assert.equal(lo.find((a) => a.label === '손절')!.side, 'below');
+    assert.equal(sh.find((a) => a.label === '목표')!.side, 'below');
+    assert.equal(sh.find((a) => a.label === '손절')!.side, 'above');
   });
 }
 
