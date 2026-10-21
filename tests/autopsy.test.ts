@@ -1,6 +1,6 @@
 /** 매매 해부·이벤트 대조 회귀 테스트. 실행: npm test */
 import assert from 'node:assert/strict';
-import { atr, analyzeTrade, pickGranularity, tradeExcursion, excursionSummary, isGaveBack, peakPrice, type Candle, type Excursion } from '../lib/tradeAutopsy';
+import { atr, analyzeTrade, pickGranularity, tradeExcursion, excursionSummary, isGaveBack, peakPrice, captureBySetup, type Candle, type Excursion } from '../lib/tradeAutopsy';
 import { eventsNear, SEED_EVENTS, type MarketEvent } from '../lib/marketEvents';
 
 let passed = 0;
@@ -135,9 +135,28 @@ ok('excursionSummary — 이익 매매 포착률·지켰으면 손실 아니었�
   ]);
   assert.equal(s.n, 5); assert.equal(s.winners, 2); assert.equal(s.losers, 3);
   near(s.winnersCapturePct!, 70);
+  near(s.avgCapturePct!, -105.5);   // (50+90−62−500)/4 — 전체 포착률(반납 손실 포함)
   assert.equal(s.gaveBack, 1);
   assert.equal(s.withStop, 2); assert.equal(s.beyondStop, 1);
   near(s.avgMaePct!, 1);
+});
+
+ok('captureBySetup: 셋업별 포착률 낮은 순·표본 2건↑·capture 없는 건 무시', () => {
+  const ex = (cap: number | null, mfe = 2): Excursion => ({ maePct: 1, mfePct: mfe, maeUsdt: 0, mfeUsdt: 0, maeR: null, mfeR: null, exitPct: 0, capturePct: cap, bars: 5, rough: false });
+  const league = captureBySetup([
+    { ex: ex(80), setups: ['trend'] },
+    { ex: ex(60), setups: ['trend'] },
+    { ex: ex(20), setups: ['breakout'] },
+    { ex: ex(30), setups: ['breakout'] },
+    { ex: ex(90), setups: ['support'] },   // 1건뿐 → 제외
+    { ex: ex(null), setups: ['trend'] },   // 포착률 없음 → 무시
+  ]);
+  assert.equal(league.length, 2);
+  assert.equal(league[0].setup, 'breakout');          // 포착률 낮은 순
+  assert.equal(league[0].avgCapturePct, 25);
+  assert.equal(league[0].avgGivebackPct, 75);
+  assert.equal(league[1].setup, 'trend');
+  assert.equal(league[1].avgCapturePct, 70);
 });
 
 ok('isGaveBack: 손실 매매 중 한때 최종 손실폭 이상 이익이던 것만', () => {

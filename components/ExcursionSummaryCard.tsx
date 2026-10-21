@@ -6,15 +6,18 @@
  * 결과는 이 기기에 저장(lib/excursionFetch)되므로 다음 방문엔 새 매매만 계산한다. 계산은 lib/tradeAutopsy(테스트 고정).
  */
 import { useEffect, useMemo, useState } from 'react';
-import { excursionSummary, isGaveBack, peakPrice, type Excursion } from '@/lib/tradeAutopsy';
+import { excursionSummary, isGaveBack, peakPrice, captureBySetup, type Excursion } from '@/lib/tradeAutopsy';
 import { cachedExcursion, loadExcursions, type ExcursionTrade } from '@/lib/excursionFetch';
+import { SETUPS } from '@/lib/tradeTags';
+
+const SETUP_LABEL = new Map(SETUPS.map((s) => [s.key, `${s.emoji} ${s.label}`]));
 
 const MAX = 60; // 한 번에 계산할 최대 매매 수(최근 순)
 /** 가격 — 거래소 값 그대로(큰 값은 소수 2자리, 작은 값은 유효숫자 유지) */
 const px = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: n >= 1000 ? 2 : n >= 1 ? 4 : 6 });
 const kstStamp = (ts: number) => { const d = new Date(ts + 9 * 3600_000); return `${d.getUTCMonth() + 1}/${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
 
-export default function ExcursionSummaryCard({ trades }: { trades: ExcursionTrade[] }) {
+export default function ExcursionSummaryCard({ trades, tagsByPosition }: { trades: ExcursionTrade[]; tagsByPosition?: Record<string, { setups: string[]; mistakes: string[] }> }) {
   const recent = useMemo(() => [...trades].sort((a, b) => b.closeTs - a.closeTs).slice(0, MAX), [trades]);
   const [done, setDone] = useState<Map<string, Excursion>>(new Map());
   const [busy, setBusy] = useState<{ done: number; total: number } | null>(null);
@@ -38,6 +41,11 @@ export default function ExcursionSummaryCard({ trades }: { trades: ExcursionTrad
 
   const list = recent.filter((t) => done.has(t.positionId)).map((t) => ({ ex: done.get(t.positionId)!, net: t.netProfit }));
   const s = excursionSummary(list);
+  // 셋업별 포착률 리그 — 태그가 있을 때만
+  const league = tagsByPosition
+    ? captureBySetup(recent.filter((t) => done.has(t.positionId)).map((t) => ({ ex: done.get(t.positionId)!, setups: tagsByPosition[t.positionId]?.setups ?? [] })))
+    : [];
+  const winGiveback = s.winnersCapturePct != null ? Math.max(0, 100 - Math.round(s.winnersCapturePct)) : null;
   // '지켰으면 손실 아니었을 매매' 건별 — 진입가·가장 유리했던 가격·청산가(거래소 체결 평균가 그대로)
   const gave = recent
     .filter((t) => done.has(t.positionId) && isGaveBack(done.get(t.positionId)!, t.netProfit))
@@ -60,6 +68,48 @@ export default function ExcursionSummaryCard({ trades }: { trades: ExcursionTrad
             sub={`손실 ${s.losers}건 중 · 한때 최종 손실 이상 이익 중`} warn={s.gaveBack > 0} />
           <Tile label="평균 최대 역행(MAE)" value={s.avgMaePct != null ? `−${s.avgMaePct.toFixed(2)}%` : '—'} sub="진입가 대비" color="var(--accent-ink)" />
           <Tile label="평균 최대 순행(MFE)" value={s.avgMfePct != null ? `+${s.avgMfePct.toFixed(2)}%` : '—'} sub="진입가 대비" color="var(--warn)" />
+        </div>
+      )}
+
+      {/* 캡처율·수익 반납 복기 — 번 돈 중 얼마나 지켰나 + 셋업별 */}
+      {s.n > 0 && (
+        <div className="mb-2.5">
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <Tile label="이익 매매 평균 반납" value={winGiveback != null ? `${winGiveback}%` : '—'}
+              sub="최대 순행 대비 되돌려준 몫" warn={winGiveback != null && winGiveback >= 40} />
+            <Tile label="전체 포착률" value={s.avgCapturePct != null ? `${Math.round(s.avgCapturePct)}%` : '—'}
+              sub="이익·반납 전체 평균" color={s.avgCapturePct != null && s.avgCapturePct < 40 ? 'var(--accent-ink)' : undefined} />
+          </div>
+          {league.length > 0 ? (
+            <div className="rounded-xl border border-[var(--line-2)] overflow-hidden">
+              <div className="px-3 py-1.5 text-[11px] font-bold text-[var(--text)] bg-[var(--surface-2)]">셋업별 포착률 <span className="font-normal text-[var(--text-muted)]">— 낮을수록 반납 잦음(일찍 끊기)</span></div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11.5px] tabular-nums" style={{ minWidth: 340 }}>
+                  <thead>
+                    <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+                      <th className="text-left font-semibold px-3 py-1.5">셋업</th>
+                      <th className="font-semibold px-2">건수</th>
+                      <th className="font-semibold px-2">평균 MFE</th>
+                      <th className="font-semibold px-3">포착률</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {league.map((r) => (
+                      <tr key={r.setup} className="border-t border-[var(--line-2)] text-right">
+                        <td className="text-left px-3 py-1.5 text-[var(--text)]">{SETUP_LABEL.get(r.setup) ?? r.setup}</td>
+                        <td className="px-2 text-[var(--text-muted)]">{r.n}</td>
+                        <td className="px-2" style={{ color: 'var(--warn)' }}>+{r.avgMfePct.toFixed(2)}%</td>
+                        <td className="px-3 font-bold" style={{ color: r.avgCapturePct >= 60 ? 'var(--text)' : r.avgCapturePct >= 35 ? 'var(--warn)' : 'var(--accent-ink)' }}>{r.avgCapturePct}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[10px] text-[var(--faint)] px-3 py-1.5 leading-snug">포착률이 <b>낮은 셋업</b>은 최대 순행까지 못 가고 반납이 잦습니다 — <b>1차 익절·추적손절을 당겨</b> 지키는 게 유리(표본 2건↑).</p>
+            </div>
+          ) : tagsByPosition ? (
+            <p className="text-[10.5px] text-[var(--text-muted)]">셋업 태그가 2건 이상 쌓이면 셋업별 포착률 리그가 나옵니다(매매 행 → 셋업 태그).</p>
+          ) : null}
         </div>
       )}
       {gave.length > 0 && (

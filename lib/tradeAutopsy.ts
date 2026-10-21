@@ -121,6 +121,8 @@ export interface ExcursionSummary {
   avgMfePct: number | null;
   /** 이익 매매가 최대 순행 중 평균 몇 % 를 챙겼나 */
   winnersCapturePct: number | null;
+  /** 전체(이익+반납 손실) 평균 포착률 */
+  avgCapturePct: number | null;
   winners: number;
   losers: number;
   /** 손실 매매 중, 한때 '최종 손실만큼 이상' 이익 중이던 매매(이익을 지켰다면 손실은 아니었을 매매) */
@@ -149,12 +151,35 @@ export function excursionSummary(list: { ex: Excursion; net: number }[]): Excurs
     avgMaePct: avg(list.map((x) => x.ex.maePct)),
     avgMfePct: avg(list.map((x) => x.ex.mfePct)),
     winnersCapturePct: avg(win.map((x) => x.ex.capturePct).filter((v): v is number => v != null)),
+    avgCapturePct: avg(list.map((x) => x.ex.capturePct).filter((v): v is number => v != null)),
     winners: win.length,
     losers: loss.length,
     gaveBack: loss.filter((x) => isGaveBack(x.ex, x.net)).length,
     withStop: stopped.length,
     beyondStop: stopped.filter((x) => (x.ex.maeR ?? 0) >= 1).length,
   };
+}
+
+export interface SetupCapture { setup: string; n: number; avgCapturePct: number; avgGivebackPct: number; avgMfePct: number }
+/**
+ * 셋업 태그별 '포착률 리그' — 포착률(청산 순행÷최대 순행)이 낮은 셋업일수록 목표 전에 반납이 잦다.
+ * 낮은 순으로 정렬해 "이 셋업은 일찍 끊어라(1차 익절·추적손절)"를 내 데이터로 보여준다. 표본 2건 이상만.
+ */
+export function captureBySetup(list: { ex: Excursion; setups: string[] }[]): SetupCapture[] {
+  const by = new Map<string, { caps: number[]; mfes: number[] }>();
+  for (const x of list) {
+    if (x.ex.capturePct == null) continue;
+    for (const s of x.setups) {
+      const e = by.get(s) ?? { caps: [], mfes: [] };
+      e.caps.push(x.ex.capturePct); e.mfes.push(x.ex.mfePct);
+      by.set(s, e);
+    }
+  }
+  const avg = (vs: number[]) => vs.reduce((a, b) => a + b, 0) / vs.length;
+  return [...by.entries()]
+    .filter(([, e]) => e.caps.length >= 2)
+    .map(([setup, e]) => { const cap = Math.round(avg(e.caps)); return { setup, n: e.caps.length, avgCapturePct: cap, avgGivebackPct: Math.max(0, 100 - cap), avgMfePct: r2(avg(e.mfes)) }; })
+    .sort((a, b) => a.avgCapturePct - b.avgCapturePct);
 }
 
 export function analyzeTrade(inp: AutopsyInput, candles: Candle[], opts?: { forwardMs?: number; lookbackN?: number }): Autopsy {

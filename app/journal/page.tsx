@@ -488,7 +488,7 @@ export default function JournalPage() {
           <CostCard c={costs} fmt={fmtUsdt} holdRows={holdCosts} cash={cash} sub={`${periodLabel(days)} 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
           <TradesPerDayCard rows={perDay} fmt={fmtUsdt} />
           <AfterLossTable rows={afterLoss} fmt={fmtUsdt} breakerAt={limits.maxConsecutiveLosses} />
-          <ExcursionSummaryCard trades={positions} />
+          <ExcursionSummaryCard trades={positions} tagsByPosition={tags} />
           <EquityCurveLazy trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />
           <BenchmarkCard trades={analyticsTrades} />
           <CalendarHeatmap trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} selected={selDay} onSelect={setSelDay}
