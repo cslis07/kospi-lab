@@ -6,7 +6,7 @@
  * 스파크: 국내 = 당일 분봉(점선 = 전일 종가), 해외·환율 = 최근 1개월. 장중이면 '● 실시간', 아니면 '장마감'.
  * 색: 상승=빨강(--warn) · 하락=파랑(--accent).
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { useRailPref, DEFAULT_RAIL } from '@/hooks/useRailPref';
 import RailManager from '@/components/RailManager';
@@ -92,13 +92,28 @@ export default function IndexRail() {
 
   const { pref, save } = useRailPref(); // 관심종목 화면과 공유되는 단일 리스트(라이브 동기화)
   const [editing, setEditing] = useState(false);
+  const [showAll, setShowAll] = useState(false); // '전체보기' 팝업 — 전체 지수 한눈에
   const shown = pref.filter((c) => byCode.has(c));
+
+  // 팝업 열렸을 때 ESC 닫기 + 배경 스크롤 잠금
+  useEffect(() => {
+    if (!showAll) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowAll(false); };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
+  }, [showAll]);
+
+  const topBtn: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: 'var(--faint)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' };
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
-        <button type="button" onClick={() => setEditing((e) => !e)}
-          style={{ fontSize: 11, fontWeight: 600, color: 'var(--faint)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 6 }}>
+        {cards.length > 0 && (
+          <button type="button" onClick={() => setShowAll(true)} style={topBtn}>▦ 전체보기</button>
+        )}
+        <button type="button" onClick={() => setEditing((e) => !e)} style={topBtn}>
           {editing ? '완료' : '⚙ 지수 편집'}
         </button>
       </div>
@@ -114,6 +129,28 @@ export default function IndexRail() {
             ? <p style={{ fontSize: 12, color: 'var(--faint)', gridColumn: '1 / -1' }}>표시할 지수가 없습니다. ⚙ 지수 편집에서 추가하세요.</p>
             : shown.map((code, i) => <Card key={code} c={byCode.get(code)!} on={i === 0} />)}
       </div>
+
+      {showAll && (
+        <div role="dialog" aria-modal="true" aria-label="전체 지수" onClick={() => setShowAll(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 12px', overflowY: 'auto' }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 820, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 18, boxShadow: '0 20px 60px rgba(0,0,0,0.35)', padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink)' }}>전체 지수{' '}
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--faint)' }}>{cards.length}개 · 실시간</span>
+              </span>
+              <button type="button" onClick={() => setShowAll(false)} aria-label="닫기"
+                style={{ marginLeft: 'auto', width: 30, height: 30, borderRadius: 9, border: '1px solid var(--line)', background: 'var(--surface-2)', color: 'var(--ink)', fontSize: 15, lineHeight: 1, cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+              {cards.map((c) => <Card key={c.code} c={c} />)}
+            </div>
+            <p style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 12, lineHeight: 1.5 }}>
+              레일에 안 보이는 지수까지 전부 표시합니다. 레일에 넣을 지수는 <b style={{ color: 'var(--ink)' }}>⚙ 지수 편집</b>에서 고르세요. 상승 <span style={{ color: 'var(--warn)' }}>빨강</span>·하락 <span style={{ color: 'var(--accent)' }}>파랑</span>.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
