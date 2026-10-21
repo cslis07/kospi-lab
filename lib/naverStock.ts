@@ -188,7 +188,7 @@ export async function industryReports(industry: string, size = 6): Promise<Indus
 
 /* ────────────────── 시장지표 ────────────────── */
 export interface IndicatorDef { code: string; name: string; cat: 'exchange' | 'bond' | 'energy' | 'metals'; unit?: string; flag?: string }
-/** 네이버 홈 '환율 · 시장지표' 12종(번들의 코드 배열과 동일 순서) */
+/** 네이버 홈 '환율 · 시장지표' 13종(번들 코드 배열 + 브렌트유) */
 export const INDICATORS: IndicatorDef[] = [
   { code: 'FX_USDKRW', name: '미국 USD', cat: 'exchange', unit: '원', flag: '🇺🇸' },
   { code: 'FX_EURKRW', name: '유럽 EUR', cat: 'exchange', unit: '원', flag: '🇪🇺' },
@@ -197,6 +197,7 @@ export const INDICATORS: IndicatorDef[] = [
   { code: 'US3YT=RR', name: '미국 국채 3년', cat: 'bond', unit: '%', flag: '🇺🇸' },
   { code: 'US10YT=RR', name: '미국 국채 10년', cat: 'bond', unit: '%', flag: '🇺🇸' },
   { code: 'CLcv1', name: 'WTI', cat: 'energy', unit: '$' },
+  { code: 'LCOcv1', name: '브렌트유', cat: 'energy', unit: '$' },
   { code: 'GCcv1', name: '국제 금', cat: 'metals', unit: '$' },
   { code: 'M04020000', name: '국내 금(g)', cat: 'metals', unit: '원' },
   { code: 'SIcv1', name: '은', cat: 'metals', unit: '$' },

@@ -26,10 +26,10 @@ interface Q { code: string; name: string; cat: string; unit?: string; price: num
 const GROUPS: [string, string[]][] = [
   ['환율', ['FX_USDKRW', 'FX_EURKRW', 'FX_JPYKRW', '.DXY']],
   ['금리(국채)', ['US3YT=RR', 'US10YT=RR', 'KR2YT=RR', 'KR10YT=RR']],
-  ['원자재', ['CLcv1', 'GCcv1', 'M04020000', 'SIcv1']],
+  ['원자재', ['CLcv1', 'LCOcv1', 'GCcv1', 'M04020000', 'SIcv1']],
 ];
-// 네이버 홈 배치 순서(번들의 코드 배열과 동일)
-const HOME_ORDER = ['FX_USDKRW', 'FX_EURKRW', 'FX_JPYKRW', '.DXY', 'US3YT=RR', 'US10YT=RR', 'CLcv1', 'GCcv1', 'M04020000', 'SIcv1', 'KR2YT=RR', 'KR10YT=RR'];
+// 네이버 홈 배치 순서(번들의 코드 배열과 동일 + 브렌트유)
+const HOME_ORDER = ['FX_USDKRW', 'FX_EURKRW', 'FX_JPYKRW', '.DXY', 'US3YT=RR', 'US10YT=RR', 'CLcv1', 'LCOcv1', 'GCcv1', 'M04020000', 'SIcv1', 'KR2YT=RR', 'KR10YT=RR'];
 // 경제지표 그룹에 보여줄 순서(FRED). 나스닥 포함.
 const MACRO_ORDER = ['cpi', 'ppi', 'nasdaq', 'dxy', 'wti', 'usdkrw'];
 
