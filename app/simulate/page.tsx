@@ -248,9 +248,18 @@ function LeverageCalc() {
   const dirSign = dir === 'long' ? 1 : -1;
   const isShort = dir === 'short';
   const targetNum = parseFloat(targetStr);
-  const effTarget = targetStr !== '' && !isNaN(targetNum) && targetNum > 0 ? targetNum : entry; // 미입력 시 진입가
+  // 목표가 미입력 시 '현재가'로 계산한다. (진입가로 두면 목표=진입이라 손익이 늘 0 — "계산 안 됨"처럼 보임)
+  const effTarget = targetStr !== '' && !isNaN(targetNum) && targetNum > 0 ? targetNum : (price > 0 ? price : entry);
   const changePct = entry > 0 ? ((effTarget - entry) / entry) * 100 : 0; // 진입가 대비 가격 변동%
-  const grossPnl = entry > 0 ? position * ((effTarget - entry) / entry) * dirSign : 0; // 수수료 전 손익(USDT)
+
+  // 청산가: Bitget 고립마진 공식(단일 소스 lib/positionSizing). 코인별 1티어 MMR + 테이커.
+  const liqPrice = entry > 0 ? isolatedLiqPrice(entry, lev, isShort, coin.mmr, TAKER_FEE) : 0;
+  const liqMovePct = entry > 0 ? Math.abs(entry - liqPrice) / entry * 100 : 0; // 청산까지 가격 변동 %
+  // 목표가가 청산가를 지났으면 고립마진에선 증거금 전액 손실로 끝난다(그 이상은 잃지 않음)
+  const liquidated = entry > 0 && liqPrice > 0 && (isShort ? effTarget >= liqPrice : effTarget <= liqPrice);
+
+  // 수수료 전 손익(USDT, 방향 반영) — 고립마진이라 손실은 증거금을 넘지 못한다
+  const grossPnl = entry > 0 ? Math.max(position * ((effTarget - entry) / entry) * dirSign, -margin) : 0;
 
   // 수수료·펀딩(실손익): Bitget 수수료율 — 진입·청산 각각 메이커(0.02%)/테이커(0.06%)
   //  진입 수수료 = 진입 명목가×율 · 청산 수수료 = 청산 명목가(수량×청산가)×율
@@ -262,13 +271,10 @@ function LeverageCalc() {
   // 펀딩: 8h마다 명목가×펀딩률. 펀딩률>0이면 롱이 숏에게 지급(롱 비용·숏 수익)
   const fundingPeriods = holdH / 8;
   const fundingCost = fundingPct != null ? position * (fundingPct / 100) * fundingPeriods * dirSign : 0;
-  const netPnl = grossPnl - feeCost - fundingCost;
-  const pnl = feeOn ? netPnl : grossPnl;               // 표시 손익
+  const netPnl = liquidated ? -margin : grossPnl - feeCost - fundingCost; // 청산 시 증거금 전액 손실
+  const pnl = Math.max(feeOn ? netPnl : grossPnl, -margin);  // 표시 손익(고립 손실 상한 = 증거금)
   const roe = margin > 0 ? (pnl / margin) * 100 : 0;   // 증거금 대비 수익률
   const targetPrice = effTarget;
-  // 청산가: Bitget 고립마진 공식(단일 소스 lib/positionSizing). 코인별 1티어 MMR + 테이커.
-  const liqPrice = entry > 0 ? isolatedLiqPrice(entry, lev, isShort, coin.mmr, TAKER_FEE) : 0;
-  const liqMovePct = entry > 0 ? Math.abs(entry - liqPrice) / entry * 100 : 0; // 청산까지 가격 변동 %
 
   // ── 리스크 기반 역산: "계좌의 X%만 잃으려면?" ──
   const perTradeLimit = riskLimits.perTradeLossLimitUsdt;  // 1회 손실 한도(USDT, null=미설정)
@@ -371,12 +377,13 @@ function LeverageCalc() {
             <span className="text-xs text-[var(--text-muted)]">목표가 (USDT)</span>
             <div className="flex items-center gap-1">
               <input type="number" inputMode="decimal" value={targetStr}
-                placeholder={entry ? String(+entry.toFixed(dg)) : ''} min={0} step={priceStep}
+                placeholder={price ? String(+price.toFixed(dg)) : (entry ? String(+entry.toFixed(dg)) : '')} min={0} step={priceStep}
                 onChange={(e) => setTargetStr(e.target.value)}
                 className="w-28 bg-white/5 border border-[var(--border)] rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-sky-500/50" />
-              <button onClick={() => setTargetStr('')} className="text-[10px] text-[var(--text-muted)] hover:text-sky-400 w-12" title="진입가로 초기화">진입가</button>
+              <button onClick={() => setTargetStr('')} className="text-[10px] text-[var(--text-muted)] hover:text-sky-400 w-12" title="현재가로 초기화">현재가</button>
             </div>
           </div>
+          <p className="text-[10px] text-[var(--text-muted)]">비워두면 <b className="text-[var(--text)]">현재가</b>로 손익을 계산합니다. 도달하길 바라는 가격을 넣으면 그 가격 기준 손익이 나옵니다.</p>
           <input type="range" min={priceLo} max={priceHi} step={priceStep}
             value={clamp(effTarget, priceLo, priceHi)}
             onChange={(e) => setTargetStr(e.target.value)} disabled={!price}
@@ -443,6 +450,9 @@ function LeverageCalc() {
             증거금 대비 {roe >= 0 ? '+' : ''}{roe.toFixed(1)}%
             {usdtKrw ? <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1.5">1 USDT ≈ ₩{Math.round(usdtKrw).toLocaleString('ko-KR')}</span> : null}
           </p>
+          {liquidated && (
+            <p className="text-[11px] text-red-400 mt-1.5">⚠ 목표가가 청산가(${liqPrice.toLocaleString('en-US', { maximumFractionDigits: dg })})를 지나 — 고립마진에선 그 전에 강제청산되어 증거금 전액 손실입니다.</p>
+          )}
           {feeOn && (
             <div className="mt-3 pt-2.5 border-t border-[var(--border)] text-[11px] text-[var(--text-muted)] space-y-0.5 max-w-[260px] mx-auto">
               <div className="flex justify-between"><span>수수료 전 손익</span><span className={grossPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{grossPnl >= 0 ? '+' : ''}{fmtUsdt(grossPnl)}</span></div>
