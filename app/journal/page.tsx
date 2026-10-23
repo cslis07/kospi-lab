@@ -33,6 +33,8 @@ import CompareCurveLazy from '@/components/CompareCurveLazy';
 import TradesPerDayCard from '@/components/TradesPerDayCard';
 import EdgeSummaryCard from '@/components/EdgeSummaryCard';
 import CostCard from '@/components/CostCard';
+import FeeDiagCard from '@/components/FeeDiagCard';
+import DisciplineCard from '@/components/DisciplineCard';
 import ExcursionPanel from '@/components/ExcursionPanel';
 import { costBreakdown, costByHoldBand, cashFlow, type CashMove } from '@/lib/tradeCosts';
 import AfterLossTable from '@/components/AfterLossTable';
@@ -486,6 +488,8 @@ export default function JournalPage() {
           )}
           <EdgeSummaryCard e={edge} unit="USDT" fmt={fmtUsdt} sub={`최근 ${days}일 청산 ${edge.n}건 · 순손익 USDT(수수료·펀딩 반영)`} />
           <CostCard c={costs} fmt={fmtUsdt} holdRows={holdCosts} cash={cash} sub={`${periodLabel(days)} 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
+          <FeeDiagCard days={days} fmt={fmtUsdt} />
+          <DisciplineCard positions={positions} />
           <TradesPerDayCard rows={perDay} fmt={fmtUsdt} />
           <AfterLossTable rows={afterLoss} fmt={fmtUsdt} breakerAt={limits.maxConsecutiveLosses} />
           <ExcursionSummaryCard trades={positions} tagsByPosition={tags} />
