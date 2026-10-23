@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { evaluateGuard, SL_GRACE_MS, type GuardInput, type OpenPos } from '../lib/guard';
+import { evaluateGuard, suggestStop, cooldownState, SL_GRACE_MS, type GuardInput, type OpenPos } from '../lib/guard';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -47,5 +47,22 @@ ok('서킷브레이커: 한도 미설정이면 평가금 3%를 오늘 한도로(
   assert.deepEqual(keys(r), ['cb']); assert.match(r.alerts[0].text, /평가금 1000의 3%/);
   assert.deepEqual(keys(evaluateGuard(inp({ closed, equity: 1000, now: NOW + H }), r.state)), []);
   assert.deepEqual(keys(evaluateGuard(inp({ closed: [{ symbol: 'BTCUSDT', netProfit: -10, closeTs: NOW - H }], equity: 1000 }), { fired: {} })), []);
+});
+ok('손절 제안: 진입가 ∓1.2ATR, 이미 지났으면 현재가 기준, 1% 리스크 수량', () => {
+  const s = suggestStop({ side: 'long', entry: 100, mark: 99, size: 2, atr1h: 1 }, 1000)!;
+  assert.ok(Math.abs(s.stop - 98.8) < 1e-9); assert.equal(s.fromMark, false);
+  assert.ok(Math.abs(s.qtyAtRisk! - 10 / 1.2) < 1e-9); assert.ok(Math.abs(s.curRiskPct! - 0.24) < 1e-9);
+  const passedS = suggestStop({ side: 'short', entry: 100, mark: 102, size: 1, atr1h: 1 }, null)!;
+  assert.equal(passedS.fromMark, true); assert.equal(passedS.stop, 103.2); assert.equal(passedS.qtyAtRisk, null);
+  assert.equal(suggestStop({ side: 'long', entry: 100, mark: 99, atr1h: null }, 1000), null);
+  assert.match(evaluateGuard(inp({ positions: [p({ atr1h: 1, size: 2 })] }), { fired: {} }).alerts[0].text, /제안 손절 <b>98\.800<\/b>/);
+});
+ok('냉각: 손실 청산 30분, 서킷브레이커면 KST 자정까지, 이익 청산이면 없음', () => {
+  const c = cooldownState([{ netProfit: -5, closeTs: NOW - 10 * M }], null, 1000, NOW)!;
+  assert.equal(c.kind, 'loss'); assert.equal(c.until, NOW + 20 * M);
+  assert.equal(cooldownState([{ netProfit: -5, closeTs: NOW - 40 * M }], null, 1000, NOW), null);
+  assert.equal(cooldownState([{ netProfit: 5, closeTs: NOW - 5 * M }], null, 1000, NOW), null);
+  const b = cooldownState([{ netProfit: -40, closeTs: NOW - H }], null, 1000, NOW)!;
+  assert.equal(b.kind, 'breaker'); assert.equal((b.until + 9 * H) % 86_400_000, 0);
 });
 console.log(`\n${passed} passed`);

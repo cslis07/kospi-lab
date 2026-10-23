@@ -6,6 +6,7 @@ import NavTabs from '@/components/NavTabs';
 import BottomNav from '@/components/BottomNav';
 import PwaRegister from '@/components/PwaRegister';
 import PriceAlertWatcher from '@/components/PriceAlertWatcher';
+import CooldownBanner from '@/components/CooldownBanner';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://kospi-lab.vercel.app'),
@@ -55,6 +56,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
         <div className="flex-1 max-w-[1200px] mx-auto w-full px-4 sm:px-6 pt-4 md:pt-6">
           <NavTabs />
+          {/* 냉각 타이머 — 손실 청산 직후·서킷브레이커 차단 때만(잠금 해제 기기) */}
+          <CooldownBanner />
           {children}
         </div>
         {/* 푸터 — 모바일은 한 줄 + 접기(벽 텍스트가 매 화면 반복되지 않게), 데스크탑은 전문 */}

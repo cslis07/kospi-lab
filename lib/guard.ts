@@ -18,14 +18,46 @@
 import { bitgetSignedGet, bitgetKeysConfigured } from './bitget';
 import { fetchClosedPositions, type ClosedPosition } from './bitgetPositions';
 import { evaluateBreaker, DEFAULT_LIMITS, type BreakerLimits } from './circuitBreaker';
-import { analyzeTimeframe, tfTrend } from './coinAnalysis';
+import { analyzeTimeframe, tfTrend, atr } from './coinAnalysis';
 
 export interface OpenPos {
   symbol: string; side: 'long' | 'short'; openTs: number; entry: number;
   mark: number; liq: number;
   /** 진입 시점 1H 추세(모르면 null) */
   h1Trend: 'up' | 'down' | 'flat' | null;
+  /** 보유 수량(코인) — 손절 제안의 리스크 계산용 */
+  size?: number;
+  /** 지금 1H ATR(14) — 손절 제안용 */
+  atr1h?: number | null;
 }
+
+/** 손절 제안: ATR 배수 */
+export const SL_ATR_MULT = 1.2;
+/** 수량 제안: 평가금 대비 1회 리스크 % */
+export const RISK_PCT = 1;
+
+export interface StopSuggestion { stop: number; fromMark: boolean; qtyAtRisk: number | null; curRiskPct: number | null }
+/**
+ * 순수 — 손절 미설정 포지션에 걸 손절가·수량 제안. 진입가 ∓ 1.2×ATR(1H)이 원칙이고,
+ * 가격이 이미 그 자리를 지나 있으면(손실이 더 깊으면) 현재가 ∓ 1.2×ATR 로 바꿔 제안한다(fromMark).
+ * qtyAtRisk = 평가금 1% 를 그 손절 폭으로 나눈 수량, curRiskPct = 지금 수량으로 그 손절에 닿으면 평가금 대비 손실 %.
+ */
+export function suggestStop(p: Pick<OpenPos, 'side' | 'entry' | 'mark' | 'size' | 'atr1h'>, equity: number | null): StopSuggestion | null {
+  const a = p.atr1h;
+  if (!a || !(a > 0) || !(p.entry > 0)) return null;
+  const long = p.side === 'long';
+  const fromEntry = long ? p.entry - SL_ATR_MULT * a : p.entry + SL_ATR_MULT * a;
+  const passed = p.mark > 0 && (long ? p.mark <= fromEntry : p.mark >= fromEntry);
+  const stop = passed ? (long ? p.mark - SL_ATR_MULT * a : p.mark + SL_ATR_MULT * a) : fromEntry;
+  const risk = Math.abs(p.entry - stop);
+  const qtyAtRisk = equity && equity > 0 && risk > 0 ? (equity * RISK_PCT) / 100 / risk : null;
+  const curRiskPct = equity && equity > 0 && p.size && p.size > 0 ? ((p.size * risk) / equity) * 100 : null;
+  return { stop, fromMark: passed, qtyAtRisk, curRiskPct };
+}
+
+const px = (v: number) => (v >= 1000 ? Math.round(v).toLocaleString('en-US') : v >= 1 ? v.toFixed(3) : v.toPrecision(4));
+const qty = (v: number) => (v >= 100 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : v.toPrecision(2));
+
 export interface PlanStop { symbol: string; side: 'long' | 'short'; id: string; name?: string; stop: number; target1: number; target2: number }
 export interface GuardInput {
   now: number;
@@ -66,8 +98,14 @@ export function evaluateGuard(inp: GuardInput, state: GuardState): { alerts: Gua
     const plan = inp.journal.find((e) => normSym(e.symbol) === normSym(p.symbol) && e.side === p.side);
 
     // 손절 주문 없음
-    if (inp.slSymbols && inp.now - p.openTs >= SL_GRACE_MS && !inp.slSymbols.has(normSym(p.symbol)) && !(plan && plan.stop > 0))
-      fire(`nosl:${pid}`, 2 * H, `🚧 <b>${base(p.symbol)} ${long ? '롱' : '숏'} 손절 주문 없음</b>\n진입 ${ago(inp.now - p.openTs)}째 · 진입가 ${p.entry} · 현재 ${p.mark}\n거래소 SL(또는 일지 계획 손절)부터 거세요.`);
+    if (inp.slSymbols && inp.now - p.openTs >= SL_GRACE_MS && !inp.slSymbols.has(normSym(p.symbol)) && !(plan && plan.stop > 0)) {
+      const sg = suggestStop(p, inp.equity);
+      const hint = sg
+        ? `\n💡 제안 손절 <b>${px(sg.stop)}</b> (${sg.fromMark ? '진입가 기준 자리는 이미 지남 → 현재가' : '진입가'} ∓ ${SL_ATR_MULT}×1H ATR)`
+          + (sg.qtyAtRisk != null ? `\n평가금 ${RISK_PCT}% 리스크면 수량 ${qty(sg.qtyAtRisk)}${sg.curRiskPct != null ? ` · 지금 수량이면 손절 시 평가금의 ${sg.curRiskPct.toFixed(sg.curRiskPct < 1 ? 2 : 1)}%` : ''}` : '')
+        : '';
+      fire(`nosl:${pid}`, 2 * H, `🚧 <b>${base(p.symbol)} ${long ? '롱' : '숏'} 손절 주문 없음</b>\n진입 ${ago(inp.now - p.openTs)}째 · 진입가 ${p.entry} · 현재 ${p.mark}${hint}\n거래소 SL(또는 일지 계획 손절)부터 거세요. <i>제안은 변동성 기준 자리일 뿐 방향 판단 아님</i>`);
+    }
 
     // 1H 추세 역행
     if (p.h1Trend === (long ? 'down' : 'up'))
@@ -157,6 +195,16 @@ async function h1TrendAt(symbol: string, openTs: number): Promise<OpenPos['h1Tre
   } catch { return null; }
 }
 
+async function atr1hNow(symbol: string): Promise<number | null> {
+  try {
+    const j = await (await fetch(`https://api.bitget.com/api/v2/mix/market/candles?symbol=${symbol}&productType=USDT-FUTURES&granularity=1H&limit=60`, { signal: AbortSignal.timeout(8000), cache: 'no-store' })).json();
+    if (j?.code !== '00000') return null;
+    const cs = (j.data as string[][]).map((r) => ({ ts: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4], v: +r[5], qv: +(r[6] ?? 0) })).sort((x, y) => x.ts - y.ts);
+    const v = cs.length >= 20 ? atr(cs.slice(0, -1)) : 0;   // 진행 중인 마지막 봉 제외
+    return v > 0 ? v : null;
+  } catch { return null; }
+}
+
 async function slSymbols(): Promise<Set<string> | null> {
   try {
     const j = await bitgetSignedGet('/api/v2/mix/order/orders-plan-pending?productType=USDT-FUTURES&planType=profit_loss');
@@ -192,7 +240,7 @@ export async function sendTelegram(text: string): Promise<boolean> {
 export interface GuardRun { ok: boolean; skipped?: string; positions: number; alerts: GuardAlert[]; sent: boolean; stateSaved: boolean }
 
 /** 한 회차: 조회 → 판정 → (dry 아니면) 발송 → 상태 저장. 발송 실패면 상태를 저장하지 않아 다음 회차에 다시 시도 */
-export async function runGuard(opts: { dry?: boolean; now?: number } = {}): Promise<GuardRun> {
+export async function runGuard(opts: { dry?: boolean; now?: number; ignoreState?: boolean } = {}): Promise<GuardRun> {
   if (!bitgetKeysConfigured()) return { ok: false, skipped: 'Bitget 키 없음', positions: 0, alerts: [], sent: false, stateSaved: false };
   const now = opts.now ?? Date.now();
   const posJson = await bitgetSignedGet('/api/v2/mix/position/all-position?productType=USDT-FUTURES&marginCoin=USDT');
@@ -214,6 +262,7 @@ export async function runGuard(opts: { dry?: boolean; now?: number } = {}): Prom
       symbol: String(r.symbol), side: r.holdSide === 'short' ? 'short' : 'long', openTs,
       entry: num(r.openPriceAvg ?? r.averageOpenPrice), mark: num(r.markPrice), liq: num(r.liquidationPrice),
       h1Trend: openTs > 0 ? await h1TrendAt(String(r.symbol), openTs) : null,
+      size: num(r.total), atr1h: await atr1hNow(String(r.symbol)),
     });
   }
   const journal: PlanStop[] = (Array.isArray(journalRaw) ? journalRaw : [])
@@ -221,7 +270,7 @@ export async function runGuard(opts: { dry?: boolean; now?: number } = {}): Prom
     .map((e) => ({ symbol: String(e.symbol), side: e.direction, id: String(e.id), name: e.name, stop: num(e.stop), target1: num(e.target1), target2: num(e.target2) }));
   const { alerts, state: next } = evaluateGuard(
     { now, positions, slSymbols: sl, journal, closed: closedRes.positions, limits: limits ? { ...DEFAULT_LIMITS, ...limits } : null, equity },
-    state ?? { fired: {} },
+    (opts.ignoreState ? null : state) ?? { fired: {} },
   );
   if (opts.dry) return { ok: true, positions: positions.length, alerts, sent: false, stateSaved: false };
   let sent = false, stateSaved = false;
@@ -230,4 +279,35 @@ export async function runGuard(opts: { dry?: boolean; now?: number } = {}): Prom
     if (sent) stateSaved = await sbPut(STATE_ID, next);
   } else if (JSON.stringify(next) !== JSON.stringify(state ?? { fired: {} })) stateSaved = await sbPut(STATE_ID, next);
   return { ok: true, positions: positions.length, alerts, sent, stateSaved };
+}
+
+/* ── 냉각 타이머(앱 상단 배너) ─────────────────── */
+/** 손실 청산 뒤 다음 진입까지 쉬는 시간 — 복구 매매 판정(30분)과 같은 기준 */
+export const COOLDOWN_AFTER_LOSS_MS = 30 * 60_000;
+
+export interface Cooldown { until: number; kind: 'loss' | 'breaker'; reason: string }
+/**
+ * 순수 — 지금 쉬어야 하나. 서킷브레이커 차단이면 다음 KST 자정까지, 아니면 마지막 청산이 손실일 때 그 뒤 30분.
+ * 거래소 주문을 막지는 못한다(리마인더). 한도 미설정 시 오늘 손실 한도 = 평가금 3%(가드와 같은 가정).
+ */
+export function cooldownState(closed: Pick<ClosedPosition, 'netProfit' | 'closeTs'>[], limits: BreakerLimits | null, equity: number | null, now: number): Cooldown | null {
+  if (!closed.length) return null;
+  const userDaily = limits?.dailyLossLimitUsdt ?? null;
+  const assumed = userDaily == null && equity != null && equity > 0 ? Math.round(equity * DEFAULT_DAILY_LOSS_PCT) / 100 : null;
+  const cb = evaluateBreaker(closed.map((c) => ({ ts: c.closeTs, result: c.netProfit > 0 ? 'win' : c.netProfit < 0 ? 'loss' : 'even', realizedUsdt: c.netProfit })),
+    { ...DEFAULT_LIMITS, ...(limits ?? {}), dailyLossLimitUsdt: userDaily ?? assumed }, now);
+  if (cb.status === 'blocked') return { until: kstDayStart(now) + 86_400_000, kind: 'breaker', reason: cb.reasons[0] ?? '서킷브레이커' };
+  const last = [...closed].sort((a, b) => b.closeTs - a.closeTs)[0];
+  if (last.netProfit < 0 && now - last.closeTs < COOLDOWN_AFTER_LOSS_MS)
+    return { until: last.closeTs + COOLDOWN_AFTER_LOSS_MS, kind: 'loss', reason: `직전 손실 청산 ${fmt(last.netProfit)} USDT — 복구 매매 방지` };
+  return null;
+}
+
+export async function cooldownNow(now: number = Date.now()): Promise<Cooldown | null> {
+  const [{ positions }, limits, equity] = await Promise.all([
+    fetchClosedPositions(now - 7 * 86_400_000, now),
+    sbGet<Partial<BreakerLimits>>('kospi-lab-risk-limits'),
+    equityUsdt(),
+  ]);
+  return cooldownState(positions, limits ? { ...DEFAULT_LIMITS, ...limits } : null, equity, now);
 }
