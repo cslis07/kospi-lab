@@ -1,6 +1,22 @@
 {
-  "updated": "2026-10-23T05:51:00.305Z",
-  "open": [],
+  "updated": "2026-10-23T11:01:18.031Z",
+  "open": [
+    {
+      "id": "BTCUSDT-scalp-1792753275290",
+      "sym": "BTCUSDT",
+      "mode": "scalp",
+      "dir": -1,
+      "dirLabel": "SHORT",
+      "entry": 81653.95,
+      "tp": 81521,
+      "sl": 81783.7,
+      "ts": 1792753275290,
+      "price0": 81555.9,
+      "ultra": false,
+      "conf": 95,
+      "eq": 69
+    }
+  ],
   "closed": [
     {
       "id": "XRPUSDT-scalp-1792481560800",
