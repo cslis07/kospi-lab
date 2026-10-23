@@ -83,3 +83,43 @@ export function simulateRules(winRate: number, winR: number, lossR: number, opts
   const best = pool.reduce((a, b) => (b.median > a.median ? b : a), pool[0]);
   return { rules, bestKey: best.key };
 }
+
+/** 매매일지 기록 1건(코인·주식 공통 최소 필드). 미청산(open)·resultR 없음은 제외된다. */
+export interface RecordLike { ts: number; result?: string; resultR?: number | null; riskPct?: number | null }
+export interface RecordStats {
+  n: number;                 // 쓸 수 있는 마감 기록 수(본전 포함)
+  wins: number; losses: number; evens: number;
+  winRate: number | null;    // 승/(승+패) % — journalAnalytics.edgeSummary 와 같은 정의(본전 제외)
+  avgWinR: number | null;    // 이긴 매매 평균 R(양수)
+  avgLossR: number | null;   // 진 매매 평균 |R|(양수)
+  perMonth: number | null;   // 월평균 매매 수(기록 기간 1개월 미만이면 1개월로 간주)
+  riskPct: number | null;    // 기록된 1회 허용손실 % 의 중앙값(있을 때만)
+  spanDays: number;
+}
+
+const r2 = (v: number) => Math.round(v * 100) / 100;
+
+/**
+ * 매매일지 R 기록 → 익절 규칙 시뮬 입력(승률·평균 익절R·평균 손절R·월 매매 수·리스크%).
+ * "내 과거 기록 기준"일 뿐 예측이 아니다. 표본이 작으면(호출 측에서 n<30 경고) 참고용.
+ */
+export function statsFromRecords(records: RecordLike[]): RecordStats {
+  const use = records.filter((r) => r && r.result !== 'open' && typeof r.resultR === 'number' && Number.isFinite(r.resultR) && Number.isFinite(r.ts));
+  const winV = use.filter((r) => (r.resultR as number) > 0).map((r) => r.resultR as number);
+  const lossV = use.filter((r) => (r.resultR as number) < 0).map((r) => Math.abs(r.resultR as number));
+  const decided = winV.length + lossV.length;
+  const avg = (a: number[]) => (a.length ? r2(a.reduce((s, v) => s + v, 0) / a.length) : null);
+  const ts = use.map((r) => r.ts);
+  const spanDays = ts.length >= 2 ? (Math.max(...ts) - Math.min(...ts)) / 86400000 : 0;
+  const perMonth = use.length >= 2 ? Math.round((use.length / Math.max(1, spanDays / 30.4375)) * 10) / 10 : null;
+  const risks = use.map((r) => r.riskPct).filter((v): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0).sort((a, b) => a - b);
+  const riskPct = risks.length
+    ? Math.round((risks.length % 2 ? risks[(risks.length - 1) / 2] : (risks[risks.length / 2 - 1] + risks[risks.length / 2]) / 2) * 10) / 10
+    : null;
+  return {
+    n: use.length, wins: winV.length, losses: lossV.length, evens: use.length - decided,
+    winRate: decided ? Math.round((winV.length / decided) * 1000) / 10 : null,
+    avgWinR: avg(winV), avgLossR: avg(lossV),
+    perMonth, riskPct, spanDays: Math.round(spanDays * 10) / 10,
+  };
+}

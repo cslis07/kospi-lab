@@ -5,7 +5,9 @@ import useSWR from 'swr';
 import dynamic from 'next/dynamic';
 import { isolatedLiqPrice, liqSafety, notionForRisk } from '@/lib/positionSizing';
 import { useRiskLimits } from '@/hooks/useRiskLimits';
-import { simulateRules, type RuleStat } from '@/lib/exitSim';
+import { simulateRules, statsFromRecords, type RuleStat } from '@/lib/exitSim';
+import { useCoinJournal } from '@/hooks/useCoinJournal';
+import { useStockJournal } from '@/hooks/useStockJournal';
 
 // 자산 성장 그래프(recharts)는 첫 번들에서 빼고 지연 로딩
 const SimulateChart = dynamic(() => import('@/components/SimulateChart'), {
@@ -615,6 +617,36 @@ function ExitRuleSim() {
   const [trades, setTrades] = useState(100);
   const [riskPct, setRiskPct] = useState(2);
 
+  // 매매일지에서 불러오기 — 이 기기에 저장된 코인·주식 일지의 마감 R 기록(내 과거 기록 기준, 예측 아님)
+  const coinJ = useCoinJournal();
+  const stockJ = useStockJournal();
+  const [src, setSrc] = useState<'all' | 'coin' | 'stock'>('all');
+  const [loaded, setLoaded] = useState<{ ok: boolean; text: string; warn?: boolean } | null>(null);
+  const loadFromJournal = () => {
+    const recs = src === 'coin' ? coinJ.entries : src === 'stock' ? stockJ.entries : [...coinJ.entries, ...stockJ.entries];
+    const s = statsFromRecords(recs);
+    if (s.winRate == null || s.avgWinR == null || s.avgLossR == null) {
+      setLoaded({ ok: false, text: s.n === 0
+        ? '불러올 기록이 없습니다 — 매매일지에 결과(R)를 입력한 마감 기록이 필요합니다. 입력값은 그대로 둡니다.'
+        : `마감 기록 ${s.n}건 중 ${s.avgWinR == null && s.avgLossR == null ? '승·패 기록' : s.avgLossR == null ? '진 매매' : '이긴 매매'}가 없어 평균을 낼 수 없습니다. 입력값은 그대로 둡니다.` });
+      return;
+    }
+    const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+    setWinRate(clamp(Math.round(s.winRate), 5, 95));
+    setWinR(clamp(Math.round(s.avgWinR * 10) / 10, 0.1, 10));
+    setLossR(clamp(Math.round(s.avgLossR * 10) / 10, 0.1, 5));
+    if (s.perMonth != null) setTrades(clamp(Math.round((s.perMonth * 12) / 10) * 10, 10, 2000));
+    if (s.riskPct != null) setRiskPct(clamp(s.riskPct, 0.1, 20));
+    const parts = [
+      `표본 n=${s.n}(승 ${s.wins}·패 ${s.losses}${s.evens ? `·본전 ${s.evens}` : ''})`,
+      `승률 ${s.winRate}% · 평균 익절 ${s.avgWinR}R · 평균 손절 ${s.avgLossR}R`,
+      s.perMonth != null ? `월 ${s.perMonth}회 → 매매 수 1년치` : null,
+      s.riskPct != null ? `리스크 ${s.riskPct}%(기록 중앙값)` : null,
+    ].filter(Boolean).join(' · ');
+    setLoaded({ ok: true, warn: s.n < 30, text: parts });
+  };
+  const journalReady = coinJ.mounted && stockJ.mounted;
+
   const { rules, bestKey } = useMemo(
     () => simulateRules(winRate, winR, lossR, { trades, riskPct, runs: 1500 }),
     [winRate, winR, lossR, trades, riskPct],
@@ -631,6 +663,25 @@ function ExitRuleSim() {
 
       <div className="fin-card p-5 space-y-4">
         <h2 className="text-sm font-semibold text-[var(--text)]">내 매매 통계 (매매일지 성적에서)</h2>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-[11.5px]" role="group" aria-label="불러올 일지">
+              {([['all', '전체'], ['coin', '코인'], ['stock', '주식']] as const).map(([k, t]) => (
+                <button key={k} type="button" onClick={() => setSrc(k)} aria-pressed={src === k}
+                  className={`px-2.5 py-1.5 font-semibold ${src === k ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-muted)]'}`}>{t}</button>
+              ))}
+            </div>
+            <button type="button" onClick={loadFromJournal} disabled={!journalReady}
+              className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-[12px] font-semibold text-[var(--text)] hover:bg-white/5 disabled:opacity-50">📒 매매일지에서 불러오기</button>
+            <span className="text-[10.5px] text-[var(--text-muted)]">내 과거 기록 기준 · 예측 아님</span>
+          </div>
+          {loaded && (
+            <p className={`text-[11px] leading-relaxed ${loaded.ok ? 'text-[var(--text-muted)]' : 'text-amber-400'}`} role="status">
+              {loaded.ok ? '✓ 불러옴 — ' : ''}{loaded.text}
+              {loaded.warn && <b className="block text-amber-400 mt-0.5">⚠ 표본 적음 — 참고용 (30건 미만은 우연의 영향이 큽니다)</b>}
+            </p>
+          )}
+        </div>
         <SimSlider label="승률" sliderValue={winRate} sliderMin={5} sliderMax={90} sliderStep={1} onSlider={setWinRate}
           numValue={winRate} numMin={5} numMax={95} numStep={1} unit="%" onNum={setWinRate} numW="w-16" />
         <SimSlider label="평균 익절 (R)" sliderValue={winR * 10} sliderMin={5} sliderMax={50} sliderStep={1}

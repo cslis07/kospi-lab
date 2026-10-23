@@ -3,7 +3,8 @@
 /**
  * 가격 알림 관리 — 종목별로 흩어진 알림을 한 화면에서 목록·켜기/끄기·삭제(참고: TradingView 알림 관리·토스증권).
  *  ① 국내 종목 가격 알림(종목 상세 › 보유·가격 알림에서 설정) — 현재가·기준까지 거리·마지막 발동
- *  ② 코인선물 조건 알림(코인선물 분석에서 설정) — 진입 조건·방향 전환
+ *  ② 코인 가격 알림(코인선물 분석 › 🔔 가격 알림 등록) — 심볼별 익절·손절·추적선, 개별 켜기/끄기·삭제·모두 지우기
+ *  ③ 코인선물 조건 알림(코인선물 분석에서 설정) — 진입 조건·방향 전환
  * 감시는 앱이 열려 있을 때만(components/PriceAlertWatcher, 30초). 서버 푸시가 아니라는 점을 화면에 밝힌다.
  */
 import { useEffect, useMemo, useState } from 'react';
@@ -11,11 +12,15 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { useAlerts } from '@/hooks/useAlerts';
 import { useCoinAlerts } from '@/hooks/useCoinAlerts';
+import { useCoinPriceAlerts } from '@/hooks/useCoinPriceAlerts';
+import type { CoinPriceAlert } from '@/lib/coinPriceAlert';
 import { alertDistancePct, isAlertOn } from '@/lib/priceAlert';
 import { kstDateTime } from '@/lib/csv';
 
 const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); });
 const won = (n?: number) => (n == null ? '—' : `${n.toLocaleString()}원`);
+/** USDT 가격 표기(PriceAlertWatcher 와 같은 자릿수 규칙) */
+const usd = (n?: number) => (n == null || !(n > 0) ? '—' : `$${n.toLocaleString('en-US', { maximumFractionDigits: n >= 1000 ? 1 : n >= 1 ? 3 : 5 })}`);
 
 function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
@@ -58,7 +63,23 @@ export default function AlertsPage() {
   }).sort((x, y) => (Number(y.on) - Number(x.on)) || (Math.abs(x.dist ?? 1e9) - Math.abs(y.dist ?? 1e9))), [tickers, alerts, px]);
 
   const coinRules = Object.values(coin.rules);
-  const onCount = rows.filter((r) => r.on).length + coinRules.filter((r) => r.enabled !== false).length;
+
+  // 코인 가격 알림(익절·손절·추적선) — 심볼별로 묶고, 켜진 것 먼저·가격 높은 순
+  const cpa = useCoinPriceAlerts();
+  const coinGroups = useMemo(() => {
+    const by = new Map<string, CoinPriceAlert[]>();
+    for (const a of cpa.alerts) by.set(a.symbol, [...(by.get(a.symbol) ?? []), a]);
+    return [...by.entries()].sort(([x], [y]) => x.localeCompare(y)).map(([symbol, list]) => ({
+      symbol, list: [...list].sort((a, b) => (Number(b.enabled) - Number(a.enabled)) || (b.price - a.price)),
+    }));
+  }, [cpa.alerts]);
+  const coinSyms = useMemo(() => coinGroups.map((g) => g.symbol).slice(0, 8), [coinGroups]);
+  const { data: cpx } = useSWR<Record<string, { price?: number }>>(
+    coinSyms.length ? `/api/crypto/batch?symbols=${coinSyms.join(',')}` : null, fetcher, { refreshInterval: 20000 },
+  );
+
+  const onCount = rows.filter((r) => r.on).length + coinRules.filter((r) => r.enabled !== false).length
+    + cpa.alerts.filter((a) => a.enabled).length;
   const del = (label: string, fn: () => void) => { if (window.confirm(`${label} 알림을 삭제할까요?`)) fn(); };
 
   return (
@@ -107,7 +128,56 @@ export default function AlertsPage() {
         </div>
       </section>
 
-      {/* ② 코인선물 조건 알림 */}
+      {/* ② 코인 가격 알림(익절·손절선) */}
+      <section>
+        <div className="fin-sec"><h3>코인 가격 알림 <span className="text-[11px] font-semibold text-[var(--faint)] ml-1">{cpa.alerts.length}개</span></h3></div>
+        <p className="px-1 -mt-1 mb-2 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
+          코인선물 분석에서 등록한 익절·손절·추적 가격선입니다. <b className="text-[var(--text)]">앱이 열려 있을 때만 확인</b>하며(서버 푸시 아님), 울린 알림은 자동으로 꺼집니다.
+        </p>
+        <div className="fin-card overflow-hidden">
+          {!cpa.mounted ? <div className="skeleton h-24" /> : coinGroups.length === 0 ? (
+            <p className="px-4 py-6 text-center text-[13px] text-[var(--text-muted)] leading-relaxed">
+              등록한 코인 가격 알림이 없습니다.<br /><Link href="/coin-analysis" className="underline">코인선물 분석</Link>의 <b className="text-[var(--text)]">🔔 가격 알림 등록</b>으로 익절·손절선을 걸면 여기에 모입니다.
+            </p>
+          ) : coinGroups.map(({ symbol, list }) => {
+            const base = symbol.replace(/USDT$/, '');
+            const cur = cpx?.[symbol]?.price;
+            return (
+              <div key={symbol} className="border-b border-[var(--border)] last:border-0">
+                <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
+                  <Link href={`/coin-analysis?symbol=${encodeURIComponent(symbol)}&run=1`} prefetch={false} className="text-[14px] font-bold text-[var(--text)] hover:underline">{base}</Link>
+                  <span className="text-[11px] text-[var(--faint)] tabular-nums">현재 {usd(cur)} · {list.length}개</span>
+                  <Link href={`/coin-analysis?symbol=${encodeURIComponent(symbol)}&run=1`} prefetch={false} className="ml-auto text-[11.5px] font-semibold text-[var(--accent)] whitespace-nowrap">분석 열기</Link>
+                  <button type="button" onClick={() => del(`${base} 코인 가격`, () => cpa.removeBySymbol(symbol))}
+                    className="text-[11.5px] text-[var(--text-muted)] underline hover:text-red-400 whitespace-nowrap" aria-label={`${base} 가격 알림 모두 지우기`}>모두 지우기</button>
+                </div>
+                {list.map((a) => {
+                  const dist = cur && cur > 0 ? ((a.price - cur) / cur) * 100 : null;
+                  return (
+                    <div key={a.id} className="flex items-center gap-3 px-4 py-2 pl-6" style={{ opacity: a.enabled ? 1 : 0.6 }}>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[12.5px] text-[var(--text)] tabular-nums">
+                          <b style={{ color: a.side === 'above' ? 'var(--warn)' : 'var(--accent)' }}>{a.side === 'above' ? '↑' : '↓'}</b>{' '}
+                          <span className="font-semibold">{a.label}</span> {usd(a.price)} {a.side === 'above' ? '이상' : '이하'}
+                        </div>
+                        <div className="text-[11px] tabular-nums mt-0.5" style={{ color: 'var(--faint)' }}>
+                          {dist != null && a.enabled ? `기준까지 ${Math.abs(dist).toFixed(1)}%` : a.enabled ? '확인 대기' : '꺼짐'}
+                          {a.firedAt ? ` · ${kstDateTime(a.firedAt).slice(5)} 도달로 울림(${usd(a.firedPrice)})` : ''}
+                        </div>
+                      </div>
+                      <Switch on={a.enabled} onChange={(v) => cpa.patch(a.id, { enabled: v })} label={`${base} ${a.label} 알림 ${a.enabled ? '끄기' : '켜기'}`} />
+                      <DelBtn onClick={() => del(`${base} ${a.label}`, () => cpa.remove(a.id))} label={`${base} ${a.label} 알림 삭제`} />
+                    </div>
+                  );
+                })}
+                <div className="h-1.5" />
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ③ 코인선물 조건 알림 */}
       <section>
         <div className="fin-sec"><h3>코인선물 조건 알림 <span className="text-[11px] font-semibold text-[var(--faint)] ml-1">{coinRules.length}개</span></h3></div>
         <div className="fin-card overflow-hidden">

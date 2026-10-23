@@ -14,7 +14,7 @@ import {
 } from '../lib/coinAnalysis';
 import { buildStockVerdict, analyzeSupply, type InvestorDay } from '../lib/stockAnalysis';
 import { analyzeTimeframe, srZones, fibonacci, atr, detectFvgs, buildSmc, exitPlan } from '../lib/coinAnalysis';
-import { mulberry32, deriveRules, simulateRule, simulateRules } from '../lib/exitSim';
+import { mulberry32, deriveRules, simulateRule, simulateRules, statsFromRecords } from '../lib/exitSim';
 import { checkCoinPriceAlert, levelsToAlerts } from '../lib/coinPriceAlert';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '../lib/positionSizing';
 import { scoreGrowth, growthPct } from '../lib/growthScreener';
@@ -1004,6 +1004,36 @@ console.log('\n[ journalStats — 성적 실측 (순수 함수) ]');
     const { rules, bestKey } = simulateRules(55, 2, 1, { trades: 60, riskPct: 2, runs: 400 });
     assert.equal(rules.length, 4);
     assert.ok(rules.some((r) => r.key === bestKey));
+  });
+  ok('statsFromRecords: 승률(본전 제외)·평균 익절/|손절|R·월 매매 수·리스크 중앙값', () => {
+    const D = 86400000;
+    const s = statsFromRecords([
+      { ts: 0, result: 'win', resultR: 2, riskPct: 1 },
+      { ts: 10 * D, result: 'win', resultR: 3, riskPct: 2 },
+      { ts: 20 * D, result: 'loss', resultR: -1, riskPct: 3 },
+      { ts: 30 * D, result: 'loss', resultR: -0.5 },
+      { ts: 40 * D, result: 'even', resultR: 0 },
+      { ts: 50 * D, result: 'open', resultR: null },          // 미청산 제외
+      { ts: 60 * D, result: 'win', resultR: null },           // R 없음 제외
+      { ts: 70 * D, result: 'win', resultR: Number.NaN },     // 비정상 제외
+    ]);
+    assert.equal(s.n, 5);
+    assert.equal(s.wins, 2); assert.equal(s.losses, 2); assert.equal(s.evens, 1);
+    assert.equal(s.winRate, 50);
+    assert.equal(s.avgWinR, 2.5);
+    assert.equal(s.avgLossR, 0.75);
+    assert.equal(s.riskPct, 2);
+    assert.equal(s.spanDays, 40);
+    assert.equal(s.perMonth, Math.round((5 / (40 / 30.4375)) * 10) / 10);
+  });
+  ok('statsFromRecords: 기록 없음·한쪽만 → null', () => {
+    const e = statsFromRecords([]);
+    assert.equal(e.n, 0); assert.equal(e.winRate, null); assert.equal(e.avgWinR, null); assert.equal(e.perMonth, null); assert.equal(e.riskPct, null);
+    const w = statsFromRecords([{ ts: 0, result: 'win', resultR: 1.5 }]);
+    assert.equal(w.winRate, 100); assert.equal(w.avgWinR, 1.5); assert.equal(w.avgLossR, null); assert.equal(w.perMonth, null);
+    // 기록 기간이 1개월 미만이면 1개월로 간주(과대 추정 방지)
+    const short = statsFromRecords([{ ts: 0, result: 'win', resultR: 1 }, { ts: 86400000, result: 'loss', resultR: -1 }]);
+    assert.equal(short.perMonth, 2);
   });
 }
 
