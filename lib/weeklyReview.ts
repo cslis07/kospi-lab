@@ -9,12 +9,16 @@
 import { fetchClosedPositions, type ClosedPosition } from '@/lib/bitgetPositions';
 import { reviewTrade, type TradeReview } from '@/lib/dailyReview';
 import { analyzeTimeframe, tfTrend } from '@/lib/coinAnalysis';
+import { fetchFills } from '@/lib/bitgetFills';
+import type { Fill } from '@/lib/feeDiag';
 
 export interface WeekStats {
   n: number; wins: number; net: number; cost: number;
   slRate: number | null;        // 거래소 손절 주문 기록 있는 비율 %
   withTrendRate: number | null; // 1H 추세 방향 진입 비율 %(추세 판정된 것 중)
   revenge: number; scalpLoss: number; perDay: number;
+  /** 진입 체결 중 지정가(메이커) 비율 % — 체결 조회 실패면 null */
+  makerEntryRate: number | null;
   mistakes: Map<string, number>;
 }
 
@@ -23,7 +27,14 @@ const MISTAKE: Record<string, string> = {
   cost: '비용 과다', 'held-loser': '손절 없이 버팀', chase: '고점·저점 추격', 'rsi-chase': '과열 추격',
 };
 
-export function weekStats(rs: TradeReview[], days = 7): WeekStats {
+/** 진입(open) 체결 중 메이커 비율 % */
+export function makerEntryRate(fills: Pick<Fill, 'scope' | 'tradeSide'>[] | null): number | null {
+  if (!fills) return null;
+  const open = fills.filter((f) => f.tradeSide === 'open');
+  return open.length ? Math.round((open.filter((f) => f.scope === 'maker').length / open.length) * 100) : null;
+}
+
+export function weekStats(rs: TradeReview[], days = 7, fills: Pick<Fill, 'scope' | 'tradeSide'>[] | null = null): WeekStats {
   const notes = rs.flatMap((r) => [...r.entry, ...r.exit, ...r.trade]);
   const mistakes = new Map<string, number>();
   for (const n of notes) if (n.tone !== 'good' && MISTAKE[n.key]) mistakes.set(n.key, (mistakes.get(n.key) ?? 0) + 1);
@@ -36,6 +47,7 @@ export function weekStats(rs: TradeReview[], days = 7): WeekStats {
     withTrendRate: judged.length ? Math.round((judged.filter((r) => r.entry.some((n) => n.key === 'trend-with')).length / judged.length) * 100) : null,
     revenge: mistakes.get('revenge') ?? 0, scalpLoss: mistakes.get('scalp-loss') ?? 0,
     perDay: Math.round((rs.length / days) * 10) / 10,
+    makerEntryRate: makerEntryRate(fills),
     mistakes,
   };
 }
@@ -60,6 +72,7 @@ export function buildWeeklyMessage(cur: WeekStats, prev: WeekStats, opts: { base
     '<b>규칙 지킨 정도</b>',
     `🛡 손절 주문 설정 ${pct(cur.slRate)} ← ${pct(prev.slRate)}${arrow(cur.slRate, prev.slRate, true)}`,
     `🧭 1H 추세 방향 진입 ${pct(cur.withTrendRate)} ← ${pct(prev.withTrendRate)}${arrow(cur.withTrendRate, prev.withTrendRate, true)}`,
+    `📝 지정가 진입 ${pct(cur.makerEntryRate)} ← ${pct(prev.makerEntryRate)}${arrow(cur.makerEntryRate, prev.makerEntryRate, true)} <i>(수수료 절반)</i>`,
     `🔁 복구 매매 ${cur.revenge} ← ${prev.revenge}${arrow(cur.revenge, prev.revenge, false)} · ⏱ 초단타 손실 ${cur.scalpLoss} ← ${prev.scalpLoss}${arrow(cur.scalpLoss, prev.scalpLoss, false)}`,
   ];
   const top = [...cur.mistakes.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
@@ -94,8 +107,12 @@ async function reviewLight(positions: ClosedPosition[]): Promise<TradeReview[]> 
 
 export async function weeklyReviewMessage(opts: { base: string; now?: number }): Promise<string> {
   const now = opts.now ?? Date.now(), W = 7 * 86_400_000;
-  const { positions } = await fetchClosedPositions(now - 2 * W, now);
+  const [{ positions }, fills] = await Promise.all([
+    fetchClosedPositions(now - 2 * W, now),
+    fetchFills(now - 2 * W, now).then((f) => f.fills).catch(() => null),
+  ]);
   const rs = await reviewLight(positions);
   const cur = rs.filter((r) => r.pos.closeTs > now - W), prev = rs.filter((r) => r.pos.closeTs <= now - W);
-  return buildWeeklyMessage(weekStats(cur), weekStats(prev), { base: opts.base });
+  const fCur = fills?.filter((f) => f.ts > now - W) ?? null, fPrev = fills?.filter((f) => f.ts <= now - W) ?? null;
+  return buildWeeklyMessage(weekStats(cur, 7, fCur), weekStats(prev, 7, fPrev), { base: opts.base });
 }

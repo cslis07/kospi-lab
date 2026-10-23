@@ -1,0 +1,24 @@
+# 모의 선행테스트 리마인더 — 마지막 라운드에서 12시간이 지났으면 텔레그램으로 알림(scripts/paperRemind.mts).
+# GitHub 크론은 수 시간 늦을 수 있지만 리마인더라 괜찮다. 라운드를 진행(data/paper-trades.json 갱신)하면 다음 12시간은 조용하다.
+name: 모의테스트 리마인더
+on:
+  schedule:
+    - cron: '0 0,12 * * *'   # 09:00 · 21:00 KST
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 리마인더
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          KL_TELEGRAM_BOT_TOKEN: ${{ secrets.KL_TELEGRAM_BOT_TOKEN }}
+          KL_TELEGRAM_CHAT_ID: ${{ secrets.KL_TELEGRAM_CHAT_ID }}
+        run: npx --yes tsx scripts/paperRemind.mts

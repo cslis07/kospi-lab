@@ -141,3 +141,40 @@ export function binomTailP(wins: number, n: number, p = 0.5): number {
 export const MIN_N = 30;
 export const verdictText = (n: number, winRate: number | null, p: number) =>
   n < MIN_N ? `결론 불가 (n=${n} < ${MIN_N})` : p < 0.05 ? `50% 대비 유의 (p=${p.toFixed(3)})` : `우연 범위 (p=${p.toFixed(3)})`;
+
+/* ── 로더·리마인더(네트워크·텔레그램 문구) ─────────────────── */
+/** Bitget USDT 선물 1시간봉 최근 1000개(≈41일) — 라운드가 그보다 오래 열려 있으면 history-candles 페이징 필요 */
+export async function fetchHourly(coin: string): Promise<Candle[]> {
+  const u = `https://api.bitget.com/api/v2/mix/market/candles?symbol=${coin}USDT&productType=USDT-FUTURES&granularity=1H&limit=1000`;
+  const j = await (await fetch(u, { signal: AbortSignal.timeout(15000) })).json();
+  if (j.code !== '00000') throw new Error(`Bitget ${coin}: ${j.msg}`);
+  return (j.data as string[][]).map((r) => ({ ts: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4] })).sort((a, b) => a.ts - b.ts);
+}
+
+export const ROUND_GAP_MS = 12 * 3_600_000;
+
+/** 마지막 라운드(기록 시각 최대)와 다음 라운드 가능 여부 */
+export function roundStatus(log: PaperLog, now: number = Date.now()): { last: number; lastAt: number; due: boolean } {
+  const items = [...log.trades.map((t) => ({ r: t.round, at: Date.parse(t.openedAt) })), ...log.skips.map((s) => ({ r: s.round, at: Date.parse(s.at) }))];
+  const last = Math.max(0, ...items.map((i) => i.r));
+  const lastAt = Math.max(0, ...items.filter((i) => i.r === last).map((i) => i.at));
+  return { last, lastAt, due: last > 0 && now - lastAt >= ROUND_GAP_MS };
+}
+
+const STATUS_KO: Record<Status, string> = { win: '✅ 승', loss: '❌ 패', open: '⏳ 미결', void: '🚫 무효', pending: '⌛ 체결 대기' };
+
+/** 텔레그램 리마인더 문구(HTML) — 다음 라운드가 아직이면 null */
+export function remindText(log: PaperLog, judged: Judged[], now: number = Date.now()): string | null {
+  const rs = roundStatus(log, now);
+  if (!rs.due) return null;
+  const s = summarize(judged);
+  const hours = Math.floor((now - rs.lastAt) / 3_600_000);
+  const lines = [
+    `🧪 <b>모의 선행테스트 — R${rs.last + 1} 진행 가능</b> (마지막 R${rs.last} · ${hours}시간 전)`,
+    ...judged.filter((j) => j.status === 'pending' || j.status === 'open' || j.trade.round >= rs.last)
+      .map((j) => `R${j.trade.round} ${j.trade.coin} ${j.trade.side === 'long' ? '롱' : '숏'} ${j.trade.type === 'limit' ? '지정가' : '시장가'} ${j.trade.entry} → ${STATUS_KO[j.status]}${j.r != null ? ` ${j.r >= 0 ? '+' : '−'}${Math.abs(j.r).toFixed(2)}R` : ''}`),
+    `누계 ${s.wins}승 ${s.losses}패 · ${s.sumR >= 0 ? '+' : '−'}${Math.abs(s.sumR).toFixed(2)}R · ${verdictText(s.wins + s.losses, s.winRate, binomTailP(s.wins, s.wins + s.losses))}`,
+    `<i>Claude에게 "다음 라운드"라고 하면 판정·사전 기록을 진행합니다</i>`,
+  ];
+  return lines.join('\n');
+}

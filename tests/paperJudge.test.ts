@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { judgeTrade, checkSkip, summarize, byCondition, binomTailP, verdictText, type Candle, type PaperTrade } from '../lib/paperJudge';
+import { judgeTrade, checkSkip, summarize, byCondition, binomTailP, verdictText, roundStatus, remindText, type Candle, type PaperTrade } from '../lib/paperJudge';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -66,5 +66,14 @@ ok('이항검정·판정 문구: n<30은 결론 불가', () => {
   assert.ok(binomTailP(22, 30) < 0.05);
   assert.match(verdictText(2, 0.5, 0.5), /결론 불가/);
   assert.match(verdictText(30, 0.73, binomTailP(22, 30)), /유의/);
+});
+ok('리마인더: 마지막 라운드 12시간 뒤에만, 대기·미결·최근 라운드 상태 포함', () => {
+  const t = base({ round: 4, openedAt: new Date(T0).toISOString() });
+  const log = { trades: [base({ round: 1, openedAt: new Date(T0 - 48 * H).toISOString() }), t], skips: [] };
+  assert.equal(roundStatus(log, T0 + 11 * H).due, false);
+  const st = roundStatus(log, T0 + 13 * H); assert.deepEqual([st.last, st.due], [4, true]);
+  assert.equal(remindText(log, [], T0 + 11 * H), null);
+  const msg = remindText(log, [{ trade: t, status: 'pending', r: null }, { trade: log.trades[0], status: 'win', r: 2 }], T0 + 13 * H)!;
+  assert.match(msg, /R5 진행 가능/); assert.match(msg, /R4 BTC 롱 지정가 100 → ⌛ 체결 대기/); assert.ok(!/R1 BTC/.test(msg)); assert.match(msg, /1승 0패/);
 });
 console.log(`\n${passed} passed`);

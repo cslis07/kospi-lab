@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { weekStats, buildWeeklyMessage } from '../lib/weeklyReview';
+import { weekStats, buildWeeklyMessage, makerEntryRate } from '../lib/weeklyReview';
 import { reviewTrade, type TradeContext } from '../lib/dailyReview';
 import type { ClosedPosition } from '../lib/bitgetPositions';
 
@@ -24,5 +24,11 @@ ok('메시지: 좋아짐/나빠짐 화살표, 매매 없으면 한 줄', () => {
   const m = buildWeeklyMessage(good, bad, { base: 'x' });
   assert.match(m, /손절 주문 설정 100% ← 0% 🟢/); assert.match(m, /추세 방향 진입 100% ← 0% 🟢/);
   assert.match(buildWeeklyMessage(weekStats([]), bad, { base: 'x' }), /이번 주 청산 매매 없음 \(지난주 2건\)/);
+});
+ok('지정가 진입 비율: 진입(open) 체결만, 조회 실패면 null', () => {
+  assert.equal(makerEntryRate([{ scope: 'maker', tradeSide: 'open' }, { scope: 'taker', tradeSide: 'open' }, { scope: 'taker', tradeSide: 'open' }, { scope: 'maker', tradeSide: 'close' }]), 33);
+  assert.equal(makerEntryRate(null), null); assert.equal(makerEntryRate([]), null);
+  const m = buildWeeklyMessage(weekStats([reviewTrade(pos({}), ctx(null), null)], 7, [{ scope: 'maker', tradeSide: 'open' }]), weekStats([], 7, null), { base: 'x' });
+  assert.match(m, /지정가 진입 100% ← –/);
 });
 console.log(`\n${passed} passed`);

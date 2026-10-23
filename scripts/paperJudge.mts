@@ -6,7 +6,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import {
-  judgeTrade, checkSkip, summarize, byCondition, binomTailP, verdictText,
+  judgeTrade, checkSkip, summarize, byCondition, binomTailP, verdictText, fetchHourly,
   type Candle, type PaperLog, type Judged,
 } from '../lib/paperJudge';
 
@@ -14,14 +14,6 @@ const LOG = 'data/paper-trades.json';
 const DOC = '모의매매테스트.md';
 const START = '<!-- auto:paper-judge:start -->';
 const END = '<!-- auto:paper-judge:end -->';
-
-async function candles(coin: string): Promise<Candle[]> {
-  // 1H 1000봉 ≈ 41일 — 라운드 하나가 그보다 오래 열려 있으면 history-candles 페이징 필요
-  const u = `https://api.bitget.com/api/v2/mix/market/candles?symbol=${coin}USDT&productType=USDT-FUTURES&granularity=1H&limit=1000`;
-  const j = await (await fetch(u, { signal: AbortSignal.timeout(15000) })).json();
-  if (j.code !== '00000') throw new Error(`Bitget ${coin}: ${j.msg}`);
-  return (j.data as string[][]).map((r) => ({ ts: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4] })).sort((a, b) => a.ts - b.ts);
-}
 
 const kst = (ts?: number) => (ts == null ? '–' : new Date(ts + 9 * 3600e3).toISOString().slice(5, 16).replace('T', ' '));
 const fmtR = (r: number | null) => (r == null ? '–' : `${r >= 0 ? '+' : '−'}${Math.abs(r).toFixed(2)}R`);
@@ -32,7 +24,7 @@ async function main() {
   const log = JSON.parse(readFileSync(LOG, 'utf8')) as PaperLog;
   const coins = [...new Set([...log.trades.map((t) => t.coin), ...log.skips.map((s) => s.coin)])];
   const data = new Map<string, Candle[]>();
-  for (const c of coins) data.set(c, await candles(c));
+  for (const c of coins) data.set(c, await fetchHourly(c));
   const now = Date.now();
 
   const judged: Judged[] = log.trades.map((t) => judgeTrade(t, data.get(t.coin)!, now));
