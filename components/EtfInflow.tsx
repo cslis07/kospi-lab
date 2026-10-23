@@ -25,8 +25,13 @@ function Card({ title, flow }: { title: string; flow: EtfFlow | null }) {
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
       <div className="flex items-baseline justify-between mb-1">
         <p className="text-sm font-bold text-[var(--text)]">{title}</p>
-        <span className="text-[10px] text-[var(--text-muted)]">{flow.latest.date}</span>
+        <span className={`text-[10px] ${flow.stale ? 'text-amber-400 font-semibold' : 'text-[var(--text-muted)]'}`}>
+          {flow.latest.date}{flow.stale ? ` · ${flow.ageDays}일 지연` : ''}
+        </span>
       </div>
+      {flow.stale && (
+        <p className="text-[11px] text-amber-400 mb-1">데이터 갱신이 멈춰 있어요 — 최근 값이 아니라 분석 근거에서 뺐습니다.</p>
+      )}
       <p className={`text-3xl font-bold tabular-nums ${flow.net >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{signed(flow.net)}</p>
       <p className={`text-xs mt-1 ${flow.streak >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
         {Math.abs(flow.streak)}일 연속 {flow.streak >= 0 ? '순유입' : '순유출'}

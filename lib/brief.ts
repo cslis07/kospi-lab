@@ -401,7 +401,7 @@ async function coinFlowNums(): Promise<MacroNum[]> {
   } catch { /* 시세 없이 */ }
   try {
     const etf = (await getEtfFlows()).BTC;
-    if (etf?.latest) {
+    if (etf?.latest && !etf.stale) {   // 지연된 값은 '지금 수치'로 내지 않음
       const m = etf.latest.netUsd / 1e6;
       out.push({ key: 'etf', label: 'BTC 현물 ETF 순유입', value: `${m >= 0 ? '+' : '−'}$${Math.abs(m).toFixed(0)}M`, change: m, changeText: `${Math.abs(etf.streak)}일 연속 ${etf.streak >= 0 ? '유입' : '유출'}`, source: 'SoSoValue', group: 'crypto', asOf: etf.latest.date, hint: '기관 자금 흐름(전 거래일 집계)' });
     }
