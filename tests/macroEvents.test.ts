@@ -32,6 +32,7 @@ ok('이번 발표 행: 같은 날짜만, 없으면 직전만(지난 실제치를
   assert.deepEqual(pickRelease([{ date: '2026-10-28', actual: '', forecast: ' 0.3% ', previous: '0.2%' }], '2026-10-28'), { actual: '', forecast: '0.3%', previous: '0.2%' });
   assert.equal(flattenEvents([{ date: '2026-10-28', events: ['GDP (QoQ) '] }])[0].name, 'GDP (QoQ)');
   assert.equal(classify('New Home Sales').ko, '신규 주택판매');
+  assert.deepEqual(pickRelease([{ date: '2026-10-24', actual: '', forecast: '652', previous: '684' }, { date: '2026-09-24', actual: '684', forecast: '', previous: '' }], '2026-10-26'), { actual: '', forecast: '652', previous: '684' });
 });
 
 console.log(`\n${passed} passed`);

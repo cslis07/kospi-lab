@@ -76,13 +76,17 @@ export function keyOfLabel(label: string): string | null {
 }
 
 /**
- * 이번 발표 행 고르기 — 같은 날짜 행만 '이번 발표'로 쓴다. 없으면(아직 history에 안 올라옴) 컨센서스는 비우고
+ * 이번 발표 행 고르기 — 같은 날짜(±1일) 행, 또는 아직 발표 전(actual 빈 값)이면서 ±3일 안 행(달력·history 날짜가 시간대로
+ * 하루 이틀 어긋남)을 '이번 발표'로 쓴다. 없으면(아직 history에 안 올라옴) 컨센서스는 비우고
  * 가장 최근 발표의 실제치를 '직전'으로. 지난 발표의 실제치를 이번 발표 결과로 보여 주면 안 된다.
  */
 export function pickRelease(hist: { date: string; actual?: string; forecast?: string; previous?: string }[], date: string): Omit<MacroRelease, 'date' | 'name' | 'ko'> {
   const s = (v?: string) => (v ?? '').trim();
-  const same = hist.find((h) => h.date?.slice(0, 10) === date);
+  const gap = (d: string) => Math.abs(Date.parse(`${d.slice(0, 10)}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`)) / 86_400_000;
+  const same = hist.find((h) => h.date?.slice(0, 10) === date)
+    ?? hist.find((h) => h.date && gap(h.date) <= 1)
+    ?? hist.find((h) => h.date && !s(h.actual) && gap(h.date) <= 3);
   if (same) return { actual: s(same.actual), forecast: s(same.forecast), previous: s(same.previous) };
-  const past = [...hist].filter((h) => h.date && h.date.slice(0, 10) < date && s(h.actual)).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+  const past = [...hist].filter((h) => h.date && s(h.actual) && h !== same && h.date.slice(0, 10) < date).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
   return { actual: '', forecast: '', previous: past ? s(past.actual) : '' };
 }
