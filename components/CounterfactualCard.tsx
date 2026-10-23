@@ -8,12 +8,12 @@
  */
 import { useMemo, useState } from 'react';
 import { fetchTradeCandles, type ExcursionTrade } from '@/lib/excursionFetch';
-import { stopCheck, counterfactual, cfHeadline, CF_LABELS, CF_STOP_ATR, CF_MAKER_RATE, type CfTrade, type StopCheck, type CfKey } from '@/lib/counterfactual';
+import { stopCheck, counterfactual, cfHeadline, stopSweep, CF_LABELS, CF_STOP_ATR, CF_MAKER_RATE, type CfTrade, type StopCheck, type CfKey } from '@/lib/counterfactual';
 
 type Trade = ExcursionTrade & { grossPnl: number; fee: number; openFee?: number };
 
 const KEY = 'kospi-lab-counterfactual';
-const VERSION = 2; // 판정식(배수·ATR 기간·봉 범위)이 바뀌면 올린다
+const VERSION = 3; // 판정식(배수·ATR 기간·봉 범위)이 바뀌면 올린다
 const MAX = 100;
 
 type Stored = Record<string, StopCheck>;
@@ -38,7 +38,7 @@ async function fetchH1Before(symbol: string, openTs: number) {
   } catch { return null; }
 }
 
-export default function CounterfactualCard({ trades, fmt, sub }: { trades: Trade[]; fmt: (n: number) => string; sub?: string }) {
+export default function CounterfactualCard({ trades, fmt, sub, equity }: { trades: Trade[]; fmt: (n: number) => string; sub?: string; equity?: number | null }) {
   const list = useMemo(() => [...trades].filter((t) => t.openTs > 0 && t.openAvg > 0).sort((a, b) => b.closeTs - a.closeTs).slice(0, MAX), [trades]);
   const [busy, setBusy] = useState<{ done: number; total: number } | null>(null);
   const [failed, setFailed] = useState(0);
@@ -79,6 +79,7 @@ export default function CounterfactualCard({ trades, fmt, sub }: { trades: Trade
     netProfit: t.netProfit, grossPnl: t.grossPnl, fee: t.fee, openFee: t.openFee, openTs: t.openTs, closeTs: t.closeTs,
   })), [list]);
   const s = useMemo(() => counterfactual(cfTrades, stops), [cfTrades, stops]);
+  const sweep = useMemo(() => stopSweep(cfTrades, stops, equity ?? null), [cfTrades, stops, equity]);
   if (!list.length) return null;
 
   const checked = list.filter((t) => stops[t.positionId]).length;
@@ -137,6 +138,38 @@ export default function CounterfactualCard({ trades, fmt, sub }: { trades: Trade
           손절 판정 {s.stopKnown}건 중 {s.stopHits}건이 손절가에 닿음 — 그중 <b style={{ color: 'var(--warn)' }}>{s.stopHelped}건은 손실을 줄였고</b>({signed(s.stopHelpedUsdt, fmt)}),{' '}
           <b style={{ color: 'var(--accent-ink)' }}>{s.stopHurt}건은 일찍 끊겨 이후 회복을 놓쳤습니다</b>({signed(s.stopHurtUsdt, fmt)}).
         </p>
+      )}
+
+      {sweep.n > 0 && (
+        <div className="mt-3">
+          <p className="text-[12px] font-semibold text-[var(--text)] mb-1">손절 배수 비교 <span className="text-[10px] font-normal text-[var(--text-muted)]">1H ATR · {sweep.n}건 · 시간순 앞/뒤 절반</span></p>
+          <div className="overflow-x-auto rounded-xl border border-[var(--line-2)]">
+            <table className="w-full text-[11px] tabular-nums" style={{ minWidth: 320 }}>
+              <thead>
+                <tr className="text-[10px] text-[var(--text-muted)] text-right">
+                  <th className="text-left font-semibold px-2.5 py-1.5">배수</th>
+                  <th className="font-semibold px-2">같은 수량 + 손절<br />실제 대비</th>
+                  <th className="font-semibold px-2.5">손절 + 자본 1% 수량<br />앞 · 뒤 (비용 제외)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sweep.rows.map((r) => (
+                  <tr key={r.mult} className="border-t border-[var(--line-2)] text-right" style={sweep.pick === r.mult ? { background: 'var(--warn-soft)' } : undefined}>
+                    <td className="text-left px-2.5 py-1.5 text-[var(--text)] font-semibold">×{r.mult}{sweep.pick === r.mult ? ' ★' : ''}<span className="block text-[9.5px] font-normal text-[var(--text-muted)]">닿음 {r.sameSize.hits}건</span></td>
+                    <td className="px-2" style={{ color: pnlColor(r.sameSize.delta) }}>{signed(r.sameSize.delta, fmt)}</td>
+                    <td className="px-2.5"><span style={{ color: pnlColor(r.fixedRisk.first) }}>{signed(r.fixedRisk.first, fmt)}</span> · <span style={{ color: pnlColor(r.fixedRisk.second) }}>{signed(r.fixedRisk.second, fmt)}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[10.5px] text-[var(--text-muted)] mt-1 leading-relaxed">
+            {sweep.pick != null
+              ? <>★ ×{sweep.pick}: 자본 1% 수량 방식에서 앞·뒤 절반 모두 플러스이고 둘 중 작은 쪽이 가장 큰 배수(사전에 정한 규칙). 포지션 가드 제안({CF_STOP_ATR}배){sweep.pick === CF_STOP_ATR ? '와 같습니다.' : `와 다릅니다 — 표본이 쌓여도 같으면 가드 배수를 바꿀 근거가 됩니다.`}</>
+              : equity ? '앞·뒤 절반 모두 플러스인 배수가 없어 고르지 않았습니다(우연과 구분 불가).' : '자본을 불러오지 못해 1% 수량 비교는 생략했습니다.'}
+            {' '}같은 수량 그대로 손절만 넓히면 한 번 닿을 때 손실이 커집니다 — 손절 폭과 수량은 같이 정해야 합니다.
+          </p>
+        </div>
       )}
 
       {failed > 0 && !busy && (

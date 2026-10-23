@@ -501,7 +501,7 @@ export default function JournalPage() {
           <FeeDiagCard days={days} fmt={fmtUsdt} />
           <DisciplineCard positions={positions} days={days} />
           <RiskSizeCard trades={riskTrades} equity={equity} fmt={fmtUsdt} sub={`${periodLabel(days)} 손실 매매 · 순손실 기준`} />
-          <CounterfactualCard trades={positions} fmt={fmtUsdt} sub={`${periodLabel(days)} 청산 ${positions.length}건`} />
+          <CounterfactualCard trades={positions} equity={equity} fmt={fmtUsdt} sub={`${periodLabel(days)} 청산 ${positions.length}건`} />
           <TradesPerDayCard rows={perDay} fmt={fmtUsdt} />
           <AfterLossTable rows={afterLoss} fmt={fmtUsdt} breakerAt={limits.maxConsecutiveLosses} />
           <ExcursionSummaryCard trades={positions} tagsByPosition={tags} />

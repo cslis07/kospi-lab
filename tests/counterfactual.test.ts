@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { stopCheck, stopNet, makerEntrySaving, revengeIds, counterfactual, cfHeadline, type CfTrade, type StopCheck } from '../lib/counterfactual';
+import { stopCheck, stopNet, makerEntrySaving, revengeIds, counterfactual, cfHeadline, stopSweep, type CfTrade, type StopCheck } from '../lib/counterfactual';
 import type { Candle } from '../lib/tradeAutopsy';
 
 let passed = 0;
@@ -99,5 +99,31 @@ ok('규칙별·합산 요약과 가장 큰 규칙', () => {
   assert.match(cfHeadline(s), /복수 매매 빼기.*가장 크게 개선/);
   assert.equal(counterfactual([], {}).biggest, null);
 });
+
+{
+  // 손절 배수 비교 — 사전 규칙: 자본 1% 수량 방식에서 앞·뒤 절반 모두 플러스인 배수 중 작은 쪽이 가장 큰 배수
+  const mk = (i: number, move: number, adverse: number): [CfTrade, StopCheck] => [
+    { id: `s${i}`, symbol: 'BTCUSDT', side: 'long', openAvg: 100, closeAvg: 100 + move, size: 1, netProfit: move - 0.1, grossPnl: move, fee: -0.1, openTs: i, closeTs: i + 1 },
+    { status: 'not-hit', atr: 1, stopPrice: 98.8, stopDist: 1.2, adverse },
+  ];
+  // 20건: 대부분 작은 역행 후 +2 이익, 4건은 1.5 역행 후 −1.4 손실 → ×1.2는 그 4건을 −1R로 자름
+  const pairs = Array.from({ length: 20 }, (_, i) => (i % 5 === 0 ? mk(i, -1.4, 1.5) : mk(i, 2, 0.5)));
+  const trades = pairs.map((p) => p[0]); const stops = Object.fromEntries(pairs.map((p) => [p[0].id, p[1]]));
+  const sw = stopSweep(trades, stops, 1000);
+  ok('손절 배수 비교: 같은 수량 Δ·닿음 건수·1% 수량 가격 손익', () => {
+    const r12 = sw.rows.find((r) => r.mult === 1.2)!;
+    assert.equal(r12.sameSize.hits, 4);
+    assert.ok(Math.abs(r12.sameSize.delta - 4 * (-1.2 + 1.4)) < 1e-9);   // 닿은 4건: −1.2 대신 −1.4 였음 → +0.8
+    assert.ok(Math.abs(r12.fixedRisk.net - (16 * (2 / 1.2) * 10 - 4 * 10)) < 1e-9);
+    assert.equal(sw.n, 20);
+  });
+  ok('사전 규칙으로만 고름: 두 절반 모두 플러스 + 작은 쪽 최대, 자본 없거나 20건 미만이면 null', () => {
+    assert.equal(sw.pick, 1.2);
+    assert.equal(stopSweep(trades, stops, null).pick, null);
+    assert.equal(stopSweep(trades.slice(0, 10), stops, 1000).pick, null);
+    const old = { ...stops, s1: { ...stops.s1, adverse: undefined } };
+    assert.equal(stopSweep(trades, old, 1000).n, 19);   // 옛 캐시(adverse 없음)는 제외
+  });
+}
 
 console.log(`counterfactual: ${passed} passed`);

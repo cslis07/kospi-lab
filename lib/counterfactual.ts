@@ -53,6 +53,8 @@ export interface StopCheck {
   stopPrice: number | null;
   /** 손절까지 가격 거리(= 1.2 × ATR) */
   stopDist: number | null;
+  /** 보유 중 최대 역행(진입가 대비 가격 거리, 청산가 포함) — 배수별 비교(stopSweep)용. 옛 캐시엔 없음 */
+  adverse?: number | null;
 }
 
 /**
@@ -75,7 +77,8 @@ export function stopCheck(t: Pick<CfTrade, 'side' | 'openAvg' | 'closeAvg' | 'op
   const stopPrice = long ? t.openAvg - dist : t.openAvg + dist;
   const touched = held.some((c) => (long ? c.l <= stopPrice : c.h >= stopPrice));
   const exitBeyond = long ? t.closeAvg <= stopPrice : t.closeAvg >= stopPrice;
-  return { status: touched || exitBeyond ? 'hit' : 'not-hit', atr: a, stopPrice, stopDist: dist };
+  const adverse = Math.max(0, long ? t.openAvg - t.closeAvg : t.closeAvg - t.openAvg, ...held.map((c) => (long ? t.openAvg - c.l : c.h - t.openAvg)));
+  return { status: touched || exitBeyond ? 'hit' : 'not-hit', atr: a, stopPrice, stopDist: dist, adverse };
 }
 
 /** 손절 규칙 적용 순손익 — 맞았으면 −dist × 수량 + 실제 비가격 비용, 아니면 실제 순손익 */
@@ -194,4 +197,50 @@ export function cfHeadline(s: CfSummary, fmt: (n: number) => string = (n) => n.t
   const sign = r.delta >= 0 ? '+' : '−';
   const dir = r.delta >= 0 ? '가장 크게 개선' : '가장 크게 악화';
   return `가정 계산상 ${CF_LABELS[s.biggest]} 규칙이 ${dir}했습니다(${sign}${fmt(Math.abs(r.delta))} USDT, ${r.affected}건 영향).`;
+}
+
+/* ── 손절 배수 비교(가드 제안 배수 고르기) ─────────────────────── */
+export const SWEEP_MULTS = [1.2, 1.8, 2.5, 3.0] as const;
+
+export interface SweepRow {
+  mult: number;
+  /** 같은 수량 그대로 손절만 걸었을 때 — 실제 대비 Δ(전체·앞 절반·뒤 절반), 닿은 건수 */
+  sameSize: { delta: number; first: number; second: number; hits: number };
+  /** 가드 제안대로(손절 + 1회 리스크 = 자본 riskPct% 수량) — 비용 제외 가격 손익(전체·앞·뒤) */
+  fixedRisk: { net: number; first: number; second: number };
+}
+export interface Sweep { n: number; rows: SweepRow[]; /** 사전 규칙으로 고른 배수 — 없으면 null */ pick: number | null; pickBasis: 'fixedRisk' }
+
+/**
+ * 손절 배수별 가정 손익. 고르는 규칙은 **사전 고정**(결과 보고 바꾸지 않음):
+ *   가드 제안 방식(fixedRisk)에서 앞 절반·뒤 절반 **둘 다 플러스**인 배수 중, 두 구간의 **작은 쪽이 가장 큰** 배수.
+ *   그런 배수가 없으면 null(제안을 바꾸지 않는다).
+ * 시간순 앞/뒤 절반으로 나누는 건 한 구간에서만 좋았던 배수를 고르는 과최적화를 막기 위해서다.
+ * fixedRisk 는 수수료·펀딩 제외(수량이 바뀌면 비용도 바뀌어 실제 값을 쓸 수 없다) — 같은 기준끼리만 비교할 것.
+ */
+export function stopSweep(trades: CfTrade[], stops: Record<string, StopCheck | undefined>, equity: number | null, riskPct = 1, mults: readonly number[] = SWEEP_MULTS): Sweep {
+  const rows0 = [...trades].sort((a, b) => a.openTs - b.openTs)
+    .map((t) => ({ t, s: stops[t.id] }))
+    .filter((x): x is { t: CfTrade; s: StopCheck } => !!x.s && x.s.atr != null && x.s.atr > 0 && x.s.adverse != null);
+  const half = Math.floor(rows0.length / 2);
+  const risk = equity && equity > 0 ? (equity * riskPct) / 100 : 0;
+  const rows = mults.map((m): SweepRow => {
+    const same = (xs: typeof rows0) => xs.reduce((s, { t, s: c }) => {
+      const dist = m * c.atr!;
+      return s + (c.adverse! >= dist ? -dist * Math.abs(t.size) + (t.netProfit - t.grossPnl) - t.netProfit : 0);
+    }, 0);
+    const fixed = (xs: typeof rows0) => xs.reduce((s, { t, s: c }) => {
+      const dist = m * c.atr!;
+      const move = t.side === 'long' ? t.closeAvg - t.openAvg : t.openAvg - t.closeAvg;
+      return s + (c.adverse! >= dist ? -risk : (move / dist) * risk);
+    }, 0);
+    return {
+      mult: m,
+      sameSize: { delta: same(rows0), first: same(rows0.slice(0, half)), second: same(rows0.slice(half)), hits: rows0.filter(({ s: c }) => c.adverse! >= m * c.atr!).length },
+      fixedRisk: { net: fixed(rows0), first: fixed(rows0.slice(0, half)), second: fixed(rows0.slice(half)) },
+    };
+  });
+  const ok = risk > 0 && rows0.length >= 20 ? rows.filter((r) => r.fixedRisk.first > 0 && r.fixedRisk.second > 0) : [];
+  const pick = ok.length ? ok.sort((a, b) => Math.min(b.fixedRisk.first, b.fixedRisk.second) - Math.min(a.fixedRisk.first, a.fixedRisk.second))[0].mult : null;
+  return { n: rows0.length, rows, pick, pickBasis: 'fixedRisk' };
 }
