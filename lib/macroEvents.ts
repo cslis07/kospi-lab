@@ -31,6 +31,10 @@ const MAP: [RegExp, string, string][] = [
   [/michigan|consumer sentiment/i, 'umich', '미시간 소비자심리'],
   [/consumer confidence/i, 'cb', '소비자신뢰'],
   [/fomc minutes/i, 'minutes', 'FOMC 의사록'],
+  [/new home sales/i, 'nhs', '신규 주택판매'],
+  [/existing home sales/i, 'ehs', '기존 주택판매'],
+  [/durable goods/i, 'durable', '내구재 주문'],
+  [/industrial production/i, 'ip', '산업생산'],
 ];
 
 export function classify(name: string): { key: string | null; ko: string } {
@@ -44,8 +48,9 @@ export function flattenEvents(days: SosoDay[]): MacroEvt[] {
   const out: MacroEvt[] = [];
   for (const d of days ?? []) for (const name of d?.events ?? []) {
     if (!d.date || !name) continue;
-    const c = classify(name);
-    out.push({ date: d.date.slice(0, 10), name, ko: c.ko, key: c.key });
+    const n = name.trim();
+    const c = classify(n);
+    out.push({ date: d.date.slice(0, 10), name: n, ko: c.ko, key: c.key });
   }
   return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
@@ -68,4 +73,16 @@ const KO_KEY: [RegExp, string][] = [[/FOMC 금리/, 'fomc'], [/의사록/, 'minu
 export function keyOfLabel(label: string): string | null {
   for (const [re, k] of KO_KEY) if (re.test(label)) return k;
   return classify(label).key;
+}
+
+/**
+ * 이번 발표 행 고르기 — 같은 날짜 행만 '이번 발표'로 쓴다. 없으면(아직 history에 안 올라옴) 컨센서스는 비우고
+ * 가장 최근 발표의 실제치를 '직전'으로. 지난 발표의 실제치를 이번 발표 결과로 보여 주면 안 된다.
+ */
+export function pickRelease(hist: { date: string; actual?: string; forecast?: string; previous?: string }[], date: string): Omit<MacroRelease, 'date' | 'name' | 'ko'> {
+  const s = (v?: string) => (v ?? '').trim();
+  const same = hist.find((h) => h.date?.slice(0, 10) === date);
+  if (same) return { actual: s(same.actual), forecast: s(same.forecast), previous: s(same.previous) };
+  const past = [...hist].filter((h) => h.date && h.date.slice(0, 10) < date && s(h.actual)).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+  return { actual: '', forecast: '', previous: past ? s(past.actual) : '' };
 }

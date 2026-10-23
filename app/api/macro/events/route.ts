@@ -4,7 +4,7 @@
  * 분당 20회 한도라 컨센서스(history)는 앞으로 7일 안 이벤트 중 최대 8개만, 6시간 캐시.
  */
 import { NextResponse } from 'next/server';
-import { flattenEvents, classify, type SosoDay, type MacroRelease } from '@/lib/macroEvents';
+import { flattenEvents, classify, pickRelease, type SosoDay, type MacroRelease } from '@/lib/macroEvents';
 
 export const maxDuration = 20;
 export const revalidate = 0;
@@ -33,8 +33,8 @@ export async function GET() {
   await Promise.all(soon.map(async (e) => {
     const hist = (await soso(`/macro/events/${encodeURIComponent(e.name)}/history?limit=3`, key).catch(() => null)) as
       { date: string; actual: string; forecast: string; previous: string }[] | null;
-    const row = hist?.find((h) => h.date?.slice(0, 10) === e.date) ?? hist?.[0];
-    if (row) upcoming.push({ date: e.date, name: e.name, ko: classify(e.name).ko, actual: row.actual ?? '', forecast: row.forecast ?? '', previous: row.previous ?? '' });
+    if (!hist) return;
+    upcoming.push({ date: e.date, name: e.name, ko: classify(e.name).ko, ...pickRelease(hist, e.date) });
   }));
   upcoming.sort((a, b) => (a.date < b.date ? -1 : 1));
   return NextResponse.json({ events, upcoming, source: 'SoSoValue' }, {

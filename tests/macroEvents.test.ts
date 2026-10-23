@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { classify, flattenEvents, dedupeForCalendar, keyOfLabel } from '../lib/macroEvents';
+import { classify, flattenEvents, dedupeForCalendar, keyOfLabel, pickRelease } from '../lib/macroEvents';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -26,4 +26,12 @@ ok('달력 중복 제거: 기존 한국어 라벨·같은 지표 여러 줄', ()
   assert.deepEqual(out.map((e) => e.ko), ['CPI(전년비)']);
   assert.equal(keyOfLabel('고용 10월'), 'jobs');
 });
+ok('이번 발표 행: 같은 날짜만, 없으면 직전만(지난 실제치를 이번 결과로 쓰지 않음)', () => {
+  const hist = [{ date: '2026-09-26', actual: '3%', forecast: '3.3%', previous: '3.3%' }, { date: '2026-08-29', actual: '3.3%', forecast: '', previous: '' }];
+  assert.deepEqual(pickRelease(hist, '2026-10-28'), { actual: '', forecast: '', previous: '3%' });
+  assert.deepEqual(pickRelease([{ date: '2026-10-28', actual: '', forecast: ' 0.3% ', previous: '0.2%' }], '2026-10-28'), { actual: '', forecast: '0.3%', previous: '0.2%' });
+  assert.equal(flattenEvents([{ date: '2026-10-28', events: ['GDP (QoQ) '] }])[0].name, 'GDP (QoQ)');
+  assert.equal(classify('New Home Sales').ko, '신규 주택판매');
+});
+
 console.log(`\n${passed} passed`);
