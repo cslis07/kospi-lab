@@ -19,6 +19,9 @@ export interface ClosedPosition {
   netProfit: number;
   grossPnl: number;
   fee: number;
+  /** 진입·청산 수수료(거래소 값 그대로 — 보통 음수 = 비용). fee = openFee + closeFee */
+  openFee?: number;
+  closeFee?: number;
   funding: number;
   openTs: number;
   closeTs: number;
@@ -46,6 +49,8 @@ export async function fetchClosedPositions(startTime: number, endTime: number): 
       netProfit: r.netProfit != null ? num(r.netProfit) : num(r.pnl) - (openFee + closeFee) * -1 + funding,
       grossPnl: num(r.pnl),
       fee: openFee + closeFee,
+      openFee,
+      closeFee,
       funding,
       openTs: num(r.ctime),
       closeTs: num(r.utime),

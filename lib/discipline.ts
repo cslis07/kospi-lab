@@ -13,6 +13,12 @@
  *   ⑤ 초단타 손실 없음 (10) — 보유 3분 미만 + 순손실 매매를 1 − 비율.
  *
  * 점수는 규칙 준수도일 뿐 '좋은 매매'나 수익을 뜻하지 않는다. 가중치는 이 앱의 기본 설정(임의값)이다.
+ *
+ * 별도 줄(점수에 넣지 않음): ⑥ 지정가 진입 — 진입(open) 체결 중 메이커(지정가로 호가에 걸려 체결) 비율.
+ *   데이터는 체결 내역(/api/bitget/fills?byDay=1 → lib/feeDiag entryScopeByDay)이고 makerEntryShare 로 계산한다.
+ *   점수에 넣지 않은 이유: (1) 체결 내역은 매매일지에서만 따로 불러오고 7일 구간 여러 번 조회라 텔레그램 복기·홈 등
+ *   다른 곳의 점수와 계산 입력이 달라진다, (2) 넣으면 기존 다섯 항목 가중치를 다시 나눠야 해 지난 점수와 추이가
+ *   끊긴다, (3) '체결 1건' 단위라 '매매 1건' 단위인 다른 항목과 표본 단위가 다르다. 그래서 같은 카드에 참고 줄로만 보인다.
  */
 import { emaSeries } from '@/lib/coinAnalysis';
 
@@ -162,4 +168,24 @@ export function disciplineSummary(flags: TradeFlags[], label = 'range'): Discipl
   if (!flags.length) return null;
   const days = new Set(flags.map((f) => f.day)).size;
   return aggregate(label, flags, days);
+}
+
+/* ── ⑥ 지정가 진입(점수 밖 참고 줄) ─────────────────────────────── */
+
+/** KST 하루별 진입 체결 메이커/테이커 건수(lib/feeDiag EntryScopeDay 와 같은 모양) */
+export interface MakerEntryDay { day: string; maker: number; taker: number }
+
+/**
+ * 진입 체결 중 메이커 비율(0~1). from/to(KST 'YYYY-MM-DD', 포함)로 날짜를 좁힐 수 있다. 진입 체결이 없으면 null.
+ * 체결 건수 기준(금액 가중 아님) — 한 주문이 여러 체결로 나뉘면 그만큼 여러 건으로 센다.
+ */
+export function makerEntryShare(byDay: MakerEntryDay[], from?: string, to?: string): { share: number | null; maker: number; total: number } {
+  let maker = 0, total = 0;
+  for (const d of byDay) {
+    if (from && d.day < from) continue;
+    if (to && d.day > to) continue;
+    maker += Math.max(0, d.maker);
+    total += Math.max(0, d.maker) + Math.max(0, d.taker);
+  }
+  return { share: total > 0 ? maker / total : null, maker, total };
 }

@@ -2,13 +2,13 @@
 
 /**
  * 수수료 진단 — 메이커(지정가) vs 테이커(시장가) 체결 비중과 '전부 지정가였다면' 가정 절감액.
- * 데이터: /api/bitget/fills?days=N (게이트·읽기 전용, 체결 단위). 계산은 lib/feeDiag(테스트 고정).
+ * 데이터: /api/bitget/fills?days=N (게이트·읽기 전용, 체결 단위 — lib/fillsFetch 로 규율 점수 카드와 공유). 계산은 lib/feeDiag(테스트 고정).
  * 청산 포지션 기준 비용 분석(CostCard)과 달리 '체결 1건' 단위라 수수료 합이 약간 다를 수 있다(펀딩 제외).
  */
 import { useEffect, useState } from 'react';
-import type { FeeDiag } from '@/lib/feeDiag';
+import { fetchFillsResp, type FillsResp } from '@/lib/fillsFetch';
 
-type Resp = { configured?: boolean; diag?: FeeDiag; truncated?: boolean; error?: string; locked?: boolean };
+type Resp = FillsResp;
 
 const pct = (v: number | null, d = 0) => (v == null ? '—' : `${v.toFixed(d)}%`);
 
@@ -27,10 +27,7 @@ export default function FeeDiagCard({ days, fmt }: { days: number; fmt: (n: numb
 
   useEffect(() => {
     let alive = true;
-    fetch(`/api/bitget/fills?days=${days}`)
-      .then(async (res) => (res.status === 401 ? { locked: true } : ((await res.json()) as Resp)))
-      .catch((e) => ({ error: String(e) }) as Resp)
-      .then((r) => { if (alive) setState({ days, r }); });
+    fetchFillsResp(days).then((r) => { if (alive) setState({ days, r }); });
     return () => { alive = false; };
   }, [days]);
 

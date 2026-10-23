@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { buildTrendIndex, trendAt, tradeFlags, disciplineByDay, disciplineSummary, scoreFromParts, type DTrade, type Closes1h } from '../lib/discipline';
+import { buildTrendIndex, trendAt, tradeFlags, disciplineByDay, disciplineSummary, scoreFromParts, makerEntryShare, DISCIPLINE_WEIGHTS, type DTrade, type Closes1h } from '../lib/discipline';
+import { entryScopeByDay, type Fill } from '../lib/feeDiag';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -78,6 +79,34 @@ ok('KST 날짜로 묶고 요약은 매매 비율 기준', () => {
   assert.equal(s.n, 2);
   assert.equal(s.parts.stop, 0.5);
   assert.equal(disciplineSummary([]), null);
+});
+
+ok('지정가 진입(점수 밖) — 진입 체결 메이커 비율·날짜 범위, 가중치 합은 그대로 100', () => {
+  const by = [
+    { day: '2026-10-05', maker: 1, taker: 3 },
+    { day: '2026-10-06', maker: 3, taker: 1 },
+    { day: '2026-10-07', maker: 0, taker: 0 },
+  ];
+  assert.deepEqual(makerEntryShare(by), { share: 0.5, maker: 4, total: 8 });
+  assert.equal(makerEntryShare(by, '2026-10-06').share, 0.75);
+  assert.equal(makerEntryShare(by, '2026-10-05', '2026-10-05').share, 0.25);
+  assert.equal(makerEntryShare(by, '2026-10-07', '2026-10-07').share, null);
+  assert.equal(makerEntryShare([]).share, null);
+  // 점수에 넣지 않았다 — 기존 다섯 항목 가중치 합 100 유지
+  assert.equal(Object.values(DISCIPLINE_WEIGHTS).reduce((a, b) => a + b, 0), 100);
+  assert.equal('maker' in DISCIPLINE_WEIGHTS, false);
+});
+
+ok('체결 → KST 하루별 진입 메이커/테이커 건수(청산 체결 제외)', () => {
+  const f = (ts: string, scope: 'maker' | 'taker', tradeSide: Fill['tradeSide']): Fill =>
+    ({ ts: Date.parse(ts), symbol: 'BTCUSDT', scope, side: 'buy', tradeSide, price: 1, size: 1, notional: 1, fee: 0 });
+  const by = entryScopeByDay([
+    f('2026-10-05T14:30:00Z', 'maker', 'open'),  // KST 10-05 23:30
+    f('2026-10-05T15:30:00Z', 'taker', 'open'),  // KST 10-06 00:30
+    f('2026-10-05T16:00:00Z', 'taker', 'close'), // 청산 — 제외
+    f('2026-10-05T16:30:00Z', 'maker', 'open'),
+  ]);
+  assert.deepEqual(by, [{ day: '2026-10-05', maker: 1, taker: 0 }, { day: '2026-10-06', maker: 1, taker: 1 }]);
 });
 
 console.log(`discipline: ${passed} passed`);

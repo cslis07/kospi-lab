@@ -39,6 +39,8 @@ import ExcursionPanel from '@/components/ExcursionPanel';
 import { costBreakdown, costByHoldBand, cashFlow, type CashMove } from '@/lib/tradeCosts';
 import AfterLossTable from '@/components/AfterLossTable';
 import ExcursionSummaryCard from '@/components/ExcursionSummaryCard';
+import CounterfactualCard from '@/components/CounterfactualCard';
+import RiskSizeCard from '@/components/RiskSizeCard';
 import { useRiskLimits } from '@/hooks/useRiskLimits';
 import { toCsv, downloadCsv, kstDateTime as csvTime, kstStamp } from '@/lib/csv';
 import { fmtCoinPrice } from '@/lib/coins';
@@ -170,6 +172,7 @@ export default function JournalPage() {
   const [days, setDays] = useState(30);
   const [positions, setPositions] = useState<ClosedPosition[]>([]);
   const [open, setOpen] = useState<OpenPosition[]>([]);
+  const [equity, setEquity] = useState<number | null>(null); // 선물 계좌 현재 자본(/api/bitget/positions account.equity) — 매매당 손실 % 기준
   const [moves, setMoves] = useState<{ withdrawals: CashMove[]; deposits: CashMove[] } | null>(null); // 입출금(비용 분석 '출금')
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -218,10 +221,16 @@ export default function JournalPage() {
 
       // 현재 열린 포지션 — best-effort(잠금·권한 문제는 아래 history 에러로 안내)
       let openList: OpenPosition[] = [];
+      let eq: number | null = null;
       if (pRes && pRes.ok) {
-        try { const pj = await pRes.json() as { positions?: OpenPosition[] }; if (Array.isArray(pj.positions)) openList = pj.positions; } catch { /* 무시 */ }
+        try {
+          const pj = await pRes.json() as { positions?: OpenPosition[]; account?: { equity?: number } | null };
+          if (Array.isArray(pj.positions)) openList = pj.positions;
+          if (typeof pj.account?.equity === 'number' && pj.account.equity > 0) eq = pj.account.equity;
+        } catch { /* 무시 */ }
       }
       setOpen(openList);
+      setEquity(eq);
 
       if (hRes.status === 401) { setErr('잠금 상태입니다 — /bitget 에서 접근 토큰을 1회 입력하세요.'); setPositions([]); return; }
       const j = await hRes.json() as { configured?: boolean; error?: string; positions?: ClosedPosition[] };
@@ -269,6 +278,7 @@ export default function JournalPage() {
   const perDay = useMemo(() => tradesPerDay(positions.map((p) => ({ ts: p.openTs || p.closeTs, value: p.netProfit }))), [positions]);
   // 비용 분석 — 수수료·펀딩이 손익에서 차지하는 비중
   const costs = useMemo(() => costBreakdown(positions), [positions]);
+  const riskTrades = useMemo(() => positions.map((p) => ({ ...p, id: p.positionId })), [positions]);
   const holdCosts = useMemo(() => costByHoldBand(positions), [positions]);
   const cash = useMemo(() => (moves ? cashFlow(moves.withdrawals, moves.deposits, costs.net) : null), [moves, costs.net]);
   // 연패 직후 매매 — 진입 규모 = 수량 × 진입가
@@ -489,7 +499,9 @@ export default function JournalPage() {
           <EdgeSummaryCard e={edge} unit="USDT" fmt={fmtUsdt} sub={`최근 ${days}일 청산 ${edge.n}건 · 순손익 USDT(수수료·펀딩 반영)`} />
           <CostCard c={costs} fmt={fmtUsdt} holdRows={holdCosts} cash={cash} sub={`${periodLabel(days)} 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
           <FeeDiagCard days={days} fmt={fmtUsdt} />
-          <DisciplineCard positions={positions} />
+          <DisciplineCard positions={positions} days={days} />
+          <RiskSizeCard trades={riskTrades} equity={equity} fmt={fmtUsdt} sub={`${periodLabel(days)} 손실 매매 · 순손실 기준`} />
+          <CounterfactualCard trades={positions} fmt={fmtUsdt} sub={`${periodLabel(days)} 청산 ${positions.length}건`} />
           <TradesPerDayCard rows={perDay} fmt={fmtUsdt} />
           <AfterLossTable rows={afterLoss} fmt={fmtUsdt} breakerAt={limits.maxConsecutiveLosses} />
           <ExcursionSummaryCard trades={positions} tagsByPosition={tags} />

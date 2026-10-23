@@ -139,3 +139,18 @@ export function timeWindows(start: number, end: number, maxMs = 7 * 86_400_000):
   }
   return out;
 }
+
+/** KST 하루별 진입(open) 체결의 메이커/테이커 건수 — 규율 점수 '지정가 진입' 줄(lib/discipline makerEntryShare)용 집계 */
+export interface EntryScopeDay { day: string; maker: number; taker: number }
+
+export function entryScopeByDay(fills: Fill[]): EntryScopeDay[] {
+  const map = new Map<string, EntryScopeDay>();
+  for (const f of fills) {
+    if (f.tradeSide !== 'open') continue;
+    const day = new Date(f.ts + 9 * 3_600_000).toISOString().slice(0, 10);
+    const e = map.get(day) ?? { day, maker: 0, taker: 0 };
+    if (f.scope === 'maker') e.maker++; else e.taker++;
+    map.set(day, e);
+  }
+  return [...map.values()].sort((a, b) => a.day.localeCompare(b.day));
+}
