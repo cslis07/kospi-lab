@@ -11,6 +11,7 @@ import type { CalendarEvent } from '@/lib/types';
 import EventRow, { kstToday } from '@/components/EventRow';
 import BottomSheet from '@/components/ui/BottomSheet';
 import EconCalendarMonth, { type CalEvt } from '@/components/EconCalendarMonth';
+import { dedupeForCalendar, type MacroEvt, type MacroRelease } from '@/lib/macroEvents';
 import NextReleases from '@/components/NextReleases';
 import PastReleases from '@/components/PastReleases';
 import type { ReleaseCalendar, EconCalWindow } from '@/lib/inflation';
@@ -91,14 +92,17 @@ export default function CalendarPage() {
   // 달력(월간 그리드)용 — 정적 일정 + 나우캐스트 미국 지표 발표일을 모두 표시(필터는 아래 목록에만 적용)
   const { data: relCal } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, { revalidateOnFocus: false });
   const { data: econWin } = useSWR<EconCalWindow>('/api/nf/econcal_window.json', fetcher, { revalidateOnFocus: false });
+  const { data: soso } = useSWR<{ events: MacroEvt[]; upcoming: MacroRelease[] }>('/api/macro/events', fetcher, { revalidateOnFocus: false });
   const calEvents = useMemo<CalEvt[]>(() => {
     const out: CalEvt[] = CALENDAR_EVENTS.map((e) => ({ date: e.date, label: e.title, tone: CAT_TONE[e.category] ?? 'ind' }));
     for (const e of relCal?.events ?? []) {
       if (!e.date) continue;
       out.push({ date: e.date.slice(0, 10), label: `${KIND_KO[e.kind] ?? e.kind.toUpperCase()}${e.data_month ? ` ${e.data_month}` : ''}`, tone: 'ind' });
     }
+    // SoSoValue 거시 이벤트 — 같은 날 같은 지표가 이미 있으면 생략
+    for (const e of dedupeForCalendar(soso?.events ?? [], out)) out.push({ date: e.date, label: e.ko, tone: e.key === 'fomc' || e.key === 'minutes' ? 'fomc' : 'ind' });
     return out;
-  }, [relCal]);
+  }, [relCal, soso]);
 
   // 대상 날짜 섹션으로 스크롤 + 2.6초 후 강조 해제
   useEffect(() => {
@@ -128,6 +132,39 @@ export default function CalendarPage() {
         <div className="mb-4">
           <div className="fin-sec"><h3 className="!text-[15px]">지난 발표 · 서프라이즈</h3><span className="text-[11px] text-[var(--text-muted)]">실제 vs 컨센서스</span></div>
           <PastReleases ec={econWin} limit={12} />
+        </div>
+      ) : null}
+
+      {/* 앞으로 7일 거시 지표 — SoSoValue 컨센서스(예측·매매 신호 아님) */}
+      {soso?.upcoming?.length ? (
+        <div className="mb-4">
+          <div className="fin-sec"><h3 className="!text-[15px]">이번 주 지표 · 컨센서스</h3><span className="text-[11px] text-[var(--text-muted)]">SoSoValue</span></div>
+          <div className="fin-card overflow-x-auto">
+            <table className="w-full text-[12px] tabular-nums" style={{ minWidth: 320 }}>
+              <thead>
+                <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+                  <th className="text-left font-semibold px-3 py-2">날짜 · 지표</th>
+                  <th className="font-semibold px-2">컨센서스</th>
+                  <th className="font-semibold px-2">직전</th>
+                  <th className="font-semibold px-3">실제</th>
+                </tr>
+              </thead>
+              <tbody>
+                {soso.upcoming.map((u) => (
+                  <tr key={`${u.date}-${u.name}`} className="border-t border-[var(--border)] text-right">
+                    <td className="text-left px-3 py-2">
+                      <span className="text-[var(--text)] font-medium">{u.ko}</span>
+                      <span className="block text-[10px] text-[var(--text-muted)]">{u.date.slice(5)} · {u.name}</span>
+                    </td>
+                    <td className="px-2 text-[var(--text)]">{u.forecast || '—'}</td>
+                    <td className="px-2 text-[var(--text-muted)]">{u.previous || '—'}</td>
+                    <td className="px-3 text-[var(--text)]">{u.actual || <span className="text-[var(--text-muted)]">발표 전</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-[var(--text-muted)] mt-1.5">컨센서스는 시장 예상치일 뿐 결과가 아닙니다. 발표 직후엔 변동성이 커질 수 있어요.</p>
         </div>
       ) : null}
 

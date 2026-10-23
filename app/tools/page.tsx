@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { EXTRAS, ICON } from '@/lib/menu';
 import HomeNews from '@/components/home/naver/HomeNews';
 import EconCalendarMonth, { type CalEvt } from '@/components/EconCalendarMonth';
+import { dedupeForCalendar, type MacroEvt, type MacroRelease } from '@/lib/macroEvents';
 import NextReleases from '@/components/NextReleases';
 import PastReleases from '@/components/PastReleases';
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
@@ -39,14 +40,17 @@ export default function ToolsPage() {
   // 경제 캘린더(달력) — 정적 일정 + 나우캐스트 미국 지표 발표일을 모두 표시
   const { data: relCal } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, { revalidateOnFocus: false });
   const { data: econWin } = useSWR<EconCalWindow>('/api/nf/econcal_window.json', fetcher, { revalidateOnFocus: false });
+  const { data: soso } = useSWR<{ events: MacroEvt[]; upcoming: MacroRelease[] }>('/api/macro/events', fetcher, { revalidateOnFocus: false });
   const calEvents = useMemo<CalEvt[]>(() => {
     const out: CalEvt[] = CALENDAR_EVENTS.map((e) => ({ date: e.date, label: e.title, tone: CAT_TONE[e.category] ?? 'ind' }));
     for (const e of relCal?.events ?? []) {
       if (!e.date) continue;
       out.push({ date: e.date.slice(0, 10), label: `${KIND_KO[e.kind] ?? e.kind.toUpperCase()}${e.data_month ? ` ${e.data_month}` : ''}`, tone: 'ind' });
     }
+    // SoSoValue 거시 이벤트 — 같은 날 같은 지표가 이미 있으면 생략
+    for (const e of dedupeForCalendar(soso?.events ?? [], out)) out.push({ date: e.date, label: e.ko, tone: e.key === 'fomc' || e.key === 'minutes' ? 'fomc' : 'ind' });
     return out;
-  }, [relCal]);
+  }, [relCal, soso]);
 
   return (
     <div className="pb-12">
