@@ -1,5 +1,5 @@
 // BTC·ETH 현물 ETF 일별 순유입 (SoSoValue) — coin-signal에서 이식
-// 2026-10: 옛 무키 주소(api.sosovalue.xyz)가 Cloudflare 403으로 막힘 → 공식 OpenAPI(키 필요)로 이전.
+// 2026-10: 옛 무키 주소(api.sosovalue.xyz)가 Cloudflare 403으로 막힘 → 공식 OpenAPI v1 /etfs/summary-history(키 필요)로 이전.
 // 키(env SOSOVALUE_API_KEY)가 없으면 옛 주소를 한 번 시도하고, 그래도 실패하면 null('데이터 없음').
 // 실패해도 Next 데이터 캐시가 마지막 성공값을 계속 내줄 수 있어(10-07에서 멈춘 원인) 날짜로 지연을 판정한다.
 export interface EtfFlow {
@@ -35,33 +35,45 @@ export function buildEtfFlow(raw: Row[], now: number = Date.now()): EtfFlow | nu
   };
 }
 
-const HOSTS = [
-  { url: 'https://openapi.sosovalue.com/openapi/v2/etf/historicalInflowChart', keyed: true },
-  { url: 'https://api.sosovalue.xyz/openapi/v2/etf/historicalInflowChart', keyed: false },
-];
+type V1Row = { date: string; total_net_inflow: number | string; cum_net_inflow: number | string };
 
-async function one(type: string): Promise<EtfFlow | null> {
+/** 공식 OpenAPI v1 응답(snake_case, 봉투 {code,data} 또는 배열 그대로) → Row[] */
+export function parseV1(raw: unknown): Row[] | null {
+  const env = raw as { code?: number; data?: unknown } | null;
+  const arr = Array.isArray(raw) ? raw : env?.code === 0 && Array.isArray(env.data) ? env.data : null;
+  if (!arr) return null;
+  return (arr as V1Row[]).map((r) => ({ date: r.date, totalNetInflow: Number(r.total_net_inflow), cumNetInflow: Number(r.cum_net_inflow) }))
+    .filter((r) => Number.isFinite(r.totalNetInflow));
+}
+
+async function viaV1(symbol: 'BTC' | 'ETH', key: string): Promise<EtfFlow | null> {
+  // 문서: GET /etfs/summary-history?symbol=BTC&country_code=US (최근 1개월만, limit≤300) · 헤더 x-soso-api-key
+  const res = await fetch(`https://openapi.sosovalue.com/openapi/v1/etfs/summary-history?symbol=${symbol}&country_code=US&limit=30`, {
+    headers: { 'x-soso-api-key': key }, signal: AbortSignal.timeout(8000), next: { revalidate: 1800 },
+  });
+  if (!res.ok) return null;
+  const rows = parseV1(await res.json().catch(() => null));
+  return rows ? buildEtfFlow(rows) : null;
+}
+
+async function viaLegacy(symbol: 'BTC' | 'ETH'): Promise<EtfFlow | null> {
+  const res = await fetch('https://api.sosovalue.xyz/openapi/v2/etf/historicalInflowChart', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: `us-${symbol.toLowerCase()}-spot` }), signal: AbortSignal.timeout(8000), next: { revalidate: 1800 },
+  });
+  if (!res.ok) return null;
+  const raw = await res.json().catch(() => null);
+  return raw?.code === 0 && Array.isArray(raw?.data) ? buildEtfFlow(raw.data as Row[]) : null;
+}
+
+async function one(symbol: 'BTC' | 'ETH'): Promise<EtfFlow | null> {
   const key = process.env.SOSOVALUE_API_KEY?.trim();
-  for (const h of HOSTS) {
-    if (h.keyed && !key) continue;
-    try {
-      const res = await fetch(h.url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(h.keyed ? { 'x-soso-api-key': key! } : {}) },
-        body: JSON.stringify({ type }), signal: AbortSignal.timeout(8000), next: { revalidate: 1800 },
-      });
-      if (!res.ok) continue;
-      const raw = await res.json().catch(() => null);
-      if (raw?.code !== 0 || !Array.isArray(raw?.data)) continue;
-      const flow = buildEtfFlow(raw.data as Row[]);
-      if (flow) return flow;
-    } catch { /* 다음 주소 */ }
-  }
-  return null;
+  if (key) { const f = await viaV1(symbol, key).catch(() => null); if (f) return f; }
+  return viaLegacy(symbol).catch(() => null);
 }
 
 export async function getEtfFlows(): Promise<{ BTC: EtfFlow | null; ETH: EtfFlow | null }> {
-  const [BTC, ETH] = await Promise.all([one('us-btc-spot').catch(() => null), one('us-eth-spot').catch(() => null)]);
+  const [BTC, ETH] = await Promise.all([one('BTC'), one('ETH')]);
   return { BTC, ETH };
 }
 

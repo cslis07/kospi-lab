@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildEtfFlow, etfAgeDays, etfBiasFor, STALE_DAYS } from '../lib/etfFlow';
+import { buildEtfFlow, etfAgeDays, etfBiasFor, parseV1, STALE_DAYS } from '../lib/etfFlow';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -46,5 +46,13 @@ ok(`허용 경계 ${STALE_DAYS}일까지는 정상`, () => {
 });
 
 ok('빈 데이터 = null', () => { assert.equal(buildEtfFlow([], NOW), null); });
+
+ok('공식 v1 응답(봉투·배열·문자열 숫자) 파싱', () => {
+  const rows = [{ date: '2026-10-22', total_net_inflow: '-55066297.00', cum_net_inflow: '13534833596.09' }];
+  assert.equal(parseV1({ code: 0, data: rows })![0].totalNetInflow, -55066297);
+  assert.equal(parseV1(rows)!.length, 1);
+  assert.equal(parseV1({ code: 400101, message: 'API Key is invalid' }), null);
+  assert.equal(buildEtfFlow(parseV1(rows)!, NOW)!.streak, -1);
+});
 
 console.log(`\n${passed} passed`);
