@@ -5,6 +5,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import type { BriefData, BriefMarket, MacroNum, BriefNews, NewsTag } from '@/lib/brief';
 import type { EdgeReport, EdgeRow } from '@/lib/briefEdge';
+import type { EtfEdge } from '@/lib/etfEdge';
 import NowcastStrip from '@/components/NowcastStrip';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -117,7 +118,7 @@ function EdgeSection({ e }: { e: EdgeReport }) {
   return (
     <div>
       <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-2">
-        최근 약 3년({e.from}~{e.to}, {e.days}거래일) 실측. 요인이 <b className="text-[var(--text)]">상위·하위 20%</b>로 크게 움직인 다음 거래일에 {e.target}가 오른 비율을,
+        {e.days > 500 ? "최근 약 3년" : "최근"}({e.from}~{e.to}, {e.days}거래일) 실측. 요인이 <b className="text-[var(--text)]">상위·하위 20%</b>로 크게 움직인 다음 거래일에 {e.target}가 오른 비율을,
         평소 상승 비율 <b className="text-[var(--text)]">{e.baseRate?.toFixed(0)}%</b>(대조군)와 비교합니다.
       </p>
       <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-x-auto">
@@ -168,6 +169,28 @@ function EdgeSection({ e }: { e: EdgeReport }) {
         {sig.length > 0 && !gapOnly && <p><b className="text-[var(--text)]">결론: 표시된 조건에서 평소와 유의한 차이가 있었습니다.</b> 과거 3년의 경향이며 다음 날을 보장하지 않습니다.</p>}
         <p className="opacity-80">판정 기준(사전 고정): 표본 30건 이상 · |z| ≥ 2.58 · 기간을 반으로 나눠도 같은 방향. 파란 줄 = 요인의 최근 확정치가 그 구간에 해당. 예측이 아니라 과거 측정값입니다.</p>
       </div>
+    </div>
+  );
+}
+
+/** 현물 ETF 순유입 과거 통계(BTC·ETH) — 보관분이 쌓이기 전엔 '표본 쌓는 중'만 보여 준다 */
+function EtfEdgeSection() {
+  const { data } = useSWR<{ BTC: EtfEdge; ETH: EtfEdge; archivedAt: string | null }>('/api/etf/edge', fetcher, { revalidateOnFocus: false });
+  if (!data?.BTC) return null;
+  const list = [data.BTC, data.ETH];
+  const ready = list.filter((x) => x.rows.length);
+  return (
+    <div className="mt-4">
+      <p className="text-xs font-semibold text-[var(--text)] mb-1">현물 ETF 큰 유입·유출 다음 날</p>
+      {ready.length > 0 && (
+        <EdgeSection e={{ market: 'coin', target: 'BTC·ETH', from: ready[0].from, to: ready[0].to, days: ready[0].days, baseRate: ready[0].rows[0]?.baseRate ?? null, rows: ready.flatMap((x) => x.rows), latest: ready.filter((x) => x.latest).map((x) => ({ factor: `etf_${x.coin.toLowerCase()}`, date: x.latest!.date, ch: x.latest!.netM, bucket: x.latest!.bucket })) }} />
+      )}
+      {list.filter((x) => !x.rows.length).map((x) => (
+        <p key={x.coin} className="text-[11.5px] text-[var(--text-muted)] leading-relaxed">
+          <b className="text-[var(--text)]">{x.coin}: 표본 쌓는 중</b> — 지금 {x.days}거래일{x.from ? `(${x.from}~${x.to})` : ''}, 통계를 내려면 {x.need}일 더 필요(판정용 구간 표본 30건은 약 150거래일).
+          무료 API가 최근 1개월만 줘서 매일 보관하며 쌓습니다. 결과를 미리 짐작해 보여 주지 않습니다.
+        </p>
+      ))}
     </div>
   );
 }
@@ -309,6 +332,7 @@ export default function BriefPage() {
           <div>
             <h3 className="text-sm font-semibold text-[var(--text)] mb-2">과거 통계 — 이런 날 다음엔 어땠나</h3>
             {edge ? <EdgeSection e={edge} /> : <div className="h-28 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] animate-pulse" />}
+            {market === 'coin' && <EtfEdgeSection />}
           </div>
 
           {/* 전쟁·지정학 */}

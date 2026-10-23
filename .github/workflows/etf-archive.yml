@@ -1,0 +1,43 @@
+# 현물 ETF 순유입 누적 보관 — SoSoValue 공식 API는 최근 1개월만 줘서, 과거 통계(lib/etfEdge)용으로 매일 쌓는다.
+# 보관은 etf-data 브랜치(data/etf-flows.json). data 브랜치는 coin-track 이 트리를 통째로 덮어써서 같이 못 쓴다.
+name: ETF 순유입 보관
+on:
+  schedule:
+    - cron: '30 1 * * *'   # 10:30 KST — 미국 장 마감 뒤 집계 반영 이후
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 이전 보관분 복원 (etf-data 브랜치)
+        run: |
+          git fetch origin etf-data 2>/dev/null || true
+          mkdir -p data
+          if git cat-file -e origin/etf-data:data/etf-flows.json 2>/dev/null; then
+            git show origin/etf-data:data/etf-flows.json > data/etf-flows.json
+          fi
+      - name: 병합
+        run: npx --yes tsx scripts/etfArchive.mts
+      # plumbing(commit-tree)으로 etf-data 브랜치에 직접 커밋 — main 무접촉, vercel.json으로 배포 안 만듦
+      - name: etf-data 브랜치에 커밋
+        run: |
+          set -e
+          git config user.name "kospi-lab-bot"
+          git config user.email "bot@users.noreply.github.com"
+          BLOB=$(git hash-object -w data/etf-flows.json)
+          INNER=$(printf '100644 blob %s\tetf-flows.json\n' "$BLOB" | git mktree)
+          VJ=$(printf '{"git":{"deploymentEnabled":false}}\n' | git hash-object -w --stdin)
+          TREE=$(printf '040000 tree %s\tdata\n100644 blob %s\tvercel.json\n' "$INNER" "$VJ" | git mktree)
+          PARENT=$(git rev-parse -q --verify origin/etf-data || true)
+          if [ -n "$PARENT" ]; then
+            COMMIT=$(git commit-tree "$TREE" -p "$PARENT" -m "[TRACK] ETF 순유입 보관")
+          else
+            COMMIT=$(git commit-tree "$TREE" -m "[TRACK] ETF 순유입 보관")
+          fi
+          git push origin "$COMMIT":refs/heads/etf-data

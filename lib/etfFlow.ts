@@ -11,7 +11,7 @@ export interface EtfFlow {
   /** 최신 집계일이 STALE_DAYS 넘게 지났으면 true — 방향 점수에서 빼고 화면에 '지연' 표기 */
   stale: boolean;
 }
-type Row = { date: string; totalNetInflow: number; cumNetInflow: number };
+export type Row = { date: string; totalNetInflow: number; cumNetInflow: number };
 
 /** 주말·미국 휴장 + 하루 늦은 집계를 감안한 허용 일수(금요일분을 화요일 아침에 봐도 4일) */
 export const STALE_DAYS = 4;
@@ -46,13 +46,20 @@ export function parseV1(raw: unknown): Row[] | null {
     .filter((r) => Number.isFinite(r.totalNetInflow));
 }
 
-async function viaV1(symbol: 'BTC' | 'ETH', key: string): Promise<EtfFlow | null> {
+/** 공식 v1 일별 행(최근 1개월만 — 더 긴 과거는 etf-data 브랜치 보관분, lib/etfEdge) */
+export async function fetchEtfRows(symbol: 'BTC' | 'ETH'): Promise<Row[] | null> {
+  const key = process.env.SOSOVALUE_API_KEY?.trim();
+  if (!key) return null;
   // 문서: GET /etfs/summary-history?symbol=BTC&country_code=US (최근 1개월만, limit≤300) · 헤더 x-soso-api-key
   const res = await fetch(`https://openapi.sosovalue.com/openapi/v1/etfs/summary-history?symbol=${symbol}&country_code=US&limit=30`, {
     headers: { 'x-soso-api-key': key }, signal: AbortSignal.timeout(8000), next: { revalidate: 1800 },
   });
   if (!res.ok) return null;
-  const rows = parseV1(await res.json().catch(() => null));
+  return parseV1(await res.json().catch(() => null));
+}
+
+async function viaV1(symbol: 'BTC' | 'ETH'): Promise<EtfFlow | null> {
+  const rows = await fetchEtfRows(symbol);
   return rows ? buildEtfFlow(rows) : null;
 }
 
@@ -67,8 +74,8 @@ async function viaLegacy(symbol: 'BTC' | 'ETH'): Promise<EtfFlow | null> {
 }
 
 async function one(symbol: 'BTC' | 'ETH'): Promise<EtfFlow | null> {
-  const key = process.env.SOSOVALUE_API_KEY?.trim();
-  if (key) { const f = await viaV1(symbol, key).catch(() => null); if (f) return f; }
+  const f = await viaV1(symbol).catch(() => null);
+  if (f) return f;
   return viaLegacy(symbol).catch(() => null);
 }
 
