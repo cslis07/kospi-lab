@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { reviewTrade, summarizeDay, postExit, entryLocation, buildDailyReviewMessage, pnlPctOf, type TradeContext } from '../lib/dailyReview';
+import { reviewTrade, summarizeDay, postExit, entryLocation, buildDailyReviewMessage, pnlPctOf, coachPrompt, COACH_BANNED, type TradeContext } from '../lib/dailyReview';
 import type { ClosedPosition } from '../lib/bitgetPositions';
 
 let passed = 0;
@@ -64,5 +64,13 @@ ok('메시지: HTML 이스케이프·건수·4096자 안', () => {
   const m = buildDailyReviewMessage(rs, { base: 'https://x', hours: 24 });
   assert.match(m, /청산 20건/); assert.match(m, /A&lt;B&gt;/); assert.match(m, /앞선 12건/);
   assert.ok(m.length < 4096, `len ${m.length}`);
+});
+ok('AI 코치: 프롬프트는 집계만, 방향 예측 문장은 버림', () => {
+  const rs = [reviewTrade(pos({ netProfit: -1 }), ctx({ h1Trend: 'down' }), null)];
+  const p = coachPrompt(rs, 24);
+  assert.match(p, /고칠 점 추세 역행 진입 1회/); assert.match(p, /예측이나 매수\/매도 권유는 절대/);
+  assert.ok(COACH_BANNED.test('내일은 BTC가 오를 테니 롱 잡으세요'));
+  assert.ok(!COACH_BANNED.test('진입 직후 손절 주문부터 거세요'));
+  assert.match(buildDailyReviewMessage(rs, { base: 'x', hours: 24, coach: '손절 <먼저>' }), /🧭 <b>코치<\/b> 손절 &lt;먼저&gt;/);
 });
 console.log(`\n${passed} passed`);

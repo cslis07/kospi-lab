@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendBriefTelegram } from '@/lib/briefTelegram';
 import { dailyReviewMessage } from '@/lib/dailyReview';
+import { weeklyReviewMessage } from '@/lib/weeklyReview';
+import { sendTelegram } from '@/lib/guard';
 import { bitgetKeysConfigured } from '@/lib/bitget';
 
 // 모닝 브리핑 텔레그램 발송 — Vercel 크론(vercel.json crons, 매일 07:30 KST)이 호출.
@@ -33,8 +35,13 @@ export async function GET(req: NextRequest) {
     });
     // 두 번째 메시지: 지난 24시간 Bitget 청산 매매 복기(청산 0건·키 없음·실패면 보내지 않음 — 브리핑 발송엔 영향 없음)
     const review = await sendReview(dry).catch((e) => ({ ok: false, error: String(e) }));
+    // 세 번째 메시지(일요일 KST만, ?weekly=1 이면 강제): 주간 복기 — 이번 주 vs 지난주 규율 지표
+    const isSunday = new Date(Date.now() + 9 * 3600e3).getUTCDay() === 0;
+    const weekly = isSunday || req.nextUrl.searchParams.get('weekly') === '1'
+      ? await sendWeekly(dry).catch((e) => ({ ok: false, error: String(e) }))
+      : { ok: true, skipped: '일요일 아님' };
     const code = res.skipped ? 500 : res.ok || dry ? 200 : 502;
-    return NextResponse.json({ ...res, dryText: dry ? res.dryText : undefined, review }, { status: code });
+    return NextResponse.json({ ...res, dryText: dry ? res.dryText : undefined, review, weekly }, { status: code });
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
   }
@@ -54,4 +61,11 @@ async function sendReview(dry: boolean): Promise<{ ok: boolean; n?: number; skip
   });
   const body = await r.json().catch(() => ({}));
   return { ok: !!(body as { ok?: boolean }).ok, n };
+}
+
+async function sendWeekly(dry: boolean): Promise<{ ok: boolean; skipped?: string; dryText?: string }> {
+  if (!bitgetKeysConfigured()) return { ok: false, skipped: 'Bitget 키 없음' };
+  const text = await weeklyReviewMessage({ base: BASE });
+  if (dry) return { ok: true, dryText: text };
+  return { ok: await sendTelegram(text) };
 }

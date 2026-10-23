@@ -13,6 +13,7 @@
 import { fetchClosedPositions, type ClosedPosition } from '@/lib/bitgetPositions';
 import { analyzeTrade, tradeExcursion, pickGranularity, type Autopsy, type Excursion } from '@/lib/tradeAutopsy';
 import { analyzeTimeframe, tfTrend } from '@/lib/coinAnalysis';
+import { geminiBrief } from '@/lib/llmBriefing';
 
 export type Tone = 'good' | 'bad' | 'warn';
 export interface Note { tone: Tone; text: string; key: string }
@@ -160,7 +161,7 @@ const fmtPx = (v: number) => (v >= 1000 ? v.toLocaleString('en-US', { maximumFra
 export const MAX_DETAIL = 8;
 export const MAX_REVIEW = 20;
 
-export function buildDailyReviewMessage(rs: TradeReview[], opts: { base: string; hours: number }): string {
+export function buildDailyReviewMessage(rs: TradeReview[], opts: { base: string; hours: number; coach?: string | null }): string {
   const s = summarizeDay(rs, opts.hours);
   const head = `📒 <b>매매 복기</b> · 지난 ${opts.hours}시간 청산 ${s.n}건`;
   const sum = [
@@ -168,6 +169,7 @@ export function buildDailyReviewMessage(rs: TradeReview[], opts: { base: string;
     `✅ 잘한 점 ${s.good} · ❌⚠️ 고칠 점 ${s.bad}${s.overtrade ? ` · ⚠️ 하루 ${Math.round(s.n / Math.max(1, opts.hours / 24))}건꼴(과매매 주의)` : ''}`,
     s.topBad ? `🔁 가장 많이 나온 실수: <b>${esc(s.topBad.label)}</b> ${s.topBad.count}회` : null,
     s.topGood ? `👍 가장 잘한 점: <b>${esc(s.topGood.label)}</b> ${s.topGood.count}회` : null,
+    opts.coach ? `🧭 <b>코치</b> ${esc(opts.coach)}` : null,
   ].filter(Boolean).join('\n');
 
   const blocks = [...rs].sort((a, b) => a.pos.closeTs - b.pos.closeTs).slice(-MAX_DETAIL).map((r, i) => {
@@ -252,5 +254,37 @@ export async function dailyReviewMessage(opts: { base: string; hours?: number; n
   const inWindow = positions.filter((p) => p.closeTs > now - hours * 3_600_000);
   if (!inWindow.length) return { text: null, n: 0 };
   const rs = await buildDailyReview(inWindow, now);
-  return { text: buildDailyReviewMessage(rs, { base: opts.base, hours }), n: rs.length };
+  const coach = await coachLine(rs, hours).catch(() => null);
+  return { text: buildDailyReviewMessage(rs, { base: opts.base, hours, coach }), n: rs.length };
+}
+
+/* ── AI 코치 한 줄(Gemini) ───────────────────── */
+/** 방향·가격 예측으로 읽히는 문장은 버린다(앱 원칙) */
+export const COACH_BANNED = /(오를|내릴|상승할|하락할|반등할|매수하세요|매도하세요|사세요|파세요|롱 ?잡|숏 ?잡|진입하세요|목표가|전망)/;
+
+export function coachPrompt(rs: TradeReview[], hours: number): string {
+  const s = summarizeDay(rs, hours);
+  const counts = new Map<string, number>();
+  for (const n of rs.flatMap((r) => [...r.entry, ...r.exit, ...r.trade])) {
+    const k = `${n.tone === 'good' ? '잘함' : '고칠 점'}|${LABEL[n.key] ?? n.key}`;
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  const facts = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => `- ${k.replace('|', ' ')} ${v}회`).join('\n');
+  return [
+    '너는 코인 선물 매매 습관 코치다. 아래는 지난 매매의 규칙 판정 집계다(결과를 아는 사후 평가).',
+    `매매 ${s.n}건, ${s.wins}승 ${s.n - s.wins}패, 순손익 ${s.net.toFixed(1)} USDT, 비용 ${s.cost.toFixed(1)} USDT.`,
+    facts,
+    '규칙: 시장 방향·가격·종목 예측이나 매수/매도 권유는 절대 하지 마라. 위 집계에 없는 숫자를 만들지 마라.',
+    '"내일 하나만 바꾼다면"을 구체적인 행동 하나로, 한국어 한 문장(60자 이내)으로 써라.',
+    '출력은 JSON: {"headline": "<그 한 문장>", "bullets": []}',
+  ].join('\n');
+}
+
+/** Gemini 한 문장 — 실패·금지 표현·과도한 길이면 null(메시지에서 생략) */
+export async function coachLine(rs: TradeReview[], hours: number): Promise<string | null> {
+  if (!rs.length) return null;
+  const r = await geminiBrief(coachPrompt(rs, hours), Date.now() + 12_000);
+  const line = r.ok ? r.brief?.headline?.trim() : '';
+  if (!line || line.length > 120 || COACH_BANNED.test(line)) return null;
+  return line;
 }
