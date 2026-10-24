@@ -19,6 +19,8 @@ import { bitgetSignedGet, bitgetKeysConfigured } from './bitget';
 import { fetchClosedPositions, type ClosedPosition } from './bitgetPositions';
 import { evaluateBreaker, DEFAULT_LIMITS, type BreakerLimits } from './circuitBreaker';
 import { analyzeTimeframe, tfTrend, atr } from './coinAnalysis';
+import { latestShock, type Bar } from './crashPrecursor';
+import precursorStats from '../public/data/precursor-stats.json';
 
 export interface OpenPos {
   symbol: string; side: 'long' | 'short'; openTs: number; entry: number;
@@ -29,6 +31,8 @@ export interface OpenPos {
   size?: number;
   /** 지금 1H ATR(14) — 손절 제안용 */
   atr1h?: number | null;
+  /** 최근 30분 안 하락 충격봉(lib/crashPrecursor.latestShock) — 롱 보유 중 경고용 */
+  shock?: { ts: number; dir: 'down' | 'up'; rangePct: number; volX: number } | null;
 }
 
 /**
@@ -98,6 +102,14 @@ export function evaluateGuard(inp: GuardInput, state: GuardState): { alerts: Gua
   const ONCE = Number.POSITIVE_INFINITY;
 
   for (const p of inp.positions) {
+    // ⚡ 하락 충격봉 + 롱 보유 — 측정상 2시간 안 추가 하락이 반등보다 잦았다(scripts/precursor-stats.ts). 충격봉당 1회
+    if (p.side === 'long' && p.shock?.dir === 'down') {
+      const s = precursorStats.pooledShockDown, m = s.n || 1;
+      fire(`shock:${normSym(p.symbol)}:${p.shock.ts}`, Number.POSITIVE_INFINITY, `⚡ <b>${base(p.symbol)} 하락 충격봉 — 롱 보유 중</b>
+15분봉 거래량 ${p.shock.volX.toFixed(0)}배 · 변동 ${p.shock.rangePct.toFixed(2)}% · 저점 마감
+과거 2년 4코인 ${s.n}건: 2시간 안 추가 하락 ${Math.round((s.cont / m) * 100)}% vs 반등 ${Math.round((s.rev / m) * 100)}%
+손절 없이 버티거나 물타기 전에 계획부터 확인하세요. <i>과거 빈도 · 방향 예측 아님</i>`);
+    }
     const pid = `${normSym(p.symbol)}:${p.side}:${p.openTs}`;
     const long = p.side === 'long';
     const plan = inp.journal.find((e) => normSym(e.symbol) === normSym(p.symbol) && e.side === p.side);
@@ -200,6 +212,16 @@ async function h1TrendAt(symbol: string, openTs: number): Promise<OpenPos['h1Tre
   } catch { return null; }
 }
 
+/** 최근 마감된 15분봉 2개(30분) 안 충격봉 */
+async function shock15m(symbol: string): Promise<OpenPos['shock']> {
+  try {
+    const j = await (await fetch(`https://api.bitget.com/api/v2/mix/market/candles?symbol=${symbol}&productType=USDT-FUTURES&granularity=15m&limit=40`, { signal: AbortSignal.timeout(8000), cache: 'no-store' })).json();
+    if (j?.code !== '00000') return null;
+    const bars: Bar[] = (j.data as string[][]).map((r) => ({ ts: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4], v: +r[5] })).sort((a, b) => a.ts - b.ts).filter((b) => b.ts + 900_000 <= Date.now());
+    return latestShock(bars, 2);
+  } catch { return null; }
+}
+
 async function atr1hNow(symbol: string): Promise<number | null> {
   try {
     const j = await (await fetch(`https://api.bitget.com/api/v2/mix/market/candles?symbol=${symbol}&productType=USDT-FUTURES&granularity=1H&limit=60`, { signal: AbortSignal.timeout(8000), cache: 'no-store' })).json();
@@ -268,6 +290,7 @@ export async function runGuard(opts: { dry?: boolean; now?: number; ignoreState?
       entry: num(r.openPriceAvg ?? r.averageOpenPrice), mark: num(r.markPrice), liq: num(r.liquidationPrice),
       h1Trend: openTs > 0 ? await h1TrendAt(String(r.symbol), openTs) : null,
       size: num(r.total), atr1h: await atr1hNow(String(r.symbol)),
+      shock: (r.holdSide === 'short') ? null : await shock15m(String(r.symbol)),
     });
   }
   const journal: PlanStop[] = (Array.isArray(journalRaw) ? journalRaw : [])

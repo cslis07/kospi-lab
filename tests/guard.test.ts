@@ -65,4 +65,12 @@ ok('냉각: 손실 청산 30분, 서킷브레이커면 KST 자정까지, 이익 
   const b = cooldownState([{ netProfit: -40, closeTs: NOW - H }], null, 1000, NOW)!;
   assert.equal(b.kind, 'breaker'); assert.equal((b.until + 9 * H) % 86_400_000, 0);
 });
+ok('하락 충격봉: 롱 보유 중에만, 충격봉당 1회, 측정 빈도 문구', () => {
+  const sl = new Set(['BTCUSDT']);
+  const shock = { ts: NOW - 10 * M, dir: 'down' as const, rangePct: 1.3, volX: 30 };
+  const r = evaluateGuard(inp({ positions: [p({ shock })], slSymbols: sl }), { fired: {} });
+  assert.deepEqual(keys(r), ['shock']); assert.match(r.alerts[0].text, /추가 하락 \d+% vs 반등 \d+%/);
+  assert.deepEqual(keys(evaluateGuard(inp({ positions: [p({ shock })], slSymbols: sl, now: NOW + H }), r.state)), []);
+  assert.deepEqual(keys(evaluateGuard(inp({ positions: [p({ side: 'short', h1Trend: 'down', shock })], slSymbols: sl }), { fired: {} })), []);
+});
 console.log(`\n${passed} passed`);

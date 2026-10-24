@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import AnalysisSwitch from '@/components/AnalysisSwitch';
+import PrecursorCard from '@/components/PrecursorCard';
 import useSWR from 'swr';
 import dynamic from 'next/dynamic';
 import type { ChartCandle } from '@/components/CoinCandleChart';
@@ -1571,6 +1572,7 @@ export default function CoinAnalysisPage() {
                 className="px-2.5 py-1.5 rounded-lg border border-sky-500/40 bg-sky-500/10 text-[11px] font-semibold text-sky-400 hover:bg-sky-500/15">＋ 일지 기록</button>
             </div>
             <DerivFlowCompact data={data} />
+            <PrecursorCard symbol={symbol} />
           </div>
           </div>
 
