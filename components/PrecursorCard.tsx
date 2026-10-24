@@ -8,6 +8,7 @@
 import useSWR from 'swr';
 import type { LiveState, StatsFile, ShockStat } from '@/lib/crashPrecursor';
 import { SIGNALS } from '@/lib/crashPrecursor';
+import type { Flags, WarningStatsFile, Scorecard } from '@/lib/crashWarning';
 
 const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); });
 const pct = (v: number | null | undefined, d = 0) => (v == null || !Number.isFinite(v) ? '–' : `${v.toFixed(d)}%`);
@@ -22,10 +23,49 @@ function ShockLine({ s, label }: { s: ShockStat; label: string }) {
   return <span>{label} {s.n}건 · 추가 {pct((s.cont / m) * 100)} vs 되돌림 {pct((s.rev / m) * 100)} <span className="text-[var(--text-muted)]">({VERDICT[s.verdict]})</span></span>;
 }
 
+/** 폭락 조기 경보 — 사용자 문서(10.24-25 폭락 분석)의 30초 체크리스트를 실시간 판정 + 과거 2년 성적표(lib/crashWarning) */
+function EarlyWarning({ f, cards, btc, days }: { f: Flags; cards: Scorecard[]; btc: boolean; days: number }) {
+  const card = (k: string) => cards.find((c) => c.key === k);
+  const items: [string, boolean][] = [
+    ['1H 반등 고점이 낮아짐', f.lowerHighs1h],
+    ['15분봉이 직전 6h 지지 아래 마감', f.break15],
+    ['이탈 때 5분 거래량 3배↑', f.vol5 && f.break15],
+    ['반등 후 지지 되찾기 실패 + 새 저점', f.failReclaim],
+    ...(btc ? [] : [['BTC도 15분 지지 이탈(30분 안)', f.btcBreak === true] as [string, boolean]]),
+  ];
+  const max = items.length, score = f.checklist;
+  const active = [score >= 4 ? 'check4' : null, f.core ? 'core' : null, f.failReclaim ? 'failReclaim' : null, f.h1VolBreak ? 'h1VolBreak' : null, f.btcBreak ? 'btcBreak' : null].filter((x): x is string => !!x)
+    .map((k) => card(k)).filter((c): c is Scorecard => !!c);
+  const c4 = card('check4');
+  const hot = active.some((c) => c.verdict === 'significant');
+  const line = (c: Scorecard) => `과거 ${days}일 ${c.warnings}번 울림 · 60분 안 −3% ${pct(c.precision, 1)} (평소 ${pct(c.base, 1)}, ${c.lift.toFixed(1)}배) · 오경보 ${pct((c.falseAlarms / Math.max(1, c.warnings)) * 100)} · 폭락의 ${pct(c.recall)} 사전 포착 · 선행 약 ${c.leadMedMin ?? '–'}분 · ${VERDICT[c.verdict]}`;
+  const LABEL: Record<string, string> = { check4: '체크리스트 4개 이상', core: '상위 약세 + 지지 이탈 + 거래량', failReclaim: '반등 실패 + 새 저점', h1VolBreak: '1H 거래량 4배 + EMA20 아래', btcBreak: 'BTC 15분 지지 이탈' };
+  return (
+    <div className={`rounded-xl border px-3 py-2 mb-2 ${hot ? 'border-[var(--warn)] bg-[var(--warn-soft)]' : 'border-[var(--border)]'}`}>
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <b className="text-[12.5px] text-[var(--text)]">{hot ? '🚨 ' : ''}폭락 조기 경보 — 30초 체크리스트 {score}/{max}</b>
+        <span className="text-[10.5px] text-[var(--text-muted)]">폭락 = 60분 안 −3% · 15분 이상 앞선 경보만 인정</span>
+      </div>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 mt-1 text-[11.5px]">
+        {items.map(([k, v]) => <li key={k} className={v ? 'text-[var(--text)] font-semibold' : 'text-[var(--text-muted)]'}>{v ? '☑' : '☐'} {k}</li>)}
+      </ul>
+      {f.mtf && <p className="text-[11px] text-[var(--text-muted)] mt-1">일봉·4H·1H 모두 EMA20 아래 — 롱에 불리한 장세(단, 이것만으로는 폭락 확률이 오르지 않았음: 측정상 우연).</p>}
+      {active.map((c) => (
+        <p key={c.key} className="text-[11.5px] text-[var(--text)] mt-1 leading-relaxed"><b>{LABEL[c.key]}</b> — {line(c)}</p>
+      ))}
+      {!active.length && c4 && <p className="text-[11px] text-[var(--text-muted)] mt-1 leading-relaxed">4개 이상이면: {line(c4)}</p>}
+      <p className="text-[10.5px] text-[var(--text-muted)] mt-1 leading-relaxed">
+        행동: 신규 롱 보류·손절 확인용(숏 추격 신호 아님). 첫 급락은 사전 신호 없이 오는 경우가 많고(10-24 23:15도 그랬음), 이 경보는 첫 충격 뒤 추가 하락을 앞서 잡는 데 강했습니다 — 10-24엔 23:30에 4/5로 울렸고 30분 뒤 2차 급락.
+      </p>
+    </div>
+  );
+}
+
 export default function PrecursorCard({ symbol }: { symbol: string }) {
   const supported = /^(BTC|ETH|SOL|XRP)USDT$/.test(symbol);
-  const { data: live } = useSWR<{ state: LiveState; oiChg6h: number | null; asOf: number }>(supported ? `/api/precursor?symbol=${symbol}` : null, fetcher, { refreshInterval: 60_000 });
+  const { data: live } = useSWR<{ state: LiveState; oiChg6h: number | null; asOf: number; warn: Flags | null }>(supported ? `/api/precursor?symbol=${symbol}` : null, fetcher, { refreshInterval: 60_000 });
   const { data: stats } = useSWR<StatsFile>(supported ? '/data/precursor-stats.json' : null, fetcher, { revalidateOnFocus: false });
+  const { data: wstats } = useSWR<WarningStatsFile>(supported ? '/data/crash-warning-stats.json' : null, fetcher, { revalidateOnFocus: false });
   if (!supported || !live?.state || !stats?.coins?.[symbol]) return null;
   const st = live.state, cs = stats.coins[symbol];
   const active = PRIORITY.find((k) => st.signals.includes(k));
@@ -60,6 +100,8 @@ export default function PrecursorCard({ symbol }: { symbol: string }) {
         <span className="fin-chip">OI 6h {live.oiChg6h == null ? '–' : `${live.oiChg6h >= 0 ? '+' : ''}${live.oiChg6h.toFixed(2)}%`}{st.oiBuild ? ' · 박스권 축적' : ''}</span>
       </div>
 
+      {live.warn && wstats?.coins?.[symbol] && <EarlyWarning f={live.warn} cards={wstats.coins[symbol]} btc={symbol === 'BTCUSDT'} days={wstats.days} />}
+
       <div className="rounded-xl border border-[var(--border)] overflow-x-auto">
         <table className="w-full text-[12px] tabular-nums" style={{ minWidth: 300 }}>
           <thead><tr className="text-[10.5px] text-[var(--text-muted)] text-right">
@@ -83,8 +125,8 @@ export default function PrecursorCard({ symbol }: { symbol: string }) {
       </div>
       <p className="text-[10.5px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
         급락·급등 = 다음 4시간 안 움직임이 이 코인 최근 30일 기준 상위 20% 크기. {active ? '' : '지금은 등록된 신호에 해당하지 않아 평소 확률이 기준입니다. '}
-        측정 결과: 조용한 압축 구간 뒤엔 급변이 <b>덜</b> 왔고(평소의 약 절반), 폭락을 미리 맞히는 전조는 측정에서 살아남지 못했습니다(2026-10-24 급락 해부).
-        살아남은 건 &lsquo;하락 충격봉 뒤 추가 하락이 반등보다 잦다&rsquo;뿐입니다. 판정 기준 n≥30·|z|≥2.58·기간 앞뒤 절반 같은 방향 · 측정 {new Date(Date.parse(stats.generatedAt) + 9 * 3600e3).toISOString().slice(0, 10)}.
+        측정 결과: 조용한 압축 구간 뒤엔 급변이 <b>덜</b> 왔고(평소의 약 절반) 압축 계열 전조는 기각됐습니다. 살아남은 것은 &lsquo;하락 충격봉 뒤 추가 하락이 반등보다 잦다&rsquo;와
+        위 폭락 조기 경보 일부(평소의 2~4배 · 그래도 절대 확률 3~8%, 오경보 90%↑)입니다. 판정 기준 n≥30·|z|≥2.58·기간 앞뒤 절반 같은 방향 · 측정 {new Date(Date.parse(stats.generatedAt) + 9 * 3600e3).toISOString().slice(0, 10)}.
       </p>
     </section>
   );

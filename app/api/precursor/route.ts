@@ -1,10 +1,11 @@
 /**
- * 급변 확률 계기판 — 지금 이 코인이 사전 등록 신호(lib/crashPrecursor) 중 어디에 해당하나(실시간 상태만).
+ * 급변 확률 계기판 — 지금 이 코인이 사전 등록 신호(lib/crashPrecursor)·폭락 조기 경보 체크리스트(lib/crashWarning) 중 어디에 해당하나(실시간 상태만).
  * 측정 확률은 정적 파일 /data/precursor-stats.json(scripts/precursor-stats.ts 생성)을 화면이 따로 읽는다.
  * 공개(시세 기반) · CDN 60초.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { liveState, type Bar } from '@/lib/crashPrecursor';
+import { fetchLiveFlags } from '@/lib/crashWarning';
 
 export const maxDuration = 15;
 export const revalidate = 0;
@@ -31,8 +32,8 @@ export async function GET(req: NextRequest) {
   const symbol = (req.nextUrl.searchParams.get('symbol') ?? 'BTCUSDT').toUpperCase();
   if (!SYM_RE.test(symbol)) return NextResponse.json({ error: 'BTC·ETH·SOL·XRP USDT만 측정돼 있습니다' }, { status: 400 });
   try {
-    const [h1, m15, oi] = await Promise.all([bitget(symbol, '1H', 1000), bitget(symbol, '15m', 200), oiChg6h(symbol)]);
-    return NextResponse.json({ symbol, asOf: Date.now(), state: liveState(h1, m15, oi), oiChg6h: oi }, { headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=60' } });
+    const [h1, m15, oi, warn] = await Promise.all([bitget(symbol, '1H', 1000), bitget(symbol, '15m', 200), oiChg6h(symbol), fetchLiveFlags(symbol).catch(() => null)]);
+    return NextResponse.json({ symbol, asOf: Date.now(), state: liveState(h1, m15, oi), oiChg6h: oi, warn }, { headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=60' } });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 502 });
   }

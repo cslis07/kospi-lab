@@ -21,6 +21,8 @@ import { evaluateBreaker, DEFAULT_LIMITS, type BreakerLimits } from './circuitBr
 import { analyzeTimeframe, tfTrend, atr } from './coinAnalysis';
 import { latestShock, type Bar } from './crashPrecursor';
 import precursorStats from '../public/data/precursor-stats.json';
+import warningStats from '../public/data/crash-warning-stats.json';
+import { fetchLiveFlags, type Flags } from './crashWarning';
 
 export interface OpenPos {
   symbol: string; side: 'long' | 'short'; openTs: number; entry: number;
@@ -33,6 +35,8 @@ export interface OpenPos {
   atr1h?: number | null;
   /** 최근 30분 안 하락 충격봉(lib/crashPrecursor.latestShock) — 롱 보유 중 경고용 */
   shock?: { ts: number; dir: 'down' | 'up'; rangePct: number; volX: number } | null;
+  /** 폭락 조기 경보 체크리스트(lib/crashWarning, 롱일 때만 조회) */
+  warn?: Flags | null;
 }
 
 /**
@@ -102,6 +106,21 @@ export function evaluateGuard(inp: GuardInput, state: GuardState): { alerts: Gua
   const ONCE = Number.POSITIVE_INFINITY;
 
   for (const p of inp.positions) {
+    // 🚨 폭락 조기 경보(사용자 문서 체크리스트) + 롱 보유 — 이 코인에서 측정상 유의했던 경보만. 6시간에 1번
+    if (p.side === 'long' && p.warn) {
+      const cards = (warningStats.coins as Record<string, { key: string; verdict: string; precision: number; base: number; lift: number; warnings: number; falseAlarms: number }[]>)[normSym(p.symbol)] ?? [];
+      const w = p.warn;
+      const on = [w.checklist >= 4 ? 'check4' : null, w.core ? 'core' : null, w.failReclaim ? 'failReclaim' : null, w.h1VolBreak ? 'h1VolBreak' : null, w.btcBreak ? 'btcBreak' : null, w.mtf ? 'mtf' : null]
+        .map((k) => cards.find((c) => c.key === k && c.verdict === 'significant')).filter((c): c is NonNullable<typeof c> => !!c);
+      if (on.length) {
+        const best = on.sort((a, b) => b.lift - a.lift)[0];
+        const NAME: Record<string, string> = { check4: `30초 체크리스트 ${w.checklist}개`, core: '상위 약세 + 지지 이탈 + 거래량', failReclaim: '반등 실패 + 새 저점', h1VolBreak: '1H 거래량 4배 + EMA20 아래', btcBreak: 'BTC 15분 지지 이탈', mtf: '일봉·4H·1H 약세' };
+        fire(`warn:${normSym(p.symbol)}`, 6 * H, `🚨 <b>${base(p.symbol)} 폭락 조기 경보 — 롱 보유 중</b>
+${on.map((c) => NAME[c.key]).join(' · ')}
+과거 2년: 60분 안 −3% ${best.precision.toFixed(1)}% (평소 ${best.base.toFixed(1)}%, ${best.lift.toFixed(1)}배) · 오경보 ${Math.round((best.falseAlarms / Math.max(1, best.warnings)) * 100)}%
+신규 롱·물타기 보류, 손절 위치부터 확인. <i>과거 빈도 · 숏 신호 아님</i>`);
+      }
+    }
     // ⚡ 하락 충격봉 + 롱 보유 — 측정상 2시간 안 추가 하락이 반등보다 잦았다(scripts/precursor-stats.ts). 충격봉당 1회
     if (p.side === 'long' && p.shock?.dir === 'down') {
       const s = precursorStats.pooledShockDown, m = s.n || 1;
@@ -291,6 +310,7 @@ export async function runGuard(opts: { dry?: boolean; now?: number; ignoreState?
       h1Trend: openTs > 0 ? await h1TrendAt(String(r.symbol), openTs) : null,
       size: num(r.total), atr1h: await atr1hNow(String(r.symbol)),
       shock: (r.holdSide === 'short') ? null : await shock15m(String(r.symbol)),
+      warn: (r.holdSide === 'short') ? null : await fetchLiveFlags(String(r.symbol)).catch(() => null),
     });
   }
   const journal: PlanStop[] = (Array.isArray(journalRaw) ? journalRaw : [])

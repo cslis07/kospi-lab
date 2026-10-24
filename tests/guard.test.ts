@@ -73,4 +73,14 @@ ok('하락 충격봉: 롱 보유 중에만, 충격봉당 1회, 측정 빈도 문
   assert.deepEqual(keys(evaluateGuard(inp({ positions: [p({ shock })], slSymbols: sl, now: NOW + H }), r.state)), []);
   assert.deepEqual(keys(evaluateGuard(inp({ positions: [p({ side: 'short', h1Trend: 'down', shock })], slSymbols: sl }), { fired: {} })), []);
 });
+ok('폭락 조기 경보: 롱 + 그 코인에서 유의했던 경보만, 6시간에 1번', () => {
+  const sl = new Set(['ETHUSDT']);
+  const f = { ts: NOW, close: 100, mtf: true, h1VolBreak: false, core: true, failReclaim: false, btcBreak: true, lowerHighs1h: true, break15: true, vol5: true, checklist: 4 };
+  const eth = p({ symbol: 'ETHUSDT', warn: f });
+  const r = evaluateGuard(inp({ positions: [eth], slSymbols: sl }), { fired: {} });
+  assert.deepEqual(keys(r), ['warn']); assert.match(r.alerts[0].text, /60분 안 −3% [\d.]+% \(평소 [\d.]+%/);
+  assert.deepEqual(keys(evaluateGuard(inp({ positions: [eth], slSymbols: sl, now: NOW + H }), r.state)), []);
+  // BTC는 측정상 유의한 경보가 없어 안 울림
+  assert.deepEqual(keys(evaluateGuard(inp({ positions: [p({ warn: f })], slSymbols: new Set(['BTCUSDT']) }), { fired: {} })), []);
+});
 console.log(`\n${passed} passed`);
