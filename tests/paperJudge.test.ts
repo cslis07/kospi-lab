@@ -78,8 +78,8 @@ ok('리마인더: 마지막 라운드 12시간 뒤에만, 대기·미결·최근
 });
 ok('보조 기준 평균 R: 정규 근사 단측, n<30은 결론 불가', () => {
   assert.ok(Math.abs(normCdf(1.645) - 0.95) < 1e-3); assert.ok(Math.abs(normCdf(0) - 0.5) < 1e-7);
-  const rs = Array.from({ length: 30 }, (_, i) => (i % 3 === 0 ? 2 : -1) + 0.3);
-  const m = meanRTest(rs); assert.ok(Math.abs(m.mean - 0.3) < 1e-9); assert.ok(m.p < 0.05);
+  const rs = Array.from({ length: 30 }, (_, i) => (i % 3 === 0 ? 2 : -1) + 0.8);   // 평균 +0.8, z≈3
+  const m = meanRTest(rs); assert.ok(Math.abs(m.mean - 0.8) < 1e-9); assert.ok(m.p < 0.05);
   assert.match(meanRText(m), /0보다 유의/);
   assert.match(meanRText(meanRTest([2, -1, 2])), /결론 불가/);
   assert.match(meanRText(meanRTest(Array.from({ length: 30 }, (_, i) => (i % 2 ? 1 : -1)))), /우연 범위/);
