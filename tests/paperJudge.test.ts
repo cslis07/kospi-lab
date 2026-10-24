@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { judgeTrade, checkSkip, summarize, byCondition, binomTailP, verdictText, roundStatus, remindText, type Candle, type PaperTrade } from '../lib/paperJudge';
+import { judgeTrade, checkSkip, summarize, byCondition, binomTailP, verdictText, roundStatus, remindText, meanRTest, meanRText, normCdf, type Candle, type PaperTrade } from '../lib/paperJudge';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -75,5 +75,13 @@ ok('리마인더: 마지막 라운드 12시간 뒤에만, 대기·미결·최근
   assert.equal(remindText(log, [], T0 + 11 * H), null);
   const msg = remindText(log, [{ trade: t, status: 'pending', r: null }, { trade: log.trades[0], status: 'win', r: 2 }], T0 + 13 * H)!;
   assert.match(msg, /R5 진행 가능/); assert.match(msg, /R4 BTC 롱 지정가 100 → ⌛ 체결 대기/); assert.ok(!/R1 BTC/.test(msg)); assert.match(msg, /1승 0패/);
+});
+ok('보조 기준 평균 R: 정규 근사 단측, n<30은 결론 불가', () => {
+  assert.ok(Math.abs(normCdf(1.645) - 0.95) < 1e-3); assert.ok(Math.abs(normCdf(0) - 0.5) < 1e-7);
+  const rs = Array.from({ length: 30 }, (_, i) => (i % 3 === 0 ? 2 : -1) + 0.3);
+  const m = meanRTest(rs); assert.ok(Math.abs(m.mean - 0.3) < 1e-9); assert.ok(m.p < 0.05);
+  assert.match(meanRText(m), /0보다 유의/);
+  assert.match(meanRText(meanRTest([2, -1, 2])), /결론 불가/);
+  assert.match(meanRText(meanRTest(Array.from({ length: 30 }, (_, i) => (i % 2 ? 1 : -1)))), /우연 범위/);
 });
 console.log(`\n${passed} passed`);

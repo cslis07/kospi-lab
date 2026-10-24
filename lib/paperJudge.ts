@@ -138,6 +138,30 @@ export function binomTailP(wins: number, n: number, p = 0.5): number {
   return Math.min(1, tail);
 }
 
+/**
+ * 보조 기준(2026-10-25, R5 결과 보기 전에 추가 — 이후 변경 금지): 확정 매매의 R 평균이 0보다 큰가(단측).
+ * 손익비 1.4~2.0 매매라 승률 50%는 너무 높은 문턱이다(본전 승률 ≈33~42%). 정규 근사 z = 평균/(표준편차/√n).
+ * 판정은 n≥30 에서만. 두 기준(승률·평균 R)을 둘 다 보여 주고, 둘 중 하나만 유의해도 '유의'라고 부르지 않는다 — 각각 따로 적는다.
+ */
+export function meanRTest(rs: number[]): { n: number; mean: number; sd: number; z: number; p: number } {
+  const n = rs.length;
+  if (n < 2) return { n, mean: n ? rs[0] : 0, sd: 0, z: 0, p: 1 };
+  const mean = rs.reduce((a, b) => a + b, 0) / n;
+  const sd = Math.sqrt(rs.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1));
+  const z = sd > 0 ? mean / (sd / Math.sqrt(n)) : 0;
+  return { n, mean, sd, z, p: 1 - normCdf(z) };
+}
+/** 표준정규 누적분포(Abramowitz-Stegun 26.2.17, 오차 < 7.5e-8) */
+export function normCdf(x: number): number {
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const d = 0.3989422804014327 * Math.exp(-x * x / 2);
+  const p = d * t * (0.31938153 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+  return x >= 0 ? 1 - p : p;
+}
+export const meanRText = (m: { n: number; mean: number; p: number }) =>
+  m.n < MIN_N ? `평균 R ${m.mean >= 0 ? '+' : '−'}${Math.abs(m.mean).toFixed(2)} — 결론 불가 (n=${m.n} < ${MIN_N})`
+    : m.p < 0.05 && m.mean > 0 ? `평균 R +${m.mean.toFixed(2)} — 0보다 유의 (p=${m.p.toFixed(3)})` : `평균 R ${m.mean >= 0 ? '+' : '−'}${Math.abs(m.mean).toFixed(2)} — 우연 범위 (p=${m.p.toFixed(3)})`;
+
 export const MIN_N = 30;
 export const verdictText = (n: number, winRate: number | null, p: number) =>
   n < MIN_N ? `결론 불가 (n=${n} < ${MIN_N})` : p < 0.05 ? `50% 대비 유의 (p=${p.toFixed(3)})` : `우연 범위 (p=${p.toFixed(3)})`;
@@ -173,7 +197,7 @@ export function remindText(log: PaperLog, judged: Judged[], now: number = Date.n
     `🧪 <b>모의 선행테스트 — R${rs.last + 1} 진행 가능</b> (마지막 R${rs.last} · ${hours}시간 전)`,
     ...judged.filter((j) => j.status === 'pending' || j.status === 'open' || j.trade.round >= rs.last)
       .map((j) => `R${j.trade.round} ${j.trade.coin} ${j.trade.side === 'long' ? '롱' : '숏'} ${j.trade.type === 'limit' ? '지정가' : '시장가'} ${j.trade.entry} → ${STATUS_KO[j.status]}${j.r != null ? ` ${j.r >= 0 ? '+' : '−'}${Math.abs(j.r).toFixed(2)}R` : ''}`),
-    `누계 ${s.wins}승 ${s.losses}패 · ${s.sumR >= 0 ? '+' : '−'}${Math.abs(s.sumR).toFixed(2)}R · ${verdictText(s.wins + s.losses, s.winRate, binomTailP(s.wins, s.wins + s.losses))}`,
+    `누계 ${s.wins}승 ${s.losses}패 · ${s.sumR >= 0 ? '+' : '−'}${Math.abs(s.sumR).toFixed(2)}R · 승률 ${verdictText(s.wins + s.losses, s.winRate, binomTailP(s.wins, s.wins + s.losses))} · ${meanRText(meanRTest(judged.filter((j) => j.status === 'win' || j.status === 'loss').map((j) => j.r ?? 0)))}`,
     `<i>Claude에게 "다음 라운드"라고 하면 판정·사전 기록을 진행합니다</i>`,
   ];
   return lines.join('\n');

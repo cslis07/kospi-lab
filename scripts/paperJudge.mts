@@ -6,7 +6,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import {
-  judgeTrade, checkSkip, summarize, byCondition, binomTailP, verdictText, fetchHourly,
+  judgeTrade, checkSkip, summarize, byCondition, binomTailP, verdictText, fetchHourly, meanRTest, meanRText,
   type Candle, type PaperLog, type Judged,
 } from '../lib/paperJudge';
 
@@ -32,7 +32,7 @@ async function main() {
   const p = binomTailP(s.wins, s.wins + s.losses);
   const out: string[] = [];
   out.push(`> 자동 판정 ${kst(now)} KST · Bitget 1시간봉 · \`npx tsx scripts/paperJudge.mts --write\`로 갱신 (손으로 고치지 말 것)`, '');
-  out.push(`**누계: ${s.n}건 · ${s.wins}승 ${s.losses}패 ${s.open}미결 · 누적 ${fmtR(s.sumR)}** · 무효 ${s.voided} · 대기 ${s.pending} → **${verdictText(s.wins + s.losses, s.winRate, p)}**`, '');
+  out.push(`**누계: ${s.n}건 · ${s.wins}승 ${s.losses}패 ${s.open}미결 · 누적 ${fmtR(s.sumR)}** · 무효 ${s.voided} · 대기 ${s.pending} → 승률 **${verdictText(s.wins + s.losses, s.winRate, p)}** · **${meanRText(meanRTest(judged.filter((j) => j.status === 'win' || j.status === 'loss').map((j) => j.r ?? 0)))}**`, '');
   out.push('| 라운드 | 코인 | 방향 | 방식 | 진입/손절/목표 | 체결 | 청산 | 결과 | R | 최대 유리/불리 |', '|---|---|---|---|---|---|---|---|---|---|');
   for (const j of judged) {
     const t = j.trade;
