@@ -1,21 +1,7 @@
 {
-  "updated": "2026-10-25T13:50:02.143Z",
-  "open": [
-    {
-      "id": "BTCUSDT-scalp-1792936198589",
-      "sym": "BTCUSDT",
-      "mode": "scalp",
-      "dir": -1,
-      "dirLabel": "SHORT",
-      "entry": 80440.95000000001,
-      "tp": 80283.8,
-      "sl": 80550.2,
-      "ts": 1792936198589,
-      "price0": 80341.4,
-      "ultra": false,
-      "conf": 95,
-      "eq": 68
-    },
+  "updated": "2026-10-25T17:24:15.981Z",
+  "open": [],
+  "closed": [
     {
       "id": "XRPUSDT-scalp-1792936198589",
       "sym": "XRPUSDT",
@@ -29,10 +15,31 @@
       "price0": 1.2982,
       "ultra": false,
       "conf": 96,
-      "eq": 72
-    }
-  ],
-  "closed": [
+      "eq": 72,
+      "closeTs": 1792949052299,
+      "closePrice": 1.3071,
+      "outcome": "WIN",
+      "r": 1.05
+    },
+    {
+      "id": "BTCUSDT-scalp-1792936198589",
+      "sym": "BTCUSDT",
+      "mode": "scalp",
+      "dir": -1,
+      "dirLabel": "SHORT",
+      "entry": 80440.95000000001,
+      "tp": 80283.8,
+      "sl": 80550.2,
+      "ts": 1792936198589,
+      "price0": 80341.4,
+      "ultra": false,
+      "conf": 95,
+      "eq": 68,
+      "closeTs": 1792949052299,
+      "closePrice": 80782.6,
+      "outcome": "LOSS",
+      "r": -1
+    },
     {
       "id": "BTCUSDT-scalp-1792878882311",
       "sym": "BTCUSDT",
@@ -720,9 +727,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 32,
+      "n": 34,
       "winRate": 50,
-      "avgR": 0.21
+      "avgR": 0.2
     },
     "swing": {
       "n": 4,
@@ -730,9 +737,9 @@
       "avgR": 2.21
     },
     "all": {
-      "n": 36,
-      "winRate": 56,
-      "avgR": 0.43
+      "n": 38,
+      "winRate": 55,
+      "avgR": 0.41
     }
   },
   "watch": {
