@@ -34,6 +34,7 @@ import TradesPerDayCard from '@/components/TradesPerDayCard';
 import EdgeSummaryCard from '@/components/EdgeSummaryCard';
 import CostCard from '@/components/CostCard';
 import FeeDiagCard from '@/components/FeeDiagCard';
+import CostLeakCard from '@/components/CostLeakCard';
 import DisciplineCard from '@/components/DisciplineCard';
 import ExcursionPanel from '@/components/ExcursionPanel';
 import { costBreakdown, costByHoldBand, cashFlow, type CashMove } from '@/lib/tradeCosts';
@@ -608,6 +609,7 @@ export default function JournalPage() {
         <div role="tabpanel" id="journal-panel-cost" aria-labelledby="journal-tab-cost" hidden={tab !== 'cost'}>
           {positions.length > 0 && (
             <>
+              <CostLeakCard positions={positions} days={days} fmt={fmtUsdt} />
               <CostCard c={costs} fmt={fmtUsdt} holdRows={holdCosts} cash={cash} sub={`${periodLabel(days)} 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
               <FeeDiagCard days={days} fmt={fmtUsdt} />
             </>

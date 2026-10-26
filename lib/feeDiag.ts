@@ -23,6 +23,10 @@ export interface Fill {
   notional: number;
   /** 낸 수수료(USDT, 양수 = 비용, 음수 = 리베이트) */
   fee: number;
+  /** 청산 체결의 실현 매매손익(수수료 전, Bitget profit) — 진입 체결은 0 */
+  profit?: number;
+  /** 주문 출처(Bitget enterPointSource: 'sys' = 손절·익절 예약 주문 발동, android/ios/web/api = 직접 주문) */
+  source?: string;
 }
 
 /** Bitget USDT-M 선물 표준(VIP0) 요율 — 메이커 체결이 없을 때만 쓰는 참고값 */
@@ -50,6 +54,8 @@ export function parseFill(r: any): Fill | null {
     tradeSide: r.tradeSide === 'open' ? 'open' : r.tradeSide === 'close' ? 'close' : 'other',
     price, size, notional,
     fee: -feeRaw, // Bitget: 낸 수수료가 음수 → 비용을 양수로
+    profit: num(r.profit),
+    source: r.enterPointSource ? String(r.enterPointSource).toLowerCase() : undefined,
   };
 }
 

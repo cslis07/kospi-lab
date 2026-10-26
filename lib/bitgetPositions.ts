@@ -8,6 +8,9 @@ import { attachStops, type SlOrder } from '@/lib/bitgetJournal';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const num = (v: any) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 
+/** 청산 포지션 페이지 상한(= 1,000건) */
+const MAX_PAGES = 10;
+
 export interface ClosedPosition {
   positionId: string;
   symbol: string;
@@ -30,11 +33,23 @@ export interface ClosedPosition {
 }
 
 export async function fetchClosedPositions(startTime: number, endTime: number): Promise<{ positions: ClosedPosition[]; slRecovered: number }> {
-  const j = await bitgetSignedGet(
-    `/api/v2/mix/position/history-position?productType=USDT-FUTURES&startTime=${startTime}&endTime=${endTime}&limit=100`,
-  );
+  // 한 번에 최대 100건 — 응답 endId 를 idLessThan 으로 넘겨 페이지를 넘긴다(넘기지 않으면 60일 조회가 최근 100건에서 잘린다)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows = ((j.data as any)?.list as any[] | undefined) ?? [];
+  const rows: any[] = [];
+  let idLessThan: string | undefined;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const j = await bitgetSignedGet(
+      `/api/v2/mix/position/history-position?productType=USDT-FUTURES&startTime=${startTime}&endTime=${endTime}&limit=100${idLessThan ? `&idLessThan=${idLessThan}` : ''}`,
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = j.data as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const list = (d?.list as any[] | undefined) ?? [];
+    rows.push(...list);
+    const next = d?.endId ? String(d.endId) : undefined;
+    if (list.length < 100 || !next || next === idLessThan) break;
+    idLessThan = next;
+  }
 
   const positions: ClosedPosition[] = rows.map((r) => {
     const openFee = num(r.openFee), closeFee = num(r.closeFee), funding = num(r.totalFunding);
@@ -55,7 +70,7 @@ export async function fetchClosedPositions(startTime: number, endTime: number): 
       openTs: num(r.ctime),
       closeTs: num(r.utime),
     };
-  }).filter((p) => p.symbol && p.closeTs > 0)
+  }).filter((p, i, a) => p.symbol && p.closeTs > 0 && a.findIndex((q) => q.positionId === p.positionId) === i)
     .sort((a, b) => b.closeTs - a.closeTs);
 
   // SL(스탑로스) 주문 트리거가 복구 — best-effort. 없거나 권한/필드 이슈면 조용히 skip.
