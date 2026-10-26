@@ -3,9 +3,10 @@
  * 모바일 하단 탭(BottomNav)·상단 밑줄 탭/데스크탑 내비(NavTabs)·앱바 제목(Header)·메뉴 시트(HomeMenu)가 전부 이 정의를 쓴다.
  * ⚠ 그룹/항목을 바꾸려면 여기만 고친다.
  *
- * IA(2026-09-18 재편, 사용자 지정 5섹션 = 하단 5탭):
- *   홈(대시보드·관심종목·캘린더·뉴스) · 시장(국내·해외·코인·선물) · 분석(종목 분석·스크리너·공시·리포트)
- *   · 관리(플래너·매매일지·통합 리스크·목표 수익률) · 자산(포트폴리오·계좌·성과)
+ * IA(2026-10-26 재편 — "직관적·편리" 요청, 실제 매매 흐름 순서 = 하단 5탭):
+ *   홈(대시보드 + 지금 내 상태) · 시장(국내·해외·코인·선물·산업·랭킹·지표·ETF·리서치)
+ *   · 트레이딩(코인 분석·ETH 체제·알림 — 들어가도 되나·얼마나·어디서 끊나) · 복기(매매일지·성과·모의 테스트 — 규칙을 지켰나)
+ *   · 자산(계좌·보유). 나머지 보조 도구는 '더보기'(/tools)에서 5묶음(EXTRAS.section)으로.
  * 탭 안의 항목 이동은 상단 밑줄 탭(가로), 탭 밖으로 들어가는 상세(종목·코인 상세·기타 도구)는 드릴다운(뒤로가기).
  */
 
@@ -15,7 +16,18 @@ export interface MenuItem {
   alias?: string[];
   /** 메뉴·검색에서 숨김(페이지·경로는 유지, 목록에만 노출 안 함) */
   hidden?: boolean;
+  /** 더보기(EXTRAS) 묶음 키 — TOOL_SECTIONS */
+  section?: ToolSection;
 }
+export type ToolSection = 'morning' | 'macro' | 'study' | 'stocks' | 'calc';
+/** 더보기 묶음 — 순서대로 노출 */
+export const TOOL_SECTIONS: { key: ToolSection; label: string; desc: string }[] = [
+  { key: 'morning', label: '📰 아침 정보', desc: '브리핑·뉴스·일정' },
+  { key: 'macro', label: '🌐 거시 데이터', desc: '경제지표·발표 이력·실시간 물가' },
+  { key: 'study', label: '📚 매매 교본', desc: '원칙·공부법·체크리스트·폭락 대응' },
+  { key: 'stocks', label: '🔎 종목 도구', desc: '관심종목·종목 비교' },
+  { key: 'calc', label: '🧮 계산·장기투자', desc: '시뮬레이션·투자설계·세제·증권사·가상투자' },
+];
 export interface MenuGroup {
   key: string; label: string; color: string; qc: string; navIcon: string;
   items: MenuItem[];
@@ -103,40 +115,47 @@ export const MENU: MenuGroup[] = [
     { href: '/theme-etf',  icon: 'tools',   label: '테마 ETF',   desc: '테마별 상위 ETF' },
     { href: '/research',   icon: 'report',  label: '리서치',     desc: '애널리스트 산업·목표주가' },
   ], ['/stock/', '/crypto/']),
-  // 분석(종목 비교·리포트)·관심종목은 하단 탭에서 제외하고 '더보기 도구'(EXTRAS)로 이동(2026-09-29, 기능은 유지).
-  // 종목/코인선물 분석(/stock-analysis·/coin-analysis)은 시장 목록의 '분석' 버튼으로 진입(드릴다운, drillTitle로 제목 유지).
-  // 자산 — 단일 허브 한 화면(계좌 잔액 + 성과 7일 대표 노출, 청산·이체·일지는 팝업). 2026-09-23 재구성.
-  // 상세 페이지(계좌/성과/매매일지)는 허브에서 진입하는 드릴다운이라 tabExtra로 탭 강조만 유지.
+  // 트레이딩 — 매매 직전·도중에 보는 화면(2026-10-26 하단 탭 승격, 예전엔 시장 목록 '분석' 버튼 드릴다운이라 찾기 어려웠음)
+  G('trading', '트레이딩', 'c-amber', 'qc-amber', 'futures', [
+    { href: '/coin-analysis', icon: 'analysis', label: '코인 분석', desc: '진입 판단·급변 계기판·폭락 경보·내 포지션' },
+    { href: '/eth',           icon: 'risk',     label: 'ETH 체제',  desc: '공급·수요·포지셔닝·거시 4층(예측 아님)' },
+    { href: '/alerts',        icon: 'bell',     label: '알림',      desc: '가격·코인 알림 한 화면 관리' },
+  ], ['/stock-analysis', '/overseas-analysis']),
+  // 복기 — 규칙을 지켰나(매매일지는 성적·비용·규율·가정 하위 탭)
+  G('review', '복기', 'c-rose', 'qc-rose', 'journal', [
+    { href: '/journal',     icon: 'journal', label: '매매일지',   desc: '성적·비용·규율·가정(규칙대로였다면)' },
+    { href: '/performance', icon: 'growth',  label: '성과',       desc: '기록 R 기준 성과' },
+    { href: '/paper',       icon: 'target',  label: '모의 테스트', desc: '모의 선행테스트 30건 진행·자동 판정' },
+  ]),
+  // 자산 — 계좌·보유 한 화면. 계산·장기투자 도구는 더보기로.
   G('assets', '자산', 'c-green', 'qc-green', 'portfolio', [
-    { href: '/assets', icon: 'portfolio', label: '자산', desc: '계좌·성과 + 청산·이체·일지' },
-  ], ['/bitget', '/performance', '/journal', '/virtual', '/invest', '/tax', '/simulate', '/brokerage']),
+    { href: '/assets', icon: 'portfolio', label: '자산', desc: '계좌·보유·청산·이체' },
+  ], ['/bitget']),
 ];
 
 /** 5섹션 밖의 보조 도구 — 메뉴 시트 '더보기'에서만 노출(드릴다운, 뒤로가기)
  *  ※ KRX 시장(/krx)·성장주 발굴(/growth)은 중복이라 제거: KRX는 시장›국내 "전체보기"로,
  *    성장주 스크리닝은 분석›스크리너로 대체된다. */
 export const EXTRAS: MenuItem[] = [
-  { href: '/brief',      icon: 'sunrise',    label: '모닝 브리핑',  desc: '증시별 거시·금리·유가·뉴스 아침 정리' },
-  { href: '/my-stocks',  icon: 'star',       label: '관심종목',    desc: '국내·해외·코인 저장 목록' },
-  { href: '/screener',   icon: 'screener',   label: '종목 비교',   desc: '여러 종목 재무 비교', alias: ['/growth'] },
-  { href: '/report',     icon: 'report',     label: '리포트',      desc: '증권사 리포트', hidden: true },
-  { href: '/journal',    icon: 'journal',    label: '매매일지',    desc: '거래소 대조·기분·손익 분해·CSV' },
-  { href: '/eth',        icon: 'risk',       label: 'ETH 체제 보드', desc: '공급·수요·포지셔닝·거시 4층 + 레버리지 가드(예측 아님)' },
-  { href: '/alerts',     icon: 'bell',       label: '가격 알림',   desc: '흩어진 알림 한 화면 관리' },
-  { href: '/news',       icon: 'news',       label: '뉴스',        desc: '시장 소식' },
-  { href: '/calendar',   icon: 'calendar',   label: '경제 캘린더', desc: 'FOMC·CPI·실적 등 주요 일정' },
-  { href: '/macro',      icon: 'signal',     label: '경제지표',    desc: '미국 CPI·PPI·달러지수·유가·원달러(FRED)' },
-  { href: '/releases',   icon: 'calendar',   label: '지표 발표 이력', desc: '인베스팅 결과·예측·이전(2021~)' },
-  { href: '/inflation',  icon: 'signal',     label: '실시간 물가',   desc: '나우캐스트 인플레이션·공식 CPI 대비(Nowflation)' },
-  { href: '/principles', icon: 'principles', label: '매매 대원칙', desc: '지킬 3·피할 3' },
-  { href: '/study',      icon: 'insight',    label: '코인 기초 공부법', desc: '차트·RSI·MACD·피보나치·금리·유가' },
-  { href: '/study/reentry', icon: 'principles', label: '진입·재진입 체크리스트', desc: '진입 전 7문항·손절 후 60분 프로토콜' },
-  { href: '/study/entry-signals', icon: 'insight', label: '롱·숏 진입 신호 가이드', desc: '신호 평가·가격대·RSI/MACD 해석·최종 진입 규칙' },
-  { href: '/virtual',   icon: 'virtual',   label: '가상투자',    desc: '모의매매·백업' },
-  { href: '/invest',    icon: 'invest',    label: '투자설계',    desc: '계좌·자산 추천' },
-  { href: '/tax',       icon: 'tax',       label: '세제혜택',    desc: 'ISA·IRP·연금' },
-  { href: '/simulate',  icon: 'simulate',  label: '시뮬레이션',  desc: '복리 FV 계산' },
-  { href: '/brokerage', icon: 'brokerage', label: '증권사 비교', desc: '수수료·CMA' },
+  { href: '/brief',      icon: 'sunrise',    label: '모닝 브리핑',  desc: '증시별 거시·금리·유가·뉴스 아침 정리', section: 'morning' },
+  { href: '/news',       icon: 'news',       label: '뉴스',        desc: '시장 소식', section: 'morning' },
+  { href: '/calendar',   icon: 'calendar',   label: '경제 캘린더', desc: 'FOMC·CPI·실적 등 주요 일정', section: 'morning' },
+  { href: '/macro',      icon: 'signal',     label: '경제지표',    desc: '미국 CPI·PPI·달러지수·유가·원달러(FRED)', section: 'macro' },
+  { href: '/releases',   icon: 'calendar',   label: '지표 발표 이력', desc: '인베스팅 결과·예측·이전(2021~)', section: 'macro' },
+  { href: '/inflation',  icon: 'signal',     label: '실시간 물가',   desc: '나우캐스트 인플레이션·공식 CPI 대비', section: 'macro' },
+  { href: '/study/crash', icon: 'risk',      label: '폭락 대응 교본', desc: '3단계·30초 체크리스트·측정 결과', section: 'study' },
+  { href: '/principles', icon: 'principles', label: '매매 대원칙', desc: '지킬 3·피할 3', section: 'study' },
+  { href: '/study/reentry', icon: 'principles', label: '진입·재진입 체크리스트', desc: '진입 전 7문항·손절 후 60분 프로토콜', section: 'study' },
+  { href: '/study/entry-signals', icon: 'insight', label: '롱·숏 진입 신호 가이드', desc: '신호 평가·가격대·RSI/MACD 해석', section: 'study' },
+  { href: '/study',      icon: 'insight',    label: '코인 기초 공부법', desc: '차트·RSI·MACD·피보나치·금리·유가', section: 'study' },
+  { href: '/my-stocks',  icon: 'star',       label: '관심종목',    desc: '국내·해외·코인 저장 목록', section: 'stocks' },
+  { href: '/screener',   icon: 'screener',   label: '종목 비교',   desc: '여러 종목 재무 비교', alias: ['/growth'], section: 'stocks' },
+  { href: '/report',     icon: 'report',     label: '리포트',      desc: '증권사 리포트', hidden: true, section: 'stocks' },
+  { href: '/simulate',  icon: 'simulate',  label: '시뮬레이션',  desc: '복리·선물 손익·익절 규칙', section: 'calc' },
+  { href: '/virtual',   icon: 'virtual',   label: '가상투자',    desc: '모의매매·백업', section: 'calc' },
+  { href: '/invest',    icon: 'invest',    label: '투자설계',    desc: '계좌·자산 추천', section: 'calc' },
+  { href: '/tax',       icon: 'tax',       label: '세제혜택',    desc: 'ISA·IRP·연금', section: 'calc' },
+  { href: '/brokerage', icon: 'brokerage', label: '증권사 비교', desc: '수수료·CMA', section: 'calc' },
 ];
 
 /** 실시간 물가(/inflation) 허브의 하위 섹션 — 메뉴 '실시간 물가 허브'·검색에 노출(InflationNav SECTIONS 와 동일 구성).
@@ -184,12 +203,9 @@ export function drillTitle(pathname: string): string {
   if (under(pathname, '/tools')) return '더보기 도구';
   // 자산 허브에서 진입하는 상세 페이지
   if (under(pathname, '/bitget')) return '계좌 상세';
-  if (under(pathname, '/performance')) return '성과';
-  if (under(pathname, '/journal')) return '매매일지';
-  // 시장 목록의 '분석' 버튼으로 진입(메뉴에서 숨김)
+  // 시장 목록의 '분석' 버튼으로 진입(트레이딩 탭 강조만 유지)
   if (under(pathname, '/stock-analysis')) return '종목 분석';
   if (under(pathname, '/overseas-analysis')) return '해외 분석';
-  if (under(pathname, '/coin-analysis')) return '코인선물 분석';
   return EXTRAS.find((e) => under(pathname, e.href))?.label ?? 'KOSPI LAB';
 }
 
@@ -217,4 +233,4 @@ export const FLAT: FlatMenuItem[] = [
 export const BY_HREF = new Map(FLAT.map((f) => [f.href, f]));
 
 /** 방문 데이터 없을 때 기본 '자주 쓰는' — 손이 가는 자동 데이터 위주 */
-export const DEFAULT_QUICK = ['/brief', '/assets', '/my-stocks', '/journal', '/coin-analysis'];
+export const DEFAULT_QUICK = ['/brief', '/coin-analysis', '/journal', '/paper', '/alerts'];

@@ -9,7 +9,7 @@
  * 코인선물 전용(거래소 자동 대조가 되는 유일한 소스). 읽기 전용 조회 — 주문하지 않는다.
  * 색은 한국 관행(상승·이익=빨강 / 하락·손실=파랑).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { useTradeMood, type TradeMood } from '@/hooks/useTradeMood';
@@ -86,6 +86,20 @@ function periodLabel(days: number): string {
 const fmtUsdt = (n: number) => (Math.abs(n) >= 1000 ? Math.round(n).toLocaleString() : String(Math.round(n * 100) / 100));
 
 const PRINCIPAL_KEY = 'kospi-lab-journal-principal';
+
+/** 하위 탭 — 한 화면에 한 가지 질문만. URL ?tab= 값과 같다(성적은 기본이라 생략) */
+type JournalTab = 'perf' | 'cost' | 'discipline' | 'whatif';
+const TABS: { key: JournalTab; label: string; hint: string }[] = [
+  { key: 'perf',       label: '성적', hint: '얼마 벌고 잃었나 — 요약·자산 곡선·달력·월별·시장 비교' },
+  { key: 'cost',       label: '비용', hint: '수수료·펀딩·출금이 손익을 얼마나 깎나' },
+  { key: 'discipline', label: '규율', hint: '규칙대로 매매했나 — 손절·손실 크기·과매매·연패·시간대·태그' },
+  { key: 'whatif',     label: '가정', hint: '규칙대로 했다면, 끝까지 들고 있었다면' },
+];
+const subscribeNoop = () => () => {};
+const readUrlTab = (): JournalTab => {
+  const q = new URLSearchParams(window.location.search).get('tab');
+  return TABS.find((x) => x.key === q)?.key ?? 'perf';
+};
 
 /** 시장 벤치마크 — 내 매매 기간 동안 시장 + (원금 입력 시) 내 수익률%곡선 vs 지수 오버레이. 공통 조각은 components/MarketBenchmark. */
 function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
@@ -343,26 +357,53 @@ export default function JournalPage() {
     setEditing(null);
   };
 
-  // 복기 목차 — 실제로 렌더되는 카드만(데이터 없으면 칩도 없음)
-  const tocItems = ([
-    breakItems.length > 0 && { id: 'sec-breakdown', label: '손익 분해' },
-    heatmap.cells.length > 0 && { id: 'sec-heatmap', label: '요일×시간대' },
-    positions.length > 0 && { id: 'sec-stats', label: '성적·곡선·비용' },
-    (setupStats.length > 0 || mistakeStats.length > 0) && { id: 'sec-tagstat', label: '태그별 성적' },
-    convStatsAll.length > 0 && { id: 'sec-conviction', label: '확신 보정' },
-    convBySetup.length > 0 && { id: 'sec-setupconv', label: '셋업×확신' },
-    convByMistake.length > 0 && { id: 'sec-mistakeconv', label: '실수×확신' },
-    months.length > 0 && { id: 'sec-months', label: '월별' },
-  ].filter(Boolean)) as { id: string; label: string }[];
+  // ── 하위 탭(성적·비용·규율·가정) — ?tab= 으로 딥링크. useSearchParams 는 정적 HTML 을 비우므로 window.location 으로 읽는다 ──
+  // 서버·첫 렌더는 'perf', 하이드레이션 뒤 URL 값(딥링크). 사용자가 누르면 picked 가 우선
+  const urlTab = useSyncExternalStore(subscribeNoop, readUrlTab, () => 'perf' as JournalTab);
+  const [picked, setPicked] = useState<JournalTab | null>(null);
+  const tab: JournalTab = picked ?? urlTab;
+  // 한 번 연 탭은 계속 마운트(카드 내부 상태·진행 중 계산 유지) — 처음엔 활성 탭만 그려 초기 로드를 가볍게
+  const [visited, setVisited] = useState<ReadonlySet<JournalTab>>(() => new Set<JournalTab>());
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [stickyTop, setStickyTop] = useState<string>('calc(52px + var(--sat))');
+  // 탭바는 앱바(+모바일 섹션 탭) 바로 아래에 붙인다 — 두 높이를 재서 겹치지 않게
+  useEffect(() => {
+    const calc = () => {
+      const header = document.querySelector<HTMLElement>('header.site-header');
+      const nav = document.querySelector<HTMLElement>('.u-tabs-wrap');
+      if (nav && nav.offsetParent !== null) {
+        const top = parseFloat(getComputedStyle(nav).top) || 0;
+        setStickyTop(`${top + nav.offsetHeight}px`);
+      } else if (header) {
+        setStickyTop(`${header.offsetHeight}px`);
+      }
+    };
+    calc();
+    window.addEventListener('resize', calc);
+    return () => window.removeEventListener('resize', calc);
+  }, []);
+  const selectTab = (t: JournalTab) => {
+    setPicked(t);
+    setVisited((v) => new Set(v).add(tab).add(t)); // 떠나는 탭도 계속 마운트
+    try {
+      const url = new URL(window.location.href);
+      if (t === 'perf') url.searchParams.delete('tab'); else url.searchParams.set('tab', t);
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    } catch { /* 무시 */ }
+    // 아래로 많이 내려와 있었다면 새 탭의 처음이 보이게 탭바 위치까지만 올린다
+    const sentinel = sentinelRef.current; // 탭바 바로 위 0px 표식 = 탭바의 원래(비고정) 위치
+    if (sentinel) {
+      const y = sentinel.getBoundingClientRect().top + window.scrollY - (parseFloat(stickyTop) || 0);
+      if (window.scrollY > y) window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+    }
+  };
+  const show = (t: JournalTab) => t === tab || visited.has(t);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       <div className="mb-4">
         <h1 className="text-lg font-bold text-[var(--text)]">매매일지 <span className="text-xs font-normal text-[var(--text-muted)]">거래소 대조 · 기분 · 월별 보고서</span></h1>
-        <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
-          거래소가 아는 매입·청산·실현손익(수수료·펀딩 반영)을 그대로 가져오고, 매매마다 <strong className="text-[var(--text)]">진입 당시 기분</strong>을 남깁니다.
-          손으로 적는 기록은 이긴 매매만 남기 쉬워, 대조는 거래소에 맡깁니다. <span className="text-[var(--faint)]">코인선물(Bitget) · 읽기 전용 조회.</span>
-        </p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Bitget 청산 기록을 그대로 가져와 복기합니다(수수료·펀딩 반영 · 읽기 전용).</p>
       </div>
 
       {/* 복기 사용법 — 접힘(처음 쓰는 사람용) */}
@@ -378,19 +419,6 @@ export default function JournalPage() {
           <p className="text-[var(--faint)]">전부 과거 기록 복기이며 방향 예측·매매 신호가 아닙니다. 태그·확신은 이 기기에 저장(선택 시 기기 간 동기화)됩니다.</p>
         </div>
       </details>
-
-      {/* 복기 목차 — 카드로 바로가기(앵커) */}
-      {tocItems.length > 1 && (
-        <nav aria-label="복기 목차" className="flex items-center gap-1.5 flex-wrap mb-3">
-          <span className="text-[10px] text-[var(--text-muted)] shrink-0">바로가기</span>
-          {tocItems.map((t) => (
-            <a key={t.id} href={`#${t.id}`}
-              className="px-2 py-1 rounded-lg border border-[var(--border)] text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-hover)] transition-colors">
-              {t.label}
-            </a>
-          ))}
-        </nav>
-      )}
 
       {/* 기간 + 가져오기 */}
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
@@ -418,244 +446,289 @@ export default function JournalPage() {
       {err && <p className="mb-3 text-[12px] text-red-400">⚠ {err} {err.includes('잠금') && <Link href="/bitget" className="underline">계좌로 이동</Link>}</p>}
       {msg && !err && <p className="mb-3 text-[12px] text-[var(--text-muted)]">{msg}</p>}
 
-      {/* 현재 포지션 (미청산) — 진입 당시 기분을 바로 기록 */}
-      {open.length > 0 && (
-        <section className="mb-5">
-          <h2 className="text-sm font-bold text-[var(--text)] mb-2">현재 포지션 <span className="text-[10px] font-normal text-[var(--text-muted)]">미청산 · 눌러서 기분·태그 기록</span></h2>
-          <div className="fin-card overflow-hidden">
-            {open.map((p, i) => {
-              const id = openId(p);
-              const mood = moods[id];
-              const meta = mood ? MOOD_BY_KEY.get(mood.mood) : null;
-              return (
-                <button key={id} type="button" onClick={() => setEditing({ id, symbol: p.symbol })}
-                  className={`w-full text-left px-4 py-3 flex items-center gap-3 active:bg-[var(--surface-2)] transition-colors ${i > 0 ? 'border-t border-[var(--line-2)]' : ''}`}>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5 flex-wrap">
-                      <b className="text-[14px] text-[var(--text)]">{coinName(p.symbol)}</b>
-                      <SideBadge side={p.side} />
-                      {p.leverage > 0 && <span className="text-[10px] font-bold text-[var(--faint)]">{p.leverage}x</span>}
-                      {meta && <span className="text-[11px]">{meta.emoji} {meta.label}</span>}
-                      <TagEmojis set={tags[id]} />
-                      {snaps.ids.has(id) && <span className="text-[11px] text-[var(--faint)]" title="차트 이미지 있음">📎</span>}
-                    </span>
-                    <span className="block text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
-                      진입 {fmtCoinPrice(p.openAvg)} · 현재 {fmtCoinPrice(p.markPrice)}{p.liqDistPct != null ? ` · 청산까지 ${p.liqDistPct.toFixed(1)}%` : ''}
-                    </span>
-                  </span>
-                  <span className="text-right shrink-0">
-                    <span className="block text-[14px] font-bold tabular-nums" style={{ color: pnlColor(p.unrealizedPL) }}>{fmtPnl(p.unrealizedPL)}</span>
-                    <span className="block text-[10px] text-[var(--faint)]">미실현</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* 손익 분해 — 요일·시간대·종목별(청산 건). 행을 누르면 그 구간 매매가 펼쳐짐 */}
-      {positions.length > 0 && (
-        <div id="sec-breakdown" className="scroll-mt-16">
-        <BreakdownTables items={breakItems} unit="USDT" valueLabel="순손익" fmt={fmtPnl}
-          sub={`최근 ${days}일 청산 ${positions.length}건 · 진입 시각(KST) 기준`}
-          selectedRow={selRow} onSelectRow={setSelRow}
-          renderDetail={(sel) => (
-            <BucketTrades title={rowLabel(sel)} trades={rowTrades} moods={moods} tags={tags} snapIds={snaps.ids}
-              note="행을 누르면 기분·태그·스냅샷 기록"
-              onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelRow(null)} />
-          )} />
+      {/* 하위 탭 — 앱바(+모바일 섹션 탭) 아래에 붙는다. 기간·가져오기는 위에서 모든 탭이 공유 */}
+      <div ref={sentinelRef} aria-hidden className="h-0" />
+      <div className="sticky z-20 -mx-4 mb-2 border-b border-[var(--line)] backdrop-blur-[14px] bg-[color-mix(in_srgb,var(--bg)_94%,transparent)]" style={{ top: stickyTop }}>
+        <div className="u-tabs" role="tablist" aria-label="매매일지 탭">
+          {TABS.map((t) => (
+            <button key={t.key} type="button" role="tab" id={`journal-tab-${t.key}`} aria-controls={`journal-panel-${t.key}`} aria-selected={tab === t.key}
+              className={`u-tab !text-[14px] bg-transparent border-0 cursor-pointer ${tab === t.key ? 'on' : ''}`} onClick={() => selectTab(t.key)}>
+              {t.label}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
+      <p className="text-[11px] text-[var(--faint)] mb-3 px-1 leading-relaxed">{TABS.find((t) => t.key === tab)?.hint}</p>
 
-      {/* 요일 × 시간대 히트맵 — 어느 요일·시간에 벌고 잃었나 (칸 클릭 → 그 칸 매매 드릴다운) */}
-      {positions.length > 0 && heatmap.cells.length > 0 && (
-        <div id="sec-heatmap" className="scroll-mt-16">
-        <WeekdayHourHeatmap h={heatmap} fmt={fmtPnl} sub={`최근 ${days}일 · 진입 시각(KST) 기준`}
-          selected={selCell} onSelect={(c) => setSelCell((cur) => (cur && cur.wd === c.wd && cur.band === c.band ? null : c))}
-          detail={<BucketTrades title={selCell ? `${WEEKDAYS[selCell.wd]}요일 ${HOUR_BANDS[selCell.band].label}` : null} trades={cellTrades}
-            moods={moods} tags={tags} snapIds={snaps.ids} note="진입 시각(KST) 기준 · 행을 누르면 기분·태그·스냅샷 기록"
-            onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelCell(null)} />} />
-        </div>
-      )}
-
-      {/* 자산 곡선 · 연속 승패 · 일별 손익 달력 — 청산 시각 기준 실현손익 */}
-      {positions.length > 0 && (
-        <div id="sec-stats" className="scroll-mt-16">
-          {(streak.maxWin > 0 || streak.maxLoss > 0) && (
-            <div className="fin-card px-4 py-3 mb-3 flex items-center gap-4 text-[12px] flex-wrap">
-              <span className="font-bold text-[var(--text)]">연속 승/패</span>
-              <span className="text-[var(--text-muted)]">최대 연승 <b className="tabular-nums" style={{ color: 'var(--warn)' }}>{streak.maxWin}</b></span>
-              <span className="text-[var(--text-muted)]">최대 연패 <b className="tabular-nums" style={{ color: 'var(--accent-ink)' }}>{streak.maxLoss}</b></span>
-              {streak.current !== 0 && (
-                <span className="ml-auto text-[var(--text-muted)]">현재{' '}
-                  <b className="tabular-nums" style={{ color: streak.current > 0 ? 'var(--warn)' : 'var(--accent-ink)' }}>
-                    {streak.current > 0 ? `${streak.current}연승` : `${-streak.current}연패`}
-                  </b>
-                </span>
-              )}
-            </div>
-          )}
-          <EdgeSummaryCard e={edge} unit="USDT" fmt={fmtUsdt} sub={`최근 ${days}일 청산 ${edge.n}건 · 순손익 USDT(수수료·펀딩 반영)`} />
-          <CostCard c={costs} fmt={fmtUsdt} holdRows={holdCosts} cash={cash} sub={`${periodLabel(days)} 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
-          <FeeDiagCard days={days} fmt={fmtUsdt} />
-          <DisciplineCard positions={positions} days={days} />
-          <RiskSizeCard trades={riskTrades} equity={equity} fmt={fmtUsdt} sub={`${periodLabel(days)} 손실 매매 · 순손실 기준`} />
-          <CounterfactualCard trades={positions} equity={equity} fmt={fmtUsdt} sub={`${periodLabel(days)} 청산 ${positions.length}건`} />
-          <TradesPerDayCard rows={perDay} fmt={fmtUsdt} />
-          <AfterLossTable rows={afterLoss} fmt={fmtUsdt} breakerAt={limits.maxConsecutiveLosses} />
-          <ExcursionSummaryCard trades={positions} tagsByPosition={tags} />
-          <EquityCurveLazy trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />
-          <BenchmarkCard trades={analyticsTrades} />
-          <CalendarHeatmap trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} selected={selDay} onSelect={setSelDay}
-            detail={<DayTrades date={selDay} trades={dayTrades} moods={moods} tags={tags} snapIds={snaps.ids}
-              onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelDay(null)} />} />
-        </div>
-      )}
-
-      {/* 셋업·실수 태그별 성적 — 어떤 셋업이 돈이 되고 어떤 실수가 깎나 */}
-      {positions.length > 0 && (setupStats.length > 0 || mistakeStats.length > 0) && (
-        <section id="sec-tagstat" className="scroll-mt-16 mb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <TagStatTable title="셋업별 성적" sub="왜 들어갔나" stats={setupStats} />
-          <TagStatTable title="실수별 성적" sub="무엇을 잘못했나" stats={mistakeStats} />
-        </section>
-      )}
-      {positions.length > 0 && setupStats.length === 0 && mistakeStats.length === 0 && (
-        <p className="text-[11px] text-[var(--faint)] mb-5 px-1 leading-relaxed">
-          매매 행을 눌러 <b className="text-[var(--text-muted)]">셋업·실수 태그</b>를 달면 "어떤 셋업이 돈이 되고 어떤 실수가 깎나"가 여기 집계됩니다(참고: Edgewonk·TraderSync).
-        </p>
-      )}
-
-      {/* 확신 복기 기간 토글 — 전체 vs 이번 달(교차표·코칭에만 적용) */}
-      {positions.length > 0 && convStatsAll.length > 0 && (
-        <div id="sec-conviction" className="scroll-mt-16 flex items-center gap-2 mb-2 px-1">
-          <span className="text-[11px] text-[var(--text-muted)]">확신 복기 기간</span>
-          <div className="seg" role="tablist" aria-label="확신 복기 기간">
-            {([['all', '전체'], ['month', '이번 달']] as const).map(([k, l]) => (
-              <button key={k} type="button" role="tab" aria-selected={convPeriod === k} className={`seg-i !px-2.5 ${convPeriod === k ? 'on' : ''}`} onClick={() => setConvPeriod(k)}>{l}</button>
-            ))}
-          </div>
-          {convPeriod === 'month' && <span className="text-[10px] text-[var(--faint)] tabular-nums">{curYM.replace('-', '.')} 기준</span>}
-        </div>
-      )}
-      {positions.length > 0 && convStatsAll.length > 0 && convStats.length === 0 && (
-        <p className="text-[11px] text-[var(--faint)] px-1 mb-3">이번 달({curYM.replace('-', '.')})에 확신을 매긴 청산 매매가 없습니다 — &lsquo;전체&rsquo;로 보세요.</p>
-      )}
-
-      {/* 확신 보정 종합 한 줄 — 확신별·셋업×확신·실수×확신을 묶은 코칭 */}
-      {positions.length > 0 && convStats.length > 0 && (() => {
-        const style = coaching.verdict === 'calibrated' ? 'border-emerald-500/40 bg-emerald-500/5'
-          : coaching.verdict === 'overconfident' ? 'border-amber-500/40 bg-amber-500/5'
-          : 'border-[var(--border)] bg-[var(--surface-2)]';
-        const emoji = coaching.verdict === 'calibrated' ? '🎯' : coaching.verdict === 'overconfident' ? '⚠️' : coaching.verdict === 'insufficient' ? '📊' : '🤔';
-        return (
-          <div className={`rounded-2xl border p-4 mb-3 ${style}`}>
-            <div className="flex items-start gap-2">
-              <span className="text-base leading-none mt-0.5">{emoji}</span>
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold text-[var(--text)] mb-0.5">확신 보정 <span className="font-normal text-[var(--text-muted)]">— 확신이 결과와 맞는 편인가</span></p>
-                <p className="text-[12px] text-[var(--text)] leading-relaxed">{coaching.text}</p>
+      {show('perf') && (
+        <div role="tabpanel" id="journal-panel-perf" aria-labelledby="journal-tab-perf" hidden={tab !== 'perf'}>
+          {/* 현재 포지션 (미청산) — 진입 당시 기분을 바로 기록 */}
+          {open.length > 0 && (
+            <section className="mb-5">
+              <h2 className="text-sm font-bold text-[var(--text)] mb-2">현재 포지션 <span className="text-[10px] font-normal text-[var(--text-muted)]">미청산 · 눌러서 기분·태그 기록</span></h2>
+              <div className="fin-card overflow-hidden">
+                {open.map((p, i) => {
+                  const id = openId(p);
+                  const mood = moods[id];
+                  const meta = mood ? MOOD_BY_KEY.get(mood.mood) : null;
+                  return (
+                    <button key={id} type="button" onClick={() => setEditing({ id, symbol: p.symbol })}
+                      className={`w-full text-left px-4 py-3 flex items-center gap-3 active:bg-[var(--surface-2)] transition-colors ${i > 0 ? 'border-t border-[var(--line-2)]' : ''}`}>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5 flex-wrap">
+                          <b className="text-[14px] text-[var(--text)]">{coinName(p.symbol)}</b>
+                          <SideBadge side={p.side} />
+                          {p.leverage > 0 && <span className="text-[10px] font-bold text-[var(--faint)]">{p.leverage}x</span>}
+                          {meta && <span className="text-[11px]">{meta.emoji} {meta.label}</span>}
+                          <TagEmojis set={tags[id]} />
+                          {snaps.ids.has(id) && <span className="text-[11px] text-[var(--faint)]" title="차트 이미지 있음">📎</span>}
+                        </span>
+                        <span className="block text-[11px] text-[var(--text-muted)] mt-0.5 tabular-nums">
+                          진입 {fmtCoinPrice(p.openAvg)} · 현재 {fmtCoinPrice(p.markPrice)}{p.liqDistPct != null ? ` · 청산까지 ${p.liqDistPct.toFixed(1)}%` : ''}
+                        </span>
+                      </span>
+                      <span className="text-right shrink-0">
+                        <span className="block text-[14px] font-bold tabular-nums" style={{ color: pnlColor(p.unrealizedPL) }}>{fmtPnl(p.unrealizedPL)}</span>
+                        <span className="block text-[10px] text-[var(--faint)]">미실현</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-          </div>
-        );
-      })()}
+            </section>
+          )}
 
-      {/* 확신(신뢰도 1~5)별 성적 */}
-      {positions.length > 0 && convStats.length > 0 && (
-        <ConvictionCard rows={convStats} fmt={fmtUsdt} sub={`최근 ${days}일 · 확신 매긴 ${convStats.reduce((a, r) => a + r.count, 0)}건`} />
-      )}
-
-      {/* 셋업 × 확신 교차 — 어떤 셋업에서 확신이 잘 맞았나 */}
-      {positions.length > 0 && convBySetup.length > 0 && (
-        <div id="sec-setupconv" className="scroll-mt-16">
-        <SetupConvictionCard rows={convBySetup} fmt={fmtUsdt} sub={`최근 ${days}일 · 셋업+확신 둘 다 매긴 매매`} />
-        </div>
-      )}
-
-      {/* 실수 × 확신 교차 — 어떤 실수가 어떤 확신대에서 나왔나(과신 점검) */}
-      {positions.length > 0 && convByMistake.length > 0 && (
-        <div id="sec-mistakeconv" className="scroll-mt-16">
-        <SetupConvictionCard kind="mistake" rows={convByMistake} fmt={fmtUsdt} sub={`최근 ${days}일 · 실수+확신 둘 다 매긴 매매`} />
-        </div>
-      )}
-
-      {/* ③ 월별 보고서 — 접힘 상태로 월 목록만, 월을 누르면 상세 펼침(청산 건만) */}
-      {months.length > 0 && (
-        <section id="sec-months" className="scroll-mt-16 mb-5">
-          <h2 className="text-sm font-bold text-[var(--text)] mb-2">월별 보고서 <span className="text-[10px] font-normal text-[var(--text-muted)]">월을 누르면 상세가 열립니다</span></h2>
-          <div className="fin-card overflow-hidden">
-            {months.map((m, i) => {
-              const isOpen = selMonth === m.month;
-              const trades = monthGroups.get(m.month) ?? [];
-              const mm = moodStats(trades, moods);
-              return (
-                <div key={m.month} className={i > 0 ? 'border-t border-[var(--line-2)]' : ''}>
-                  <button type="button" onClick={() => setSelMonth(isOpen ? null : m.month)}
-                    className="w-full flex items-center justify-between gap-3 px-4 py-3 active:bg-[var(--surface-2)] transition-colors">
-                    <span className="flex items-center gap-2 min-w-0">
-                      <Chevron open={isOpen} />
-                      <b className="text-[15px] text-[var(--text)]">{kstMonthLabel(m.month)}</b>
-                      <span className="text-[11px] text-[var(--text-muted)]">{m.count}건 · 승 {m.winRate != null ? `${m.winRate.toFixed(0)}%` : '—'}</span>
+          {positions.length > 0 && (
+            <>
+              {(streak.maxWin > 0 || streak.maxLoss > 0) && (
+                <div className="fin-card px-4 py-3 mb-3 flex items-center gap-4 text-[12px] flex-wrap">
+                  <span className="font-bold text-[var(--text)]">연속 승/패</span>
+                  <span className="text-[var(--text-muted)]">최대 연승 <b className="tabular-nums" style={{ color: 'var(--warn)' }}>{streak.maxWin}</b></span>
+                  <span className="text-[var(--text-muted)]">최대 연패 <b className="tabular-nums" style={{ color: 'var(--accent-ink)' }}>{streak.maxLoss}</b></span>
+                  {streak.current !== 0 && (
+                    <span className="ml-auto text-[var(--text-muted)]">현재{' '}
+                      <b className="tabular-nums" style={{ color: streak.current > 0 ? 'var(--warn)' : 'var(--accent-ink)' }}>
+                        {streak.current > 0 ? `${streak.current}연승` : `${-streak.current}연패`}
+                      </b>
                     </span>
-                    <span className="text-[15px] font-extrabold tabular-nums shrink-0" style={{ color: pnlColor(m.netSum) }}>{fmtPnl(m.netSum)} USDT</span>
-                  </button>
+                  )}
+                </div>
+              )}
+              <EdgeSummaryCard e={edge} unit="USDT" fmt={fmtUsdt} sub={`최근 ${days}일 청산 ${edge.n}건 · 순손익 USDT(수수료·펀딩 반영)`} />
+              <EquityCurveLazy trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} />
+              <CalendarHeatmap trades={analyticsTrades} unit="USDT" fmt={fmtUsdt} selected={selDay} onSelect={setSelDay}
+                detail={<DayTrades date={selDay} trades={dayTrades} moods={moods} tags={tags} snapIds={snaps.ids}
+                  onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelDay(null)} />} />
+            </>
+          )}
 
-                  {isOpen && (
-                    <div className="px-4 pb-4">
-                      {/* 요약 */}
-                      <div className="grid grid-cols-3 gap-x-3 gap-y-3 text-sm rounded-xl bg-[var(--surface-2)] p-3">
-                        <Stat label="거래" value={`${m.count}건`} />
-                        <Stat label="승률" value={m.winRate != null ? `${m.winRate.toFixed(0)}% (${m.wins}/${m.count})` : '—'} />
-                        <Stat label="롱 / 숏" value={`${m.longCount} / ${m.shortCount}`} />
-                        <Stat label="평균 보유" value={fmtHold(m.avgHoldMs)} />
-                        <Stat label="수수료" value={`${m.feeSum.toFixed(2)}`} />
-                        <Stat label="펀딩" value={fmtPnl(m.fundingSum)} />
-                      </div>
-                      {(m.best || m.worst) && (
-                        <div className="mt-3 grid grid-cols-2 gap-3 text-[12px]">
-                          {m.best && <div><span className="text-[var(--text-muted)]">최고 </span><b className="text-[var(--text)]">{coinName(m.best.symbol)}</b> <span className="tabular-nums" style={{ color: pnlColor(m.best.netProfit) }}>{fmtPnl(m.best.netProfit)}</span></div>}
-                          {m.worst && <div><span className="text-[var(--text-muted)]">최저 </span><b className="text-[var(--text)]">{coinName(m.worst.symbol)}</b> <span className="tabular-nums" style={{ color: pnlColor(m.worst.netProfit) }}>{fmtPnl(m.worst.netProfit)}</span></div>}
-                        </div>
-                      )}
+          {/* ③ 월별 보고서 — 접힘 상태로 월 목록만, 월을 누르면 상세 펼침(청산 건만) */}
+          {months.length > 0 && (
+            <section id="sec-months" className="scroll-mt-16 mb-5">
+              <h2 className="text-sm font-bold text-[var(--text)] mb-2">월별 보고서 <span className="text-[10px] font-normal text-[var(--text-muted)]">월을 누르면 상세가 열립니다</span></h2>
+              <div className="fin-card overflow-hidden">
+                {months.map((m, i) => {
+                  const isOpen = selMonth === m.month;
+                  const trades = monthGroups.get(m.month) ?? [];
+                  const mm = moodStats(trades, moods);
+                  return (
+                    <div key={m.month} className={i > 0 ? 'border-t border-[var(--line-2)]' : ''}>
+                      <button type="button" onClick={() => setSelMonth(isOpen ? null : m.month)}
+                        className="w-full flex items-center justify-between gap-3 px-4 py-3 active:bg-[var(--surface-2)] transition-colors">
+                        <span className="flex items-center gap-2 min-w-0">
+                          <Chevron open={isOpen} />
+                          <b className="text-[15px] text-[var(--text)]">{kstMonthLabel(m.month)}</b>
+                          <span className="text-[11px] text-[var(--text-muted)]">{m.count}건 · 승 {m.winRate != null ? `${m.winRate.toFixed(0)}%` : '—'}</span>
+                        </span>
+                        <span className="text-[15px] font-extrabold tabular-nums shrink-0" style={{ color: pnlColor(m.netSum) }}>{fmtPnl(m.netSum)} USDT</span>
+                      </button>
 
-                      {/* 기분별 성적(그 달) */}
-                      {mm.length > 0 && (
-                        <div className="mt-4">
-                          <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">기분별 성적 <span className="text-[10px] font-normal text-[var(--text-muted)]">어떤 심리일 때 잘·못 했나</span></h3>
-                          <div className="space-y-1.5">
-                            {mm.map((s) => {
-                              const meta = MOOD_BY_KEY.get(s.mood)!;
-                              return (
-                                <div key={s.mood} className="flex items-center gap-2 text-[13px]">
-                                  <span className="w-28 shrink-0">{meta.emoji} {meta.label}</span>
-                                  <span className="text-[var(--text-muted)] tabular-nums w-12">{s.count}건</span>
-                                  <span className="text-[var(--text-muted)] tabular-nums w-14">{s.winRate != null ? `${s.winRate.toFixed(0)}%` : '—'}</span>
-                                  <span className="ml-auto font-bold tabular-nums" style={{ color: pnlColor(s.netSum) }}>{fmtPnl(s.netSum)}</span>
-                                </div>
-                              );
-                            })}
+                      {isOpen && (
+                        <div className="px-4 pb-4">
+                          {/* 요약 */}
+                          <div className="grid grid-cols-3 gap-x-3 gap-y-3 text-sm rounded-xl bg-[var(--surface-2)] p-3">
+                            <Stat label="거래" value={`${m.count}건`} />
+                            <Stat label="승률" value={m.winRate != null ? `${m.winRate.toFixed(0)}% (${m.wins}/${m.count})` : '—'} />
+                            <Stat label="롱 / 숏" value={`${m.longCount} / ${m.shortCount}`} />
+                            <Stat label="평균 보유" value={fmtHold(m.avgHoldMs)} />
+                            <Stat label="수수료" value={`${m.feeSum.toFixed(2)}`} />
+                            <Stat label="펀딩" value={fmtPnl(m.fundingSum)} />
+                          </div>
+                          {(m.best || m.worst) && (
+                            <div className="mt-3 grid grid-cols-2 gap-3 text-[12px]">
+                              {m.best && <div><span className="text-[var(--text-muted)]">최고 </span><b className="text-[var(--text)]">{coinName(m.best.symbol)}</b> <span className="tabular-nums" style={{ color: pnlColor(m.best.netProfit) }}>{fmtPnl(m.best.netProfit)}</span></div>}
+                              {m.worst && <div><span className="text-[var(--text-muted)]">최저 </span><b className="text-[var(--text)]">{coinName(m.worst.symbol)}</b> <span className="tabular-nums" style={{ color: pnlColor(m.worst.netProfit) }}>{fmtPnl(m.worst.netProfit)}</span></div>}
+                            </div>
+                          )}
+
+                          {/* 기분별 성적(그 달) */}
+                          {mm.length > 0 && (
+                            <div className="mt-4">
+                              <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">기분별 성적 <span className="text-[10px] font-normal text-[var(--text-muted)]">어떤 심리일 때 잘·못 했나</span></h3>
+                              <div className="space-y-1.5">
+                                {mm.map((s) => {
+                                  const meta = MOOD_BY_KEY.get(s.mood)!;
+                                  return (
+                                    <div key={s.mood} className="flex items-center gap-2 text-[13px]">
+                                      <span className="w-28 shrink-0">{meta.emoji} {meta.label}</span>
+                                      <span className="text-[var(--text-muted)] tabular-nums w-12">{s.count}건</span>
+                                      <span className="text-[var(--text-muted)] tabular-nums w-14">{s.winRate != null ? `${s.winRate.toFixed(0)}%` : '—'}</span>
+                                      <span className="ml-auto font-bold tabular-nums" style={{ color: pnlColor(s.netSum) }}>{fmtPnl(s.netSum)}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 거래내역(그 달, 청산 성적) — 행을 눌러 기분·태그 기록 */}
+                          <div className="mt-4">
+                            <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">거래내역 <span className="text-[10px] font-normal text-[var(--text-muted)]">행을 눌러 기분·태그 기록</span></h3>
+                            <div className="rounded-xl border border-[var(--line-2)] overflow-hidden">
+                              {trades.map((p, j) => (
+                                <TradeRow key={p.positionId} p={p} mood={moods[p.positionId]} tagset={tags[p.positionId]} hasSnap={snaps.ids.has(p.positionId)} border={j > 0}
+                                  onEdit={() => setEditing({ id: p.positionId, symbol: p.symbol })} />
+                              ))}
+                            </div>
                           </div>
                         </div>
                       )}
-
-                      {/* 거래내역(그 달, 청산 성적) — 행을 눌러 기분·태그 기록 */}
-                      <div className="mt-4">
-                        <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">거래내역 <span className="text-[10px] font-normal text-[var(--text-muted)]">행을 눌러 기분·태그 기록</span></h3>
-                        <div className="rounded-xl border border-[var(--line-2)] overflow-hidden">
-                          {trades.map((p, j) => (
-                            <TradeRow key={p.positionId} p={p} mood={moods[p.positionId]} tagset={tags[p.positionId]} hasSnap={snaps.ids.has(p.positionId)} border={j > 0}
-                              onEdit={() => setEditing({ id: p.positionId, symbol: p.symbol })} />
-                          ))}
-                        </div>
-                      </div>
                     </div>
-                  )}
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {positions.length > 0 && <BenchmarkCard trades={analyticsTrades} />}
+        </div>
+      )}
+
+      {show('cost') && (
+        <div role="tabpanel" id="journal-panel-cost" aria-labelledby="journal-tab-cost" hidden={tab !== 'cost'}>
+          {positions.length > 0 && (
+            <>
+              <CostCard c={costs} fmt={fmtUsdt} holdRows={holdCosts} cash={cash} sub={`${periodLabel(days)} 청산 ${costs.n}건 · 거래소 수수료·펀딩`} />
+              <FeeDiagCard days={days} fmt={fmtUsdt} />
+            </>
+          )}
+        </div>
+      )}
+
+      {show('discipline') && (
+        <div role="tabpanel" id="journal-panel-discipline" aria-labelledby="journal-tab-discipline" hidden={tab !== 'discipline'}>
+          {positions.length > 0 && (
+            <>
+              <DisciplineCard positions={positions} days={days} />
+              <RiskSizeCard trades={riskTrades} equity={equity} fmt={fmtUsdt} sub={`${periodLabel(days)} 손실 매매 · 순손실 기준`} />
+              <TradesPerDayCard rows={perDay} fmt={fmtUsdt} />
+              <AfterLossTable rows={afterLoss} fmt={fmtUsdt} breakerAt={limits.maxConsecutiveLosses} />
+            </>
+          )}
+
+          {/* 요일 × 시간대 히트맵 — 어느 요일·시간에 벌고 잃었나 (칸 클릭 → 그 칸 매매 드릴다운) */}
+          {positions.length > 0 && heatmap.cells.length > 0 && (
+            <div id="sec-heatmap" className="scroll-mt-16">
+            <WeekdayHourHeatmap h={heatmap} fmt={fmtPnl} sub={`최근 ${days}일 · 진입 시각(KST) 기준`}
+              selected={selCell} onSelect={(c) => setSelCell((cur) => (cur && cur.wd === c.wd && cur.band === c.band ? null : c))}
+              detail={<BucketTrades title={selCell ? `${WEEKDAYS[selCell.wd]}요일 ${HOUR_BANDS[selCell.band].label}` : null} trades={cellTrades}
+                moods={moods} tags={tags} snapIds={snaps.ids} note="진입 시각(KST) 기준 · 행을 누르면 기분·태그·스냅샷 기록"
+                onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelCell(null)} />} />
+            </div>
+          )}
+
+          {/* 손익 분해 — 요일·시간대·종목별(청산 건). 행을 누르면 그 구간 매매가 펼쳐짐 */}
+          {positions.length > 0 && (
+            <div id="sec-breakdown" className="scroll-mt-16">
+            <BreakdownTables items={breakItems} unit="USDT" valueLabel="순손익" fmt={fmtPnl}
+              sub={`최근 ${days}일 청산 ${positions.length}건 · 진입 시각(KST) 기준`}
+              selectedRow={selRow} onSelectRow={setSelRow}
+              renderDetail={(sel) => (
+                <BucketTrades title={rowLabel(sel)} trades={rowTrades} moods={moods} tags={tags} snapIds={snaps.ids}
+                  note="행을 누르면 기분·태그·스냅샷 기록"
+                  onEdit={(p) => setEditing({ id: p.positionId, symbol: p.symbol })} onClose={() => setSelRow(null)} />
+              )} />
+            </div>
+          )}
+
+          {/* 셋업·실수 태그별 성적 — 어떤 셋업이 돈이 되고 어떤 실수가 깎나 */}
+          {positions.length > 0 && (setupStats.length > 0 || mistakeStats.length > 0) && (
+            <section id="sec-tagstat" className="scroll-mt-16 mb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <TagStatTable title="셋업별 성적" sub="왜 들어갔나" stats={setupStats} />
+              <TagStatTable title="실수별 성적" sub="무엇을 잘못했나" stats={mistakeStats} />
+            </section>
+          )}
+          {positions.length > 0 && setupStats.length === 0 && mistakeStats.length === 0 && (
+            <p className="text-[11px] text-[var(--faint)] mb-5 px-1 leading-relaxed">
+              매매 행을 눌러 <b className="text-[var(--text-muted)]">셋업·실수 태그</b>를 달면 &ldquo;어떤 셋업이 돈이 되고 어떤 실수가 깎나&rdquo;가 여기 집계됩니다(참고: Edgewonk·TraderSync).
+            </p>
+          )}
+
+          {/* 확신 복기 기간 토글 — 전체 vs 이번 달(교차표·코칭에만 적용) */}
+          {positions.length > 0 && convStatsAll.length > 0 && (
+            <div id="sec-conviction" className="scroll-mt-16 flex items-center gap-2 mb-2 px-1">
+              <span className="text-[11px] text-[var(--text-muted)]">확신 복기 기간</span>
+              <div className="seg" role="tablist" aria-label="확신 복기 기간">
+                {([['all', '전체'], ['month', '이번 달']] as const).map(([k, l]) => (
+                  <button key={k} type="button" role="tab" aria-selected={convPeriod === k} className={`seg-i !px-2.5 ${convPeriod === k ? 'on' : ''}`} onClick={() => setConvPeriod(k)}>{l}</button>
+                ))}
+              </div>
+              {convPeriod === 'month' && <span className="text-[10px] text-[var(--faint)] tabular-nums">{curYM.replace('-', '.')} 기준</span>}
+            </div>
+          )}
+          {positions.length > 0 && convStatsAll.length > 0 && convStats.length === 0 && (
+            <p className="text-[11px] text-[var(--faint)] px-1 mb-3">이번 달({curYM.replace('-', '.')})에 확신을 매긴 청산 매매가 없습니다 — &lsquo;전체&rsquo;로 보세요.</p>
+          )}
+
+          {/* 확신 보정 종합 한 줄 — 확신별·셋업×확신·실수×확신을 묶은 코칭 */}
+          {positions.length > 0 && convStats.length > 0 && (() => {
+            const style = coaching.verdict === 'calibrated' ? 'border-emerald-500/40 bg-emerald-500/5'
+              : coaching.verdict === 'overconfident' ? 'border-amber-500/40 bg-amber-500/5'
+              : 'border-[var(--border)] bg-[var(--surface-2)]';
+            const emoji = coaching.verdict === 'calibrated' ? '🎯' : coaching.verdict === 'overconfident' ? '⚠️' : coaching.verdict === 'insufficient' ? '📊' : '🤔';
+            return (
+              <div className={`rounded-2xl border p-4 mb-3 ${style}`}>
+                <div className="flex items-start gap-2">
+                  <span className="text-base leading-none mt-0.5">{emoji}</span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold text-[var(--text)] mb-0.5">확신 보정 <span className="font-normal text-[var(--text-muted)]">— 확신이 결과와 맞는 편인가</span></p>
+                    <p className="text-[12px] text-[var(--text)] leading-relaxed">{coaching.text}</p>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        </section>
+              </div>
+            );
+          })()}
+
+          {/* 확신(신뢰도 1~5)별 성적 */}
+          {positions.length > 0 && convStats.length > 0 && (
+            <ConvictionCard rows={convStats} fmt={fmtUsdt} sub={`최근 ${days}일 · 확신 매긴 ${convStats.reduce((a, r) => a + r.count, 0)}건`} />
+          )}
+
+          {/* 셋업 × 확신 교차 — 어떤 셋업에서 확신이 잘 맞았나 */}
+          {positions.length > 0 && convBySetup.length > 0 && (
+            <div id="sec-setupconv" className="scroll-mt-16">
+            <SetupConvictionCard rows={convBySetup} fmt={fmtUsdt} sub={`최근 ${days}일 · 셋업+확신 둘 다 매긴 매매`} />
+            </div>
+          )}
+
+          {/* 실수 × 확신 교차 — 어떤 실수가 어떤 확신대에서 나왔나(과신 점검) */}
+          {positions.length > 0 && convByMistake.length > 0 && (
+            <div id="sec-mistakeconv" className="scroll-mt-16">
+            <SetupConvictionCard kind="mistake" rows={convByMistake} fmt={fmtUsdt} sub={`최근 ${days}일 · 실수+확신 둘 다 매긴 매매`} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {show('whatif') && (
+        <div role="tabpanel" id="journal-panel-whatif" aria-labelledby="journal-tab-whatif" hidden={tab !== 'whatif'}>
+          {positions.length > 0 && (
+            <>
+              <CounterfactualCard trades={positions} equity={equity} fmt={fmtUsdt} sub={`${periodLabel(days)} 청산 ${positions.length}건`} />
+              <ExcursionSummaryCard trades={positions} tagsByPosition={tags} />
+            </>
+          )}
+        </div>
       )}
 
       {loaded && !busy && !err && positions.length === 0 && open.length === 0 && (

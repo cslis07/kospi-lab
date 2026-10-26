@@ -362,3 +362,34 @@ export async function cooldownNow(now: number = Date.now()): Promise<Cooldown | 
   ]);
   return cooldownState(positions, limits ? { ...DEFAULT_LIMITS, ...limits } : null, equity, now);
 }
+
+/* ── 홈 '지금 내 상태' 한 줄(/api/bitget/status) ─────────────────── */
+export interface MyStatus {
+  heartbeatAt: number | null;            // 마지막 가드 실행(pg_cron 5분)
+  positions: { symbol: string; side: 'long' | 'short'; slSet: boolean | null; pnlPct: number | null }[];
+  cooldown: Cooldown | null;
+}
+export const HEARTBEAT_STALE_MS = 15 * 60_000;
+
+export async function myStatus(now: number = Date.now()): Promise<MyStatus> {
+  const [hb, posJson, sl, cd] = await Promise.all([
+    sbGet<{ at: number }>(HEARTBEAT_ID),
+    bitgetSignedGet('/api/v2/mix/position/all-position?productType=USDT-FUTURES&marginCoin=USDT').catch(() => null),
+    slSymbols(),
+    cooldownNow(now).catch(() => null),
+  ]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw = ((posJson?.data as any[]) ?? []).filter((r) => num(r.total) !== 0);
+  return {
+    heartbeatAt: hb?.at ?? null,
+    positions: raw.map((r) => {
+      const entry = num(r.openPriceAvg ?? r.averageOpenPrice), mark = num(r.markPrice), side = r.holdSide === 'short' ? 'short' : 'long';
+      return {
+        symbol: String(r.symbol), side,
+        slSet: sl ? sl.has(normSym(String(r.symbol))) : null,
+        pnlPct: entry > 0 && mark > 0 ? ((side === 'long' ? mark - entry : entry - mark) / entry) * 100 : null,
+      };
+    }),
+    cooldown: cd,
+  };
+}

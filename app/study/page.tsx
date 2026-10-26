@@ -55,6 +55,14 @@ export default function StudyPage() {
         <p className="text-[12px] text-[var(--text-muted)] mt-1.5 leading-relaxed">진입 전 7문항 + 손절 후 재진입 프로토콜(60분 대기·새 근거 4단계). 주문 전에 조건을 직접 체크하는 규율 도구.</p>
       </Link>
 
+      <Link href="/study/crash" className="fin-card p-4 block mb-7 border border-[var(--accent)]/30">
+        <div className="flex items-center justify-between">
+          <b className="text-[14px] text-[var(--text)]">🧯 폭락 대응 교본</b>
+          <span className="text-[12px] font-semibold text-[var(--accent-ink)]">열기 →</span>
+        </div>
+        <p className="text-[12px] text-[var(--text-muted)] mt-1.5 leading-relaxed">감지 → 가속 확인 → 종료 확인 3단계, 30초 체크리스트와 점수별 행동, 2년 측정 결과(경보는 신규 롱 보류용, 숏 신호 아님).</p>
+      </Link>
+
       <Link href="/study/entry-signals" className="fin-card p-4 block mb-7 border border-[var(--accent)]/30">
         <div className="flex items-center justify-between">
           <b className="text-[14px] text-[var(--text)]">📈 롱·숏 진입 신호 가이드</b>

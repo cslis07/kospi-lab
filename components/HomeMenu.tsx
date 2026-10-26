@@ -8,7 +8,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { ICON, MENU, EXTRAS, INFLATION_SECTIONS, FLAT, BY_HREF, DEFAULT_QUICK, itemIsActive, type MenuItem } from '@/lib/menu';
+import { ICON, MENU, EXTRAS, TOOL_SECTIONS, FLAT, BY_HREF, DEFAULT_QUICK, itemIsActive, type MenuItem } from '@/lib/menu';
 
 function Icon({ name }: { name: string }) {
   return (
@@ -122,20 +122,18 @@ export default function HomeMenu({ onNavigate }: { onNavigate?: () => void }) {
                   </div>
                 </div>
               ))}
-              {/* 5섹션 밖 보조 도구 */}
-              <div>
-                <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 tracking-wide">더보기 도구</p>
-                <div className="hm-grid">
-                  {EXTRAS.filter((t) => !t.hidden).map((t) => <GridItem key={t.href} t={t} color="c-violet" active={isActive(t.href)} onNavigate={onNavigate} />)}
-                </div>
-              </div>
-              {/* 실시간 물가 허브 하위 섹션 — 18페이지 허브 진입점 노출 */}
-              <div>
-                <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 tracking-wide">실시간 물가 허브</p>
-                <div className="hm-grid">
-                  {INFLATION_SECTIONS.filter((t) => !t.hidden).map((t) => <GridItem key={t.href} t={t} color="c-violet" active={isActive(t.href)} onNavigate={onNavigate} />)}
-                </div>
-              </div>
+              {/* 하단 탭 밖 보조 도구 — 목적별 묶음(더보기 화면과 같은 구성). 실시간 물가 하위 18쪽은 물가 허브 안 내비로 */}
+              {TOOL_SECTIONS.map((sec) => {
+                const items = EXTRAS.filter((t) => !t.hidden && t.section === sec.key);
+                return items.length ? (
+                  <div key={sec.key}>
+                    <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3 tracking-wide">{sec.label}</p>
+                    <div className="hm-grid">
+                      {items.map((t) => <GridItem key={t.href} t={t} color="c-violet" active={isActive(t.href)} onNavigate={onNavigate} />)}
+                    </div>
+                  </div>
+                ) : null;
+              })}
             </div>
           </section>
         </>
