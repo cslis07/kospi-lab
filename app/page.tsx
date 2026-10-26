@@ -11,6 +11,8 @@ import PcMarketSections from '@/components/home/naver/PcMarketSections';
 import MyReviewLine from '@/components/home/MyReviewLine';
 import MyStatusLine from '@/components/home/MyStatusLine';
 import QuickChips from '@/components/home/QuickChips';
+import DesktopOnly from '@/components/home/DesktopOnly';
+import MobileMarketLinks from '@/components/home/MobileMarketLinks';
 
 const ROLE_TEXT = (
   <>
@@ -29,8 +31,10 @@ function DashboardInner() {
       <QuickChips />
       <MyReviewLine />
       <NaverHome />
-      {/* 모든 폭 — 실시간 랭킹·산업 트렌드·리서치·테마 ETF·시장지표를 부제목 기준으로 모두 노출(섹션별 지연 마운트) */}
-      <PcMarketSections />
+      {/* 데스크탑 — 실시간 랭킹·산업 트렌드·리서치·테마 ETF·시장지표(섹션별 지연 마운트). 모바일은 시장 탭에서 */}
+      <DesktopOnly><PcMarketSections /></DesktopOnly>
+      {/* 모바일 — 데스크탑에만 남긴 시장 섹션으로 가는 길(2026-10-26 메뉴 2단계: 홈 7화면 → 매매자 기준) */}
+      <MobileMarketLinks />
       {/* 이 도구의 역할 — 모바일 접기 / 데스크탑 전문 */}
       <details className="md:hidden fin-card px-4 py-3 mt-6 text-[11px] leading-relaxed text-[var(--text-muted)]">
         <summary className="cursor-pointer list-none flex items-center gap-2">

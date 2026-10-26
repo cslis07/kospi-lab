@@ -20,6 +20,8 @@ export interface MenuItem {
   hidden?: boolean;
   /** 더보기(EXTRAS) 묶음 키 — TOOL_SECTIONS */
   section?: ToolSection;
+  /** 같은 경로 안 하위 탭 구분 — 이 쿼리 값이어야 활성(null = 그 키가 없어야 함). 예: 매매일지 성적 { tab: null } · 비용 { tab: 'cost' } */
+  query?: Record<string, string | null>;
 }
 export type ToolSection = 'morning' | 'macro' | 'study' | 'stocks' | 'calc';
 /** 더보기 묶음 — 순서대로 노출 */
@@ -91,6 +93,7 @@ export function hrefIsActive(href: string, pathname: string, searchParams: URLSe
 }
 /** 항목 일치 = href 또는 alias 경로 */
 export function itemIsActive(it: MenuItem, pathname: string, q: URLSearchParams): boolean {
+  if (it.query && hrefIsActive(it.href, pathname, q)) return Object.entries(it.query).every(([k, v]) => q.get(k) === v);
   return hrefIsActive(it.href, pathname, q) || !!it.alias?.some((a) => under(pathname, a));
 }
 
@@ -122,12 +125,15 @@ export const MENU: MenuGroup[] = [
     { href: '/eth',           icon: 'risk',     label: 'ETH 체제',  desc: '공급·수요·포지셔닝·거시 4층(예측 아님)' },
     { href: '/alerts',        icon: 'bell',     label: '알림',      desc: '가격·코인 알림 한 화면 관리' },
   ], ['/stock-analysis', '/overseas-analysis']),
-  // 복기 — 규칙을 지켰나(매매일지는 성적·비용·규율·가정 하위 탭)
+  // 복기 — 규칙을 지켰나. 매매일지 하위 탭을 상단 밑줄 탭으로 올려 2단계(하단 복기 → 밑줄 탭)로(2026-10-26 메뉴 2단계).
+  // 옛 '성과'(/performance, 계획 매매 R 기준)는 성적 탭 맨 아래 접힘 섹션으로 흡수 — 주소는 드릴다운으로 유지.
   G('review', '복기', 'c-rose', 'qc-rose', 'journal', [
-    { href: '/journal',     icon: 'journal', label: '매매일지',   desc: '성적·비용·규율·가정(규칙대로였다면)' },
-    { href: '/performance', icon: 'growth',  label: '성과',       desc: '기록 R 기준 성과' },
-    { href: '/paper',       icon: 'target',  label: '선행 테스트', desc: '규칙 사전 기록 30건(R30) 진행·자동 판정' },
-  ]),
+    { href: '/journal',               icon: 'journal',  label: '성적',       desc: '매매일지 — 요약·자산 곡선·달력·월별·계획 매매 성과', query: { tab: null } },
+    { href: '/journal?tab=cost',       icon: 'tax',      label: '비용',       desc: '매매일지 — 수수료·펀딩·비용 누수', query: { tab: 'cost' } },
+    { href: '/journal?tab=discipline', icon: 'risk',     label: '규율',       desc: '매매일지 — 손절·손실 크기·과매매·규율 점수', query: { tab: 'discipline' } },
+    { href: '/journal?tab=whatif',     icon: 'simulate', label: '가정',       desc: '매매일지 — 규칙대로였다면·손절 배수 비교', query: { tab: 'whatif' } },
+    { href: '/paper',                  icon: 'target',   label: '선행 테스트', desc: '규칙 사전 기록 30건(R30) 진행·자동 판정' },
+  ], ['/performance']),
   // 자산 — 계좌·보유 한 화면. 계산·장기투자 도구는 더보기로.
   G('assets', '자산', 'c-green', 'qc-green', 'portfolio', [
     { href: '/assets', icon: 'portfolio', label: '자산', desc: '계좌·보유·청산·이체' },
@@ -204,6 +210,7 @@ export function drillTitle(pathname: string): string {
   if (under(pathname, '/tools')) return '더보기 도구';
   // 자산 허브에서 진입하는 상세 페이지
   if (under(pathname, '/bitget')) return '계좌 상세';
+  if (under(pathname, '/performance')) return '계획 매매 성과';
   // 시장 목록의 '분석' 버튼으로 진입(트레이딩 탭 강조만 유지)
   if (under(pathname, '/stock-analysis')) return '종목 분석';
   if (under(pathname, '/overseas-analysis')) return '해외 분석';

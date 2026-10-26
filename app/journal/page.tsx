@@ -9,7 +9,9 @@
  * 코인선물 전용(거래소 자동 대조가 되는 유일한 소스). 읽기 전용 조회 — 주문하지 않는다.
  * 색은 한국 관행(상승·이익=빨강 / 하락·손실=파랑).
  */
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { useTradeMood, type TradeMood } from '@/hooks/useTradeMood';
@@ -96,11 +98,16 @@ const TABS: { key: JournalTab; label: string; hint: string }[] = [
   { key: 'discipline', label: '규율', hint: '규칙대로 매매했나 — 손절·손실 크기·과매매·연패·시간대·태그' },
   { key: 'whatif',     label: '가정', hint: '규칙대로 했다면, 끝까지 들고 있었다면' },
 ];
-const subscribeNoop = () => () => {};
-const readUrlTab = (): JournalTab => {
-  const q = new URLSearchParams(window.location.search).get('tab');
-  return TABS.find((x) => x.key === q)?.key ?? 'perf';
-};
+const parseTab = (q: string | null): JournalTab => TABS.find((x) => x.key === q)?.key ?? 'perf';
+/** ?tab= 감시 — 탭 전환은 앱 상단 밑줄 탭(lib/menu 복기 그룹 = /journal?tab=…)이 맡는다(2026-10-26 메뉴 2단계: 복기 2단계화).
+ *  useSearchParams 는 이 작은 조각만 Suspense 로 감싸 정적 HTML(첫 화면=성적)을 비우지 않는다. */
+function UrlTabWatch({ onTab }: { onTab: (t: JournalTab) => void }) {
+  const tab = useSearchParams().get('tab');
+  useEffect(() => { onTab(parseTab(tab)); }, [tab, onTab]);
+  return null;
+}
+/** 계획 매매 성과(R 기준, 옛 /performance) — 성적 탭 맨 아래 접힘 섹션에서 펼칠 때만 불러온다 */
+const PerformanceView = dynamic(() => import('@/components/PerformanceView'), { ssr: false, loading: () => <div className="skeleton h-40 rounded-xl" /> });
 
 /** 시장 벤치마크 — 내 매매 기간 동안 시장 + (원금 입력 시) 내 수익률%곡선 vs 지수 오버레이. 공통 조각은 components/MarketBenchmark. */
 function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
@@ -358,46 +365,13 @@ export default function JournalPage() {
     setEditing(null);
   };
 
-  // ── 하위 탭(성적·비용·규율·가정) — ?tab= 으로 딥링크. useSearchParams 는 정적 HTML 을 비우므로 window.location 으로 읽는다 ──
-  // 서버·첫 렌더는 'perf', 하이드레이션 뒤 URL 값(딥링크). 사용자가 누르면 picked 가 우선
-  const urlTab = useSyncExternalStore(subscribeNoop, readUrlTab, () => 'perf' as JournalTab);
-  const [picked, setPicked] = useState<JournalTab | null>(null);
-  const tab: JournalTab = picked ?? urlTab;
+  // ── 하위 탭(성적·비용·규율·가정) — 앱 상단 밑줄 탭이 ?tab= 로 바꾼다. 서버·첫 렌더는 '성적'
+  const [tab, setTab] = useState<JournalTab>('perf');
   // 한 번 연 탭은 계속 마운트(카드 내부 상태·진행 중 계산 유지) — 처음엔 활성 탭만 그려 초기 로드를 가볍게
   const [visited, setVisited] = useState<ReadonlySet<JournalTab>>(() => new Set<JournalTab>());
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const [stickyTop, setStickyTop] = useState<string>('calc(52px + var(--sat))');
-  // 탭바는 앱바(+모바일 섹션 탭) 바로 아래에 붙인다 — 두 높이를 재서 겹치지 않게
-  useEffect(() => {
-    const calc = () => {
-      const header = document.querySelector<HTMLElement>('header.site-header');
-      const nav = document.querySelector<HTMLElement>('.u-tabs-wrap');
-      if (nav && nav.offsetParent !== null) {
-        const top = parseFloat(getComputedStyle(nav).top) || 0;
-        setStickyTop(`${top + nav.offsetHeight}px`);
-      } else if (header) {
-        setStickyTop(`${header.offsetHeight}px`);
-      }
-    };
-    calc();
-    window.addEventListener('resize', calc);
-    return () => window.removeEventListener('resize', calc);
-  }, []);
-  const selectTab = (t: JournalTab) => {
-    setPicked(t);
-    setVisited((v) => new Set(v).add(tab).add(t)); // 떠나는 탭도 계속 마운트
-    try {
-      const url = new URL(window.location.href);
-      if (t === 'perf') url.searchParams.delete('tab'); else url.searchParams.set('tab', t);
-      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
-    } catch { /* 무시 */ }
-    // 아래로 많이 내려와 있었다면 새 탭의 처음이 보이게 탭바 위치까지만 올린다
-    const sentinel = sentinelRef.current; // 탭바 바로 위 0px 표식 = 탭바의 원래(비고정) 위치
-    if (sentinel) {
-      const y = sentinel.getBoundingClientRect().top + window.scrollY - (parseFloat(stickyTop) || 0);
-      if (window.scrollY > y) window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
-    }
-  };
+  // 들어간 탭은 전부 visited 에 쌓는다(첫 감시 호출로 '성적'도 들어감) → 떠난 탭도 계속 마운트
+  const onUrlTab = useCallback((t: JournalTab) => { setVisited((v) => (v.has(t) ? v : new Set(v).add(t))); setTab(t); }, []);
+  const [perfOpen, setPerfOpen] = useState(false);
   const show = (t: JournalTab) => t === tab || visited.has(t);
 
   return (
@@ -447,22 +421,11 @@ export default function JournalPage() {
       {err && <p className="mb-3 text-[12px] text-red-400">⚠ {err} {err.includes('잠금') && <Link href="/bitget" className="underline">계좌로 이동</Link>}</p>}
       {msg && !err && <p className="mb-3 text-[12px] text-[var(--text-muted)]">{msg}</p>}
 
-      {/* 하위 탭 — 앱바(+모바일 섹션 탭) 아래에 붙는다. 기간·가져오기는 위에서 모든 탭이 공유 */}
-      <div ref={sentinelRef} aria-hidden className="h-0" />
-      <div className="sticky z-20 -mx-4 mb-2 border-b border-[var(--line)] backdrop-blur-[14px] bg-[color-mix(in_srgb,var(--bg)_94%,transparent)]" style={{ top: stickyTop }}>
-        <div className="u-tabs" role="tablist" aria-label="매매일지 탭">
-          {TABS.map((t) => (
-            <button key={t.key} type="button" role="tab" id={`journal-tab-${t.key}`} aria-controls={`journal-panel-${t.key}`} aria-selected={tab === t.key}
-              className={`u-tab !text-[14px] bg-transparent border-0 cursor-pointer ${tab === t.key ? 'on' : ''}`} onClick={() => selectTab(t.key)}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Suspense fallback={null}><UrlTabWatch onTab={onUrlTab} /></Suspense>
       <p className="text-[11px] text-[var(--faint)] mb-3 px-1 leading-relaxed">{TABS.find((t) => t.key === tab)?.hint}</p>
 
       {show('perf') && (
-        <div role="tabpanel" id="journal-panel-perf" aria-labelledby="journal-tab-perf" hidden={tab !== 'perf'}>
+        <div role="tabpanel" id="journal-panel-perf" aria-label="성적" hidden={tab !== 'perf'}>
           {/* 현재 포지션 (미청산) — 진입 당시 기분을 바로 기록 */}
           {open.length > 0 && (
             <section className="mb-5">
@@ -602,11 +565,21 @@ export default function JournalPage() {
           )}
 
           {positions.length > 0 && <BenchmarkCard trades={analyticsTrades} />}
+
+          {/* 계획 매매 성과(R 기준) — 옛 '성과' 화면을 성적 탭에 흡수(직접 기록한 계획 매매만, 거래소 청산과 다른 데이터) */}
+          <details className="fin-card mt-3 overflow-hidden" onToggle={(e) => { if ((e.currentTarget as HTMLDetailsElement).open) setPerfOpen(true); }}>
+            <summary className="cursor-pointer select-none list-none px-4 py-3 min-h-[44px] flex items-center gap-2">
+              <span className="text-[13px] font-bold text-[var(--text)]">📐 계획 매매 성과 (R 기준)</span>
+              <span className="text-[11px] text-[var(--text-muted)] truncate">직접 기록한 손절·사이징 계획 매매 · 승률·기대값·주간</span>
+              <span className="ml-auto shrink-0 text-[12px] text-[var(--accent)] font-semibold">펼치기</span>
+            </summary>
+            <div className="px-3 pb-3">{perfOpen && <PerformanceView />}</div>
+          </details>
         </div>
       )}
 
       {show('cost') && (
-        <div role="tabpanel" id="journal-panel-cost" aria-labelledby="journal-tab-cost" hidden={tab !== 'cost'}>
+        <div role="tabpanel" id="journal-panel-cost" aria-label="비용" hidden={tab !== 'cost'}>
           {positions.length > 0 && (
             <>
               <CostLeakCard positions={positions} days={days} fmt={fmtUsdt} />
@@ -618,7 +591,7 @@ export default function JournalPage() {
       )}
 
       {show('discipline') && (
-        <div role="tabpanel" id="journal-panel-discipline" aria-labelledby="journal-tab-discipline" hidden={tab !== 'discipline'}>
+        <div role="tabpanel" id="journal-panel-discipline" aria-label="규율" hidden={tab !== 'discipline'}>
           {positions.length > 0 && (
             <>
               <DisciplineCard positions={positions} days={days} />
@@ -723,7 +696,7 @@ export default function JournalPage() {
       )}
 
       {show('whatif') && (
-        <div role="tabpanel" id="journal-panel-whatif" aria-labelledby="journal-tab-whatif" hidden={tab !== 'whatif'}>
+        <div role="tabpanel" id="journal-panel-whatif" aria-label="가정" hidden={tab !== 'whatif'}>
           {positions.length > 0 && (
             <>
               <CounterfactualCard trades={positions} equity={equity} fmt={fmtUsdt} sub={`${periodLabel(days)} 청산 ${positions.length}건`} />
