@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   if (req.headers.get('authorization') !== `Bearer ${secret}`) return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   try {
     const r = await runGuard({ dry: req.nextUrl.searchParams.get('dry') === '1' });
+    console.log(`[guard] positions=${r.positions} alerts=${r.alerts.length} sent=${r.sent}`);
     return NextResponse.json({ ...r, alerts: r.alerts.map((a) => a.key) });
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });

@@ -195,6 +195,8 @@ ${on.map((c) => NAME[c.key]).join(' · ')}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const num = (v: any) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const STATE_ID = 'guard-state';
+/** 실행 기록(매 회차 덮어씀) — pg_cron 5분 실행이 실제로 도는지 확인·앱 표시용. kospi-lab- 접두사가 아니라 기기 동기화엔 안 섞임 */
+const HEARTBEAT_ID = 'guard-heartbeat';
 
 function sbHeaders() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -321,6 +323,7 @@ export async function runGuard(opts: { dry?: boolean; now?: number; ignoreState?
     (opts.ignoreState ? null : state) ?? { fired: {} },
   );
   if (opts.dry) return { ok: true, positions: positions.length, alerts, sent: false, stateSaved: false };
+  await sbPut(HEARTBEAT_ID, { at: now, positions: positions.length, alerts: alerts.map((a) => a.key) }).catch(() => false);
   let sent = false, stateSaved = false;
   if (alerts.length) {
     sent = await sendTelegram(alerts.map((a) => a.text).join('\n\n'));
