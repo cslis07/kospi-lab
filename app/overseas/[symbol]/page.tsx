@@ -71,7 +71,7 @@ export default function OverseasDetailPage() {
   };
   const actions: SheetAction[] = [
     { label: watched ? '관심종목에서 삭제' : '관심종목에 추가', icon: 'star', onClick: toggleWatch, danger: watched },
-    ...(d ? [{ label: '가상투자', sub: '모의 매수·매도', icon: 'virtual', onClick: () => setTrade(true) }] : []),
+    ...(d ? [{ label: '가상 계좌', sub: '가상 돈으로 매수·매도', icon: 'virtual', onClick: () => setTrade(true) }] : []),
     { label: 'Yahoo Finance에서 열기', icon: 'news', href: `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`, external: true },
     { label: '공유 · 링크 복사', icon: 'report', onClick: share },
   ];

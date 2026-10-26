@@ -3,11 +3,12 @@
 /**
  * 더보기 — 하단 5탭(홈·시장·트레이딩·복기·자산)에 없는 보조 도구를 목적별 5묶음(lib/menu TOOL_SECTIONS)으로.
  * 아래엔 '오늘의 경제' 요약(경제지표 4개 + 다음 발표 2건)만 — 달력·지난 발표·뉴스 전문은 각 화면에서(2026-10-26 단순화).
- * '더보기' 상단 내비 알약이 이 페이지로 연결된다(components/NavTabs).
+ * '더보기' 상단 내비 알약이 이 페이지로 연결된다(components/NavTabs). 맨 아래 '설정 · 정보'(동기화·이용가이드)는 옛 /more 에서 옮김(/more → 여기로 리디렉션).
  */
 import useSWR from 'swr';
 import Link from 'next/link';
-import { EXTRAS, ICON, TOOL_SECTIONS } from '@/lib/menu';
+import { EXTRAS, ICON, TOOL_SECTIONS, GUIDE } from '@/lib/menu';
+import SyncIndicator from '@/components/SyncIndicator';
 import NextReleases from '@/components/NextReleases';
 import type { ReleaseCalendar } from '@/lib/inflation';
 import type { MacroIndicator } from '@/lib/macroData';
@@ -77,6 +78,19 @@ export default function ToolsPage() {
         </div>
       </div>
       {relCal?.events?.length ? <NextReleases rc={relCal} limit={2} /> : null}
+
+      {/* 설정 · 정보 — 옛 /more 페이지에서 옮김 */}
+      <div className="fin-sec mt-5"><h3 className="!text-[15px]">설정 · 정보</h3></div>
+      <div className="fin-card overflow-hidden">
+        <div className="list-row">
+          <span className="text-sm font-semibold">클라우드 동기화</span>
+          <span className="ml-auto"><SyncIndicator /></span>
+        </div>
+        <a href={GUIDE.href} className="list-row">
+          <span className="text-sm font-semibold">{GUIDE.label}</span>
+          <span className="ml-auto text-[var(--text-muted)]" aria-hidden>›</span>
+        </a>
+      </div>
     </div>
   );
 }

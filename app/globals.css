@@ -530,7 +530,7 @@ body { overscroll-behavior-y: none; }   /* 앱처럼 — 바운스로 흰 배경
 .app-tab {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   text-decoration: none; color: var(--faint);
-  font-size: 10.5px; font-weight: 600; letter-spacing: -.02em; line-height: 1;
+  font-size: 11.5px; font-weight: 600; letter-spacing: -.02em; line-height: 1;
   padding-top: 6px; user-select: none;
 }
 .app-tab .ti {
@@ -610,6 +610,8 @@ a.list-row:active { background: var(--surface-2); }
   padding: 12px 0 11px; font-size: 15px; font-weight: 600; color: var(--faint); letter-spacing: -.02em;
 }
 .u-tab.on { color: var(--ink); font-weight: 600; }
+button.u-tab { background: none; border: none; cursor: pointer; font-family: inherit; }
+.u-tab-more span { font-size: 11px; opacity: .7; }
 .u-tab.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2.5px; border-radius: 2px; background: var(--accent); }
 
 /* 세그먼트 컨트롤 — 눌린 우물(pressed) 안에 코발트 활성 칸 */
@@ -617,6 +619,7 @@ a.list-row:active { background: var(--surface-2); }
 .seg-i {
   border: none; background: transparent; cursor: pointer; text-decoration: none;
   font-size: 13px; font-weight: 500; color: var(--faint); padding: 8px 16px; border-radius: var(--r-sm); white-space: nowrap;
+  min-height: 36px;
 }
 .seg-i.on { background: var(--cp-cobalt); color: #fff; box-shadow: var(--glow), rgba(255,255,255,.18) 1px 1px 1px -.5px inset; }
 
@@ -792,7 +795,7 @@ a.list-row:active { background: var(--surface-2); }
 .srch-star svg { width: 21px; height: 21px; }
 .srch-star.on { color: var(--tag-sunflower); }
 .srch-star:active { background: var(--surface-2); }
-.srch-mk { font-size: 10.5px; font-weight: 800; color: var(--muted); background: var(--surface-2); padding: 2px 6px; border-radius: 5px; flex-shrink: 0; }
+.srch-mk { font-size: 11px; font-weight: 800; color: var(--muted); background: var(--surface-2); padding: 2px 6px; border-radius: 5px; flex-shrink: 0; }
 
 /* 밀어서 여는 행 동작 */
 .swr { position: relative; overflow: hidden; }
@@ -900,7 +903,7 @@ a.list-row:active { background: var(--surface-2); }
 }
 .fin-stat3 > div { text-align: center; min-width: 0; padding: 0 4px; }
 .fin-stat3 > div + div { border-left: 1px solid var(--line-2); }
-.fin-stat3 .k { font-size: 10.5px; font-weight: 700; color: var(--faint); }
+.fin-stat3 .k { font-size: 11px; font-weight: 700; color: var(--faint); }
 .fin-stat3 .v { font-size: 14px; font-weight: 800; color: var(--ink); margin-top: 2px; letter-spacing: -.02em; white-space: nowrap; }
 .fin-stat3 .c { font-size: 11px; font-weight: 700; margin-top: 1px; }
 
@@ -962,7 +965,7 @@ a.fin-row:active { background: var(--surface-2); }
 .fin-mini .lb { font-size: 12px; font-weight: 500; color: var(--ink-2); margin-top: 12px; }
 .fin-mini .vl { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--ink); letter-spacing: -.02em; line-height: 1.1; margin-top: 4px; }
 .fin-mini .cm {
-  font-size: 10.5px; color: var(--faint); margin-top: 8px; line-height: 1.4;
+  font-size: 11px; color: var(--faint); margin-top: 8px; line-height: 1.4;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 
@@ -984,7 +987,7 @@ a.fin-row:active { background: var(--surface-2); }
   .idx-rail { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); overflow: visible; margin: 0; padding: 0; }
   .idx-card { flex: none; }
 }
-.idx-live { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: var(--faint); white-space: nowrap; }
+.idx-live { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--faint); white-space: nowrap; }
 .idx-live i { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); }
 .idx-live.on { color: var(--ok); }
 .idx-live.on i { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
@@ -1056,7 +1059,7 @@ a.fin-row:active { background: var(--surface-2); }
 .nv-gc-date { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
 .nv-gc-date > b { font-size: 15px; font-weight: 700; color: var(--ink); }
 .nv-gc-tl li.prev .nv-gc-date > b { font-weight: 600; color: var(--ink-2); }
-.nv-gc-today { font-size: 10px; font-weight: 800; color: var(--ok); border: 1px solid var(--ok); border-radius: 5px; padding: 0 5px; }
+.nv-gc-today { font-size: 11px; font-weight: 800; color: var(--ok); border: 1px solid var(--ok); border-radius: 5px; padding: 0 5px; }
 .nv-gc-box { display: grid; grid-template-columns: 1fr 1fr; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
 .nv-gc-sep { border-left: 1px solid var(--line); padding-left: 14px; }
 .nv-gc-k { font-size: 12px; color: var(--faint); }
@@ -1092,13 +1095,20 @@ html.light .nv-gc:hover { border-color: var(--accent); }
 }
 
 /* ══════════════════════════════════════════════════════════════
+   모바일 최소 글자 — 11px 미만 임의 크기를 11px로 올린다(2026-10-26 메뉴 1단계 정리, 접근성).
+   측정: 390px에서 국내 화면 텍스트 52%·매매일지 41%가 11px 미만이었다. 표는 overflow-x 래퍼 안이라 넓어지면 가로 스크롤.
+   ≥1024px 는 아래 PC 블록이 더 크게 덮는다(같은 우선순위, 뒤에 선언).
+   ══════════════════════════════════════════════════════════════ */
+.text-\[8px\], .text-\[8\.5px\], .text-\[9px\], .text-\[9\.5px\], .text-\[10px\], .text-\[10\.5px\] { font-size: 11px; }
+
+/* ══════════════════════════════════════════════════════════════
    PC 시인성 — 데스크탑에서 초소형 텍스트를 눈에 맞게 확대.
    앱이 모바일 우선이라 9~11px 텍스트가 많다(text-[10px] 352곳). ≥1024px에서만 키운다.
    unlayered 규칙이라 Tailwind 유틸리티(@layer)보다 우선 → !important 불필요.
    line-height는 건드리지 않는다(상대·배수라 폰트에 따라 자동 확대).
    ══════════════════════════════════════════════════════════════ */
 @media (min-width: 1024px) {
-  .text-\[8px\]   { font-size: 10px; }
+  .text-\[8px\]   { font-size: 11px; }
   .text-\[9px\]   { font-size: 11px; }
   .text-\[10px\]  { font-size: 12px; }
   .text-\[11px\]  { font-size: 12.5px; }

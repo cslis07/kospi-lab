@@ -3,6 +3,8 @@
  * 모바일 하단 탭(BottomNav)·상단 밑줄 탭/데스크탑 내비(NavTabs)·앱바 제목(Header)·메뉴 시트(HomeMenu)가 전부 이 정의를 쓴다.
  * ⚠ 그룹/항목을 바꾸려면 여기만 고친다.
  *
+ * 2026-10-26 오후 1단계 정리: 시장지표 → 더보기 '거시'(지표 4종 한 묶음), 이름 구분(모의 테스트→선행 테스트·가상투자→가상 계좌·시뮬레이션→계산기),
+ *   시장 탭은 밑줄 탭 4개 + '더보기' 시트(components/NavTabs), /more 는 /tools 로 합침.
  * IA(2026-10-26 재편 — "직관적·편리" 요청, 실제 매매 흐름 순서 = 하단 5탭):
  *   홈(대시보드 + 지금 내 상태) · 시장(국내·해외·코인·선물·산업·랭킹·지표·ETF·리서치)
  *   · 트레이딩(코인 분석·ETH 체제·알림 — 들어가도 되나·얼마나·어디서 끊나) · 복기(매매일지·성과·모의 테스트 — 규칙을 지켰나)
@@ -23,10 +25,10 @@ export type ToolSection = 'morning' | 'macro' | 'study' | 'stocks' | 'calc';
 /** 더보기 묶음 — 순서대로 노출 */
 export const TOOL_SECTIONS: { key: ToolSection; label: string; desc: string }[] = [
   { key: 'morning', label: '📰 아침 정보', desc: '브리핑·뉴스·일정' },
-  { key: 'macro', label: '🌐 거시 데이터', desc: '경제지표·발표 이력·실시간 물가' },
+  { key: 'macro', label: '🌐 거시', desc: '시장지표·경제지표·실시간 물가·발표 이력' },
   { key: 'study', label: '📚 매매 교본', desc: '원칙·공부법·체크리스트·폭락 대응' },
   { key: 'stocks', label: '🔎 종목 도구', desc: '관심종목·종목 비교' },
-  { key: 'calc', label: '🧮 계산·장기투자', desc: '시뮬레이션·투자설계·세제·증권사·가상투자' },
+  { key: 'calc', label: '🧮 계산·장기투자', desc: '계산기·가상 계좌·투자설계·세제·증권사' },
 ];
 export interface MenuGroup {
   key: string; label: string; color: string; qc: string; navIcon: string;
@@ -111,7 +113,6 @@ export const MENU: MenuGroup[] = [
     // 2026-09-30 네이버페이 증권 홈 위젯 기반 5종(데이터: stock.naver.com, lib/naverStock.ts)
     { href: '/industry',   icon: 'growth',  label: '산업 트렌드', desc: '업종·테마·섹터 등락 순위' },
     { href: '/ranking',    icon: 'krx',     label: '실시간 랭킹', desc: '거래대금·인기·상승·하락' },
-    { href: '/indicators', icon: 'signal',  label: '시장지표',   desc: '환율·금리·원자재' },
     { href: '/theme-etf',  icon: 'tools',   label: '테마 ETF',   desc: '테마별 상위 ETF' },
     { href: '/research',   icon: 'report',  label: '리서치',     desc: '애널리스트 산업·목표주가' },
   ], ['/stock/', '/crypto/']),
@@ -125,7 +126,7 @@ export const MENU: MenuGroup[] = [
   G('review', '복기', 'c-rose', 'qc-rose', 'journal', [
     { href: '/journal',     icon: 'journal', label: '매매일지',   desc: '성적·비용·규율·가정(규칙대로였다면)' },
     { href: '/performance', icon: 'growth',  label: '성과',       desc: '기록 R 기준 성과' },
-    { href: '/paper',       icon: 'target',  label: '모의 테스트', desc: '모의 선행테스트 30건 진행·자동 판정' },
+    { href: '/paper',       icon: 'target',  label: '선행 테스트', desc: '규칙 사전 기록 30건(R30) 진행·자동 판정' },
   ]),
   // 자산 — 계좌·보유 한 화면. 계산·장기투자 도구는 더보기로.
   G('assets', '자산', 'c-green', 'qc-green', 'portfolio', [
@@ -140,6 +141,7 @@ export const EXTRAS: MenuItem[] = [
   { href: '/brief',      icon: 'sunrise',    label: '모닝 브리핑',  desc: '증시별 거시·금리·유가·뉴스 아침 정리', section: 'morning' },
   { href: '/news',       icon: 'news',       label: '뉴스',        desc: '시장 소식', section: 'morning' },
   { href: '/calendar',   icon: 'calendar',   label: '경제 캘린더', desc: 'FOMC·CPI·실적 등 주요 일정', section: 'morning' },
+  { href: '/indicators', icon: 'signal',     label: '시장지표',    desc: '환율·금리·원자재 실시간(네이버)', section: 'macro' },
   { href: '/macro',      icon: 'signal',     label: '경제지표',    desc: '미국 CPI·PPI·달러지수·유가·원달러(FRED)', section: 'macro' },
   { href: '/releases',   icon: 'calendar',   label: '지표 발표 이력', desc: '인베스팅 결과·예측·이전(2021~)', section: 'macro' },
   { href: '/inflation',  icon: 'signal',     label: '실시간 물가',   desc: '나우캐스트 인플레이션·공식 CPI 대비', section: 'macro' },
@@ -151,8 +153,8 @@ export const EXTRAS: MenuItem[] = [
   { href: '/my-stocks',  icon: 'star',       label: '관심종목',    desc: '국내·해외·코인 저장 목록', section: 'stocks' },
   { href: '/screener',   icon: 'screener',   label: '종목 비교',   desc: '여러 종목 재무 비교', alias: ['/growth'], section: 'stocks' },
   { href: '/report',     icon: 'report',     label: '리포트',      desc: '증권사 리포트', hidden: true, section: 'stocks' },
-  { href: '/simulate',  icon: 'simulate',  label: '시뮬레이션',  desc: '복리·선물 손익·익절 규칙', section: 'calc' },
-  { href: '/virtual',   icon: 'virtual',   label: '가상투자',    desc: '모의매매·백업', section: 'calc' },
+  { href: '/simulate',  icon: 'simulate',  label: '계산기',      desc: '복리·선물 손익·익절 규칙 시뮬레이션', section: 'calc' },
+  { href: '/virtual',   icon: 'virtual',   label: '가상 계좌',   desc: '가상 돈으로 사고팔기·백업', section: 'calc' },
   { href: '/invest',    icon: 'invest',    label: '투자설계',    desc: '계좌·자산 추천', section: 'calc' },
   { href: '/tax',       icon: 'tax',       label: '세제혜택',    desc: 'ISA·IRP·연금', section: 'calc' },
   { href: '/brokerage', icon: 'brokerage', label: '증권사 비교', desc: '수수료·CMA', section: 'calc' },
@@ -199,7 +201,6 @@ export function drillTitle(pathname: string): string {
   if (pathname.startsWith('/stock/')) return '종목 상세';
   if (pathname.startsWith('/crypto/')) return '코인 상세';
   if (pathname.startsWith('/overseas/')) return '해외 상세';
-  if (under(pathname, '/more')) return '전체 메뉴';
   if (under(pathname, '/tools')) return '더보기 도구';
   // 자산 허브에서 진입하는 상세 페이지
   if (under(pathname, '/bitget')) return '계좌 상세';

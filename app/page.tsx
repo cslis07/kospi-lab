@@ -10,6 +10,7 @@ import NaverHome from '@/components/home/naver/NaverHome';
 import PcMarketSections from '@/components/home/naver/PcMarketSections';
 import MyReviewLine from '@/components/home/MyReviewLine';
 import MyStatusLine from '@/components/home/MyStatusLine';
+import QuickChips from '@/components/home/QuickChips';
 
 const ROLE_TEXT = (
   <>
@@ -24,6 +25,8 @@ function DashboardInner() {
     <>
       {/* 지금 내 상태 — 가드·포지션 손절·냉각(잠금 해제 기기만) */}
       <MyStatusLine />
+      {/* 바로가기 — 매일 쓰는 4곳(2026-10-26 1단계 정리) */}
+      <QuickChips />
       <MyReviewLine />
       <NaverHome />
       {/* 모든 폭 — 실시간 랭킹·산업 트렌드·리서치·테마 ETF·시장지표를 부제목 기준으로 모두 노출(섹션별 지연 마운트) */}

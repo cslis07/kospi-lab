@@ -244,7 +244,7 @@ export default function AssetsPage() {
           <div className="flex gap-1">
             {([7, 30, 90] as Period[]).map((d) => (
               <button key={d} type="button" onClick={() => setPeriod(d)}
-                className={`text-[11px] px-2 py-1 rounded-lg font-semibold ${period === d ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'bg-[var(--surface-2)] text-[var(--text-muted)]'}`}>{d}일</button>
+                className={`text-[12px] px-3 min-h-[36px] min-w-[44px] rounded-lg font-semibold ${period === d ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'bg-[var(--surface-2)] text-[var(--text-muted)]'}`}>{d}일</button>
             ))}
           </div>
         </div>

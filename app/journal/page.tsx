@@ -426,7 +426,7 @@ export default function JournalPage() {
         <div className="flex items-center gap-1.5">
           {[7, 30, 90].map((d) => (
             <button key={d} type="button" onClick={() => setDays(d)} disabled={busy}
-              className={`px-3 py-1.5 rounded-lg border text-[12px] font-semibold transition-colors disabled:opacity-50 ${
+              className={`px-3 min-h-[36px] min-w-[48px] rounded-lg border text-[12px] font-semibold transition-colors disabled:opacity-50 ${
                 days === d ? 'bg-sky-500/15 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)]'
               }`}>{d}일</button>
           ))}

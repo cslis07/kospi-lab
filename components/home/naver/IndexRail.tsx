@@ -121,7 +121,8 @@ export default function IndexRail() {
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
   }, [showAll]);
 
-  const topBtn: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: 'var(--faint)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' };
+  // 터치 영역 36px 이상(글자는 작게 유지) — 2026-10-26 접근성 정리 전엔 높이 19px
+  const topBtn: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--faint)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 8px', minHeight: 36, display: 'inline-flex', alignItems: 'center' };
 
   return (
     <div>
