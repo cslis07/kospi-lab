@@ -1041,7 +1041,7 @@ export default function CoinAnalysisPage() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [chartTf, setChartTf] = useState<'m5' | 'm15' | 'h1'>('m5');
   const { model: aiModel, ready: modelReady } = useBriefingModel();
-  const [modal, setModal] = useState<null | 'flow' | 'macro' | 'risk' | 'journal' | 'entry' | 'timeframes' | 'position'>(null); // 상단 버튼 → 팝업(BottomSheet)
+  const [modal, setModal] = useState<null | 'flow' | 'macro' | 'risk' | 'journal' | 'entry' | 'timeframes' | 'position' | 'more'>(null); // 상단 버튼 → 팝업(BottomSheet)
   // symbol·aiModel은 '선택 상태', run은 '실행된 상태'. 분석 버튼을 눌러야 run이 바뀐다.
   const [run, setRun] = useState<{ symbol: string; model: string } | null>(null);
   // 관심종목에서 '분석'으로 진입(?symbol=…&run=1)하면 해당 코인으로 자동 실행. 그 외에는 버튼으로만.
@@ -1555,26 +1555,40 @@ export default function CoinAnalysisPage() {
           </div>
           {/* 우측: 상단 버튼(팝업) + 파생 수급 정밀(작게) */}
           <div className="space-y-3">
-            <div className="flex flex-wrap gap-1.5">
-              {([
-                ['entry', '🎯 진입 판단'],
-                ['position', '📍 내 포지션'],
-                ['timeframes', '📈 시간대별 지표'],
-                ['flow', '📊 흐름 읽기'],
-                ...(data.macro && data.macro.values && (data.macro.values.us10 || data.macro.values.dxy) ? [['macro', '🌐 거시 배경'] as const] : []),
-                ['risk', '🧮 리스크 패널'],
-                ['journal', '📓 매매일지'],
-              ] as const).map(([k, label]) => (
-                <button key={k} onClick={() => setModal(k)}
-                  className="px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[11px] font-semibold text-[var(--text)] hover:border-[var(--border-hover)]">{label}</button>
-              ))}
+            {/* 자주 쓰는 3개만 크게 + 나머지는 '더보기' 시트(2026-10-26 단순화 — 예전엔 버튼 8개가 한 줄에 몰려 있었다) */}
+            <div className="grid grid-cols-4 gap-1.5">
+              <button onClick={() => setModal('entry')}
+                className="py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[12px] font-bold text-[var(--text)] hover:border-[var(--border-hover)]">🎯 진입 판단</button>
+              <button onClick={() => setModal('position')}
+                className="py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[12px] font-bold text-[var(--text)] hover:border-[var(--border-hover)]">📍 내 포지션</button>
               <button onClick={saveToJournal}
-                className="px-2.5 py-1.5 rounded-lg border border-sky-500/40 bg-sky-500/10 text-[11px] font-semibold text-sky-400 hover:bg-sky-500/15">＋ 일지 기록</button>
+                className="py-2.5 rounded-xl border border-sky-500/40 bg-sky-500/10 text-[12px] font-bold text-sky-400 hover:bg-sky-500/15">＋ 일지 기록</button>
+              <button onClick={() => setModal('more')} aria-label="분석 도구 더보기"
+                className="py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[12px] font-bold text-[var(--text-muted)] hover:border-[var(--border-hover)]">⋯ 더보기</button>
             </div>
             <DerivFlowCompact data={data} />
             <PrecursorCard symbol={symbol} />
           </div>
           </div>
+
+          {/* ⋯ 더보기 — 자주 안 쓰는 분석 도구 모음 */}
+          <BottomSheet open={modal === 'more'} onClose={() => setModal(null)} title="분석 도구">
+            <div className="grid grid-cols-1 gap-2">
+              {([
+                ['timeframes', '📈 시간대별 지표', '1시간봉·15분·5분 추세·RSI·MACD'],
+                ['flow', '📊 흐름 읽기', '지금 왜 움직이나 — 수급·뉴스·청산'],
+                ...(data.macro && data.macro.values && (data.macro.values.us10 || data.macro.values.dxy) ? [['macro', '🌐 거시 배경', '금리·달러 순풍/맞바람'] as const] : []),
+                ['risk', '🧮 리스크 패널', '사이징·청산가·펀딩'],
+                ['journal', '📓 이 기기 매매일지', '분석 화면에서 남긴 기록'],
+              ] as const).map(([k, label, desc]) => (
+                <button key={k} onClick={() => setModal(k)}
+                  className="text-left px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--border-hover)]">
+                  <span className="block text-[13px] font-semibold text-[var(--text)]">{label}</span>
+                  <span className="block text-[11px] text-[var(--text-muted)] mt-0.5">{desc}</span>
+                </button>
+              ))}
+            </div>
+          </BottomSheet>
 
           {/* 🎯 진입 판단 — 상단 버튼 → 팝업 */}
           <BottomSheet open={modal === 'entry'} onClose={() => setModal(null)} title="진입 판단" full>
