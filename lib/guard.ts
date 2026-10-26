@@ -68,6 +68,25 @@ export function suggestStop(p: Pick<OpenPos, 'side' | 'entry' | 'mark' | 'size' 
   return { stop, fromMark: passed, qtyAtRisk, curRiskPct };
 }
 
+/**
+ * 왕복 수수료 경고 — 손절폭이 좁으면 수수료가 1R(손절 시 손실)의 큰 몫이 된다. 산수이지 측정된 신호가 아니다.
+ * 요율: 이 계정 실측 테이커 0.040%(2026-10-26, 30일 체결 238건 청산 기준 — lib/feeDiag). 진입·청산 모두 시장가 가정.
+ * 비율 c = 왕복 수수료 ÷ 1R 이면 1:1 매매의 본전 승률 = (1 + c) / 2 (c 0.25 → 62.5%).
+ * 참고(10-26, 60일 중 손절가 복구된 16건): 비율 중앙값 0.23, ≥0.25 인 6건 순손익 −151 — 표본이 작아 기준값 근거는 아님.
+ */
+export const FEE_TAKER_RATE = 0.0004;
+export const FEE_RISK_WARN = 0.25;
+export interface FeeRisk { cost: number; risk: number; ratio: number; stopPct: number; breakEvenWinPct: number }
+/** 순수 — 손절가가 진입가의 손실 쪽에 있을 때만 계산(본전 위로 올린 추적 손절은 null) */
+export function feeRisk(p: Pick<OpenPos, 'side' | 'entry' | 'size'>, stop: number, rate = FEE_TAKER_RATE): FeeRisk | null {
+  if (!(p.entry > 0) || !(stop > 0) || !p.size || !(p.size > 0)) return null;
+  if (p.side === 'long' ? stop >= p.entry : stop <= p.entry) return null;
+  const risk = Math.abs(p.entry - stop) * p.size;
+  const cost = p.entry * p.size * rate * 2;
+  const ratio = cost / risk;
+  return { cost, risk, ratio, stopPct: (Math.abs(p.entry - stop) / p.entry) * 100, breakEvenWinPct: ((1 + ratio) / 2) * 100 };
+}
+
 const px = (v: number) => (v >= 1000 ? Math.round(v).toLocaleString('en-US') : v >= 1 ? v.toFixed(3) : v.toPrecision(4));
 const qty = (v: number) => (v >= 100 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : v.toPrecision(2));
 
@@ -77,6 +96,8 @@ export interface GuardInput {
   positions: OpenPos[];
   /** 거래소 SL/TP 플랜 주문이 걸린 심볼(정규화). 조회 실패면 null → 손절 경고 생략(오탐 방지) */
   slSymbols: Set<string> | null;
+  /** 거래소 손절 주문 트리거가 — 키 `${심볼}:${long|short}` (먼저 닿는 것). 왕복 수수료 경고용, 없으면 일지 계획 손절만 */
+  slStops?: Record<string, number>;
   journal: PlanStop[];
   closed: Pick<ClosedPosition, 'symbol' | 'netProfit' | 'closeTs'>[];
   limits: BreakerLimits | null;
@@ -142,6 +163,14 @@ ${on.map((c) => NAME[c.key]).join(' · ')}
         : '';
       fire(`nosl:${pid}`, 2 * H, `🚧 <b>${base(p.symbol)} ${long ? '롱' : '숏'} 손절 주문 없음</b>\n진입 ${ago(inp.now - p.openTs)}째 · 진입가 ${p.entry} · 현재 ${p.mark}${hint}\n거래소 SL(또는 일지 계획 손절)부터 거세요. <i>제안은 변동성 기준 자리일 뿐 방향 판단 아님</i>`);
     }
+
+    // 💸 왕복 수수료가 1R 대비 큼 — 손절가(거래소 SL 우선, 없으면 일지 계획)마다 1회
+    const stopPx = inp.slStops?.[`${normSym(p.symbol)}:${p.side}`] ?? (plan && plan.stop > 0 ? plan.stop : 0);
+    const fr = stopPx > 0 ? feeRisk(p, stopPx) : null;
+    if (fr && fr.ratio >= FEE_RISK_WARN)
+      fire(`fee:${pid}:${stopPx}`, ONCE, `💸 <b>${base(p.symbol)} ${long ? '롱' : '숏'} — 손절폭 대비 수수료 큼</b>
+손절 ${px(stopPx)}까지 ${fr.stopPct.toFixed(2)}% · 1R ${fr.risk.toFixed(1)} USDT vs 왕복 수수료 ${fr.cost.toFixed(1)} USDT(<b>${Math.round(fr.ratio * 100)}%</b>)
+1:1 매매면 본전 승률 ${fr.breakEvenWinPct.toFixed(1)}% — 손절을 넓히고 수량을 줄이거나, 진입·익절을 지정가로. <i>시장가 ${(FEE_TAKER_RATE * 100).toFixed(2)}% 가정 산수 · 방향 판단 아님</i>`);
 
     // 1H 추세 역행
     if (p.h1Trend === (long ? 'down' : 'up'))
@@ -253,14 +282,23 @@ async function atr1hNow(symbol: string): Promise<number | null> {
   } catch { return null; }
 }
 
-async function slSymbols(): Promise<Set<string> | null> {
+/** 걸린 TP/SL 플랜 주문 — 심볼 집합(손절 없음 경고) + 손절 트리거가(왕복 수수료 경고, 롱은 가장 높은 것·숏은 가장 낮은 것 = 먼저 닿는 것) */
+async function slOrders(): Promise<{ symbols: Set<string>; stops: Record<string, number> } | null> {
   try {
     const j = await bitgetSignedGet('/api/v2/mix/order/orders-plan-pending?productType=USDT-FUTURES&planType=profit_loss');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = j.data as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const list: any[] = d?.entrustedList ?? d?.list ?? (Array.isArray(d) ? d : []);
-    return new Set(list.map((o) => normSym(String(o.symbol ?? ''))).filter(Boolean));
+    const stops: Record<string, number> = {};
+    for (const o of list) {
+      const sym = normSym(String(o.symbol ?? '')), side = String(o.posSide ?? o.holdSide ?? '').toLowerCase();
+      const trig = num(o.triggerPrice ?? o.stopLossTriggerPrice);
+      if (!sym || !/loss/i.test(String(o.planType ?? '')) || (side !== 'long' && side !== 'short') || !(trig > 0)) continue;
+      const k = `${sym}:${side}`;
+      stops[k] = stops[k] == null ? trig : side === 'long' ? Math.max(stops[k], trig) : Math.min(stops[k], trig);
+    }
+    return { symbols: new Set(list.map((o) => normSym(String(o.symbol ?? ''))).filter(Boolean)), stops };
   } catch { return null; }
 }
 
@@ -295,7 +333,7 @@ export async function runGuard(opts: { dry?: boolean; now?: number; ignoreState?
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const raw = ((posJson.data as any[]) ?? []).filter((r) => num(r.total) !== 0);
   const [sl, journalRaw, limits, equity, closedRes, state] = await Promise.all([
-    slSymbols(),
+    slOrders(),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sbGet<any[]>('kospi-lab-coin-journal'),
     sbGet<Partial<BreakerLimits>>('kospi-lab-risk-limits'),
@@ -319,7 +357,7 @@ export async function runGuard(opts: { dry?: boolean; now?: number; ignoreState?
     .filter((e) => e?.result === 'open' && (e.direction === 'long' || e.direction === 'short'))
     .map((e) => ({ symbol: String(e.symbol), side: e.direction, id: String(e.id), name: e.name, stop: num(e.stop), target1: num(e.target1), target2: num(e.target2) }));
   const { alerts, state: next } = evaluateGuard(
-    { now, positions, slSymbols: sl, journal, closed: closedRes.positions, limits: limits ? { ...DEFAULT_LIMITS, ...limits } : null, equity },
+    { now, positions, slSymbols: sl?.symbols ?? null, slStops: sl?.stops, journal, closed: closedRes.positions, limits: limits ? { ...DEFAULT_LIMITS, ...limits } : null, equity },
     (opts.ignoreState ? null : state) ?? { fired: {} },
   );
   if (opts.dry) return { ok: true, positions: positions.length, alerts, sent: false, stateSaved: false };
@@ -375,7 +413,7 @@ export async function myStatus(now: number = Date.now()): Promise<MyStatus> {
   const [hb, posJson, sl, cd] = await Promise.all([
     sbGet<{ at: number }>(HEARTBEAT_ID),
     bitgetSignedGet('/api/v2/mix/position/all-position?productType=USDT-FUTURES&marginCoin=USDT').catch(() => null),
-    slSymbols(),
+    slOrders().then((o) => o?.symbols ?? null),
     cooldownNow(now).catch(() => null),
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

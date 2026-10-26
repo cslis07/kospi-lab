@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { evaluateGuard, suggestStop, cooldownState, SL_GRACE_MS, type GuardInput, type OpenPos } from '../lib/guard';
+import { evaluateGuard, suggestStop, cooldownState, feeRisk, SL_GRACE_MS, type GuardInput, type OpenPos } from '../lib/guard';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -82,5 +82,22 @@ ok('폭락 조기 경보: 롱 + 그 코인에서 유의했던 경보만, 6시간
   assert.deepEqual(keys(evaluateGuard(inp({ positions: [eth], slSymbols: sl, now: NOW + H }), r.state)), []);
   // BTC는 측정상 유의한 경보가 없어 안 울림
   assert.deepEqual(keys(evaluateGuard(inp({ positions: [p({ warn: f })], slSymbols: new Set(['BTCUSDT']) }), { fired: {} })), []);
+});
+ok('왕복 수수료 경고: 1R 대비 25% 이상일 때 손절가마다 1회, 거래소 SL 우선·일지 계획 폴백', () => {
+  const sl = new Set(['BTCUSDT']);
+  // 진입 100, 수량 10 → 왕복 수수료 100×10×0.0004×2 = 0.8. 손절 99.7 → 1R 3 → 27% (경고) / 손절 99 → 1R 10 → 8% (조용)
+  const fr = feeRisk({ side: 'long', entry: 100, size: 10 }, 99.7)!;
+  assert.ok(Math.abs(fr.cost - 0.8) < 1e-9 && Math.abs(fr.risk - 3) < 1e-9);
+  assert.ok(Math.abs(fr.breakEvenWinPct - ((1 + 0.8 / 3) / 2) * 100) < 1e-9);
+  assert.equal(feeRisk({ side: 'long', entry: 100, size: 10 }, 101), null);   // 본전 위 추적 손절
+  assert.equal(feeRisk({ side: 'short', entry: 100, size: 10 }, 99), null);
+  const pos = p({ size: 10 });
+  const r = evaluateGuard(inp({ positions: [pos], slSymbols: sl, slStops: { 'BTCUSDT:long': 99.7 } }), { fired: {} });
+  assert.deepEqual(keys(r), ['fee']); assert.match(r.alerts[0].text, /본전 승률 63\.3%/);
+  assert.deepEqual(keys(evaluateGuard(inp({ positions: [pos], slSymbols: sl, slStops: { 'BTCUSDT:long': 99.7 }, now: NOW + 9 * H }), r.state)), []);
+  assert.deepEqual(keys(evaluateGuard(inp({ positions: [pos], slSymbols: sl, slStops: { 'BTCUSDT:long': 99 } }), { fired: {} })), []);
+  assert.deepEqual(keys(evaluateGuard(inp({ positions: [pos], slSymbols: sl, slStops: { 'BTCUSDT:short': 100.2 } }), { fired: {} })), []);
+  assert.deepEqual(keys(evaluateGuard(inp({ positions: [p({ size: 10, mark: 101 })], slSymbols: sl, journal: [{ symbol: 'BTC/USDT', side: 'long', id: 'j', stop: 99.8, target1: 0, target2: 0 }] }), { fired: {} })), ['fee']);
+  assert.deepEqual(keys(evaluateGuard(inp({ positions: [p({})], slSymbols: sl, slStops: { 'BTCUSDT:long': 99.7 } }), { fired: {} })), []); // 수량 모르면 생략
 });
 console.log(`\n${passed} passed`);
