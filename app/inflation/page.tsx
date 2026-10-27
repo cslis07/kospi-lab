@@ -28,12 +28,7 @@ const INFLATION_TOOLS: { href: string; label: string }[] = [
   { href: '/inflation/brief', label: '데일리 브리핑' },
   { href: '/inflation/analysis', label: '발표일 분석' },
   { href: '/inflation/articles', label: '경제 기사' },
-  { href: '/inflation/prices', label: '품목별 가격' },
-  { href: '/inflation/cart', label: '장바구니' },
   { href: '/inflation/heatcheck', label: '경기 열지수' },
-  { href: '/inflation/calculator', label: '인플레 계산기' },
-  { href: '/inflation/my', label: '내 물가' },
-  { href: '/inflation/methodology', label: '방법론' },
 ];
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -249,7 +244,7 @@ export default function InflationPage() {
           </div>
 
           <div className="flex gap-2 text-[11px] mb-2">
-            <Link href="/macro" className="font-semibold text-[var(--accent-ink)]">경제지표(FRED) →</Link>
+            <Link href="/indicators" className="font-semibold text-[var(--accent-ink)]">경제지표(FRED) →</Link>
             <Link href="/releases" className="font-semibold text-[var(--accent-ink)]">발표 이력 →</Link>
           </div>
         </>

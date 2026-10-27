@@ -1,122 +1,52 @@
 /**
- * 네이버 증권 뉴스 스크래퍼
- * https://finance.naver.com/news/
- *
- * EUC-KR 인코딩 → TextDecoder로 처리
- * 섹션: 시황/전략(401), 주식분석/리포트(402), 증권일반(404)
+ * 네이버 증권 국내 뉴스 — m.stock.naver.com front-api(JSON).
+ * 2026-10 네이버가 finance.naver.com/news 를 stock.naver.com/news 로 옮기며(302) 옛 HTML 스크래퍼가 빈 배열만 냈다 → JSON 으로 교체.
+ * 카테고리: 주요뉴스(mainnews) · 속보(flashnews) · 많이 본(ranknews). 링크는 네이버 뉴스 본문(n.news.naver.com).
  */
 import { NextResponse } from 'next/server';
 import type { NewsItem } from '@/lib/types';
 
-const BASE = 'https://finance.naver.com';
+const API = 'https://m.stock.naver.com/front-api/news/category';
 const HDR = {
-  'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-    '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-  'Accept-Language': 'ko-KR,ko;q=0.9',
-  Referer: 'https://finance.naver.com/',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  Accept: 'application/json',
+  Referer: 'https://stock.naver.com/news/section',
 };
 
 const SECTIONS = [
-  { id: '401', label: '시황/전략' },
-  { id: '402', label: '주식분석' },
-  { id: '404', label: '증권일반' },
+  { id: 'mainnews', label: '주요뉴스' },
+  { id: 'flashnews', label: '속보' },
+  { id: 'ranknews', label: '많이 본' },
 ];
 
-// EUC-KR 디코딩 후 뉴스 항목 추출
-function parseNaverNewsHtml(html: string, sectionLabel: string): NewsItem[] {
-  const items: NewsItem[] = [];
+interface NaverArticle { articleId?: string; officeId?: string; officeName?: string; title?: string; titleFull?: string; body?: string; datetime?: string }
 
-  // <dl> 블록에서 뉴스 기사 추출
-  // 패턴: <dt class="articleSubject"> ... <a href="..."> 제목 </a> </dt>
-  //        <dd class="articleSummary"> 요약 ... <span class="wdate"> 날짜 </span> </dd>
-  //        <dd class="articleSection"> 출처 </dd>
-
-  // href 와 제목 추출
-  const articlePattern =
-    /href="(\/news\/news_read\.naver\?[^"]+)"[^>]*(?:title="([^"]*)")?[^>]*>\s*([^<]{5,}?)\s*<\/a>/g;
-
-  let match: RegExpExecArray | null;
-  const links: { href: string; title: string }[] = [];
-
-  while ((match = articlePattern.exec(html)) !== null) {
-    const href = match[1];
-    const title = (match[2] || match[3] || '').trim().replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
-    if (title && title.length > 5 && !links.some((l) => l.href === href)) {
-      links.push({ href, title });
-    }
-  }
-
-  // 날짜 패턴 (wdate)
-  const dateMatches: string[] = [];
-  const datePattern = /class="wdate"[^>]*>([^<]+)<\/span>/g;
-  let dm: RegExpExecArray | null;
-  while ((dm = datePattern.exec(html)) !== null) {
-    dateMatches.push(dm[1].trim());
-  }
-
-  // 출처(언론사)
-  const sourceMatches: string[] = [];
-  const srcPattern = /class="articleSection"[^>]*>[^<]*<a[^>]*>([^<]+)<\/a>/g;
-  let sm: RegExpExecArray | null;
-  while ((sm = srcPattern.exec(html)) !== null) {
-    sourceMatches.push(sm[1].trim());
-  }
-
-  // 요약
-  const summaryMatches: string[] = [];
-  const sumPattern = /class="articleSummary"[^>]*>([\s\S]*?)<\/dd>/g;
-  let sumM: RegExpExecArray | null;
-  while ((sumM = sumPattern.exec(html)) !== null) {
-    const raw = sumM[1]
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    summaryMatches.push(raw);
-  }
-
-  const maxItems = Math.min(links.length, 15);
-  for (let i = 0; i < maxItems; i++) {
-    const { href, title } = links[i];
-    const pubDate  = dateMatches[i] ?? '';
-    const source   = sourceMatches[i] ?? `네이버 증권 ${sectionLabel}`;
-    const summary  = summaryMatches[i]?.split(' ').slice(0, 30).join(' ') ?? '';
-
-    // 날짜 파싱 (YYYY.MM.DD HH:mm 형식)
-    let pubDateISO: string | undefined;
-    const dp = pubDate.match(/(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})/);
-    if (dp) {
-      pubDateISO = `${dp[1]}-${dp[2]}-${dp[3]}T${dp[4]}:${dp[5]}:00+09:00`;
-    }
-
-    items.push({
-      title,
-      link: `${BASE}${href}`,
-      pubDate: pubDateISO,
-      summary: summary.slice(0, 200),
-      source,
-      category: 'domestic',
-    });
-  }
-
-  return items;
+/** "20261027163308"(KST) → ISO */
+function kstIso(dt?: string): string | undefined {
+  const m = dt?.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}+09:00` : undefined;
 }
 
-async function fetchSection(sectionId: string, label: string): Promise<NewsItem[]> {
-  const url =
-    `${BASE}/news/news_list.naver` +
-    `?mode=LSS3D&section_id=101&section_id2=258&section_id3=${sectionId}`;
+function toNewsItem(a: NaverArticle, label: string): NewsItem | null {
+  const title = (a.titleFull || a.title || '').trim();
+  if (!title || !a.officeId || !a.articleId) return null;
+  return {
+    title,
+    link: `https://n.news.naver.com/mnews/article/${a.officeId}/${a.articleId}`,
+    pubDate: kstIso(a.datetime),
+    summary: a.body?.trim() || undefined,
+    source: a.officeName ? `${a.officeName} · ${label}` : `네이버 증권 ${label}`,
+    category: 'domestic',
+  };
+}
+
+async function fetchSection(id: string, label: string): Promise<NewsItem[]> {
   try {
-    const res = await fetch(url, {
-      headers: HDR,
-      signal: AbortSignal.timeout(8000),
-      cache: 'no-store',
-    });
+    const res = await fetch(`${API}?category=${id}&page=1&pageSize=20`, { headers: HDR, signal: AbortSignal.timeout(8000), cache: 'no-store' });
     if (!res.ok) return [];
-    const buf = await res.arrayBuffer();
-    const html = new TextDecoder('euc-kr').decode(buf);
-    return parseNaverNewsHtml(html, label);
+    const j = await res.json();
+    const list: NaverArticle[] = j?.isSuccess && Array.isArray(j.result) ? j.result : [];
+    return list.map((a) => toNewsItem(a, label)).filter((x): x is NewsItem => x !== null);
   } catch {
     return [];
   }
@@ -134,20 +64,14 @@ export async function GET() {
     });
   }
 
-  const results = await Promise.allSettled(
-    SECTIONS.map((s) => fetchSection(s.id, s.label))
-  );
+  const results = await Promise.allSettled(SECTIONS.map((s) => fetchSection(s.id, s.label)));
 
   const news: NewsItem[] = results
     .flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
-    // 중복 제거
-    .filter((item, idx, arr) => arr.findIndex((a) => a.title === item.title) === idx)
+    // 중복 제거(같은 기사가 주요·많이 본에 겹침)
+    .filter((item, idx, arr) => arr.findIndex((a) => a.link === item.link) === idx)
     // 최신순
-    .sort((a, b) => {
-      const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
-      const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
-      return db - da;
-    })
+    .sort((a, b) => (b.pubDate ? Date.parse(b.pubDate) : 0) - (a.pubDate ? Date.parse(a.pubDate) : 0))
     .slice(0, 40);
 
   if (news.length > 0) {

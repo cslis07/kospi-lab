@@ -1,6 +1,6 @@
 /**
  * Yahoo Finance quoteSummary 클라이언트 — crumb 인증 + 호스트/모듈 폴백 + 1h 캐시.
- * 버핏 스크리너(app/api/screener)와 미국 성장주 스캔(growth-scan)이 공유한다.
+ * 버핏 스크리너(app/api/screener)·해외 분석이 쓴다.
  * (기존 screener route 에 있던 로직을 그대로 추출 — 동작 동일)
  */
 import { TtlCache } from './cache';

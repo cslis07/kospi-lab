@@ -11,7 +11,7 @@ const HUB_CHIPS: { href: string; label: string }[] = [
   { href: '/inflation/why', label: '오늘 왜' },
   { href: '/inflation/scoreboard', label: '예측 스코어보드' },
   { href: '/inflation/brief', label: '데일리 브리핑' },
-  { href: '/inflation/prices', label: '품목별 가격' },
+  { href: '/inflation/quilt', label: '인플레 히트맵' },
   { href: '/inflation/fed', label: 'Fed watch' },
 ];
 

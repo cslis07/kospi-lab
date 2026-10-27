@@ -107,7 +107,7 @@ export default function ReleasesPage() {
           {items.map((it) => <option key={it.id} value={it.id}>{it.name} ({it.count})</option>)}
         </select>
         <span className="text-[11px] text-[var(--text-muted)]">{items.length}개 지표{idx ? ` · 수집 ${idx.updatedAt}` : ''}</span>
-        <Link href="/macro" className="text-[11px] font-semibold text-[var(--accent-ink)] shrink-0">FRED 지표(/macro) →</Link>
+        <Link href="/indicators" className="text-[11px] font-semibold text-[var(--accent-ink)] shrink-0">FRED 지표(시장지표) →</Link>
       </div>
 
       {meta && file ? (

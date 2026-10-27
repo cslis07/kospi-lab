@@ -3,6 +3,8 @@
  * 모바일 하단 탭(BottomNav)·상단 밑줄 탭/데스크탑 내비(NavTabs)·앱바 제목(Header)·메뉴 시트(HomeMenu)가 전부 이 정의를 쓴다.
  * ⚠ 그룹/항목을 바꾸려면 여기만 고친다.
  *
+ * 2026-10-27 방향성 점검 정리: 리포트(빈 화면)·성장주 발굴(고아)·투자설계(추천 — 정직 원칙 위반)·세제혜택·증권사 비교(기준일 없는 고정값)·
+ *   가상 계좌(백업은 /tools#backup 으로)·경제지표 /macro(시장지표에 이미 포함)·물가 생활 도구 5종 삭제. 옛 주소는 next.config redirects.
  * 2026-10-26 오후 1단계 정리: 시장지표 → 더보기 '거시'(지표 4종 한 묶음), 이름 구분(모의 테스트→선행 테스트·가상투자→가상 계좌·시뮬레이션→계산기),
  *   시장 탭은 밑줄 탭 4개 + '더보기' 시트(components/NavTabs), /more 는 /tools 로 합침.
  * IA(2026-10-26 재편 — "직관적·편리" 요청, 실제 매매 흐름 순서 = 하단 5탭):
@@ -27,10 +29,10 @@ export type ToolSection = 'morning' | 'macro' | 'study' | 'stocks' | 'calc';
 /** 더보기 묶음 — 순서대로 노출 */
 export const TOOL_SECTIONS: { key: ToolSection; label: string; desc: string }[] = [
   { key: 'morning', label: '📰 아침 정보', desc: '브리핑·뉴스·일정' },
-  { key: 'macro', label: '🌐 거시', desc: '시장지표·경제지표·실시간 물가·발표 이력' },
+  { key: 'macro', label: '🌐 거시', desc: '시장지표(경제지표 포함)·실시간 물가·발표 이력' },
   { key: 'study', label: '📚 매매 교본', desc: '원칙·공부법·체크리스트·폭락 대응' },
   { key: 'stocks', label: '🔎 종목 도구', desc: '관심종목·종목 비교' },
-  { key: 'calc', label: '🧮 계산·장기투자', desc: '계산기·가상 계좌·투자설계·세제·증권사' },
+  { key: 'calc', label: '🧮 계산', desc: '진입 전 비용·리스크 역산·선물 손익' },
 ];
 export interface MenuGroup {
   key: string; label: string; color: string; qc: string; navIcon: string;
@@ -147,8 +149,7 @@ export const EXTRAS: MenuItem[] = [
   { href: '/brief',      icon: 'sunrise',    label: '모닝 브리핑',  desc: '증시별 거시·금리·유가·뉴스 아침 정리', section: 'morning' },
   { href: '/news',       icon: 'news',       label: '뉴스',        desc: '시장 소식', section: 'morning' },
   { href: '/calendar',   icon: 'calendar',   label: '경제 캘린더', desc: 'FOMC·CPI·실적 등 주요 일정', section: 'morning' },
-  { href: '/indicators', icon: 'signal',     label: '시장지표',    desc: '환율·금리·원자재 실시간(네이버)', section: 'macro' },
-  { href: '/macro',      icon: 'signal',     label: '경제지표',    desc: '미국 CPI·PPI·달러지수·유가·원달러(FRED)', section: 'macro' },
+  { href: '/indicators', icon: 'signal',     label: '시장지표',    desc: '환율·금리·원자재 실시간 + 미국 CPI·PPI 등 경제지표', section: 'macro' },
   { href: '/releases',   icon: 'calendar',   label: '지표 발표 이력', desc: '인베스팅 결과·예측·이전(2021~)', section: 'macro' },
   { href: '/inflation',  icon: 'signal',     label: '실시간 물가',   desc: '나우캐스트 인플레이션·공식 CPI 대비', section: 'macro' },
   { href: '/study/crash', icon: 'risk',      label: '폭락 대응 교본', desc: '3단계·30초 체크리스트·측정 결과', section: 'study' },
@@ -157,13 +158,8 @@ export const EXTRAS: MenuItem[] = [
   { href: '/study/entry-signals', icon: 'insight', label: '롱·숏 진입 신호 가이드', desc: '신호 평가·가격대·RSI/MACD 해석', section: 'study' },
   { href: '/study',      icon: 'insight',    label: '코인 기초 공부법', desc: '차트·RSI·MACD·피보나치·금리·유가', section: 'study' },
   { href: '/my-stocks',  icon: 'star',       label: '관심종목',    desc: '국내·해외·코인 저장 목록', section: 'stocks' },
-  { href: '/screener',   icon: 'screener',   label: '종목 비교',   desc: '여러 종목 재무 비교', alias: ['/growth'], section: 'stocks' },
-  { href: '/report',     icon: 'report',     label: '리포트',      desc: '증권사 리포트', hidden: true, section: 'stocks' },
+  { href: '/screener',   icon: 'screener',   label: '종목 비교',   desc: '여러 종목 재무 비교', section: 'stocks' },
   { href: '/simulate',  icon: 'simulate',  label: '계산기',      desc: '복리·선물 손익·익절 규칙 시뮬레이션', section: 'calc' },
-  { href: '/virtual',   icon: 'virtual',   label: '가상 계좌',   desc: '가상 돈으로 사고팔기·백업', section: 'calc' },
-  { href: '/invest',    icon: 'invest',    label: '투자설계',    desc: '계좌·자산 추천', section: 'calc' },
-  { href: '/tax',       icon: 'tax',       label: '세제혜택',    desc: 'ISA·IRP·연금', section: 'calc' },
-  { href: '/brokerage', icon: 'brokerage', label: '증권사 비교', desc: '수수료·CMA', section: 'calc' },
 ];
 
 /** 실시간 물가(/inflation) 허브의 하위 섹션 — 메뉴 '실시간 물가 허브'·검색에 노출(InflationNav SECTIONS 와 동일 구성).
@@ -180,14 +176,9 @@ export const INFLATION_SECTIONS: MenuItem[] = [
   { href: '/inflation/brief',       icon: 'sunrise', label: '데일리 브리핑',  desc: '하루치 인플레 요약' },
   { href: '/inflation/analysis',    icon: 'report', label: '발표일 분석',    desc: '예측 대 실제' },
   { href: '/inflation/articles',    icon: 'news',   label: '경제 기사',      desc: 'Nowflation 해설' },
-  { href: '/inflation/prices',      icon: 'krx',    label: '품목별 가격',    desc: '식료품·연료 추이', hidden: true },
-  { href: '/inflation/cart',        icon: 'tools',  label: '장바구니',       desc: '월 비용·전년대비', hidden: true },
   { href: '/inflation/jobs',        icon: 'growth', label: '고용',          desc: 'NFP·실업·임금' },
   { href: '/inflation/heatcheck',   icon: 'risk',   label: '경기 열지수',    desc: '침체 신호 점검', hidden: true },
   { href: '/inflation/quilt',       icon: 'analysis', label: '인플레 히트맵', desc: '품목×월 YoY' },
-  { href: '/inflation/calculator',  icon: 'simulate', label: '인플레 계산기', desc: '구매력 환산', hidden: true },
-  { href: '/inflation/my',          icon: 'portfolio', label: '내 물가',     desc: '내 소비 가중 체감', hidden: true },
-  { href: '/inflation/methodology', icon: 'principles', label: '방법론',     desc: '구성·현황·소스', hidden: true },
 ];
 
 /** 종목·코인 상세 — 섹션 항목 하위 경로여도 드릴다운(뒤로가기)으로 취급 */
@@ -223,8 +214,8 @@ export function drillTitle(pathname: string): string {
  * '/'로 끝나는 항목은 접두사(동적 경로). tests/headings.test.ts 가 app/ 의 실제 <h1>과 대조한다.
  */
 export const OWN_H1_ROUTES = [
-  '/bitget', '/brokerage', '/crypto/', '/futures', '/growth', '/invest', '/journal', '/krx',
-  '/overseas/', '/overseas-analysis', '/macro', '/inflation', '/principles', '/releases', '/screener', '/simulate', '/stock/', '/study', '/tax', '/tools', '/virtual', '/eth',
+  '/bitget', '/crypto/', '/futures', '/journal', '/krx',
+  '/overseas/', '/overseas-analysis', '/inflation', '/principles', '/releases', '/screener', '/simulate', '/stock/', '/study', '/tools', '/eth',
 ];
 export const pageOwnsH1 = (pathname: string) =>
   OWN_H1_ROUTES.some((r) => (r.endsWith('/') ? pathname.startsWith(r) : under(pathname, r)));

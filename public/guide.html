@@ -202,13 +202,12 @@ kbd{background:linear-gradient(180deg,#fff,#f1f5f9);border:1px solid var(--borde
   <div class="hero-inner">
     <div class="hero-badge">📖 이용가이드 · v2026.06</div>
     <h1>국내·해외 주식 + 코인 + 선물 한 화면</h1>
-    <p>실시간 시세, 재무지표, 뉴스·공시, 본인 성향 맞춤 투자 설계와 절세·시뮬레이션을 한 곳에서.<br>로그인 없이 시작, Bitget만 본인 API 키로 잔고 조회.</p>
+    <p>실시간 시세, 재무지표, 뉴스·공시, 손절·사이징 계산과 매매 복기를 한 곳에서.<br>로그인 없이 시작, Bitget만 본인 API 키로 잔고 조회.</p>
     <div class="hero-chips">
       <span>🇰🇷 KOSPI·KOSDAQ 실시간</span>
       <span>🌐 해외주식·환율</span>
       <span>₿ Bitget 코인·선물</span>
       <span>📊 KIS 실시간 재무</span>
-      <span>🎯 투자설계·절세</span>
     </div>
   </div>
 </section>
@@ -277,10 +276,7 @@ kbd{background:linear-gradient(180deg,#fff,#f1f5f9);border:1px solid var(--borde
         <span class="sidebar-dot" style="background:var(--c5)"></span>설계
       </a>
       <div class="sidebar-sub">
-        <a href="#sub-invest">투자설계</a>
-        <a href="#sub-tax">세제혜택</a>
         <a href="#sub-simulate">시뮬레이션</a>
-        <a href="#sub-brokerage">증권사비교</a>
       </div>
     </div>
 
@@ -395,7 +391,7 @@ kbd{background:linear-gradient(180deg,#fff,#f1f5f9);border:1px solid var(--borde
             <tr><td><strong>📈 시장</strong></td><td>국내주식 · 해외주식 · 코인 · 선물</td></tr>
             <tr><td><strong>💼 내 자산</strong></td><td>통합 자산 · 내 주식 · 비트겟 포트폴리오</td></tr>
             <tr><td><strong>📊 분석</strong></td><td>버핏 스크리너 · 뉴스 · 공시 · 리포트 · 캘린더</td></tr>
-            <tr><td><strong>🎯 설계</strong></td><td>투자설계 · 세제혜택 · 시뮬레이션 · 증권사비교</td></tr>
+            <tr><td><strong>🎯 설계</strong></td><td>계산기(시뮬레이션)</td></tr>
           </tbody>
         </table>
         <div class="tip">💡 현재 보고 있는 페이지가 속한 그룹은 자동으로 <strong>활성 표시</strong>됩니다.</div>
@@ -643,50 +639,11 @@ kbd{background:linear-gradient(180deg,#fff,#f1f5f9);border:1px solid var(--borde
         <span class="section-icon">🎯</span>
         <div>
           <div class="section-title">설계</div>
-          <div class="section-subtitle">투자 계획 · 절세 · 시뮬레이션</div>
+          <div class="section-subtitle">계산기 · 시뮬레이션</div>
         </div>
       </div>
 
-      <div class="feature" id="sub-invest">
-        <h3>투자설계 — <code>/invest</code></h3>
-        <p>나이·월 투자금·보유 자산·성향·목표를 입력하면 <strong>추천 계좌(ISA/IRP/연금) + 자산배분 + 성향별 KR 우량주 4종</strong>을 한 화면에서 제시합니다.</p>
-        <div class="steps">
-          <div class="step">
-            <div class="step-num" style="background:var(--c5)">1</div>
-            <div class="step-body">
-              <div class="step-label">입력</div>
-              <div class="step-text">슬라이더 또는 <strong>숫자 직접 입력</strong>으로 정확한 값 지정 가능</div>
-            </div>
-          </div>
-          <div class="step">
-            <div class="step-num" style="background:var(--c5)">2</div>
-            <div class="step-body">
-              <div class="step-label">성향 선택</div>
-              <div class="step-text">안정형 · 중립형 · 공격형 · 초공격형 4단계</div>
-            </div>
-          </div>
-          <div class="step">
-            <div class="step-num" style="background:var(--c5)">3</div>
-            <div class="step-body">
-              <div class="step-label">결과 확인</div>
-              <div class="step-text">계좌 순위 · 자산배분 도넛 · 월 배분 표 · <strong>성향별 우량주(KIS 실시간 ROE·부채·성장)</strong> · 절세 효과</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <div class="feature" id="sub-tax">
-        <h3>세제혜택 — <code>/tax</code></h3>
-        <p>연봉·납입액을 입력하면 ISA·IRP·연금저축 <strong>세액공제 환급액</strong>을 실시간 자동 계산합니다.</p>
-        <table class="info-table">
-          <thead><tr><th>제도</th><th>한도</th><th>공제율</th></tr></thead>
-          <tbody>
-            <tr><td><strong>IRP</strong></td><td>연 1,800만원</td><td>16.5% (연봉≤5,500만) / 13.2%</td></tr>
-            <tr><td><strong>연금저축</strong></td><td>연 600만원 (IRP 합산 한도 900만)</td><td>16.5% / 13.2%</td></tr>
-            <tr><td><strong>ISA</strong></td><td>연 2,000만원 (납입한도)</td><td>비과세 400만(서민형) / 200만(일반형)</td></tr>
-          </tbody>
-        </table>
-      </div>
 
       <div class="feature" id="sub-simulate">
         <h3>시뮬레이션 — <code>/simulate</code></h3>
@@ -700,15 +657,6 @@ kbd{background:linear-gradient(180deg,#fff,#f1f5f9);border:1px solid var(--borde
         <p style="margin-top:10px"><code>FV = PV·(1+r)ⁿ + PMT·[(1+r)ⁿ−1]/r</code> (월 복리)</p>
       </div>
 
-      <div class="feature" id="sub-brokerage">
-        <h3>증권사비교 — <code>/brokerage</code></h3>
-        <p>7개 주요 증권사(토스·NH나무·키움·미래에셋·KB·삼성·신한) + 7개 은행(예금·적금·CMA)의 수수료·금리를 한 화면 비교.</p>
-        <ul class="func-list">
-          <li><span class="fi">💸</span><div><span class="ft">필터</span><span class="fd">ISA 가능 / IRP 가능 / 전체</span></div></li>
-          <li><span class="fi">📊</span><div><span class="ft">정렬</span><span class="fd">국내 수수료 / 미국 수수료 / CMA 금리</span></div></li>
-          <li><span class="fi">✓✗</span><div><span class="ft">장단점</span><span class="fd">증권사별 pros/cons 요약</span></div></li>
-        </ul>
-      </div>
     </section>
 
     <!-- ───────────────── 6. 부가 기능 ───────────────── -->

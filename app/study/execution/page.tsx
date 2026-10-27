@@ -142,7 +142,7 @@ export default function StudyExecutionPage() {
         <Trap>스테이블코인 준비자산(테더·써클)에서 <b>T-bill(만기 1년 이하 미 단기국채)</b>의 비중·가중평균만기(WAM)는 금리 민감도와 다르다. 미 10년물 금리와 9~90일 단기 준비자산을 같은 상품처럼 비교하면 오류다. 대화에 나온 특정 비율·만기 수치는 보고서로 확인하기 전까지 확정 사실로 쓰지 않는다.</Trap>
         <AppLinks links={[
           { href: '/brief?market=coin', label: '모닝 브리핑(코인) — 선행 지표·뉴스' },
-          { href: '/macro', label: '경제지표 — CPI·PPI·달러·유가·원달러' },
+          { href: '/indicators', label: '시장지표 — 환율·금리 + CPI·PPI·달러·유가' },
           { href: '/study/macro', label: '거시·수급 — 금리·달러·유동성 깊게' },
         ]} />
       </Lesson>

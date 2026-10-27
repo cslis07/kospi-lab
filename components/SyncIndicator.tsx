@@ -73,7 +73,7 @@ export default function SyncIndicator() {
                   그냥 진행하면 한쪽 기록이 사라집니다.
                 </p>
                 <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
-                  걱정되면 먼저 <a href="/virtual" className="text-sky-400 underline">백업</a>에서 내보내기를 한 뒤 고르세요.
+                  걱정되면 먼저 <a href="/tools#backup" className="text-sky-400 underline">백업</a>에서 내보내기를 한 뒤 고르세요.
                 </p>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <button onClick={s.resolveKeepLocal}

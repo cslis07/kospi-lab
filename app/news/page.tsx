@@ -97,18 +97,19 @@ export default function NewsPage() {
     { refreshInterval: 5 * 60 * 1000, revalidateOnFocus: false }
   );
 
-  // 국내 뉴스 (Naver Finance 스크래핑 1순위, RSS 폴백)
+  // 국내 뉴스 (네이버 증권 1순위, RSS 폴백 — 오류뿐 아니라 빈 배열이어도 폴백: 10월 네이버 주소 이전 때 빈 배열만 와서 탭이 비었다)
   const { data: naverData, isLoading: naverLoading, error: naverError } = useSWR<NewsItem[]>(
     tab === 'domestic' ? '/api/news/naver' : null,
     fetcher,
     { refreshInterval: 5 * 60 * 1000, revalidateOnFocus: false }
   );
+  const naverEmpty = !!naverError || (Array.isArray(naverData) && naverData.length === 0);
   const { data: rssData } = useSWR<NewsItem[]>(
-    tab === 'domestic' && naverError ? '/api/news?category=domestic' : null,
+    tab === 'domestic' && naverEmpty ? '/api/news?category=domestic' : null,
     fetcher,
     { revalidateOnFocus: false }
   );
-  const domesticData = naverError ? rssData : naverData;
+  const domesticData = naverEmpty ? rssData : naverData;
   const domesticLoading = naverLoading;
 
   // 공시

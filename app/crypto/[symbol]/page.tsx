@@ -11,7 +11,6 @@ import PriceChart from '@/components/detail/PriceChartLazy';
 import { TIMEFRAMES } from '@/components/detail/chartLayout';
 import SwipeNav from '@/components/detail/SwipeNav';
 import ActionSheet, { KebabButton, type SheetAction } from '@/components/ui/ActionSheet';
-import VirtualTradeModal from '@/components/VirtualTradeModal';
 import { badgeTint } from '@/components/WatchRow';
 import Range52Bar from '@/components/Range52Bar';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
@@ -39,7 +38,6 @@ export default function CryptoDetailPage() {
   const en = meta?.name ?? base;
   const [tfIdx, setTfIdx] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [trade, setTrade] = useState(false);
   const wl = useCryptoWatchlist();
 
   const { data: batch, error } = useSWR<Record<string, CryptoData>>(symbol ? `/api/crypto/batch?symbols=${symbol}` : null, fetcher, { refreshInterval: 5000 });
@@ -61,7 +59,6 @@ export default function CryptoDetailPage() {
   const actions: SheetAction[] = [
     { label: watched ? '관심 코인에서 삭제' : '관심 코인에 추가', icon: 'star', onClick: toggleWatch, danger: watched },
     ...(ANALYZABLE.includes(base) ? [{ label: '코인선물 분석', sub: '손절·사이징 체크리스트', icon: 'signal', href: '/coin-analysis' }] : []),
-    ...(c ? [{ label: '가상 계좌', sub: '가상 돈으로 매수·매도', icon: 'virtual', onClick: () => setTrade(true) }] : []),
     { label: '공유 · 링크 복사', icon: 'report', onClick: share },
   ];
   const nav = wl.watchlist.map((w) => ({ key: w.symbol, href: `/crypto/${w.symbol}`, label: COINS.find((x) => x.symbol === w.symbol)?.ko ?? w.name }));
@@ -118,9 +115,6 @@ export default function CryptoDetailPage() {
       <PriceChart points={chart} isUp={isUp} tfIdx={tfIdx} onTf={setTfIdx} fmt={(n) => fmtCoinPrice(n)} yFmt={yFmt} />
 
       <ActionSheet open={menuOpen} onClose={() => setMenuOpen(false)} title={ko} actions={actions} />
-      {trade && c && (
-        <VirtualTradeModal symbol={symbol} name={en} assetType="crypto" price={c.price} currency="USD" onClose={() => setTrade(false)} />
-      )}
     </div>
   );
 }

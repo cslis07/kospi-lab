@@ -14,7 +14,6 @@ import SwipeNav from '@/components/detail/SwipeNav';
 import Collapsible from '@/components/ui/Collapsible';
 import Range52Bar from '@/components/Range52Bar';
 import ActionSheet, { KebabButton, type SheetAction } from '@/components/ui/ActionSheet';
-import VirtualTradeModal from '@/components/VirtualTradeModal';
 import { badgeTint } from '@/components/WatchRow';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import type { OverseasStockData, ChartPoint } from '@/lib/types';
@@ -44,7 +43,6 @@ export default function OverseasDetailPage() {
   const symbol = decodeURIComponent(String(useParams().symbol ?? '')).toUpperCase();
   const [tfIdx, setTfIdx] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [trade, setTrade] = useState(false);
   const wl = useOverseasWatchlist();
 
   const { data: batch, error } = useSWR<Record<string, OverseasStockData>>(
@@ -71,7 +69,6 @@ export default function OverseasDetailPage() {
   };
   const actions: SheetAction[] = [
     { label: watched ? '관심종목에서 삭제' : '관심종목에 추가', icon: 'star', onClick: toggleWatch, danger: watched },
-    ...(d ? [{ label: '가상 계좌', sub: '가상 돈으로 매수·매도', icon: 'virtual', onClick: () => setTrade(true) }] : []),
     { label: 'Yahoo Finance에서 열기', icon: 'news', href: `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`, external: true },
     { label: '공유 · 링크 복사', icon: 'report', onClick: share },
   ];
@@ -136,9 +133,6 @@ export default function OverseasDetailPage() {
       )}
 
       <ActionSheet open={menuOpen} onClose={() => setMenuOpen(false)} title={name} actions={actions} />
-      {trade && d && (
-        <VirtualTradeModal symbol={symbol} name={d.name} assetType="overseas" price={d.price} currency="USD" onClose={() => setTrade(false)} />
-      )}
     </div>
   );
 }

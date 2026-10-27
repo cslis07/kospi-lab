@@ -714,7 +714,7 @@ export default function JournalPage() {
 
       <p className="text-[10px] text-[var(--text-muted)] mt-4 leading-relaxed">
         ※ 월별 보고서·손익은 <strong className="text-[var(--text)]">거래소가 청산한 포지션</strong>만 반영합니다(수수료·펀딩 포함). 현재 포지션의 미실현손익은 참고용이며 보고서에 넣지 않습니다.
-        기분·셋업·실수 태그는 이 브라우저에만 저장되며 <Link href="/virtual" className="text-sky-400 hover:underline">가상투자·백업</Link>에서 관리합니다. 읽기 전용 조회이며 주문은 하지 않습니다.
+        기분·셋업·실수 태그는 이 브라우저에만 저장되며 <Link href="/tools#backup" className="text-sky-400 hover:underline">더보기 › 데이터 백업</Link>에서 내보낼 수 있습니다. 읽기 전용 조회이며 주문은 하지 않습니다.
       </p>
 
       {/* 기분·셋업·실수 편집 시트 */}
