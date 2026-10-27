@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { evaluateGuard, suggestStop, cooldownState, feeRisk, SL_GRACE_MS, type GuardInput, type OpenPos } from '../lib/guard';
+import { evaluateGuard, suggestStop, cooldownState, feeRisk, SL_GRACE_MS, SL_ALT_MULT, type GuardInput, type OpenPos } from '../lib/guard';
+import { feeVsRisk } from '../lib/positionSizing';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -99,5 +100,28 @@ ok('왕복 수수료 경고: 1R 대비 25% 이상일 때 손절가마다 1회, �
   assert.deepEqual(keys(evaluateGuard(inp({ positions: [pos], slSymbols: sl, slStops: { 'BTCUSDT:short': 100.2 } }), { fired: {} })), []);
   assert.deepEqual(keys(evaluateGuard(inp({ positions: [p({ size: 10, mark: 101 })], slSymbols: sl, journal: [{ symbol: 'BTC/USDT', side: 'long', id: 'j', stop: 99.8, target1: 0, target2: 0 }] }), { fired: {} })), ['fee']);
   assert.deepEqual(keys(evaluateGuard(inp({ positions: [p({})], slSymbols: sl, slStops: { 'BTCUSDT:long': 99.7 } }), { fired: {} })), []); // 수량 모르면 생략
+});
+ok('단타 횟수: 오늘(KST) 1시간 미만 청산 3건째부터 건수마다 1회, 어제·1시간 이상은 안 셈', () => {
+  const sc = (minAgo: number, holdMin: number, net = -1) => ({ symbol: 'BTCUSDT', netProfit: net, grossPnl: net + 0.5, fee: -0.5, openTs: NOW - (minAgo + holdMin) * M, closeTs: NOW - minAgo * M });
+  const two = [sc(200, 10), sc(100, 20)];
+  assert.deepEqual(keys(evaluateGuard(inp({ closed: [...two, sc(90, 90)] }), { fired: {} })).filter((k) => k === 'scalp'), []);
+  const r = evaluateGuard(inp({ closed: [...two, sc(50, 5, 2)] }), { fired: {} });
+  assert.deepEqual(keys(r).filter((k) => k === 'scalp'), ['scalp']);
+  assert.match(r.alerts.find((a) => a.key.startsWith('scalp'))!.text, /1시간 미만 매매 3건째[\s\S]*수수료 1\.5 USDT[\s\S]*tab=cost/);
+  assert.deepEqual(keys(evaluateGuard(inp({ closed: [...two, sc(50, 5, 2)], now: NOW + M }), r.state)).filter((k) => k === 'scalp'), []);
+  assert.deepEqual(keys(evaluateGuard(inp({ closed: [...two, sc(50, 5, 2), sc(10, 5)], now: NOW + M }), r.state)).filter((k) => k === 'scalp'), ['scalp']);
+  // 어제(KST) 청산은 제외 — NOW 는 KST 15:00
+  assert.deepEqual(keys(evaluateGuard(inp({ closed: [...two, sc(16 * 60, 5)] }), { fired: {} })).filter((k) => k === 'scalp'), []);
+});
+ok('알림 링크·넓은 손절 대안', () => {
+  const r = evaluateGuard(inp({ positions: [p({ atr1h: 1, size: 2 })] }), { fired: {} });
+  assert.match(r.alerts[0].text, /<a href="https:\/\/kospi-lab\.vercel\.app\/coin-analysis\?symbol=BTCUSDT">BTC 분석<\/a>/);
+  assert.match(r.alerts[0].text, new RegExp(`넓게: ${SL_ALT_MULT}×ATR 손절 <b>98\.200</b>`));
+  assert.equal(suggestStop({ side: 'long', entry: 100, mark: 99, size: 2, atr1h: 1 }, 1000, SL_ALT_MULT)!.stop, 98.2);
+});
+ok('진입 전 비용 미리보기(feeVsRisk): 왕복 수수료율 ÷ 손절 거리', () => {
+  const f = feeVsRisk(0.4, 0.0012)!;   // 시장가 왕복 0.12% · 손절 0.4% → 30%
+  assert.ok(Math.abs(f.ratio - 0.3) < 1e-9); assert.ok(Math.abs(f.breakEvenWinPct - 65) < 1e-9); assert.ok(Math.abs(f.minStopPct - 0.48) < 1e-9);
+  assert.equal(feeVsRisk(0, 0.0012), null);
 });
 console.log(`\n${passed} passed`);

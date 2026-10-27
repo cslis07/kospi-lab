@@ -9,6 +9,7 @@ import useSWR from 'swr';
 import type { LiveState, StatsFile, ShockStat } from '@/lib/crashPrecursor';
 import { SIGNALS } from '@/lib/crashPrecursor';
 import type { Flags, WarningStatsFile, Scorecard } from '@/lib/crashWarning';
+import type { AlertLogSummary } from '@/lib/alertLog';
 
 const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); });
 const pct = (v: number | null | undefined, d = 0) => (v == null || !Number.isFinite(v) ? '–' : `${v.toFixed(d)}%`);
@@ -61,6 +62,28 @@ function EarlyWarning({ f, cards, btc, days }: { f: Flags; cards: Scorecard[]; b
   );
 }
 
+/** 실전 성적 — 가드가 실제로 보낸 경보의 이후 결과(lib/alertLog) vs 과거 측정값. 계좌 게이트 뒤라 잠겨 있으면 안 보임 */
+function LiveRecord({ pooled }: { pooled: ShockStat }) {
+  const { data } = useSWR<{ ok: boolean; summary: AlertLogSummary | null }>('/api/bitget/alert-log', fetcher, { revalidateOnFocus: false });
+  const s = data?.summary;
+  if (!s || (s.warn.n + s.warn.pending + s.shock.n + s.shock.pending) === 0) return null;
+  const m = pooled.n || 1;
+  return (
+    <div className="rounded-xl border border-[var(--border)] px-3 py-2 mb-2 text-[11.5px] leading-relaxed tabular-nums">
+      <p className="font-semibold text-[var(--text)]">내 알림 실전 성적 <span className="font-normal text-[var(--text-muted)]">가드가 보낸 경보 · 4코인 합산</span></p>
+      <p className="text-[var(--text-muted)]">
+        🚨 폭락 조기 경보 {s.warn.n}번 판정 · 15~75분 안 −3% <b className="text-[var(--text)]">{s.warn.hit}번{s.warn.ratePct != null ? ` (${s.warn.ratePct.toFixed(0)}%)` : ''}</b> — 과거 측정 3~8%
+        {s.warn.pending ? ` · 대기 ${s.warn.pending}` : ''}
+      </p>
+      <p className="text-[var(--text-muted)]">
+        ⚡ 하락 충격봉 {s.shock.n}번 판정 · 2시간 안 추가 하락 <b className="text-[var(--text)]">{s.shock.cont}</b> vs 반등 <b className="text-[var(--text)]">{s.shock.rev}</b>
+        {' '}— 과거 {Math.round((pooled.cont / m) * 100)}% vs {Math.round((pooled.rev / m) * 100)}%{s.shock.pending ? ` · 대기 ${s.shock.pending}` : ''}
+      </p>
+      {(s.warn.n + s.shock.n) < 30 && <p className="text-[10.5px] text-[var(--text-muted)]">표본 {s.warn.n + s.shock.n}건 — 30건 전엔 측정값과 비교하지 마세요.</p>}
+    </div>
+  );
+}
+
 export default function PrecursorCard({ symbol }: { symbol: string }) {
   const supported = /^(BTC|ETH|SOL|XRP)USDT$/.test(symbol);
   const { data: live } = useSWR<{ state: LiveState; oiChg6h: number | null; asOf: number; warn: Flags | null }>(supported ? `/api/precursor?symbol=${symbol}` : null, fetcher, { refreshInterval: 60_000 });
@@ -101,6 +124,8 @@ export default function PrecursorCard({ symbol }: { symbol: string }) {
       </div>
 
       {live.warn && wstats?.coins?.[symbol] && <EarlyWarning f={live.warn} cards={wstats.coins[symbol]} btc={symbol === 'BTCUSDT'} days={wstats.days} />}
+
+      <LiveRecord pooled={stats.pooledShockDown} />
 
       <div className="rounded-xl border border-[var(--border)] overflow-x-auto">
         <table className="w-full text-[12px] tabular-nums" style={{ minWidth: 300 }}>

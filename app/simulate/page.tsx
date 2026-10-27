@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import dynamic from 'next/dynamic';
-import { isolatedLiqPrice, liqSafety, notionForRisk } from '@/lib/positionSizing';
+import { isolatedLiqPrice, liqSafety, notionForRisk, feeVsRisk, FEE_RISK_WARN } from '@/lib/positionSizing';
 import { useRiskLimits } from '@/hooks/useRiskLimits';
 import { simulateRules, statsFromRecords, type RuleStat } from '@/lib/exitSim';
 import { useCoinJournal } from '@/hooks/useCoinJournal';
@@ -294,6 +294,9 @@ function LeverageCalc() {
   const safety    = hasStop ? liqSafety(entry, stopPct, lev, isShort, coin.mmr, TAKER_FEE) : 0; // 청산여유÷손절거리
   const safeMaxLev = hasStop && safety > 0 && safety < 2 ? Math.max(1, Math.floor(lev * (safety / 2))) : lev;
   const perTradeExceeded = perTradeLimit != null && riskLoss > perTradeLimit;  // 1회 한도 초과
+  // 진입 전 비용 미리보기 — 고른 주문유형(진입·청산 시장가/지정가) 왕복 수수료 ÷ 1R. 지정가 양쪽이면 얼마나 줄어드는지도
+  const feeRisk   = hasStop ? feeVsRisk(stopPct, openRate + closeRate) : null;
+  const feeRiskMk = hasStop ? feeVsRisk(stopPct, MAKER_FEE * 2) : null;
 
   // 목표가 슬라이더 범위(진입가 ±50%)
   const priceLo = entry ? +(entry * 0.5).toFixed(dg) : 0;
@@ -526,6 +529,21 @@ function LeverageCalc() {
               <div className="flex items-start gap-2 text-[11px] text-red-400 bg-red-500/5 border border-red-500/20 rounded-xl px-3 py-2">
                 <span>⚠</span>
                 <span>청산선이 손절선의 <b>{safety.toFixed(1)}배</b> 거리밖에 안 됩니다(2배 미만 = 손절보다 먼저 강제청산될 수 있음). 배율을 <b>{safeMaxLev}배 이하</b>로 낮추면 손절이 먼저 작동합니다.</span>
+              </div>
+            )}
+            {feeRisk && feeRiskMk && (
+              <div className={`rounded-xl border px-3 py-2.5 text-[11.5px] leading-relaxed ${feeRisk.ratio >= FEE_RISK_WARN ? 'border-amber-500/30 bg-amber-500/5' : 'border-[var(--border)]'}`}>
+                <p className="font-semibold text-[var(--text)]">
+                  {feeRisk.ratio >= FEE_RISK_WARN ? '💸 ' : ''}진입 전 비용 — 왕복 수수료가 1R의 <b className={feeRisk.ratio >= FEE_RISK_WARN ? 'text-amber-400' : ''}>{Math.round(feeRisk.ratio * 100)}%</b>
+                  <span className="font-normal text-[var(--text-muted)]"> (진입 {openMaker ? '지정가' : '시장가'} · 청산 {closeMaker ? '지정가' : '시장가'})</span>
+                </p>
+                <p className="text-[var(--text-muted)] mt-0.5 tabular-nums">
+                  수수료 ~{fmtUsdt(recNotion * (openRate + closeRate), 1)} vs 1R {fmtUsdt(riskLoss, 0)} · 1:1 매매 본전 승률 <b className="text-[var(--text)]">{feeRisk.breakEvenWinPct.toFixed(1)}%</b>
+                  {(openMaker && closeMaker) ? '' : <> · 둘 다 지정가면 {Math.round(feeRiskMk.ratio * 100)}%({feeRiskMk.breakEvenWinPct.toFixed(1)}%)</>}
+                </p>
+                {feeRisk.ratio >= FEE_RISK_WARN && (
+                  <p className="text-[var(--text-muted)] mt-0.5">손절 거리 {stopPct.toFixed(2)}%가 수수료에 비해 좁습니다 — 이 주문유형이면 손절을 <b className="text-[var(--text)]">{feeRisk.minStopPct.toFixed(2)}% 이상</b>으로 넓히고 수량을 줄이거나, 지정가로 바꾸세요. <i>산수 · 방향 판단 아님</i></p>
+                )}
               </div>
             )}
             {perTradeExceeded && (

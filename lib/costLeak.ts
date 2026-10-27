@@ -66,6 +66,24 @@ export function fillLeak(fills: Fill[]): FillLeak {
   };
 }
 
+export interface LossCloseWeek { week: string; bySl: number; manual: number }
+/**
+ * 손실 청산(시장가) 체결을 KST 주(월요일 시작) 단위로 — 예약 손절 발동(sys) vs 직접 닫음. 규율 탭 '손절 미리 걸기' 추이.
+ * 체결 건수 기준(부분 체결은 여러 건) — fillLeak 의 lossCloseBySl/Manual 과 같은 정의.
+ */
+export function lossCloseByWeek(fills: Fill[]): LossCloseWeek[] {
+  const map = new Map<string, LossCloseWeek>();
+  for (const f of fills) {
+    if (f.tradeSide !== 'close' || f.scope === 'maker' || (f.profit ?? 0) > 0) continue;
+    const d = new Date(f.ts + 9 * 3_600_000);
+    const monday = new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * 86_400_000).toISOString().slice(0, 10);
+    const e = map.get(monday) ?? { week: monday, bySl: 0, manual: 0 };
+    if (f.source === 'sys') e.bySl++; else e.manual++;
+    map.set(monday, e);
+  }
+  return [...map.values()].sort((a, b) => a.week.localeCompare(b.week));
+}
+
 /** 청산 포지션 — lib/bitgetPositions ClosedPosition 의 부분집합(부호: fee 음수 = 비용, funding + 받음 / − 냄) */
 export interface LeakPosition {
   grossPnl: number;

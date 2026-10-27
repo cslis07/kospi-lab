@@ -14,6 +14,19 @@ export function notionForRisk(seedUsdt: number, riskPct: number, stopPct: number
   return budget > 0 ? budget / (stopPct / 100) : 0;
 }
 
+/** 왕복 수수료가 1R(손절 시 손실)의 이 비율 이상이면 경고 — 가드 💸 알림과 같은 기준 */
+export const FEE_RISK_WARN = 0.25;
+export interface FeeVsRisk { ratio: number; breakEvenWinPct: number; minStopPct: number }
+/**
+ * 진입 전 비용 미리보기 — 수량과 무관하게 '왕복 수수료율 ÷ 손절 거리'로 정해진다.
+ * ratio = 왕복 수수료 ÷ 1R, breakEvenWinPct = 1:1 매매 본전 승률((1+ratio)/2), minStopPct = ratio 를 경고선 아래로 두는 최소 손절 거리 %.
+ */
+export function feeVsRisk(stopPct: number, roundTripRate: number, warn = FEE_RISK_WARN): FeeVsRisk | null {
+  if (!(stopPct > 0) || !(roundTripRate >= 0)) return null;
+  const ratio = roundTripRate / (stopPct / 100);
+  return { ratio, breakEvenWinPct: ((1 + ratio) / 2) * 100, minStopPct: (roundTripRate / warn) * 100 };
+}
+
 /**
  * 격리 청산가 — Bitget 고립마진 공식: 진입가 × (1 ∓ 1/lev) ÷ (1 ∓ (MMR + 테이커수수료)).
  * 청산 시 수수료는 청산 명목가에 비례 부과되므로 유지증거금률(MMR)에 선형으로 합쳐진다.

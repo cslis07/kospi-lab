@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { fillLeak, posLeak, rankLeaks, type LeakPosition } from '../lib/costLeak';
+import { fillLeak, posLeak, rankLeaks, lossCloseByWeek, type LeakPosition } from '../lib/costLeak';
 import { STD_MAKER_RATE, parseFill, type Fill } from '../lib/feeDiag';
 
 let passed = 0;
@@ -61,6 +61,19 @@ ok('구멍 순위 — 큰 것부터, 0 이하는 빠짐', () => {
   const r = rankLeaks(fl, pl);
   assert.deepEqual(r.map((x) => x.key), ['shortHold', 'openTaker', 'winCloseTaker', 'funding']);
   assert.equal(rankLeaks(null, posLeak([p(1, 0, 0, H)])).length, 0);
+});
+
+ok('lossCloseByWeek — KST 월요일 주 단위, 시장가 손실 청산만 sys/직접 구분', () => {
+  const at = (iso: string, x: Fill) => ({ ...x, ts: Date.parse(iso) });
+  const w = lossCloseByWeek([
+    at('2026-10-19T00:30:00+09:00', f('close', 'taker', 100, 0.0004, -1, 'sys')),      // 월 → 10-19 주
+    at('2026-10-25T23:30:00+09:00', f('close', 'taker', 100, 0.0004, -1, 'android')),  // 일 → 10-19 주
+    at('2026-10-26T00:10:00+09:00', f('close', 'taker', 100, 0.0004, -2, 'web')),      // 월 → 10-26 주
+    at('2026-10-26T01:00:00+09:00', f('close', 'taker', 100, 0.0004, 3, 'sys')),       // 이익 청산 — 제외
+    at('2026-10-26T02:00:00+09:00', f('close', 'maker', 100, 0.0002, -1, 'sys')),      // 지정가 — 제외
+    at('2026-10-26T03:00:00+09:00', f('open', 'taker', 100, 0.0004)),                  // 진입 — 제외
+  ]);
+  assert.deepEqual(w, [{ week: '2026-10-19', bySl: 1, manual: 1 }, { week: '2026-10-26', bySl: 0, manual: 1 }]);
 });
 
 console.log(`  ${passed} passed`);

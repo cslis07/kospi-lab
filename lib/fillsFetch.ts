@@ -3,11 +3,12 @@
  * 같은 기간 체결 내역을 두 번 조회하지 않게(Bitget 서명 API 7일 구간 여러 번) 짧게 메모리 공유한다. 브라우저 전용.
  */
 import type { FeeDiag, EntryScopeDay } from './feeDiag';
-import type { FillLeak } from './costLeak';
+import type { FillLeak, LossCloseWeek } from './costLeak';
 
 export type FillsResp = {
   configured?: boolean; diag?: FeeDiag; leak?: FillLeak; truncated?: boolean; error?: string; locked?: boolean;
   entryByDay?: EntryScopeDay[];
+  lossByWeek?: LossCloseWeek[];
 };
 
 const TTL = 60_000;

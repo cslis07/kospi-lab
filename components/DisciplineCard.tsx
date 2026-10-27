@@ -15,11 +15,38 @@ import {
   type DTrade, type TrendIndex, type DisciplineDay, type DisciplineKey, type Closes1h, type MakerEntryDay,
 } from '@/lib/discipline';
 import { fetchFillsResp } from '@/lib/fillsFetch';
+import type { LossCloseWeek } from '@/lib/costLeak';
 
 interface PosLike { positionId: string; symbol: string; side: 'long' | 'short'; openTs: number; closeTs: number; netProfit: number; stop?: number }
 
 const color = (s: number) => (s >= 80 ? 'var(--ok)' : s >= 60 ? 'var(--amber)' : 'var(--warn)');
 const kstDay = (ts: number) => new Date(ts + 9 * 3_600_000).toISOString().slice(0, 10);
+
+/** 손실 청산 중 예약 손절이 발동한 비율 — 주별(점수 밖 참고). 직접 시장가로 닫은 손실이 많으면 '보면서 닫는' 습관 */
+function SlHabit({ weeks }: { weeks: LossCloseWeek[] }) {
+  const ws = weeks.filter((w) => w.bySl + w.manual > 0).slice(-6);
+  if (!ws.length) return null;
+  return (
+    <div className="mt-3">
+      <p className="text-[12px] font-semibold text-[var(--text)]">손절 미리 걸기 <span className="text-[10px] font-normal text-[var(--text-muted)]">손실 청산 중 예약 손절이 닫은 비율 · 주별 · 참고</span></p>
+      <ul className="mt-1 space-y-1">
+        {ws.map((w) => {
+          const n = w.bySl + w.manual, pct = Math.round((w.bySl / n) * 100);
+          return (
+            <li key={w.week} className="flex items-center gap-2 text-[11.5px] tabular-nums">
+              <span className="w-[52px] shrink-0 text-[var(--text-muted)]">{w.week.slice(5).replace('-', '/')}~</span>
+              <span className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }} aria-hidden>
+                <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: color(pct) }} />
+              </span>
+              <span className="w-[92px] shrink-0 text-right text-[var(--text)]"><b>{pct}%</b> <span className="text-[var(--text-muted)]">{w.bySl}/{n}건</span></span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-[10.5px] text-[var(--text-muted)] mt-1">시장가 손실 청산 체결 기준. 낮을수록 손절을 미리 걸지 않고 보면서 닫은 것 — 늘리는 게 목표입니다.</p>
+    </div>
+  );
+}
 
 function detail(k: DisciplineKey, d: DisciplineDay): string {
   switch (k) {
@@ -94,10 +121,11 @@ export default function DisciplineCard({ positions, days: periodDays = 30 }: { p
 
   // 지정가 진입(점수 밖 참고 줄) — 체결 내역 KST 하루별 진입 메이커/테이커 건수. 실패·잠금이면 줄을 숨긴다(undefined)
   const [entryByDay, setEntryByDay] = useState<MakerEntryDay[] | null | undefined>(null);
+  const [lossByWeek, setLossByWeek] = useState<LossCloseWeek[] | null>(null);
   useEffect(() => {
     let alive = true;
     // 최근 7일 줄이 늘 채워지도록 최소 7일
-    fetchFillsResp(Math.max(7, periodDays)).then((r) => { if (alive) setEntryByDay(r.entryByDay ?? undefined); });
+    fetchFillsResp(Math.max(7, periodDays)).then((r) => { if (alive) { setEntryByDay(r.entryByDay ?? undefined); setLossByWeek(r.lossByWeek ?? null); } });
     return () => { alive = false; };
   }, [periodDays]);
 
@@ -142,6 +170,8 @@ export default function DisciplineCard({ positions, days: periodDays = 30 }: { p
         <Breakdown title="오늘" d={todayDay} maker={makerToday} />
         <Breakdown title="최근 7일" d={week} sub={`${weekDays}일`} maker={makerWeek} />
       </div>
+
+      {lossByWeek && <SlHabit weeks={lossByWeek} />}
 
       <details className="mt-2.5">
         <summary className="cursor-pointer select-none text-[11px] font-semibold text-[var(--text-muted)]">점수 계산 방식</summary>

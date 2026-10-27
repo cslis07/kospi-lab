@@ -31,4 +31,18 @@ ok('지정가 진입 비율: 진입(open) 체결만, 조회 실패면 null', () 
   const m = buildWeeklyMessage(weekStats([reviewTrade(pos({}), ctx(null), null)], 7, [{ scope: 'maker', tradeSide: 'open' }]), weekStats([], 7, null), { base: 'x' });
   assert.match(m, /지정가 진입 100% ← –/);
 });
+ok('비용 줄: 수수료·1시간 미만 매매·지정가 가정 절약(체결 금액 있을 때만)', () => {
+  const short = reviewTrade(pos({ fee: -0.5, closeTs: T + 30 * M }), ctx(null), null);
+  const long = reviewTrade(pos({ fee: -0.3, closeTs: T + 3 * 60 * M }), ctx(null), null);
+  const fills = [
+    { scope: 'taker' as const, tradeSide: 'open' as const, notional: 1000, fee: 0.4, profit: 0, source: 'android' },
+    { scope: 'maker' as const, tradeSide: 'close' as const, notional: 1000, fee: 0.2, profit: 1, source: 'android' },
+  ];
+  const s = weekStats([short, long], 7, fills);
+  assert.ok(Math.abs(s.fee - 0.8) < 1e-9); assert.equal(s.scalp1h.n, 1); assert.ok(Math.abs(s.scalp1h.fee - 0.5) < 1e-9);
+  assert.ok(Math.abs(s.saveIfMaker! - 0.2) < 1e-9);   // 진입 테이커 0.4 − 1000×관측 메이커 0.02%
+  assert.equal(weekStats([short], 7, [{ scope: 'maker', tradeSide: 'open' }]).saveIfMaker, null);
+  const m = buildWeeklyMessage(s, weekStats([], 7, null), { base: 'x' });
+  assert.match(m, /1시간 미만 매매 1건 · 수수료 0\.5\(63%\)/); assert.match(m, /지정가로 했다면 ~0\.2 USDT/); assert.match(m, /x\/journal\?tab=cost/);
+});
 console.log(`\n${passed} passed`);

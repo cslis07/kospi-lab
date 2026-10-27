@@ -13,6 +13,8 @@
  *   🛑/🚨 청산가까지 15%/8% — 6시간/1시간마다.
  *   ⚠/🔔/🎯 매매일지 계획 손절 도달·근접(0.7%)·목표 도달 — 6시간마다.
  *   🛑/🟡 서킷브레이커 — 연속 손절·오늘 손실 한도. 사용자가 한도를 안 정했으면 **오늘 손실 한도 = 계좌 평가금의 3%**(가정, 메시지에 명시). 하루 1회.
+ *   💸 손절폭 대비 왕복 수수료 큼(1R의 25%↑) — 손절가마다 1회. ⏱ 오늘(KST) 1시간 미만 매매 3건째부터 건수마다 1회.
+ *   알림마다 해당 화면 링크(👉). 🚨·⚡ 경보는 보낸 뒤 결과를 guard-alert-log 에 쌓는다(lib/alertLog — 실전 성적).
  * 방향 예측은 하지 않는다 — "지금 규칙을 어기고 있다"만 알린다.
  */
 import { bitgetSignedGet, bitgetKeysConfigured } from './bitget';
@@ -23,6 +25,8 @@ import { latestShock, type Bar } from './crashPrecursor';
 import precursorStats from '../public/data/precursor-stats.json';
 import warningStats from '../public/data/crash-warning-stats.json';
 import { fetchLiveFlags, type Flags } from './crashWarning';
+import { FEE_RISK_WARN } from './positionSizing';
+import { appendAlerts, dueAt, resolveWarn, resolveShock, summarizeAlertLog, type AlertLog, type AlertLogEntry, type AlertLogSummary } from './alertLog';
 
 export interface OpenPos {
   symbol: string; side: 'long' | 'short'; openTs: number; entry: number;
@@ -46,6 +50,11 @@ export interface OpenPos {
  * 같은 수량 그대로 손절만 거는 건 어느 배수·기간에서도 실제보다 못했다 → 손절과 수량을 같이 제안한다. 매매일지 '손절 배수 비교'가 꾸준히 다른 배수를 고르면 재검토.
  */
 export const SL_ATR_MULT = 1.2;
+/**
+ * 넓은 대안 배수 — 최근 30일 '규칙대로였다면'에서 ×1.2 손절이 회복할 매매를 9건 끊었다(PROJECT_STATUS 대기 항목).
+ * 기본 제안은 바꾸지 않고(바꿀 측정 근거 없음) 같은 1% 리스크로 넓게 거는 선택지를 나란히 보여 준다 — 넓히면 수량이 줄어 손실 크기는 같다.
+ */
+export const SL_ALT_MULT = 1.8;
 /** 수량 제안: 평가금 대비 1회 리스크 % */
 export const RISK_PCT = 1;
 
@@ -55,13 +64,13 @@ export interface StopSuggestion { stop: number; fromMark: boolean; qtyAtRisk: nu
  * 가격이 이미 그 자리를 지나 있으면(손실이 더 깊으면) 현재가 ∓ 1.2×ATR 로 바꿔 제안한다(fromMark).
  * qtyAtRisk = 평가금 1% 를 그 손절 폭으로 나눈 수량, curRiskPct = 지금 수량으로 그 손절에 닿으면 평가금 대비 손실 %.
  */
-export function suggestStop(p: Pick<OpenPos, 'side' | 'entry' | 'mark' | 'size' | 'atr1h'>, equity: number | null): StopSuggestion | null {
+export function suggestStop(p: Pick<OpenPos, 'side' | 'entry' | 'mark' | 'size' | 'atr1h'>, equity: number | null, mult = SL_ATR_MULT): StopSuggestion | null {
   const a = p.atr1h;
   if (!a || !(a > 0) || !(p.entry > 0)) return null;
   const long = p.side === 'long';
-  const fromEntry = long ? p.entry - SL_ATR_MULT * a : p.entry + SL_ATR_MULT * a;
+  const fromEntry = long ? p.entry - mult * a : p.entry + mult * a;
   const passed = p.mark > 0 && (long ? p.mark <= fromEntry : p.mark >= fromEntry);
-  const stop = passed ? (long ? p.mark - SL_ATR_MULT * a : p.mark + SL_ATR_MULT * a) : fromEntry;
+  const stop = passed ? (long ? p.mark - mult * a : p.mark + mult * a) : fromEntry;
   const risk = Math.abs(p.entry - stop);
   const qtyAtRisk = equity && equity > 0 && risk > 0 ? (equity * RISK_PCT) / 100 / risk : null;
   const curRiskPct = equity && equity > 0 && p.size && p.size > 0 ? ((p.size * risk) / equity) * 100 : null;
@@ -75,7 +84,7 @@ export function suggestStop(p: Pick<OpenPos, 'side' | 'entry' | 'mark' | 'size' 
  * 참고(10-26, 60일 중 손절가 복구된 16건): 비율 중앙값 0.23, ≥0.25 인 6건 순손익 −151 — 표본이 작아 기준값 근거는 아님.
  */
 export const FEE_TAKER_RATE = 0.0004;
-export const FEE_RISK_WARN = 0.25;
+export { FEE_RISK_WARN };
 export interface FeeRisk { cost: number; risk: number; ratio: number; stopPct: number; breakEvenWinPct: number }
 /** 순수 — 손절가가 진입가의 손실 쪽에 있을 때만 계산(본전 위로 올린 추적 손절은 null) */
 export function feeRisk(p: Pick<OpenPos, 'side' | 'entry' | 'size'>, stop: number, rate = FEE_TAKER_RATE): FeeRisk | null {
@@ -99,7 +108,8 @@ export interface GuardInput {
   /** 거래소 손절 주문 트리거가 — 키 `${심볼}:${long|short}` (먼저 닿는 것). 왕복 수수료 경고용, 없으면 일지 계획 손절만 */
   slStops?: Record<string, number>;
   journal: PlanStop[];
-  closed: Pick<ClosedPosition, 'symbol' | 'netProfit' | 'closeTs'>[];
+  /** openTs·fee·grossPnl 은 단타 횟수 경고용(없으면 그 경고만 생략) */
+  closed: (Pick<ClosedPosition, 'symbol' | 'netProfit' | 'closeTs'> & Partial<Pick<ClosedPosition, 'openTs' | 'fee' | 'grossPnl'>>)[];
   limits: BreakerLimits | null;
   equity: number | null;
 }
@@ -115,6 +125,13 @@ const kstDayStart = (ts: number) => Math.floor((ts + KST) / 86_400_000) * 86_400
 const base = (s: string) => s.replace('USDT', '');
 const ago = (ms: number) => (ms < 90 * 60_000 ? `${Math.round(ms / 60_000)}분` : `${(ms / H).toFixed(1)}시간`);
 const fmt = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(1)}`;
+/** 알림에서 바로 해당 화면으로 — 텔레그램 HTML 링크 */
+export const APP_BASE = 'https://kospi-lab.vercel.app';
+const link = (path: string, label: string) => `\n👉 <a href="${APP_BASE}${path}">${label}</a>`;
+const coinLink = (sym: string) => link(`/coin-analysis?symbol=${normSym(sym)}`, `${base(normSym(sym))} 분석`);
+/** 단타(보유 1시간 미만) 경고 — 오늘(KST) 이 건수째부터 한 건 늘 때마다 */
+export const SCALP_MAX_MS = 3600e3;
+export const SCALP_WARN_N = 3;
 
 /** 순수 — 이번 회차에 보낼 알림과 갱신된 상태 */
 export function evaluateGuard(inp: GuardInput, state: GuardState): { alerts: GuardAlert[]; state: GuardState } {
@@ -139,7 +156,7 @@ export function evaluateGuard(inp: GuardInput, state: GuardState): { alerts: Gua
         fire(`warn:${normSym(p.symbol)}`, 6 * H, `🚨 <b>${base(p.symbol)} 폭락 조기 경보 — 롱 보유 중</b>
 ${on.map((c) => NAME[c.key]).join(' · ')}
 과거 2년: 60분 안 −3% ${best.precision.toFixed(1)}% (평소 ${best.base.toFixed(1)}%, ${best.lift.toFixed(1)}배) · 오경보 ${Math.round((best.falseAlarms / Math.max(1, best.warnings)) * 100)}%
-신규 롱·물타기 보류, 손절 위치부터 확인. <i>과거 빈도 · 숏 신호 아님</i>`);
+신규 롱·물타기 보류, 손절 위치부터 확인. <i>과거 빈도 · 숏 신호 아님</i>${coinLink(p.symbol)}`);
       }
     }
     // ⚡ 하락 충격봉 + 롱 보유 — 측정상 2시간 안 추가 하락이 반등보다 잦았다(scripts/precursor-stats.ts). 충격봉당 1회
@@ -148,7 +165,7 @@ ${on.map((c) => NAME[c.key]).join(' · ')}
       fire(`shock:${normSym(p.symbol)}:${p.shock.ts}`, Number.POSITIVE_INFINITY, `⚡ <b>${base(p.symbol)} 하락 충격봉 — 롱 보유 중</b>
 15분봉 거래량 ${p.shock.volX.toFixed(0)}배 · 변동 ${p.shock.rangePct.toFixed(2)}% · 저점 마감
 과거 2년 4코인 ${s.n}건: 2시간 안 추가 하락 ${Math.round((s.cont / m) * 100)}% vs 반등 ${Math.round((s.rev / m) * 100)}%
-손절 없이 버티거나 물타기 전에 계획부터 확인하세요. <i>과거 빈도 · 방향 예측 아님</i>`);
+손절 없이 버티거나 물타기 전에 계획부터 확인하세요. <i>과거 빈도 · 방향 예측 아님</i>${coinLink(p.symbol)}`);
     }
     const pid = `${normSym(p.symbol)}:${p.side}:${p.openTs}`;
     const long = p.side === 'long';
@@ -157,11 +174,13 @@ ${on.map((c) => NAME[c.key]).join(' · ')}
     // 손절 주문 없음
     if (inp.slSymbols && inp.now - p.openTs >= SL_GRACE_MS && !inp.slSymbols.has(normSym(p.symbol)) && !(plan && plan.stop > 0)) {
       const sg = suggestStop(p, inp.equity);
+      const alt = sg ? suggestStop(p, inp.equity, SL_ALT_MULT) : null;
       const hint = sg
         ? `\n💡 제안 손절 <b>${px(sg.stop)}</b> (${sg.fromMark ? '진입가 기준 자리는 이미 지남 → 현재가' : '진입가'} ∓ ${SL_ATR_MULT}×1H ATR)`
           + (sg.qtyAtRisk != null ? `\n평가금 ${RISK_PCT}% 리스크면 수량 ${qty(sg.qtyAtRisk)}${sg.curRiskPct != null ? ` · 지금 수량이면 손절 시 평가금의 ${sg.curRiskPct.toFixed(sg.curRiskPct < 1 ? 2 : 1)}%` : ''}` : '')
+          + (alt ? `\n넓게: ${SL_ALT_MULT}×ATR 손절 <b>${px(alt.stop)}</b>${alt.qtyAtRisk != null ? ` · 같은 ${RISK_PCT}% 리스크 수량 ${qty(alt.qtyAtRisk)}` : ''} <i>(흔들기에 덜 털림 · 수량↓)</i>` : '')
         : '';
-      fire(`nosl:${pid}`, 2 * H, `🚧 <b>${base(p.symbol)} ${long ? '롱' : '숏'} 손절 주문 없음</b>\n진입 ${ago(inp.now - p.openTs)}째 · 진입가 ${p.entry} · 현재 ${p.mark}${hint}\n거래소 SL(또는 일지 계획 손절)부터 거세요. <i>제안은 변동성 기준 자리일 뿐 방향 판단 아님</i>`);
+      fire(`nosl:${pid}`, 2 * H, `🚧 <b>${base(p.symbol)} ${long ? '롱' : '숏'} 손절 주문 없음</b>\n진입 ${ago(inp.now - p.openTs)}째 · 진입가 ${p.entry} · 현재 ${p.mark}${hint}\n거래소 SL(또는 일지 계획 손절)부터 거세요. <i>제안은 변동성 기준 자리일 뿐 방향 판단 아님</i>${coinLink(p.symbol)}`);
     }
 
     // 💸 왕복 수수료가 1R 대비 큼 — 손절가(거래소 SL 우선, 없으면 일지 계획)마다 1회
@@ -170,23 +189,23 @@ ${on.map((c) => NAME[c.key]).join(' · ')}
     if (fr && fr.ratio >= FEE_RISK_WARN)
       fire(`fee:${pid}:${stopPx}`, ONCE, `💸 <b>${base(p.symbol)} ${long ? '롱' : '숏'} — 손절폭 대비 수수료 큼</b>
 손절 ${px(stopPx)}까지 ${fr.stopPct.toFixed(2)}% · 1R ${fr.risk.toFixed(1)} USDT vs 왕복 수수료 ${fr.cost.toFixed(1)} USDT(<b>${Math.round(fr.ratio * 100)}%</b>)
-1:1 매매면 본전 승률 ${fr.breakEvenWinPct.toFixed(1)}% — 손절을 넓히고 수량을 줄이거나, 진입·익절을 지정가로. <i>시장가 ${(FEE_TAKER_RATE * 100).toFixed(2)}% 가정 산수 · 방향 판단 아님</i>`);
+1:1 매매면 본전 승률 ${fr.breakEvenWinPct.toFixed(1)}% — 손절을 넓히고 수량을 줄이거나, 진입·익절을 지정가로. <i>시장가 ${(FEE_TAKER_RATE * 100).toFixed(2)}% 가정 산수 · 방향 판단 아님</i>${link('/simulate', '계산기에서 손절·수량 다시 보기')}`);
 
     // 1H 추세 역행
     if (p.h1Trend === (long ? 'down' : 'up'))
-      fire(`trend:${pid}`, ONCE, `↩️ <b>${base(p.symbol)} ${long ? '롱' : '숏'} — 1H 추세 역행 진입</b>\n진입 때 1H가 ${long ? '하락' : '상승'} 추세(EMA 역배열)였습니다. 계획한 역추세 매매가 아니라면 크기·손절을 다시 보세요.`);
+      fire(`trend:${pid}`, ONCE, `↩️ <b>${base(p.symbol)} ${long ? '롱' : '숏'} — 1H 추세 역행 진입</b>\n진입 때 1H가 ${long ? '하락' : '상승'} 추세(EMA 역배열)였습니다. 계획한 역추세 매매가 아니라면 크기·손절을 다시 보세요.${coinLink(p.symbol)}`);
 
     // 복구 매매
     const lastLoss = inp.closed.filter((c) => c.closeTs <= p.openTs && c.netProfit < 0).sort((a, b) => b.closeTs - a.closeTs)[0];
     const lastAny = inp.closed.filter((c) => c.closeTs <= p.openTs).sort((a, b) => b.closeTs - a.closeTs)[0];
     if (lastLoss && lastAny === lastLoss && p.openTs - lastLoss.closeTs <= 30 * 60_000)
-      fire(`revenge:${pid}`, ONCE, `🔁 <b>${base(p.symbol)} — 손실 청산 ${Math.max(1, Math.round((p.openTs - lastLoss.closeTs) / 60_000))}분 뒤 재진입</b>\n직전 ${base(lastLoss.symbol)} ${fmt(lastLoss.netProfit)} USDT 손실. 복구 매매가 아닌지 확인하세요.`);
+      fire(`revenge:${pid}`, ONCE, `🔁 <b>${base(p.symbol)} — 손실 청산 ${Math.max(1, Math.round((p.openTs - lastLoss.closeTs) / 60_000))}분 뒤 재진입</b>\n직전 ${base(lastLoss.symbol)} ${fmt(lastLoss.netProfit)} USDT 손실. 복구 매매가 아닌지 확인하세요.${link('/journal?tab=discipline', '규율 탭')}`);
 
     // 청산가 근접
     const dist = p.mark > 0 && p.liq > 0 ? (Math.abs(p.mark - p.liq) / p.mark) * 100 : null;
     if (dist != null) {
-      if (dist < 8) fire(`liqCrit:${normSym(p.symbol)}`, H, `🚨 <b>${base(p.symbol)} 청산 임박 ${dist.toFixed(1)}%</b>\n마크 ${p.mark} · 청산 ${p.liq} — 지금 증거금 추가하거나 줄이세요`);
-      else if (dist < 15) fire(`liq:${normSym(p.symbol)}`, 6 * H, `🛑 <b>${base(p.symbol)} 청산까지 ${dist.toFixed(1)}%</b>\n마크 ${p.mark} · 청산 ${p.liq} — 레버리지/증거금 확인`);
+      if (dist < 8) fire(`liqCrit:${normSym(p.symbol)}`, H, `🚨 <b>${base(p.symbol)} 청산 임박 ${dist.toFixed(1)}%</b>\n마크 ${p.mark} · 청산 ${p.liq} — 지금 증거금 추가하거나 줄이세요${coinLink(p.symbol)}`);
+      else if (dist < 15) fire(`liq:${normSym(p.symbol)}`, 6 * H, `🛑 <b>${base(p.symbol)} 청산까지 ${dist.toFixed(1)}%</b>\n마크 ${p.mark} · 청산 ${p.liq} — 레버리지/증거금 확인${coinLink(p.symbol)}`);
     }
 
     // 매매일지 계획 손절·목표
@@ -204,6 +223,20 @@ ${on.map((c) => NAME[c.key]).join(' · ')}
     }
   }
 
+  // ⏱ 단타 횟수 — 비용 누수 진단상 1시간 미만 매매가 수수료의 가장 큰 몫. 오늘(KST) 3건째부터 한 건 늘 때마다 1회
+  {
+    const day = kstDayStart(inp.now);
+    const scalps = inp.closed.filter((c) => c.closeTs >= day && c.closeTs <= inp.now && c.openTs != null && c.openTs > 0 && c.closeTs - c.openTs < SCALP_MAX_MS);
+    if (scalps.length >= SCALP_WARN_N) {
+      const fee = scalps.reduce((s, c) => s + Math.abs(c.fee ?? 0), 0);
+      const gross = scalps.reduce((s, c) => s + (c.grossPnl ?? 0), 0);
+      const net = scalps.reduce((s, c) => s + c.netProfit, 0);
+      fire(`scalp:${day}:${scalps.length}`, ONCE, `⏱ <b>오늘 1시간 미만 매매 ${scalps.length}건째</b>
+수수료 ${fee.toFixed(1)} USDT · 가격손익 ${fmt(gross)} → 순손익 ${fmt(net)} USDT
+비용 누수 진단에서 가장 큰 구멍이 이 구간입니다. 다음 진입은 계획(손절·목표)을 일지에 먼저 적고, 지정가로.${link('/journal?tab=cost', '비용 탭')}`);
+    }
+  }
+
   // 서킷브레이커 — 사용자 한도 없으면 오늘 손실 한도 = 평가금 3%(가정)
   if (inp.closed.length) {
     const userDaily = inp.limits?.dailyLossLimitUsdt ?? null;
@@ -212,8 +245,8 @@ ${on.map((c) => NAME[c.key]).join(' · ')}
     const cb = evaluateBreaker(inp.closed.map((c) => ({ ts: c.closeTs, result: c.netProfit > 0 ? 'win' : c.netProfit < 0 ? 'loss' : 'even', realizedUsdt: c.netProfit })), limits, inp.now);
     const day = kstDayStart(inp.now);
     const note = assumed != null ? `\n<i>오늘 손실 한도 ${assumed} USDT = 평가금 ${Math.round(inp.equity!)}의 ${DEFAULT_DAILY_LOSS_PCT}% (기본값 — 앱 리스크 한도에서 직접 정할 수 있음)</i>` : '';
-    if (cb.status === 'blocked') fire(`cb:blocked:${day}`, ONCE, `🛑 <b>서킷브레이커 — 오늘 신규 진입 멈춤</b>\n${cb.reasons.join('\n')}\n오늘 ${fmt(cb.todayRealized ?? 0)} USDT · 연속 손절 ${cb.lossStreak}${note}`);
-    else if (cb.status === 'warn') fire(`cb:warn:${day}`, ONCE, `🟡 <b>서킷브레이커 경고</b>\n${cb.reasons.join('\n')}${note}`);
+    if (cb.status === 'blocked') fire(`cb:blocked:${day}`, ONCE, `🛑 <b>서킷브레이커 — 오늘 신규 진입 멈춤</b>\n${cb.reasons.join('\n')}\n오늘 ${fmt(cb.todayRealized ?? 0)} USDT · 연속 손절 ${cb.lossStreak}${note}${link('/journal', '오늘 매매 보기')}`);
+    else if (cb.status === 'warn') fire(`cb:warn:${day}`, ONCE, `🟡 <b>서킷브레이커 경고</b>\n${cb.reasons.join('\n')}${note}${link('/journal', '오늘 매매 보기')}`);
   }
 
   for (const k of Object.keys(fired)) if (fired[k] !== Number.POSITIVE_INFINITY && inp.now - fired[k] > 8 * 24 * H) delete fired[k];
@@ -226,6 +259,8 @@ const num = (v: any) => { const n = Number(v); return Number.isFinite(n) ? n : 0
 const STATE_ID = 'guard-state';
 /** 실행 기록(매 회차 덮어씀) — pg_cron 5분 실행이 실제로 도는지 확인·앱 표시용. kospi-lab- 접두사가 아니라 기기 동기화엔 안 섞임 */
 const HEARTBEAT_ID = 'guard-heartbeat';
+/** 보낸 🚨·⚡ 경보와 그 뒤 결과(lib/alertLog) — 실전 성적 */
+const ALERT_LOG_ID = 'guard-alert-log';
 
 function sbHeaders() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -367,7 +402,51 @@ export async function runGuard(opts: { dry?: boolean; now?: number; ignoreState?
     sent = await sendTelegram(alerts.map((a) => a.text).join('\n\n'));
     if (sent) stateSaved = await sbPut(STATE_ID, next);
   } else if (JSON.stringify(next) !== JSON.stringify(state ?? { fired: {} })) stateSaved = await sbPut(STATE_ID, next);
+  await updateAlertLog(sent ? sentEntries(alerts, positions, now) : [], now).catch(() => null);
   return { ok: true, positions: positions.length, alerts, sent, stateSaved };
+}
+
+/* ── 경보 실전 성적(lib/alertLog) ─────────────── */
+/** 이번에 보낸 알림 중 🚨 폭락 조기 경보·⚡ 하락 충격봉만 기록 항목으로 */
+function sentEntries(alerts: GuardAlert[], positions: OpenPos[], now: number): AlertLogEntry[] {
+  const out: AlertLogEntry[] = [];
+  for (const a of alerts) {
+    const [kind, sym] = a.key.split(':');
+    const p = positions.find((x) => normSym(x.symbol) === sym && x.side === 'long');
+    if (kind === 'warn' && p?.warn) out.push({ kind: 'warn', sym, ts: p.warn.ts, px: p.warn.close, at: now });
+    if (kind === 'shock' && p?.shock) out.push({ kind: 'shock', sym, ts: p.shock.ts, at: now });
+  }
+  return out;
+}
+
+async function candlesRange(symbol: string, gran: '5m' | '15m', start: number, end: number): Promise<Bar[]> {
+  const u = `https://api.bitget.com/api/v2/mix/market/history-candles?symbol=${symbol}&productType=USDT-FUTURES&granularity=${gran}&startTime=${start}&endTime=${end}&limit=200`;
+  const j = await (await fetch(u, { signal: AbortSignal.timeout(8000), cache: 'no-store' })).json();
+  if (j?.code !== '00000') return [];
+  return (j.data as string[][]).map((r) => ({ ts: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4], v: +r[5] })).sort((a, b) => a.ts - b.ts);
+}
+
+/** 새 경보 추가 + 판정 시각이 지난 미판정 건을 회차당 최대 3건 판정. 바뀐 게 있을 때만 저장 */
+async function updateAlertLog(add: AlertLogEntry[], now: number): Promise<void> {
+  const prev = await sbGet<AlertLog>(ALERT_LOG_ID);
+  if (!add.length && !prev?.entries?.some((e) => !e.outcome && !e.gaveUp && dueAt(e) <= now)) return;
+  const log = appendAlerts(prev, add);
+  let n = 0;
+  for (const e of log.entries) {
+    if (e.outcome || e.gaveUp || dueAt(e) > now || n >= 3) continue;
+    n++;
+    const o = e.kind === 'warn'
+      ? resolveWarn(e, await candlesRange(e.sym, '5m', e.ts - 5 * 60_000, dueAt(e) + 5 * 60_000).catch(() => []))
+      : resolveShock(e, await candlesRange(e.sym, '15m', e.ts - 15 * 60_000, dueAt(e) + 15 * 60_000).catch(() => []));
+    if (o) e.outcome = o;
+    else if (now - dueAt(e) > 86_400_000) e.gaveUp = true;   // 하루 지나도 캔들이 없으면 판정 포기(다음 회차를 막지 않게)
+  }
+  await sbPut(ALERT_LOG_ID, log);
+}
+
+/** 앱 표시용 — /api/bitget/alert-log */
+export async function alertLogSummary(): Promise<AlertLogSummary> {
+  return summarizeAlertLog(await sbGet<AlertLog>(ALERT_LOG_ID));
 }
 
 /* ── 냉각 타이머(앱 상단 배너) ─────────────────── */

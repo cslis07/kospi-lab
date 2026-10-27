@@ -11,6 +11,7 @@ import { reviewTrade, type TradeReview } from '@/lib/dailyReview';
 import { analyzeTimeframe, tfTrend } from '@/lib/coinAnalysis';
 import { fetchFills } from '@/lib/bitgetFills';
 import type { Fill } from '@/lib/feeDiag';
+import { fillLeak } from '@/lib/costLeak';
 
 export interface WeekStats {
   n: number; wins: number; net: number; cost: number;
@@ -19,6 +20,10 @@ export interface WeekStats {
   revenge: number; scalpLoss: number; perDay: number;
   /** 진입 체결 중 지정가(메이커) 비율 % — 체결 조회 실패면 null */
   makerEntryRate: number | null;
+  /** 수수료만(USDT, 양수) · 1시간 미만 매매 · 시장가 진입·이익 청산을 지정가로 했다면 아꼈을 수수료(체결 내역 있을 때만) */
+  fee: number;
+  scalp1h: { n: number; fee: number };
+  saveIfMaker: number | null;
   mistakes: Map<string, number>;
 }
 
@@ -34,11 +39,14 @@ export function makerEntryRate(fills: Pick<Fill, 'scope' | 'tradeSide'>[] | null
   return open.length ? Math.round((open.filter((f) => f.scope === 'maker').length / open.length) * 100) : null;
 }
 
-export function weekStats(rs: TradeReview[], days = 7, fills: Pick<Fill, 'scope' | 'tradeSide'>[] | null = null): WeekStats {
+export function weekStats(rs: TradeReview[], days = 7, fills: (Pick<Fill, 'scope' | 'tradeSide'> & Partial<Fill>)[] | null = null): WeekStats {
   const notes = rs.flatMap((r) => [...r.entry, ...r.exit, ...r.trade]);
   const mistakes = new Map<string, number>();
   for (const n of notes) if (n.tone !== 'good' && MISTAKE[n.key]) mistakes.set(n.key, (mistakes.get(n.key) ?? 0) + 1);
   const judged = rs.filter((r) => r.entry.some((n) => n.key === 'trend-with' || n.key === 'trend-against'));
+  const short = rs.filter((r) => r.pos.openTs > 0 && r.pos.closeTs - r.pos.openTs < 3_600_000);
+  const full = fills && fills.length && fills.every((f) => f.notional != null && f.fee != null) ? (fills as Fill[]) : null;
+  const lk = full ? fillLeak(full) : null;
   return {
     n: rs.length, wins: rs.filter((r) => r.pos.netProfit > 0).length,
     net: rs.reduce((s, r) => s + r.pos.netProfit, 0),
@@ -48,6 +56,9 @@ export function weekStats(rs: TradeReview[], days = 7, fills: Pick<Fill, 'scope'
     revenge: mistakes.get('revenge') ?? 0, scalpLoss: mistakes.get('scalp-loss') ?? 0,
     perDay: Math.round((rs.length / days) * 10) / 10,
     makerEntryRate: makerEntryRate(fills),
+    fee: rs.reduce((a, r) => a + Math.abs(r.pos.fee), 0),
+    scalp1h: { n: short.length, fee: short.reduce((a, r) => a + Math.abs(r.pos.fee), 0) },
+    saveIfMaker: lk ? Math.max(0, lk.saveOpen + lk.saveWinClose) : null,
     mistakes,
   };
 }
@@ -75,12 +86,16 @@ export function buildWeeklyMessage(cur: WeekStats, prev: WeekStats, opts: { base
     `📝 지정가 진입 ${pct(cur.makerEntryRate)} ← ${pct(prev.makerEntryRate)}${arrow(cur.makerEntryRate, prev.makerEntryRate, true)} <i>(수수료 절반)</i>`,
     `🔁 복구 매매 ${cur.revenge} ← ${prev.revenge}${arrow(cur.revenge, prev.revenge, false)} · ⏱ 초단타 손실 ${cur.scalpLoss} ← ${prev.scalpLoss}${arrow(cur.scalpLoss, prev.scalpLoss, false)}`,
   ];
+  rows.push('', '<b>비용 — 어디서 새나</b>',
+    `💸 수수료 ${cur.fee.toFixed(1)} ← ${prev.fee.toFixed(1)}${arrow(cur.fee, prev.fee, false)}`,
+    `⏱ 1시간 미만 매매 ${cur.scalp1h.n}건 · 수수료 ${cur.scalp1h.fee.toFixed(1)}${cur.fee > 0 ? `(${Math.round((cur.scalp1h.fee / cur.fee) * 100)}%)` : ''} ← ${prev.scalp1h.n}건${arrow(cur.scalp1h.n, prev.scalp1h.n, false)}`);
+  if (cur.saveIfMaker != null && cur.saveIfMaker >= 0.05) rows.push(`📝 시장가 진입·익절을 지정가로 했다면 ~${cur.saveIfMaker.toFixed(1)} USDT 절약 <i>(가정 · 지정가는 안 걸릴 수 있음)</i>`);
   const top = [...cur.mistakes.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
   if (top.length) {
     rows.push('', '<b>이번 주 실수 Top 3</b>');
     top.forEach(([k, v], i) => rows.push(`${i + 1}. ${esc(MISTAKE[k])} ${v}회 ← ${prev.mistakes.get(k) ?? 0}회${arrow(v, prev.mistakes.get(k) ?? 0, false)}`));
   }
-  rows.push('', `<i>🟢 좋아짐 · 🔴 나빠짐 — 손익이 아니라 규칙 기준 · 매매 신호 아님</i>\n🔗 ${opts.base}/journal`);
+  rows.push('', `<i>🟢 좋아짐 · 🔴 나빠짐 — 손익이 아니라 규칙 기준 · 매매 신호 아님</i>\n🔗 ${opts.base}/journal · 비용 ${opts.base}/journal?tab=cost`);
   return `${head}\n\n${rows.join('\n')}`;
 }
 
