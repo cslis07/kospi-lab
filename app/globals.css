@@ -1163,6 +1163,13 @@ html.light {
   --color-yellow-400: #a86f05; --color-yellow-500: #9a6604;
   --color-orange-400: #d9600f; --color-orange-500: #c9560c;
   --tag-lime: #08853e; --tag-sunflower: #a86f05; --tag-tangerine: #d9600f;
+  /* 2.0 — 흰 바탕에서 2.8~3.0:1 이던 상승(코랄)·하락/링크(블루)·회색 글자를 4.5:1 근처로(전 화면 대비 점검 2026-10-29 P3) */
+  --color-red-300: #e5483b; --color-red-400: #d83325; --color-red-500: #c92a1d;
+  --color-sky-300: #3b78f0; --color-sky-400: #1d5fe0; --color-sky-500: #1a56d6;
+  --color-blue-300: #3b78f0; --color-blue-400: #1d5fe0; --color-blue-500: #1a56d6; --color-indigo-400: #1d5fe0;
+  --color-violet-300: #7c3aed; --color-violet-400: #6d28d9; --color-purple-400: #6d28d9;
+  --color-pink-400: #c0267a; --color-rose-400: #c0267a;
+  --color-gray-400: #6b7c93; --color-slate-400: #64748b;
 }
 
 /* 왼쪽 사이드바(lg+) — 2.0: 다크 #0D1830 · 라이트 흰색(토큰 --sidebar). 펼침 236px / 접힘 72px(html.side-min) */
@@ -1272,3 +1279,11 @@ html.side-min .side-nav .sn-item { justify-content: center; padding: 0; }
 .page-h .page-sub { font-size: 13.5px; color: var(--text-muted); margin-top: 4px; }
 .page-h .page-act { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 @media (min-width: 1024px) { .page-h h1 { font-size: 30px; } }
+
+/* 구역 라벨(2.0) — 같은 화면 안의 성격이 다른 구역(자동 관찰 / 심층 분석 등)을 나눈다 */
+.sec-label { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--text-muted); margin: 0 2px 10px; display: flex; align-items: center; gap: 8px; }
+.sec-label::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.sec-label span { font-weight: 500; letter-spacing: 0; }
+
+/* PC(lg+) — 폭을 좁힌 화면(max-w-* mx-auto)도 왼쪽 정렬: 사이드바·페이지 머리·2차 탭과 같은 왼쪽 선 */
+@media (min-width: 1024px) { .app-main > .mx-auto { margin-left: 0; } }

@@ -26,7 +26,7 @@ function pages(dir: string): string[] {
 const routeOf = (file: string) =>
   '/' + relative(APP, file).split(sep).slice(0, -1).map((s) => (s.startsWith('[') ? 'x' : s)).join('/');
 
-const all = pages(APP).map((f) => ({ route: routeOf(f), hasH1: /<h1[\s>]/.test(readFileSync(f, 'utf8')) }));
+const all = pages(APP).map((f) => ({ route: routeOf(f), hasH1: /<h1[\s>]|<PageHeader[\s>]/.test(readFileSync(f, 'utf8')) })); // PageHeader(components/ui)는 h1을 렌더
 
 ok('본문에 h1이 있는 페이지는 전부 OWN_H1_ROUTES에 등록돼 있다(헤더와 중복 방지)', () => {
   const missing = all.filter((p) => p.hasH1 && !pageOwnsH1(p.route)).map((p) => p.route);

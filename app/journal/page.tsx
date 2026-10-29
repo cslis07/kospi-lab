@@ -377,7 +377,7 @@ export default function JournalPage() {
   return (
     <div className="max-w-3xl xl:max-w-6xl mx-auto px-4 py-6">
       <div className="mb-4">
-        <h1 className="text-lg font-bold text-[var(--text)]">매매일지 <span className="text-xs font-normal text-[var(--text-muted)]">거래소 대조 · 기분 · 월별 보고서</span></h1>
+        <h1 className="text-[26px] lg:text-[30px] font-bold tracking-tight text-[var(--text)]">매매일지 <span className="text-[13px] font-normal text-[var(--text-muted)]">거래소 대조 · 기분 · 월별 보고서</span></h1>
         <p className="text-xs text-[var(--text-muted)] mt-1">Bitget 청산 기록을 그대로 가져와 복기합니다(수수료·펀딩 반영 · 읽기 전용).</p>
       </div>
 
@@ -397,12 +397,10 @@ export default function JournalPage() {
 
       {/* 기간 + 가져오기 */}
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-        <div className="flex items-center gap-1.5">
+        <div className="seg" role="group" aria-label="조회 기간">
           {[7, 30, 90].map((d) => (
-            <button key={d} type="button" onClick={() => setDays(d)} disabled={busy}
-              className={`px-3 min-h-[36px] min-w-[48px] rounded-lg border text-[12px] font-semibold transition-colors disabled:opacity-50 ${
-                days === d ? 'bg-sky-500/15 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)]'
-              }`}>{d}일</button>
+            <button key={d} type="button" onClick={() => setDays(d)} disabled={busy} aria-pressed={days === d}
+              className={`seg-i min-w-[52px] disabled:opacity-50 ${days === d ? 'on' : ''}`}>{d}일</button>
           ))}
         </div>
         <div className="flex items-center gap-1.5">
@@ -422,13 +420,7 @@ export default function JournalPage() {
       {msg && !err && <p className="mb-3 text-[12px] text-[var(--text-muted)]">{msg}</p>}
 
       <Suspense fallback={null}><UrlTabWatch onTab={onUrlTab} /></Suspense>
-      {/* 하위 탭 — 2026-10-29부터 복기 탭은 대시보드(/review) 한 화면이라 상단 밑줄 탭 대신 여기서 전환 */}
-      <nav className="seg mb-2" aria-label="매매일지 하위 탭">
-        {TABS.map((t) => (
-          <Link key={t.key} href={t.key === 'perf' ? '/journal' : `/journal?tab=${t.key}`} scroll={false}
-            aria-current={tab === t.key ? 'page' : undefined} className={`seg-i ${tab === t.key ? 'on' : ''}`}>{t.label}</Link>
-        ))}
-      </nav>
+      {/* 하위 탭 전환은 공통 내비(components/NavTabs — 폰 밑줄 탭 · 태블릿 칩 · PC 2차 탭, lib/menu '매매 복기' 그룹)가 맡는다 */}
       <p className="text-[11px] text-[var(--faint)] mb-3 px-1 leading-relaxed">{TABS.find((t) => t.key === tab)?.hint}</p>
 
       {show('perf') && (

@@ -124,7 +124,7 @@ export default function CoinCandleChart({
             return (
               <div className="bg-gray-900 border border-white/10 rounded-lg px-3 py-2 text-[11px] space-y-0.5">
                 <p className="text-gray-400 mb-1">{xfmt(d.ts)}</p>
-                <p className={up ? 'text-emerald-400' : 'text-red-400'}>종가 ${fmt(d.c, digits)}</p>
+                <p className={up ? 'text-[var(--up)]' : 'text-[var(--down)]'}>종가 ${fmt(d.c, digits)}</p>
                 <p className="text-gray-400">시 ${fmt(d.o, digits)} · 고 ${fmt(d.h, digits)} · 저 ${fmt(d.l, digits)}</p>
                 <p className="text-purple-400">EMA20 ${fmt(d.ema20, digits)}</p>
                 <p className="text-sky-400">EMA60 ${fmt(d.ema60, digits)}</p>

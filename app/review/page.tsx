@@ -16,7 +16,6 @@ import TradeCalendar from '@/components/TradeCalendar';
 import BreakdownTables from '@/components/BreakdownTables';
 import CostCard from '@/components/CostCard';
 import KpiTile from '@/components/KpiTile';
-import { ICON } from '@/lib/menu';
 import { costBreakdown, costByHoldBand, cashFlow, type CashMove } from '@/lib/tradeCosts';
 import { monthlyStats } from '@/lib/tradeReport';
 import { scalpImpact, weekRules, lossGauge, cumSeries, type RuleWeek } from '@/lib/reviewDash';
@@ -33,22 +32,6 @@ const tone = (n: number) => (n > 0 ? 'var(--warn)' : n < 0 ? 'var(--accent-ink)'
 const signed = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmtUsdt(Math.abs(v))}`;
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const DAY = 86_400_000;
-
-const DETAIL: { href: string; label: string; icon: string }[] = [
-  { href: '/journal', label: '성적', icon: 'journal' },
-  { href: '/journal?tab=cost', label: '비용 누수', icon: 'tax' },
-  { href: '/journal?tab=discipline', label: '규율', icon: 'risk' },
-  { href: '/journal?tab=whatif', label: '가정', icon: 'simulate' },
-  { href: '/paper', label: '선행 테스트', icon: 'target' },
-];
-
-function Icon({ name, className = 'w-[18px] h-[18px]' }: { name: string; className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d={ICON[name]} />
-    </svg>
-  );
-}
 
 /** 상세 드롭다운 — 접힌 상태가 기본 */
 function Drop({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) {
@@ -159,29 +142,19 @@ export default function ReviewPage() {
 
   return (
     <div className="pb-4">
-      {/* 제목 + 상세 바로가기 */}
+      {/* 제목 + 기간 */}
       <div className="flex items-end gap-3 flex-wrap mb-3">
         <div className="mr-auto">
-          <h1 className="text-[20px] font-extrabold text-[var(--text)] tracking-tight">복기 대시보드</h1>
+          <h1 className="text-[26px] lg:text-[30px] font-bold text-[var(--text)] tracking-tight">복기 대시보드</h1>
           <p className="text-[12px] text-[var(--text-muted)] mt-0.5">Bitget 청산 기록 · 수수료·펀딩 반영 · 읽기 전용</p>
         </div>
-        <div className="flex items-center gap-1.5" role="group" aria-label="조회 기간">
+        <div className="seg" role="group" aria-label="조회 기간">
           {[7, 30, 90].map((d) => (
             <button key={d} type="button" onClick={() => setDays(d)} disabled={busy} aria-pressed={days === d}
-              className={`px-3 min-h-[36px] min-w-[48px] rounded-lg border text-[12px] font-bold transition-colors disabled:opacity-50 ${
-                days === d ? 'bg-[var(--accent)] text-white border-[var(--accent)]' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border)]'
-              }`}>{d}일</button>
+              className={`seg-i min-w-[52px] disabled:opacity-50 ${days === d ? 'on' : ''}`}>{d}일</button>
           ))}
         </div>
       </div>
-      <nav aria-label="복기 상세" className="grid grid-cols-5 gap-2 mb-3">
-        {DETAIL.map((d) => (
-          <Link key={d.href} href={d.href} className="fin-card flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 min-h-[52px] px-1 py-2 hover-lift">
-            <span className="w-8 h-8 rounded-lg grid place-items-center bg-[var(--accent-soft)] text-[var(--accent)]"><Icon name={d.icon} /></span>
-            <span className="text-[11.5px] md:text-[13px] font-bold text-[var(--text)] whitespace-nowrap">{d.label}</span>
-          </Link>
-        ))}
-      </nav>
       <p className="text-[11px] text-[var(--text-muted)] mb-3 tabular-nums px-0.5">
         {busy ? '불러오는 중…' : usdtKrw ? `원화 환산: 1 USDT = ₩${usdtKrw.toLocaleString('ko-KR')} (업비트 테더 현재가)` : ''}
       </p>

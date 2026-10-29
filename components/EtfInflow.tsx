@@ -32,8 +32,8 @@ function Card({ title, flow }: { title: string; flow: EtfFlow | null }) {
       {flow.stale && (
         <p className="text-[11px] text-amber-400 mb-1">데이터 갱신이 멈춰 있어요 — 최근 값이 아니라 분석 근거에서 뺐습니다.</p>
       )}
-      <p className={`text-3xl font-bold tabular-nums ${flow.net >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{signed(flow.net)}</p>
-      <p className={`text-xs mt-1 ${flow.streak >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+      <p className={`text-3xl font-bold tabular-nums ${flow.net >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>{signed(flow.net)}</p>
+      <p className={`text-xs mt-1 ${flow.streak >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>
         {Math.abs(flow.streak)}일 연속 {flow.streak >= 0 ? '순유입' : '순유출'}
       </p>
       <div className="flex items-end gap-1 h-12 mt-3">

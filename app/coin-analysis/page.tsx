@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import DataStatus from '@/components/ui/DataStatus';
 import AnalysisSwitch from '@/components/AnalysisSwitch';
 import PrecursorCard from '@/components/PrecursorCard';
 import useSWR from 'swr';
@@ -277,7 +278,7 @@ function OrderbookPanel({ ob, price, digits }: {
       <div className="mb-3">
         <div className="flex justify-between text-[11px] mb-1">
           <span className="text-emerald-400 font-semibold">매수 {bidW.toFixed(0)}%</span>
-          <span className={`font-bold ${strong ? (imbPct > 0 ? 'text-emerald-400' : 'text-red-400') : 'text-[var(--text-muted)]'}`}>
+          <span className={`font-bold ${strong ? (imbPct > 0 ? 'text-[var(--up)]' : 'text-[var(--down)]') : 'text-[var(--text-muted)]'}`}>
             {imbPct >= 0 ? '+' : ''}{imbPct.toFixed(0)}% {strong ? (imbPct > 0 ? '매수 우위' : '매도 우위') : '균형'}
           </span>
           <span className="text-red-400 font-semibold">매도 {(100 - bidW).toFixed(0)}%</span>
@@ -796,7 +797,7 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
               return (
                 <div key={side} className={`rounded-lg border p-2.5 ${side === 'long' ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : 'border-red-500/30 bg-red-500/[0.06]'} ${isRec ? 'ring-1 ring-sky-500/50' : ''}`}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className={`text-[13px] font-extrabold ${side === 'long' ? 'text-emerald-400' : 'text-red-400'}`}>{side === 'long' ? '▲ 롱' : '▼ 숏'}</span>
+                    <span className={`text-[13px] font-extrabold ${side === 'long' ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>{side === 'long' ? '▲ 롱' : '▼ 숏'}</span>
                     {isRec && <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 font-bold">엔진 추천</span>}
                   </div>
                   <div className="space-y-0.5 text-[11px] tabular-nums">
@@ -957,7 +958,7 @@ function MyPositionGuide({ data, v, digits }: { data: AnalysisData; v: Verdict; 
         {hasEntry && (
           <div className="flex items-center gap-2 mt-2 flex-wrap text-[10px]">
             <span className={`px-1.5 py-0.5 rounded font-bold ${momentum === '유지' ? 'bg-emerald-500/15 text-emerald-400' : momentum === '둔화' ? 'bg-amber-500/15 text-amber-400' : 'bg-red-500/15 text-red-400'}`}>동력 {momentum}</span>
-            <span className="text-[var(--text-muted)]">진입 대비 <b className={inProfit ? 'text-emerald-400' : 'text-red-400'}>{uPct >= 0 ? '+' : ''}{uPct.toFixed(2)}%</b>{rMult != null ? <> · <b className={rMult >= 0 ? 'text-emerald-400' : 'text-red-400'}>{rMult >= 0 ? '+' : ''}{rMult.toFixed(2)}R</b></> : null}</span>
+            <span className="text-[var(--text-muted)]">진입 대비 <b className={inProfit ? 'text-[var(--up)]' : 'text-[var(--down)]'}>{uPct >= 0 ? '+' : ''}{uPct.toFixed(2)}%</b>{rMult != null ? <> · <b className={rMult >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}>{rMult >= 0 ? '+' : ''}{rMult.toFixed(2)}R</b></> : null}</span>
           </div>
         )}
       </div>
@@ -966,7 +967,7 @@ function MyPositionGuide({ data, v, digits }: { data: AnalysisData; v: Verdict; 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] p-3">
             <p className="text-[10px] text-[var(--text-muted)]">미실현 손익</p>
-            <p className={`text-base font-bold tabular-nums ${inProfit ? 'text-emerald-400' : 'text-red-400'}`}>{uPct >= 0 ? '+' : ''}{uPct.toFixed(2)}%</p>
+            <p className={`text-base font-bold tabular-nums ${inProfit ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>{uPct >= 0 ? '+' : ''}{uPct.toFixed(2)}%</p>
             <p className="text-[10px] text-[var(--text-muted)]">{rMult != null ? `${rMult >= 0 ? '+' : ''}${rMult.toFixed(2)}R (손절 기준)` : '손절가 넣으면 R 표시'}</p>
           </div>
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.05] p-3">
@@ -1025,7 +1026,7 @@ function DerivFlowCompact({ data }: { data: AnalysisData }) {
           {data.taker.divergence && <p className={`text-[9px] mt-0.5 font-semibold ${data.taker.divergence === 'bearish' ? 'text-red-400' : 'text-emerald-400'}`}>⚡ 주문흐름 {data.taker.divergence === 'bearish' ? '약세' : '강세'} 다이버전스</p>}
         </div>
         <div className="flex justify-between"><span className="text-[var(--text-muted)]">OI 금액 <span className="text-[9px] opacity-60">Bitget</span></span><span className="font-bold tabular-nums text-[var(--text)]">{oiUsd != null ? `$${oiUsd.toFixed(2)}B` : '-'}</span></div>
-        <div className="flex justify-between"><span className="text-[var(--text-muted)]">OI 1시간 변화</span><span className={`font-bold tabular-nums ${oi1h == null ? 'text-[var(--text-muted)]' : oi1h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{oi1h != null ? `${oi1h >= 0 ? '+' : ''}${oi1h.toFixed(2)}%` : '-'}</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">OI 1시간 변화</span><span className={`font-bold tabular-nums ${oi1h == null ? 'text-[var(--text-muted)]' : oi1h >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>{oi1h != null ? `${oi1h >= 0 ? '+' : ''}${oi1h.toFixed(2)}%` : '-'}</span></div>
         <div className="flex justify-between"><span className="text-[var(--text-muted)]">계정 롱숏 vs 포지션</span><span className="font-bold tabular-nums text-[var(--text)]">{ls?.toFixed(2) ?? '-'} <span className="text-[var(--text-dim)]">vs</span> {pos?.toFixed(2) ?? '-'}</span></div>
         {ls != null && pos != null && Math.abs(ls - pos) >= 0.5 && (
           <p className="text-[9px] text-amber-400 leading-snug">{ls > pos ? '⚠ 개미 롱 쏠림·큰손 중립 — 하락 시 청산 연료' : '⚠ 개미 숏 쏠림·큰손 롱 — 상승 스퀴즈 여지'}</p>
@@ -1233,50 +1234,41 @@ export default function CoinAnalysisPage() {
     <div className="pb-12">
       <AnalysisSwitch />
 
-      {/* 코인 탭 + 새로고침 */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <div className="flex gap-1.5">
+      {/* 상단 한 줄(2.0 §5.3) — 자산 선택 · 심층 분석 실행 · 전체 스캔 | 마지막 분석 시각 · 자동 갱신 · 재분석 */}
+      <div className="fin-card p-3 mb-4 flex flex-wrap items-center gap-2">
+        <div className="seg" role="radiogroup" aria-label="코인 선택">
           {COINS.map((c) => (
-            <button key={c.symbol} onClick={() => setSymbol(c.symbol)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors ${
-                symbol === c.symbol
-                  ? 'bg-sky-500/20 text-sky-400 border-sky-500/40'
-                  : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
-              }`}>
-              <span className="w-4 h-4 rounded-full inline-flex items-center justify-center text-[8px] text-white" style={{ backgroundColor: c.bg }}>
+            <button key={c.symbol} type="button" role="radio" aria-checked={symbol === c.symbol} onClick={() => setSymbol(c.symbol)}
+              className={`seg-i inline-flex items-center gap-1.5 ${symbol === c.symbol ? 'on' : ''}`}>
+              <span className="w-4 h-4 rounded-full inline-flex items-center justify-center text-[8px] text-white" style={{ backgroundColor: c.bg }} aria-hidden>
                 {c.short[0]}
               </span>
               {c.short}
             </button>
           ))}
         </div>
-        <button onClick={analyze} disabled={!modelReady || isValidating}
-          className={`px-3 py-1.5 rounded-xl border text-xs font-semibold disabled:opacity-50 ${
-            !run || dirty ? 'bg-sky-500/20 text-sky-400 border-sky-500/40' : 'text-[var(--text-muted)] border-[var(--border)]'
-          }`}>
-          {isValidating ? '분석 중…' : '분석'}
+        <button type="button" onClick={analyze} disabled={!modelReady || isValidating} className="btn-3d px-4 min-h-[40px] text-[13px]">
+          {isValidating ? '분석 중…' : !run || dirty ? '심층 분석 실행' : '분석 완료'}
         </button>
-        <button onClick={() => setScanOn(true)} disabled={scanning}
-          className="px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-50"
+        <button type="button" onClick={() => setScanOn(true)} disabled={scanning} className="btn-2nd px-3 min-h-[40px] text-[12.5px] disabled:opacity-50"
           title="4개 코인의 룰 엔진 신호를 한 번에 비교 (뉴스·AI 제외 경량 스캔)">
-          {scanning ? '스캔 중…' : '⚡ 전체 스캔'}
+          {scanning ? '스캔 중…' : '전체 스캔'}
         </button>
-        <div className="ml-auto flex items-center gap-2">
-          {data && !data.error && (
-            <span className="text-[10px] text-[var(--text-muted)]">{timeAgo(data.updatedAt)} 분석</span>
-          )}
-          <button onClick={() => setAutoRefresh((v) => !v)} disabled={!run}
-            className={`px-3 py-1.5 rounded-xl border text-xs transition-colors disabled:opacity-50 ${
-              autoRefresh ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text)]'
-            }`}>
-            {autoRefresh ? '● 자동 1분' : '○ 자동갱신'}
+        <div className="ml-auto flex items-center gap-2 flex-wrap">
+          {data && !data.error
+            ? <DataStatus state={autoRefresh ? 'live' : 'closed'} label={autoRefresh ? '자동 갱신 1분' : '수동'} at={`${timeAgo(data.updatedAt)} 분석`} />
+            : <span className="ds closed"><i aria-hidden />분석 전</span>}
+          <button type="button" onClick={() => setAutoRefresh((v) => !v)} disabled={!run} className="btn-2nd px-3 min-h-[36px] text-[12px] disabled:opacity-50" aria-pressed={autoRefresh}>
+            {autoRefresh ? '자동 갱신 끄기' : '자동 갱신'}
           </button>
-          <button onClick={() => mutate()} disabled={!run || isValidating}
-            className="px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs text-[var(--text)] hover:border-[var(--border-hover)] disabled:opacity-50 transition-colors">
-            {isValidating ? '분석 중…' : '⟳ 재분석'}
+          <button type="button" onClick={() => mutate()} disabled={!run || isValidating} className="btn-2nd px-3 min-h-[36px] text-[12px] disabled:opacity-50">
+            {isValidating ? '분석 중…' : '재분석'}
           </button>
         </div>
       </div>
+
+      {/* ── 자동 관찰 — 버튼 없이 항상 갱신(서킷브레이커·청산·고래·전체 스캔) ── */}
+      <p className="sec-label">자동 관찰</p>
 
       {/* 전체 스캔 스트립 — 어떤 코인이 지금 신호가 강한가 */}
       {scanOn && scan?.items && scan.items.length > 0 && (
@@ -1314,23 +1306,33 @@ export default function CoinAnalysisPage() {
       {/* 실시간 청산·고래(현재 코인) — 분석 전엔 여기, 분석 후엔 상단 뉴스 옆으로 이동 */}
       {!run && <WhaleLiquidationPanel symbol={symbol} />}
 
-      {/* 아직 실행 전 — 심화 분석(AI브리핑·백테스트·오더북·뉴스) 안내 */}
+      {/* ── 심층 분석 — '심층 분석 실행'을 눌렀을 때만(캔들 수집·AI 호출 절약, 기존 동작 그대로) ── */}
+      <p className="sec-label mt-6">심층 분석 <span>· 버튼을 눌러야 실행</span></p>
+
+      {/* 아직 실행 전 — 콤팩트 빈 상태(설명 · 실행 조건 · 데이터 최신성 · 예시 자리) */}
       {!run && !isValidating && (
-        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-card)] p-8 text-center">
-          <p className="text-2xl mb-2">🔬</p>
-          <p className="text-sm font-semibold text-[var(--text)] mb-1">
-            위 진입 신호는 자동으로 뜹니다. <span className="text-sky-400">분석</span>은 <b>심화 분석</b>용입니다.
+        <div className="fin-card p-4 lg:p-5">
+          <p className="text-[14px] font-semibold text-[var(--text)]">{COINS.find((c) => c.symbol === symbol)?.short} 심층 분석은 아직 실행하지 않았습니다.</p>
+          <p className="text-[12.5px] text-[var(--text-muted)] mt-1 leading-relaxed">
+            진입 판단·가격대·체크리스트·AI 브리핑·백테스트 성적표·오더북·뉴스·파생 수급을 한 번에 계산합니다.
+            캔들 수집과 AI 호출을 아끼려고 <b className="text-[var(--text)]">심층 분석 실행</b>을 눌렀을 때만 돌고, 결과에는 분석 시각이 함께 표시됩니다.
           </p>
-          <p className="text-xs text-[var(--text-muted)]">
-            AI 브리핑·백테스트 성적표·오더북·뉴스·수급 정밀 지표는 캔들 수집과 AI 호출을 아끼기 위해 분석 버튼을 눌렀을 때만 실행됩니다.
-          </p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-3" aria-hidden>
+            {['가격·추세', '거래량·OI', '리스크', '뉴스·AI'].map((t) => (
+              <div key={t} className="rounded-xl border border-dashed border-[var(--border)] p-3">
+                <p className="text-[11px] text-[var(--text-muted)]">{t}</p>
+                <div className="skeleton mt-2" style={{ height: 10, width: '70%', animation: 'none' }} />
+                <div className="skeleton mt-1.5" style={{ height: 10, width: '45%', animation: 'none' }} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {/* 실행 후 선택이 바뀐 상태 */}
       {dirty && !isValidating && (
         <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-xs text-amber-400">
-          선택이 바뀌었습니다 — 아래 결과는 이전 분석입니다. <strong>분석</strong> 버튼을 다시 누르세요.
+          선택이 바뀌었습니다 — 아래 결과는 이전 분석입니다. <strong>심층 분석 실행</strong>을 다시 누르세요.
         </div>
       )}
 
@@ -1466,7 +1468,7 @@ export default function CoinAnalysisPage() {
                   staleThresholdPct={0.5}
                 />
                 {(liveTick?.changeRate ?? data.change24h) !== null && (
-                  <p className={`text-sm font-semibold mt-0.5 ${(liveTick?.changeRate ?? data.change24h!) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  <p className={`text-sm font-semibold mt-0.5 ${(liveTick?.changeRate ?? data.change24h!) >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>
                     {(liveTick?.changeRate ?? data.change24h!) >= 0 ? '▲ +' : '▼ '}{(liveTick?.changeRate ?? data.change24h!).toFixed(2)}% (24h)
                   </p>
                 )}
@@ -1519,7 +1521,7 @@ export default function CoinAnalysisPage() {
                   {data.dominance ? (
                     <p className="font-bold tabular-nums text-[var(--text)]">
                       {data.dominance.btc.toFixed(1)}%
-                      <span className={`ml-1 text-[10px] font-normal ${data.dominance.mcapChange24h >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <span className={`ml-1 text-[10px] font-normal ${data.dominance.mcapChange24h >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>
                         시총 {data.dominance.mcapChange24h >= 0 ? '+' : ''}{data.dominance.mcapChange24h.toFixed(1)}%
                       </span>
                     </p>
@@ -1771,11 +1773,11 @@ export default function CoinAnalysisPage() {
                 <div className="flex items-center gap-3 text-[10px]">
                   <span className="text-[var(--text-muted)]">기록 {journal.stats.total}</span>
                   <span className="text-[var(--text)]">승률 <span className="font-bold">{journal.stats.winRate?.toFixed(0)}%</span></span>
-                  <span className={`font-bold ${(journal.stats.avgR ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  <span className={`font-bold ${(journal.stats.avgR ?? 0) >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>
                     평균 {journal.stats.avgR! >= 0 ? '+' : ''}{journal.stats.avgR?.toFixed(2)}R
                   </span>
                   {journal.stats.totalUsdt !== null && (
-                    <span className={`font-bold ${journal.stats.totalUsdt >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+                    <span className={`font-bold ${journal.stats.totalUsdt >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}
                       title={`실현손익 입력된 ${journal.stats.usdtCount}건 합계 — 엔진 승률과 내 실제 성적 비교용`}>
                       실현 {journal.stats.totalUsdt >= 0 ? '+' : ''}{journal.stats.totalUsdt.toFixed(1)} USDT
                     </span>

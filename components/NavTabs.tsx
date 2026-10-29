@@ -9,7 +9,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect } from 'react';
-import { MENU, ICON, GUIDE, activeItem, itemIsActive, type MenuItem } from '@/lib/menu';
+import { MENU, ICON, GUIDE, activeItem, itemIsActive, pageOwnsH1, type MenuItem } from '@/lib/menu';
 import BottomSheet from '@/components/ui/BottomSheet';
 
 /** 모바일 밑줄 탭 최대 칸 수 — 넘으면 앞 (MAX−1)개 + '더보기' 시트(390px 폭에 4~5칸이 한 화면에 들어간다) */
@@ -161,6 +161,30 @@ function NavTabsInner() {
           </div>
         )}
       </nav>
+
+      {/* ── PC(lg+): 페이지 머리 — 그룹 이름 · 화면 제목(본문이 h1을 가진 화면은 생략) · 같은 그룹 2차 탭(2.0 기획서 §3.3·§4.2) ── */}
+      {hit && (hit.group.items.length > 1 || !pageOwnsH1(pathname)) && hit.group.key !== 'home' && (
+        <div className="hidden lg:block mb-5">
+          {!pageOwnsH1(pathname) && (
+            <div className="mb-3" aria-hidden>
+              <p className="text-[12px] font-semibold text-[var(--text-muted)]">{hit.group.label}</p>
+              <p className="text-[28px] font-bold tracking-tight text-[var(--text)] leading-tight">{hit.item.label}</p>
+              {hit.item.desc && <p className="text-[13.5px] text-[var(--text-muted)] mt-1">{hit.item.desc}</p>}
+            </div>
+          )}
+          {hit.group.items.length > 1 && (
+            <nav className="seg" aria-label={`${hit.group.label} 메뉴`}>
+              {hit.group.items.map((it) => {
+                const on = itemIsActive(it, pathname, searchParams);
+                return (
+                  <Link key={it.href} href={it.href} scroll={false} title={it.desc} aria-current={on ? 'page' : undefined}
+                    className={`seg-i ${on ? 'on' : ''}`}>{it.label}</Link>
+                );
+              })}
+            </nav>
+          )}
+        </div>
+      )}
     </>
   );
 }

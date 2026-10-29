@@ -177,7 +177,7 @@ export default function FuturesPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text)]">${fmtPrice(r.price)}</td>
-                    <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${up ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${up ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>
                       {up ? '+' : ''}{r.changeRate.toFixed(2)}%
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-muted)] hidden sm:table-cell">${fmtPrice(r.high24h)}</td>
@@ -185,7 +185,7 @@ export default function FuturesPage() {
                     <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text)]">{fmtVol(r.quoteVolume)}</td>
                     <td className={`px-3 py-2.5 text-right tabular-nums hidden sm:table-cell ${
                       r.fundingRate == null ? 'text-[var(--text-muted)]' :
-                      r.fundingRate > 0     ? 'text-emerald-400' : 'text-red-400'
+                      r.fundingRate > 0     ? 'text-[var(--up)]' : 'text-[var(--down)]'
                     }`}>
                       {r.fundingRate != null ? `${r.fundingRate > 0 ? '+' : ''}${r.fundingRate.toFixed(4)}%` : '-'}
                     </td>

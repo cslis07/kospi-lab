@@ -62,7 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SideNav />
         <div className="with-side flex-1 flex flex-col min-w-0">
         <Header />
-        <div className="flex-1 max-w-[1760px] mx-auto w-full px-4 sm:px-6 xl:px-8 pt-4 md:pt-6">
+        <div className="app-main flex-1 max-w-[1760px] mx-auto w-full px-4 sm:px-6 xl:px-8 pt-4 md:pt-6">
           <NavTabs />
           {/* 냉각 타이머 — 손실 청산 직후·서킷브레이커 차단 때만(잠금 해제 기기) */}
           <CooldownBanner />

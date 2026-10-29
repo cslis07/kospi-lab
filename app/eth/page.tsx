@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import PageHeader from '@/components/ui/PageHeader';
 import useSWR from 'swr';
 import type { RegimeRead, LayerTilt } from '@/lib/coinRegime';
 import type { SupplyLayer } from '@/lib/coinSupply';
@@ -91,10 +92,7 @@ export default function EthRegimePage() {
 
   return (
     <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
-      <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">ETH 체제 보드</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-3 leading-relaxed">
-        공급·수요·포지셔닝·거시 4개 층을 모아 <b className="text-[var(--text)]">“지금 어떤 체제인가”</b>를 읽습니다.
-      </p>
+      <PageHeader title="ETH 체제" sub={<>공급·수요·포지셔닝·거시 4개 층을 모아 <b className="text-[var(--text)]">“지금 어떤 체제인가”</b>를 읽습니다. 1분마다 갱신.</>} />
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 mb-5">
         <p className="text-[11px] text-amber-300/90 leading-snug">
           ⚠ <b>방향 예측·매매 신호가 아닙니다.</b> 이 앱 실측 결론은 “방향 우위 없음”. 여기 정렬도(confluence)는 맞힐 확신이 아니라

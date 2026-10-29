@@ -3,6 +3,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import dynamic from 'next/dynamic';
+import PageHeader from '@/components/ui/PageHeader';
+import Segmented from '@/components/ui/Segmented';
 import { isolatedLiqPrice, liqSafety, notionForRisk, feeVsRisk, FEE_RISK_WARN } from '@/lib/positionSizing';
 import { useRiskLimits } from '@/hooks/useRiskLimits';
 import { simulateRules, statsFromRecords, type RuleStat } from '@/lib/exitSim';
@@ -137,8 +139,8 @@ function CompoundSim() {
           <p className="text-lg font-bold text-[var(--text)]">{fmtW(final?.principal ?? 0)}</p>
         </div>
         <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
-          <p className="text-xs text-emerald-400/70 mb-1">수익</p>
-          <p className="text-lg font-bold text-emerald-400">{fmtW(final?.profit ?? 0)}</p>
+          <p className="text-xs text-[var(--text-muted)] mb-1">수익</p>
+          <p className="text-lg font-bold text-[var(--up)]">{fmtW(final?.profit ?? 0)}</p>
         </div>
       </div>
 
@@ -146,7 +148,7 @@ function CompoundSim() {
         <div className="fin-card p-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-[var(--text-muted)]">총 수익률</p>
-            <p className="text-2xl font-bold text-emerald-400">+{((final.profit / final.principal) * 100).toFixed(1)}%</p>
+            <p className="text-2xl font-bold text-[var(--up)]">+{((final.profit / final.principal) * 100).toFixed(1)}%</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-[var(--text-muted)]">월 {fmtW(monthly)} × {years*12}개월</p>
@@ -177,7 +179,7 @@ function CompoundSim() {
                 <tr key={row.year} className={i % 2 === 1 ? 'bg-[var(--bg)]/30' : ''}>
                   <td className="px-3 py-2 text-[var(--text-muted)]">{row.year}</td>
                   <td className="px-3 py-2 text-right text-[var(--text)]">{fmtW(row.principal)}</td>
-                  <td className="px-3 py-2 text-right text-emerald-400">+{fmtW(row.profit)}</td>
+                  <td className="px-3 py-2 text-right text-[var(--up)]">+{fmtW(row.profit)}</td>
                   <td className="px-3 py-2 text-right font-semibold text-sky-400">{fmtW(row.fv)}</td>
                 </tr>
               ))}
@@ -342,7 +344,10 @@ function LeverageCalc() {
       {/* 입력 */}
       <div className="fin-card p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[var(--text)]">{coin.name} 선물 손익 계산</h2>
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--text)]">{coin.name} 선물 손익 계산</h2>
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">고립(격리) 마진 기준 · 최대 손실 = 증거금 <b className="text-[var(--text)] tabular-nums">{margin.toLocaleString('en-US')} USDT</b>(청산 시)</p>
+          </div>
           <span className="text-xs text-[var(--text-muted)] tabular-nums">
             현재가 {price ? `$${price.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '로딩…'}
             {usingManualEntry && <span className="text-sky-400"> · 기준 ${entry.toLocaleString('en-US', { maximumFractionDigits: dg })}</span>}
@@ -352,9 +357,9 @@ function LeverageCalc() {
         {/* 방향 */}
         <div className="grid grid-cols-2 gap-1.5">
           <button onClick={() => setDir('long')}
-            className={`py-2 rounded-xl border text-sm font-bold transition-all ${dir === 'long' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>롱 ▲ (상승 베팅)</button>
+            className={`py-2 rounded-xl border text-sm font-bold transition-all ${dir === 'long' ? 'border-[var(--up)] bg-[var(--warn-soft)] text-[var(--up)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>롱 ▲ (상승 베팅)</button>
           <button onClick={() => setDir('short')}
-            className={`py-2 rounded-xl border text-sm font-bold transition-all ${dir === 'short' ? 'border-red-500 bg-red-500/10 text-red-400' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>숏 ▼ (하락 베팅)</button>
+            className={`py-2 rounded-xl border text-sm font-bold transition-all ${dir === 'short' ? 'border-[var(--down)] bg-[var(--accent-soft)] text-[var(--down)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>숏 ▼ (하락 베팅)</button>
         </div>
 
         <SimSlider label="증거금 (USDT)" sliderValue={margin} sliderMin={10} sliderMax={10000} sliderStep={10} onSlider={setMargin}
@@ -396,11 +401,11 @@ function LeverageCalc() {
             className="w-full accent-sky-500 disabled:opacity-40" />
           <div className="flex justify-between text-[10px]">
             <span className="text-[var(--text-muted)]">진입가 대비{' '}
-              <span className={changePct >= 0 ? 'text-emerald-400' : 'text-red-400'}>{changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%</span>
+              <span className={changePct >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}>{changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%</span>
             </span>
             <span className={
-              (dir === 'long' ? changePct > 0 : changePct < 0) ? 'text-emerald-400'
-                : (dir === 'long' ? changePct < 0 : changePct > 0) ? 'text-red-400' : 'text-[var(--text-muted)]'
+              (dir === 'long' ? changePct > 0 : changePct < 0) ? 'text-[var(--up)]'
+                : (dir === 'long' ? changePct < 0 : changePct > 0) ? 'text-[var(--down)]' : 'text-[var(--text-muted)]'
             }>
               {changePct === 0 ? '진입가' : (dir === 'long' ? changePct > 0 : changePct < 0) ? '수익 구간' : '손실 구간'}
             </span>
@@ -444,15 +449,15 @@ function LeverageCalc() {
       <div className="fin-card p-5">
         <div className="text-center mb-4">
           <p className="text-xs text-[var(--text-muted)] mb-1">{feeOn ? '예상 실손익 (수수료·펀딩 반영)' : '예상 손익'}</p>
-          <p className={`text-3xl font-bold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          <p className={`text-3xl font-bold ${pnl >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>
             {pnl >= 0 ? '+' : ''}{fmtUsdt(pnl)}
           </p>
           {krwOf(pnl) !== null && (
-            <p className={`text-base font-bold mt-1 ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <p className={`text-base font-bold mt-1 ${pnl >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>
               ≈ 한화 {pnl >= 0 ? '+' : ''}{fmtW(krwOf(pnl)!)}
             </p>
           )}
-          <p className={`text-sm font-semibold mt-1 ${roe >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          <p className={`text-sm font-semibold mt-1 ${roe >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>
             증거금 대비 {roe >= 0 ? '+' : ''}{roe.toFixed(1)}%
             {usdtKrw ? <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1.5">1 USDT ≈ ₩{Math.round(usdtKrw).toLocaleString('ko-KR')}</span> : null}
           </p>
@@ -461,10 +466,10 @@ function LeverageCalc() {
           )}
           {feeOn && (
             <div className="mt-3 pt-2.5 border-t border-[var(--border)] text-[11px] text-[var(--text-muted)] space-y-0.5 max-w-[260px] mx-auto">
-              <div className="flex justify-between"><span>수수료 전 손익</span><span className={grossPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{grossPnl >= 0 ? '+' : ''}{fmtUsdt(grossPnl)}</span></div>
+              <div className="flex justify-between"><span>수수료 전 손익</span><span className={grossPnl >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}>{grossPnl >= 0 ? '+' : ''}{fmtUsdt(grossPnl)}</span></div>
               <div className="flex justify-between"><span>− 진입 수수료 ({openMaker ? '메이커' : '테이커'} {(openRate * 100).toFixed(2)}%)</span><span className="text-red-400">-{fmtUsdt(openFee, 2)}</span></div>
               <div className="flex justify-between"><span>− 청산 수수료 ({closeMaker ? '메이커' : '테이커'} {(closeRate * 100).toFixed(2)}%)</span><span className="text-red-400">-{fmtUsdt(closeFee, 2)}</span></div>
-              <div className="flex justify-between"><span>{fundingCost >= 0 ? '− 펀딩비' : '+ 펀딩 수취'}</span><span className={fundingCost > 0 ? 'text-red-400' : fundingCost < 0 ? 'text-emerald-400' : ''}>{fundingCost >= 0 ? '-' : '+'}{fmtUsdt(Math.abs(fundingCost), 2)}</span></div>
+              <div className="flex justify-between"><span>{fundingCost >= 0 ? '− 펀딩비' : '+ 펀딩 수취'}</span><span className={fundingCost > 0 ? 'text-red-400' : fundingCost < 0 ? 'text-[var(--ok)]' : ''}>{fundingCost >= 0 ? '-' : '+'}{fmtUsdt(Math.abs(fundingCost), 2)}</span></div>
             </div>
           )}
         </div>
@@ -577,7 +582,7 @@ function LeverageCalc() {
             <tbody>
               {quickRows.map((r, i) => {
                 const pos = r.pnl >= 0;
-                const col = pos ? 'text-emerald-400' : 'text-red-400';
+                const col = pos ? 'text-[var(--up)]' : 'text-[var(--down)]';
                 return (
                   <tr key={r.off} className={i % 2 === 1 ? 'bg-[var(--bg)]/30' : ''}>
                     <td className="px-3 py-2 tabular-nums text-[var(--text)]">{fmtUsdt(r.price)}</td>
@@ -737,8 +742,8 @@ function ExitRuleSim() {
                       <span className="font-bold text-[var(--text)]">{isBest ? '★ ' : ''}{r.label}</span>
                       <span className="block text-[9.5px] text-[var(--text-muted)] leading-tight">승률 {r.winRate}% · 익절 {r.winR}R · 손절 {r.lossR}R</span>
                     </td>
-                    <td className={`px-1.5 font-semibold ${r.evR >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{r.evR >= 0 ? '+' : ''}{r.evR}</td>
-                    <td className={`px-1.5 font-bold ${r.median >= 1 ? 'text-emerald-400' : 'text-red-400'}`}>{xMul(r.median)}</td>
+                    <td className={`px-1.5 font-semibold ${r.evR >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>{r.evR >= 0 ? '+' : ''}{r.evR}</td>
+                    <td className={`px-1.5 font-bold ${r.median >= 1 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>{xMul(r.median)}</td>
                     <td className="px-1.5 text-[var(--text-muted)] text-[10.5px]">{xMul(r.p10)}~{xMul(r.p90)}</td>
                     <td className="px-1.5 text-red-400">−{Math.round(r.medMaxDD * 100)}%</td>
                     <td className={`px-1.5 ${r.ruinPct >= 20 ? 'text-red-400 font-bold' : 'text-[var(--text-muted)]'}`}>{r.ruinPct}%</td>
@@ -756,7 +761,7 @@ function ExitRuleSim() {
         <div className="fin-card p-5">
           <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
             <h2 className="text-sm font-semibold text-[var(--text)]">추천: ★ {best.label} <span className="text-[10px] font-normal text-[var(--text-muted)]">자산 경로(p10·중앙·p90)</span></h2>
-            <span className="text-[11px] tabular-nums text-[var(--text-muted)]">중앙 <b className={best.median >= 1 ? 'text-emerald-400' : 'text-red-400'}>{xMul(best.median)}</b></span>
+            <span className="text-[11px] tabular-nums text-[var(--text-muted)]">중앙 <b className={best.median >= 1 ? 'text-[var(--up)]' : 'text-[var(--down)]'}>{xMul(best.median)}</b></span>
           </div>
           <FanChart fan={best.fan} trades={trades} />
           <div className="flex justify-between text-[10px] text-[var(--text-muted)] mt-1"><span>0회</span><span>시작 자산(점선) 기준 배수</span><span>{trades}회</span></div>
@@ -770,30 +775,16 @@ function ExitRuleSim() {
 
 /* ══════════════════ 메인 ══════════════════ */
 export default function SimulatePage() {
-  const [mode, setMode] = useState<'krw' | 'usdt' | 'mc'>('krw');
+  // 2.0: 트레이딩 › 리스크 계산 — 기본은 코인 선물(손절·수량·청산 위험). 계산식은 그대로.
+  const [mode, setMode] = useState<'krw' | 'usdt' | 'mc'>('usdt');
 
   return (
-    <div className="max-w-2xl mx-auto pb-12">
-      <h1 className="text-xl font-bold text-[var(--text)] mb-1">수익 시뮬레이션</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-4">
-        {mode === 'krw' ? '복리 적립 계산 FV = PV·(1+r)ⁿ + PMT·[(1+r)ⁿ−1]/r' : mode === 'usdt' ? '코인 선물 레버리지 손익 계산기' : '내 통계로 익절 규칙을 몬테카를로 비교'}
-      </p>
+    <div className="max-w-2xl lg:max-w-4xl mx-auto pb-12">
+      <PageHeader title="리스크 계산"
+        sub={mode === 'krw' ? '복리 적립 계산 FV = PV·(1+r)ⁿ + PMT·[(1+r)ⁿ−1]/r' : mode === 'usdt' ? '코인 선물 — 증거금·레버리지·손절로 손익·청산가·최대 손실·진입 전 비용' : '내 통계로 익절 규칙을 몬테카를로 비교'} />
 
-      {/* 모드 토글 */}
-      <div className="flex gap-1.5 mb-4">
-        {([
-          { key: 'krw',  label: '원화 적립', icon: '₩' },
-          { key: 'usdt', label: '코인 선물', icon: '₮' },
-          { key: 'mc',   label: '익절 규칙 시뮬', icon: '🎲' },
-        ] as { key: 'krw' | 'usdt' | 'mc'; label: string; icon: string }[]).map((m) => (
-          <button key={m.key} onClick={() => setMode(m.key)}
-            className={`flex-1 py-2.5 rounded-xl border text-[13px] font-semibold transition-all ${
-              mode === m.key ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
-            }`}>
-            <span className="mr-1">{m.icon}</span>{m.label}
-          </button>
-        ))}
-      </div>
+      <Segmented label="계산 종류" className="mb-4 w-full [&>button]:flex-1" value={mode} onChange={setMode}
+        options={[['usdt', '코인 선물'], ['mc', '익절 규칙 시뮬'], ['krw', '원화 적립']] as const} />
 
       {mode === 'krw' ? <CompoundSim /> : mode === 'usdt' ? <LeverageCalc /> : <ExitRuleSim />}
     </div>

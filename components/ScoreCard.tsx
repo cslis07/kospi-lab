@@ -34,7 +34,7 @@ export default function ScoreCard({ title, href, sb, unit }: { title: string; hr
             </div>
             <div className="rounded-xl bg-white/[0.03] p-2.5 text-center">
               <p className="text-[10px] text-[var(--text-muted)]">기대값</p>
-              <p className={`text-lg font-bold tabular-nums ${sb.avgR == null ? 'text-[var(--text-muted)]' : sb.avgR >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{r(sb.avgR)}</p>
+              <p className={`text-lg font-bold tabular-nums ${sb.avgR == null ? 'text-[var(--text-muted)]' : sb.avgR >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>{r(sb.avgR)}</p>
               {/* R 은 계획(손절·사이징)이 있어야 환산된다. 없는 걸 0 으로 채우면 잃은 계좌가 본전으로 보인다 */}
               <p className="text-[9px] text-[var(--text-muted)] mt-0.5 leading-tight">
                 {sb.rCount > 0 ? `R 기록 ${sb.rCount}건 기준` : 'R 환산 불가 — 계획(손절·사이징) 기록 없음'}
@@ -78,7 +78,7 @@ export default function ScoreCard({ title, href, sb, unit }: { title: string; hr
                     <td className="py-1 text-[var(--text)]">{w.label}</td>
                     <td className="text-right text-[var(--text-muted)]">{w.closed}</td>
                     <td className={`text-right ${w.winRate != null && w.winRate >= 50 ? 'text-emerald-400' : 'text-[var(--text)]'}`}>{pct(w.winRate)}</td>
-                    <td className={`text-right ${w.avgR != null && w.avgR >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{r(w.avgR)}</td>
+                    <td className={`text-right ${w.avgR != null && w.avgR >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>{r(w.avgR)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -109,7 +109,7 @@ export default function ScoreCard({ title, href, sb, unit }: { title: string; hr
               <span>최대 연패 <b className="text-red-400">{sb.streak.maxLoss}</b></span>
               {sb.streak.current !== 0 && (
                 <span className="ml-auto">현재{' '}
-                  <b className={sb.streak.current > 0 ? 'text-emerald-400' : 'text-red-400'}>
+                  <b className={sb.streak.current > 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}>
                     {sb.streak.current > 0 ? `${sb.streak.current}연승` : `${-sb.streak.current}연패`}
                   </b>
                 </span>
