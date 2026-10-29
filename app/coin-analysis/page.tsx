@@ -1314,11 +1314,11 @@ export default function CoinAnalysisPage() {
         <div className="fin-card p-4 lg:p-5">
           <p className="text-[14px] font-semibold text-[var(--text)]">{COINS.find((c) => c.symbol === symbol)?.short} 심층 분석은 아직 실행하지 않았습니다.</p>
           <p className="text-[12.5px] text-[var(--text-muted)] mt-1 leading-relaxed">
-            진입 판단·중요 가격대·체크리스트·시간대별 지표·캔들 차트·오더북·뉴스·파생 수급(OI·펀딩·롱숏)을 한 번에 계산합니다.
+            진입 판단·중요 가격대·체크리스트·시간대별 지표·캔들 차트·오더북·뉴스·파생 수급·AI 브리핑·백테스트 성적표를 한 번에 계산합니다.
             캔들 수집과 AI 호출을 아끼려고 <b className="text-[var(--text)]">심층 분석 실행</b>을 눌렀을 때만 돌고, 결과에는 분석 시각이 함께 표시됩니다.
           </p>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-3" aria-hidden>
-            {['가격·추세', '거래량·OI', '리스크', '뉴스'].map((t) => (
+            {['가격·추세', '거래량·OI', '뉴스·AI', '백테스트'].map((t) => (
               <div key={t} className="rounded-xl border border-dashed border-[var(--border)] p-3">
                 <p className="text-[11px] text-[var(--text-muted)]">{t}</p>
                 <div className="skeleton mt-2" style={{ height: 10, width: '70%', animation: 'none' }} />
@@ -1567,6 +1567,65 @@ export default function CoinAnalysisPage() {
             <DerivFlowCompact data={data} />
             <PrecursorCard symbol={symbol} />
           </div>
+          </div>
+
+          {/* 뉴스·AI · 백테스트 성적표(2.0 기획서 §5.3 결과 섹션) — API가 이미 계산해 보내는 값을 그대로 표시(추가 호출 없음) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+            <section className="fin-card ai p-5" aria-label="AI 브리핑">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <h3 className="text-sm font-bold text-[var(--text)]">AI 브리핑</h3>
+                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[var(--ai-soft)] text-[var(--ai)]">투자 신호 아님</span>
+                <span className="ml-auto text-[10.5px] text-[var(--text-muted)] tabular-nums">{timeAgo(data.updatedAt)} 분석{data.aiModel ? ` · ${data.aiModel}` : ''}</span>
+              </div>
+              {data.aiBriefing ? (
+                <div className="space-y-2.5">
+                  {data.aiBriefing.split(/(?=【)/).filter((x) => x.trim()).map((sec, i) => {
+                    const m = sec.match(/^【([^】]+)】([\s\S]*)$/);
+                    if (!m) return <p key={i} className="text-[13px] text-[var(--text)] leading-relaxed whitespace-pre-line">{sec.trim()}</p>;
+                    return <div key={i}><p className="text-[11.5px] font-bold text-[var(--ai)] mb-0.5">{m[1]}</p><p className="text-[13px] text-[var(--text)] leading-relaxed whitespace-pre-line">{m[2].trim()}</p></div>;
+                  })}
+                </div>
+              ) : <p className="text-[12.5px] text-[var(--text-muted)]">{data.aiError ?? 'AI 브리핑을 만들지 못했습니다. 아래 수치·뉴스는 정상입니다.'}</p>}
+              <p className="mt-3 text-[11px] text-[var(--text-muted)] leading-relaxed">근거: 룰 엔진 판정·시간대별 지표·뉴스 헤드라인·거시 요약을 AI가 문장으로 정리한 것입니다. 사실은 위 수치·뉴스 원문에서 확인하세요.</p>
+            </section>
+
+            <section className="fin-card p-5" aria-label="백테스트 성적표">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <h3 className="text-sm font-bold text-[var(--text)]">백테스트 성적표</h3><span className="text-[10.5px] text-[var(--text-muted)]">최근 신호 5건(최신순)</span>
+                <span className="text-[10.5px] text-[var(--text-muted)] tabular-nums">최근 {Math.round(data.backtest.spanHours)}시간 · 룰 엔진 신호 재생</span>
+              </div>
+              {data.backtest.signals > 0 ? (
+                <>
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    {([
+                      ['신호', `${data.backtest.signals}`],
+                      ['승·패', `${data.backtest.wins}·${data.backtest.losses}`],
+                      ['승률', data.backtest.winRate == null ? '—' : `${Math.round(data.backtest.winRate)}%`],
+                      ['평균 R', data.backtest.avgR == null ? '—' : `${data.backtest.avgR >= 0 ? '+' : ''}${data.backtest.avgR.toFixed(2)}`],
+                    ] as const).map(([k, v]) => (
+                      <div key={k} className="rounded-xl bg-[var(--surface-2)] px-2 py-2">
+                        <p className="text-[10.5px] text-[var(--text-muted)]">{k}</p>
+                        <p className="text-[15px] font-bold tabular-nums text-[var(--text)]">{v}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-[var(--text-muted)] mt-2 tabular-nums">롱 {data.backtest.longSignals} · 숏 {data.backtest.shortSignals}{data.backtest.open ? ` · 미결 ${data.backtest.open}` : ''}</p>
+                  {data.backtest.trades.length > 0 && (
+                    <ul className="mt-2 divide-y divide-[var(--line-2)]">
+                      {[...data.backtest.trades].sort((a, b) => b.ts - a.ts).slice(0, 5).map((t) => (
+                        <li key={t.ts} className="flex items-center gap-2 py-1.5 text-[12px] tabular-nums">
+                          <span className="text-[var(--text-muted)] shrink-0 whitespace-nowrap">{new Date(t.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="font-semibold" style={{ color: t.direction === 'long' ? 'var(--up)' : 'var(--down)' }}>{t.direction === 'long' ? '롱' : '숏'}</span>
+                          <span className="text-[var(--text-muted)]">진입 {fmtP(t.entry, priceDigits)}</span>
+                          <span className="ml-auto font-semibold" style={{ color: t.result === 'win' ? 'var(--ok)' : 'var(--warn)' }}>{t.result === 'win' ? '목표 도달' : '손절'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : <p className="text-[12.5px] text-[var(--text-muted)]">이 기간에 엔진 신호가 없었습니다.</p>}
+              <p className="mt-3 text-[11px] text-[var(--text-muted)] leading-relaxed">짧은 기간·적은 표본이라 우연의 폭이 큽니다. 자체 대규모 측정에서 이 엔진의 방향 예측 우위는 확인되지 않았습니다(727건 49.7%) — 매매 신호가 아닙니다.</p>
+            </section>
           </div>
 
           {/* ⋯ 더보기 — 자주 안 쓰는 분석 도구 모음 */}
