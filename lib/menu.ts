@@ -7,9 +7,10 @@
  *   가상 계좌(백업은 /tools#backup 으로)·경제지표 /macro(시장지표에 이미 포함)·물가 생활 도구 5종 삭제. 옛 주소는 next.config redirects.
  * 2026-10-26 오후 1단계 정리: 시장지표 → 더보기 '거시'(지표 4종 한 묶음), 이름 구분(모의 테스트→선행 테스트·가상투자→가상 계좌·시뮬레이션→계산기),
  *   시장 탭은 밑줄 탭 4개 + '더보기' 시트(components/NavTabs), /more 는 /tools 로 합침.
+ * 2026-10-29: 알림(/alerts)을 트레이딩 탭에서 더보기 › 종목 도구로(주소 유지).
  * IA(2026-10-26 재편 — "직관적·편리" 요청, 실제 매매 흐름 순서 = 하단 5탭):
  *   홈(대시보드 + 지금 내 상태) · 시장(국내·해외·코인·선물·산업·랭킹·지표·ETF·리서치)
- *   · 트레이딩(코인 분석·ETH 체제·알림 — 들어가도 되나·얼마나·어디서 끊나) · 복기(매매일지·성과·모의 테스트 — 규칙을 지켰나)
+ *   · 트레이딩(코인 분석·ETH 체제 — 들어가도 되나·얼마나·어디서 끊나) · 복기(매매일지·성과·모의 테스트 — 규칙을 지켰나)
  *   · 자산(계좌·보유). 나머지 보조 도구는 '더보기'(/tools)에서 5묶음(EXTRAS.section)으로.
  * 탭 안의 항목 이동은 상단 밑줄 탭(가로), 탭 밖으로 들어가는 상세(종목·코인 상세·기타 도구)는 드릴다운(뒤로가기).
  */
@@ -31,7 +32,7 @@ export const TOOL_SECTIONS: { key: ToolSection; label: string; desc: string }[] 
   { key: 'morning', label: '📰 아침 정보', desc: '브리핑·뉴스·일정' },
   { key: 'macro', label: '🌐 거시', desc: '시장지표(경제지표 포함)·실시간 물가·발표 이력' },
   { key: 'study', label: '📚 매매 교본', desc: '원칙·공부법·체크리스트·폭락 대응' },
-  { key: 'stocks', label: '🔎 종목 도구', desc: '관심종목·종목 비교' },
+  { key: 'stocks', label: '🔎 종목 도구', desc: '관심종목·종목 비교·가격 알림' },
   { key: 'calc', label: '🧮 계산', desc: '진입 전 비용·리스크 역산·선물 손익' },
 ];
 export interface MenuGroup {
@@ -121,11 +122,10 @@ export const MENU: MenuGroup[] = [
     { href: '/theme-etf',  icon: 'tools',   label: '테마 ETF',   desc: '테마별 상위 ETF' },
     { href: '/research',   icon: 'report',  label: '리서치',     desc: '애널리스트 산업·목표주가' },
   ], ['/stock/', '/crypto/']),
-  // 트레이딩 — 매매 직전·도중에 보는 화면(2026-10-26 하단 탭 승격, 예전엔 시장 목록 '분석' 버튼 드릴다운이라 찾기 어려웠음)
+  // 트레이딩 — 매매 직전·도중에 보는 화면. 알림(/alerts)은 앱이 열려 있을 때만 울리는 보조 알림 목록이라 10-29 더보기 › 종목 도구로(24시간 감시는 가드 텔레그램)(2026-10-26 하단 탭 승격, 예전엔 시장 목록 '분석' 버튼 드릴다운이라 찾기 어려웠음)
   G('trading', '트레이딩', 'c-amber', 'qc-amber', 'futures', [
     { href: '/coin-analysis', icon: 'analysis', label: '코인 분석', desc: '진입 판단·급변 계기판·폭락 경보·내 포지션' },
     { href: '/eth',           icon: 'risk',     label: 'ETH 체제',  desc: '공급·수요·포지셔닝·거시 4층(예측 아님)' },
-    { href: '/alerts',        icon: 'bell',     label: '알림',      desc: '가격·코인 알림 한 화면 관리' },
   ], ['/stock-analysis', '/overseas-analysis']),
   // 복기 — 규칙을 지켰나. 매매일지 하위 탭을 상단 밑줄 탭으로 올려 2단계(하단 복기 → 밑줄 탭)로(2026-10-26 메뉴 2단계).
   // 옛 '성과'(/performance, 계획 매매 R 기준)는 성적 탭 맨 아래 접힘 섹션으로 흡수 — 주소는 드릴다운으로 유지.
@@ -159,6 +159,7 @@ export const EXTRAS: MenuItem[] = [
   { href: '/study',      icon: 'insight',    label: '코인 기초 공부법', desc: '차트·RSI·MACD·피보나치·금리·유가', section: 'study' },
   { href: '/my-stocks',  icon: 'star',       label: '관심종목',    desc: '국내·해외·코인 저장 목록', section: 'stocks' },
   { href: '/screener',   icon: 'screener',   label: '종목 비교',   desc: '여러 종목 재무 비교', section: 'stocks' },
+  { href: '/alerts',     icon: 'bell',       label: '가격 알림',   desc: '종목·코인 가격 알림 목록(앱 열려 있을 때만)', section: 'stocks' },
   { href: '/simulate',  icon: 'simulate',  label: '계산기',      desc: '복리·선물 손익·익절 규칙 시뮬레이션', section: 'calc' },
 ];
 
@@ -232,4 +233,4 @@ export const FLAT: FlatMenuItem[] = [
 export const BY_HREF = new Map(FLAT.map((f) => [f.href, f]));
 
 /** 방문 데이터 없을 때 기본 '자주 쓰는' — 손이 가는 자동 데이터 위주 */
-export const DEFAULT_QUICK = ['/brief', '/coin-analysis', '/journal', '/paper', '/alerts'];
+export const DEFAULT_QUICK = ['/brief', '/coin-analysis', '/journal', '/paper', '/simulate'];

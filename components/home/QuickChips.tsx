@@ -1,11 +1,11 @@
 /**
- * 홈 맨 위 바로가기 한 줄 — 매일 손이 가는 4곳(브리핑·코인 분석·매매일지·알림)을 탭 깊이 없이 한 번에.
+ * 홈 맨 위 바로가기 한 줄 — 매일 손이 가는 4곳(브리핑·코인 분석·매매일지·계산기 — 진입 전 비용)을 탭 깊이 없이 한 번에.
  * 항목·아이콘은 lib/menu 단일 소스(BY_HREF)에서 가져온다. 터치 영역 높이 44px.
  */
 import Link from 'next/link';
 import { BY_HREF, ICON } from '@/lib/menu';
 
-const QUICK: [string, string][] = [['/brief', '브리핑'], ['/coin-analysis', '코인 분석'], ['/journal', '매매일지'], ['/alerts', '알림']];
+const QUICK: [string, string][] = [['/brief', '브리핑'], ['/coin-analysis', '코인 분석'], ['/journal', '매매일지'], ['/simulate', '계산기']];
 
 export default function QuickChips() {
   return (
