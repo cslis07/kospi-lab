@@ -4,6 +4,7 @@
  * 홈 AI 브리핑 — 국내 / 해외 / 코인 탭 × Gemini(무료 티어 하나만, 10-01 결정으로 ChatGPT 제거).
  * /api/home/briefing?tab= (탭별 1시간 캐시).
  * 방향(매수·매도·전망) 추천 없음. 키 미설정 모델은 '연결 대기'로 정직하게 표시.
+ * 2.0 AI 카드(기획서 §4.4): 보라 마커(.fin-card.ai) · 생성 시각 · 근거 데이터 출처 · '투자 신호 아님' 배지.
  */
 import { useState } from 'react';
 import useSWR from 'swr';
@@ -18,7 +19,7 @@ interface BriefResp { tab: Tab; providers: Provider[]; facts: string; asOf: stri
 const TABS: [Tab, string][] = [['kr', '국내'], ['us', '해외'], ['coin', '코인']];
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
-const DOT: Record<Provider['id'], string> = { gemini: '#4c8df6' };
+const DOT: Record<Provider['id'], string> = { gemini: 'var(--ai)' };
 
 function ProviderCard({ p, facts }: { p: Provider; facts: string }) {
   return (
@@ -64,9 +65,12 @@ export default function HomeBriefing() {
   const ts = data?.asOf ? new Date(data.asOf).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
   return (
-    <div className="fin-card" style={{ padding: 20 }}>
+    <div className="fin-card ai h-full" style={{ padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+        <h2 style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--ink)' }}>AI 마켓 브리핑</h2>
+        <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--ai)', background: 'var(--ai-soft)', padding: '2px 8px', borderRadius: 999 }}>투자 신호 아님</span>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span className="kicker" style={{ fontSize: 12 }}>AI 브리핑</span>
         <div className="seg">
           {TABS.map(([k, l]) => <button key={k} className={`seg-i ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>{l}</button>)}
         </div>
@@ -80,7 +84,7 @@ export default function HomeBriefing() {
       </div>
       {isLoading && shown.length === 0 && <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 6 }}>시세·뉴스를 모아 요약하는 중…</div>}
 
-      <p style={{ margin: '12px 0 0', fontSize: 11, color: 'var(--faint)' }}>AI 요약 참고 자료이며, 기술적 오류로 실제 내용과 다를 수 있습니다. 매수·매도 신호가 아닙니다.</p>
+      <p style={{ margin: '12px 0 0', fontSize: 11, color: 'var(--faint)', lineHeight: 1.5 }}>근거: 네이버페이 증권 시세·주요 뉴스 헤드라인을 Gemini가 요약(의견 아님). 기술적 오류로 실제와 다를 수 있으며 매수·매도 신호가 아닙니다.</p>
     </div>
   );
 }

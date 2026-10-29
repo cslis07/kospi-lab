@@ -1,10 +1,10 @@
 /**
- * KPI 타일 — 2026-10-29 대시보드형 디자인(참고 이미지 상단 컬러 타일). 색은 포인트 블루 그라데이션 하나(tone='navy' 만 예외).
- * 라벨 · 큰 값 · 보조 줄(원화 등) · 바닥 설명 · 흰 추세선(값 배열). 아이콘은 lib/menu ICON 이름.
+ * KPI 타일 — 2.0: 표면 카드 + 큰 숫자(그라데이션 없음). tone='navy' = 강조 타일(accent 윗선).
+ * 라벨 · 큰 값 · 보조 줄(원화 등) · 바닥 설명 · 추세선(값 배열, accent). 아이콘은 lib/menu ICON 이름.
  */
 import { ICON } from '@/lib/menu';
 
-export function Sparkline({ points, className = 'kpi-spark', stroke = 'rgba(255,255,255,.95)', fill = 'rgba(255,255,255,.16)' }: { points: number[]; className?: string; stroke?: string; fill?: string }) {
+export function Sparkline({ points, className = 'kpi-spark', stroke = 'var(--accent)', fill = 'var(--accent-soft)' }: { points: number[]; className?: string; stroke?: string; fill?: string }) {
   if (points.length < 2) return <svg className={className} aria-hidden />;
   const W = 100, H = 30, min = Math.min(...points), max = Math.max(...points), span = max - min || 1;
   const xy = points.map((v, i) => [(i / (points.length - 1)) * W, H - 2 - ((v - min) / span) * (H - 4)] as const);

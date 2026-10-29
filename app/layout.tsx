@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Space_Grotesk } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 import NavTabs from '@/components/NavTabs';
@@ -27,13 +27,13 @@ export const metadata: Metadata = {
   },
 };
 
-// Copilot Money 디자인 — Jokker/Matter(상용)의 대체재. 라틴·숫자만 담당하고 한글은 Pretendard 로 폴백.
+// 2.0 글꼴(기획서 §4.2): 숫자·라틴 = Inter(tabular-nums), 한글 = Pretendard(아래 <link> — 동적 서브셋이라 화면에 쓰인 글자 조각만 받는다).
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
-const grotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-grotesk', display: 'swap' });
+const PRETENDARD = 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css';
 
 export const viewport: Viewport = {
-  // 기본 라이트(2026-10-29 대시보드형 디자인). 다크 전환 시 ThemeToggle 이 meta theme-color 를 갱신.
-  themeColor: '#f2f5fb',
+  // 기본 다크(2.0 Obsidian Finance). 라이트 전환 시 ThemeToggle 이 meta theme-color 를 갱신.
+  themeColor: '#0b1120',
   colorScheme: 'light dark',
   width: 'device-width',
   initialScale: 1,
@@ -41,20 +41,24 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-// 페인트 전에 저장된 테마를 html 클래스로 적용(FOUC 방지). 기본 = 라이트(2026-10-29).
-// 우선순위: ?theme=light|dark 쿼리(딥링크·공유·테스트, 지정 시 저장) → localStorage → 라이트.
-const themeInit = `(function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='light'||q==='dark')?q:localStorage.getItem('kl-theme');t=(t==='dark')?'dark':'light';if(q==='light'||q==='dark'){try{localStorage.setItem('kl-theme',t);}catch(_){}}var e=document.documentElement;e.classList.remove('light','dark');e.classList.add(t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#f2f5fb':'#000814');}catch(_){document.documentElement.classList.add('light');}})();`;
+// 페인트 전에 저장된 테마·사이드바 접힘을 html 클래스로 적용(FOUC 방지). 기본 = 다크(2.0 기획서).
+// 우선순위: ?theme=light|dark 쿼리(딥링크·공유·테스트, 지정 시 저장) → localStorage → 다크.
+const themeInit = `(function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='light'||q==='dark')?q:localStorage.getItem('kl-theme');t=(t==='light')?'light':'dark';if(q==='light'||q==='dark'){try{localStorage.setItem('kl-theme',t);}catch(_){}}var e=document.documentElement;e.classList.remove('light','dark');e.classList.add(t);if(localStorage.getItem('kl-side')==='min')e.classList.add('side-min');var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#f5f7fb':'#0b1120');}catch(_){document.documentElement.classList.add('dark');}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // 기본 라이트(className 에 light) + 인라인 스크립트가 저장값이 dark 면 교체. DOM 클래스가 진실원.
+  // 기본 다크(className 에 dark) + 인라인 스크립트가 저장값이 light 면 교체. DOM 클래스가 진실원.
   return (
-    <html lang="ko" suppressHydrationWarning className={`h-full light ${inter.variable} ${grotesk.variable}`}>
+    <html lang="ko" suppressHydrationWarning className={`h-full dark ${inter.variable}`}>
+      <head>
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
+        <link rel="stylesheet" href={PRETENDARD} />
+      </head>
       <body className="min-h-full flex flex-col">
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
         <PwaRegister />
         {/* 국내 종목 가격 알림 감시(켜진 알림이 있을 때만 30초 확인) */}
         <PriceAlertWatcher />
-        {/* PC(lg+) 왼쪽 남색 사이드바 — 2026-10-29 대시보드형 디자인. 본문은 .with-side 로 오른쪽에 */}
+        {/* PC(lg+) 왼쪽 사이드바(2.0 — 접힘 72px) . 본문은 .with-side 로 오른쪽에 */}
         <SideNav />
         <div className="with-side flex-1 flex flex-col min-w-0">
         <Header />

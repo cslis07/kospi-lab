@@ -6,6 +6,8 @@
  * 스파크: 국내 = 당일 분봉(점선 = 전일 종가), 해외·환율 = 최근 1개월. 장중이면 '● 실시간', 아니면 '장마감'.
  * 색: 상승=빨강(--warn) · 하락=파랑(--accent).
  * 카드를 누르면 시장지표 페이지와 같은 상세 시트(현재값·히스토리 차트·최근 내역·설명/영향)가 열린다(2026-10-29).
+ * 2.0 '오늘의 시장'(기획서 §5.1-2): 사용자가 고른 지수 중 앞 6개만(편집에서 순서·선택), 52주 위치는 카드 hover(title)·상세로 축약.
+ *   폰 2열 · 태블릿 3열 · PC 6열(globals .idx-rail).
  */
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
@@ -40,7 +42,6 @@ function toQuote(c: IndexCard, ind?: IndicatorQuote): LiveQuote {
   const fx = c.code === 'USDKRW';
   return { code: fx ? 'FX_USDKRW' : c.code, name: c.name, cat: fx ? 'exchange' : 'index', unit: fx ? '원' : c.unit, price: c.value, change: c.change, changeRate: c.changeRate, status: c.live ? '실시간' : '장마감' };
 }
-const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const colorOf = (c: number) => (c > 0 ? 'var(--warn)' : c < 0 ? 'var(--accent)' : 'var(--faint)');
 
 /** 폭 100% 반응형 스파크 — viewBox 늘림 + non-scaling-stroke 로 선 두께 유지 */
@@ -71,7 +72,7 @@ function Card({ c, on }: { c: IndexCard; on?: boolean }) {
   const d = c.dec ?? 2; // 금리=4자리·국내금=정수 등 시장지표 소수자리
   const f = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
   return (
-    <div className={`idx-card${on ? ' on' : ''}`}>
+    <div className={`idx-card${on ? ' on' : ''}`} title={c.week52Low != null && c.week52High != null ? `52주 ${f(c.week52Low)} ~ ${f(c.week52High)}` : undefined}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
         <span className={`idx-live${c.live ? ' on' : ''}`} style={{ marginLeft: 'auto' }}>
@@ -87,7 +88,6 @@ function Card({ c, on }: { c: IndexCard; on?: boolean }) {
       <div style={{ marginTop: 6 }}>
         <Spark points={c.spark} change={c.change} base={isKr ? c.value - c.change : undefined} />
       </div>
-      <Pos52 low={c.week52Low} high={c.week52High} value={c.value} />
     </div>
   );
 }
@@ -98,22 +98,6 @@ function CardButton({ c, on, onClick }: { c: IndexCard; on?: boolean; onClick: (
       style={{ display: 'block', width: '100%', minWidth: 0, padding: 0, background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', font: 'inherit' }}>
       <Card c={c} on={on} />
     </button>
-  );
-}
-
-/** 52주 범위 내 현재가 위치 — 레일 카드용 미니 바 */
-function Pos52({ low, high, value }: { low?: number | null; high?: number | null; value: number }) {
-  if (low == null || high == null || high <= low) return <div style={{ height: 16 }} aria-hidden />;
-  const pct = Math.round(Math.max(0, Math.min(100, ((value - low) / (high - low)) * 100)));
-  return (
-    <div style={{ marginTop: 6 }} title={`52주 범위 중 ${pct}% (${fmt(low)}~${fmt(high)})`}>
-      <div style={{ position: 'relative', height: 3, borderRadius: 99, background: 'var(--surface-2)' }}>
-        <div style={{ position: 'absolute', left: `calc(${pct}% - 3px)`, top: -1.5, width: 6, height: 6, borderRadius: '50%', background: 'var(--ink)', border: '1.5px solid var(--surface)' }} />
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--faint)', marginTop: 2 }}>
-        <span>52주</span><span className="tabular-nums">{pct}%</span>
-      </div>
-    </div>
   );
 }
 
@@ -136,7 +120,7 @@ export default function IndexRail() {
   const { pref, save } = useRailPref(); // 관심종목 화면과 공유되는 단일 리스트(라이브 동기화)
   const [editing, setEditing] = useState(false);
   const [showAll, setShowAll] = useState(false); // '전체보기' 팝업 — 전체 지수 한눈에
-  const shown = pref.filter((c) => byCode.has(c));
+  const shown = pref.filter((c) => byCode.has(c)).slice(0, 6); // 홈 '오늘의 시장'은 6개까지(기획서 4~6개)
 
   // 팝업 열렸을 때 ESC 닫기 + 배경 스크롤 잠금
   useEffect(() => {
@@ -153,7 +137,8 @@ export default function IndexRail() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginBottom: 8 }}>
+        <h2 style={{ marginRight: 'auto', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>오늘의 시장</h2>
         {cards.length > 0 && (
           <button type="button" onClick={() => setShowAll(true)} style={topBtn}>▦ 전체보기</button>
         )}
@@ -168,7 +153,7 @@ export default function IndexRail() {
       )}
       <div className="idx-rail">
         {cards.length === 0
-          ? Array.from({ length: DEFAULT_RAIL.length }).map((_, i) => <div key={i} className="idx-card skeleton" style={{ height: 128 }} />)
+          ? Array.from({ length: DEFAULT_RAIL.length }).map((_, i) => <div key={i} className="idx-card skeleton" style={{ height: 112 }} />)
           : shown.length === 0
             ? <p style={{ fontSize: 12, color: 'var(--faint)', gridColumn: '1 / -1' }}>표시할 지수가 없습니다. ⚙ 지수 편집에서 추가하세요.</p>
             : shown.map((code, i) => <CardButton key={code} c={byCode.get(code)!} on={i === 0} onClick={() => open(code)} />)}

@@ -282,7 +282,8 @@ const US_SET = new Set<Code>(['NASDAQ', 'SP500', 'DOW', 'NIKKEI', 'HANGSENG', 'D
 // 해외 지수 차트 안내 라벨(국가 포함)
 const US_LABEL: Partial<Record<Code, string>> = { NASDAQ: '미국 나스닥 종합지수', SP500: '미국 S&P 500', DOW: '미국 다우존스 산업평균', NIKKEI: '일본 닛케이225', HANGSENG: '홍콩 항셍', DAX: '독일 DAX', FTSE: '영국 FTSE 100' };
 
-export default function IndexBoard() {
+/** breadth=false: 시장 현황(상승·보합·하락)을 빼고 그린다 — 2.0 홈은 '시장 폭' 카드가 따로 보여준다 */
+export default function IndexBoard({ breadth = true }: { breadth?: boolean }) {
   const [code, setCode] = useState<Code>('KOSPI');
   const [range, setRange] = useState<Range>('1d');
   const [mode, setMode] = useState<'line' | 'candle'>('line');
@@ -410,7 +411,7 @@ export default function IndexBoard() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {/* 시장 현황 — 실시간 (국내 지수만. 해외 지수는 해당 없음) */}
-            {!isUs && (
+            {!isUs && breadth && (
               <div>
                 <div className="bd-k">시장 현황</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginTop: 8 }}>

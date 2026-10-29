@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 홈 우측 사이드바 — 최근 소식(뉴스 상위) + 인기|관심 종목 탭.
+ * 홈 인기|관심 종목 탭(StockTabs) — 2.0 홈 '관심종목' 카드. (최근 소식은 홈 '발견' 탭 뉴스로 옮김)
  * 인기 = /api/home/status.popular(네이버 실시간 인기 = 조회 많은 순, 20초 갱신 · 실패 시 KRX 전 거래일 거래대금) · 관심 = watchlist + /api/stock/batch 실시간가.
  * 종목 클릭 → 상세. 색: 상승 빨강 · 하락 파랑.
  */
@@ -14,15 +14,6 @@ import { Flash, LiveStamp } from '@/components/naver/ui';
 interface PopularItem { code: string; name: string; price: number; changeRate: number }
 interface StatusResp { popular: PopularItem[]; date?: string; source?: 'naver' | 'krx'; asOf?: string }
 
-function ago(pub?: string): string {
-  if (!pub) return '';
-  const m = Math.floor((Date.now() - new Date(pub).getTime()) / 60000);
-  if (!Number.isFinite(m) || m < 0) return '';
-  if (m < 60) return `${m}분 전`;
-  if (m < 1440) return `${Math.floor(m / 60)}시간 전`;
-  return `${Math.floor(m / 1440)}일 전`;
-}
-interface NewsItem { title: string; link: string; source: string; pubDate?: string }
 interface BatchItem { ticker: string; name: string; price: number; changeRate: number }
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
@@ -52,37 +43,9 @@ function StockRow({ code, name, price, changeRate, href }: { code: string; name:
   );
 }
 
-function RecentNews() {
-  const { data } = useSWR<NewsItem[]>('/api/news?category=domestic', fetcher, { refreshInterval: 300000, revalidateOnFocus: false });
-  const items = (data ?? []).slice(0, 6);
-  return (
-    <div className="fin-card" style={{ padding: '16px 18px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>최근 소식</h3>
-        <span className="fin-chip" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)' }}>국내 뉴스</span>
-        <Link href="/news" style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--accent)', fontWeight: 600 }}>더보기 →</Link>
-      </div>
-      {!data ? (
-        <div className="skeleton" style={{ height: 120, borderRadius: 10 }} />
-      ) : items.length === 0 ? (
-        <div style={{ padding: '18px 4px', fontSize: 12.5, color: 'var(--faint)' }}>국내 뉴스를 불러오지 못했습니다. 잠시 후 다시 시도됩니다.</div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {items.map((n, i) => (
-            <a key={i} href={n.link} target="_blank" rel="noopener noreferrer"
-              style={{ padding: '10px 0', borderTop: i ? '1px solid var(--line-2)' : 'none', textDecoration: 'none' }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{n.title}</div>
-              <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 3 }}>{n.source}{ago(n.pubDate) ? ` · ${ago(n.pubDate)}` : ''}</div>
-            </a>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StockTabs() {
-  const [tab, setTab] = useState<'popular' | 'watch'>('popular');
+/** 인기 | 관심 종목 탭 — 2.0 홈 '관심종목' 카드도 이걸 쓴다(initial='watch', limit 행 수) */
+export function StockTabs({ initial = 'popular', limit }: { initial?: 'popular' | 'watch'; limit?: number }) {
+  const [tab, setTab] = useState<'popular' | 'watch'>(initial);
   const { data: st } = useSWR<StatusResp>('/api/home/status', fetcher, { refreshInterval: tab === 'popular' ? 20000 : 0, revalidateOnFocus: false, keepPreviousData: true });
   const { watchlist, mounted } = useWatchlist();
   const tickers = watchlist.map((w) => w.ticker).join(',');
@@ -95,10 +58,10 @@ function StockTabs() {
     return (batch as Record<string, BatchItem>)[t];
   };
 
-  const popular = st?.popular ?? [];
+  const popular = (st?.popular ?? []).slice(0, limit ?? 99);
 
   return (
-    <div className="fin-card" style={{ padding: '14px 14px 6px' }}>
+    <div className="fin-card h-full" style={{ padding: '14px 14px 6px' }}>
       <div style={{ display: 'flex', gap: 16, padding: '0 4px 10px', borderBottom: '1px solid var(--line-2)' }}>
         {([['popular', '인기'], ['watch', '관심']] as const).map(([k, lbl]) => (
           <button key={k} onClick={() => setTab(k)}
@@ -122,21 +85,12 @@ function StockTabs() {
             ? <div className="skeleton" style={{ height: 120, margin: '10px 0', borderRadius: 10 }} />
             : watchlist.length === 0
               ? <div style={{ padding: '24px 8px', textAlign: 'center', fontSize: 13, color: 'var(--faint)' }}>관심종목이 없습니다.</div>
-              : watchlist.map((w) => {
+              : watchlist.slice(0, limit ?? 99).map((w) => {
                   const b = priceOf(w.ticker);
                   return <StockRow key={w.ticker} code={w.ticker} name={w.name} price={b?.price ?? 0} changeRate={b?.changeRate ?? 0} href={`/stock/${w.ticker}`} />;
                 })
         )}
       </div>
     </div>
-  );
-}
-
-export default function HomeSidebar() {
-  return (
-    <aside style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <RecentNews />
-      <StockTabs />
-    </aside>
   );
 }

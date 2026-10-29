@@ -12,6 +12,9 @@ export default function GlobalSearch() {
   const [open, setOpen]   = useState(false);
   const [sel, setSel]     = useState(-1);
   const [focused, setFocused] = useState(false);
+  // 단축키 안내: macOS ⌘K · 그 외 Ctrl K (서버 렌더는 Ctrl K, 마운트 후 판별)
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setIsMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)), 0); return () => clearTimeout(t); }, []);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ref   = useRef<HTMLDivElement>(null);
 
@@ -80,7 +83,7 @@ export default function GlobalSearch() {
           onBlur={() => setFocused(false)}
           className="flex-1 bg-transparent text-xs text-[var(--text)] placeholder-[var(--text-muted)] outline-none min-w-0"
         />
-        <kbd className="hidden lg:inline text-[9px] text-[var(--text-muted)] border border-[var(--border)] rounded px-1 py-0.5">⌘K</kbd>
+        <kbd className="hidden lg:inline text-[10px] text-[var(--text-muted)] border border-[var(--border)] rounded px-1.5 py-0.5 whitespace-nowrap" title="Windows Ctrl+K · macOS ⌘K">{isMac ? '⌘K' : 'Ctrl K'}</kbd>
       </div>
 
       {open && hits.length > 0 && (

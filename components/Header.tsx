@@ -82,14 +82,13 @@ function useMarketStatus(): MarketStatus {
 /* ── 환율 pill ────────────────────────────────────────── */
 function FxPill({ label, rate, className = 'hidden sm:flex' }: { label: string; rate: FxRate; className?: string }) {
   const isPos = rate.change >= 0;
-  const changeColor = isPos ? 'text-emerald-400' : 'text-red-400';
   return (
     <div className={`pill-shadow ${className} items-center gap-1.5 text-xs border border-[var(--border)] rounded-full px-2.5 py-1 bg-[var(--pill-bg)]`}>
       <span className="text-[var(--text-muted)] font-medium">{label}</span>
-      <span className="text-[var(--text)] font-bold font-mono">
+      <span className="text-[var(--text)] font-bold tabular-nums">
         ₩{Math.round(rate.value).toLocaleString('ko-KR')}
       </span>
-      <span className={`font-mono ${changeColor}`}>
+      <span className="tabular-nums" style={{ color: rate.change > 0 ? 'var(--up)' : rate.change < 0 ? 'var(--down)' : 'var(--text-muted)' }}>
         {isPos ? '+' : ''}{rate.change.toFixed(2)}
       </span>
     </div>
@@ -140,7 +139,7 @@ export default function Header() {
         {mode === 'home' ? (
           <Link href="/" aria-label="홈" className="flex items-center gap-2 pl-2.5 min-w-0 flex-1">
             <span aria-hidden className="grid place-items-center w-7 h-7 rounded-lg text-[13px] font-black text-white shrink-0"
-              style={{ background: 'linear-gradient(135deg,#1c6cff,#1b64da)', boxShadow: '0 2px 8px rgba(28,108,255,.35)' }}>K</span>
+              style={{ background: 'var(--accent)', boxShadow: '0 2px 0 var(--accent-deep)' }}>K</span>
             <span className="text-[17px] font-extrabold tracking-tight text-[var(--text)] truncate">KOSPI LAB</span>
           </Link>
         ) : mode === 'section' ? (
@@ -165,14 +164,14 @@ export default function Header() {
       {(sheetsReady || menuOpen) && <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} />}
 
       {/* ── 데스크탑 헤더 (md+) ── */}
-      <div className="hidden md:flex max-w-[1760px] mx-auto px-3 sm:px-6 xl:px-8 h-14 items-center gap-3">
+      <div className="hidden md:flex max-w-[1760px] mx-auto px-3 sm:px-6 xl:px-8 h-16 items-center gap-3">
 
         {/* ── Left: 로고 + 시장 상태 ── */}
         <div className="flex items-center gap-3 shrink-0 min-w-0">
           {/* 로고 — lg+ 에선 사이드바에 있어 숨김(.hdr-logo) */}
           <Link href="/" aria-label="홈으로" className="hdr-logo flex items-center gap-2 leading-tight">
             <span aria-hidden className="grid place-items-center w-7 h-7 rounded-lg text-[13px] font-black text-white"
-              style={{ background: 'linear-gradient(135deg,#1c6cff,#1b64da)', boxShadow: '0 2px 8px rgba(28,108,255,.35)' }}>K</span>
+              style={{ background: 'var(--accent)', boxShadow: '0 2px 0 var(--accent-deep)' }}>K</span>
             <span className="block">
               <span className="block font-display text-sm font-extrabold tracking-tight text-[var(--text)]">KOSPI LAB</span>
               <p className="text-[9px] text-[var(--text-muted)] leading-none mt-0.5 hidden sm:block">투자 리스크 관리</p>
@@ -181,16 +180,8 @@ export default function Header() {
           {/* 시장 상태 dot — md+ 에서만 표시 */}
           {/* 768~1023px(작은 창·배율 150% 노트북)에선 오른쪽 알약까지 다 담으면 화면 밖으로 넘쳤다 → 넓을 때만 */}
           <div className="hidden lg:flex items-center gap-2 text-xs ml-2 pl-3 border-l border-[var(--border)]">
-            <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${isUsOpen ? 'bg-emerald-400 animate-pulse dot-live' : 'bg-gray-600'}`} />
-              <span className="text-[var(--text-muted)] whitespace-nowrap" title={usLabel}>해외</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${isKrOpen ? 'bg-emerald-400 animate-pulse dot-live' : 'bg-gray-600'}`} />
-              <span className="text-[var(--text-muted)] whitespace-nowrap" title={krLabel}>
-                {isKrOpen ? '국내 개장' : '국내 마감'}
-              </span>
-            </div>
+            <span className={`ds ${isKrOpen ? 'live' : 'closed'}`} title={krLabel}><i aria-hidden />국내 {isKrOpen ? '개장' : '마감'}</span>
+            <span className={`ds ${isUsOpen ? 'live' : 'closed'}`} title={usLabel}><i aria-hidden />미국 {isUsOpen ? '개장' : '마감'}</span>
           </div>
         </div>
 
@@ -207,34 +198,35 @@ export default function Header() {
           {/* USDT/KRW (업비트) — md+ */}
           {usdtkrw && <FxPill label="USDT" rate={usdtkrw} className="hidden lg:flex" />}
 
-          {/* JPY/KRW — lg+ */}
+          {/* 나머지 환율·시각은 펼침(기획서 §5.1 — 헤더엔 USD·USDT 2개만) */}
           {jpykrw && (
-            <div className="pill-shadow hidden lg:flex items-center gap-1.5 text-xs border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
-              <span className="text-[var(--text-muted)] font-medium">JPY</span>
-              <span className="text-[var(--text)] font-bold font-mono">
-                ₩{Math.round(jpykrw.value).toLocaleString('ko-KR')}
-              </span>
-              <span className={`font-mono ${jpykrw.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {jpykrw.change >= 0 ? '+' : ''}{jpykrw.change.toFixed(2)}
-              </span>
-            </div>
+            <details className="relative hidden lg:block">
+              <summary className="list-none cursor-pointer text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1.5 rounded-lg" aria-label="환율 더보기">환율 ▾</summary>
+              <div className="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-xl border border-[var(--border)] bg-[var(--bg-elev)] p-3 text-xs space-y-2" style={{ boxShadow: 'var(--sh-pop)' }}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[var(--text-muted)]">JPY(100엔)</span>
+                  <span className="tabular-nums font-bold text-[var(--text)]">₩{Math.round(jpykrw.value).toLocaleString('ko-KR')}
+                    <span className="ml-1.5 font-semibold" style={{ color: jpykrw.change > 0 ? 'var(--up)' : jpykrw.change < 0 ? 'var(--down)' : 'var(--text-muted)' }}>{jpykrw.change >= 0 ? '+' : ''}{jpykrw.change.toFixed(2)}</span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3"><span className="text-[var(--text-muted)]">현재 시각(KST)</span><span className="tabular-nums text-[var(--text)]"><Clock /></span></div>
+                <Link href="/indicators" className="block text-[var(--accent-ink)] font-semibold pt-1">환율·시장지표 전체 →</Link>
+              </div>
+            </details>
           )}
 
-          {/* 시계 — md+ */}
-          <div className="pill-shadow hidden xl:flex items-center gap-1 text-xs text-[var(--text-muted)] font-mono border border-[var(--border)] rounded-full px-3 py-1 bg-[var(--pill-bg)]">
-            <Clock />
-          </div>
+          <Link href="/alerts" className="btn-icon" aria-label="가격 알림" title="가격 알림">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" /></svg>
+          </Link>
 
           <SyncIndicator />
 
           {/* 다크/라이트 토글 */}
-          <ThemeToggle className="appbar-ic" />
+          <ThemeToggle className="btn-icon" />
 
           {/* 전체 메뉴 팝업 버튼 — 홈 하단 바로가기 카드를 대신한다(모바일 ☰ 시트와 동일 내용) */}
-          <button type="button" onClick={() => setMenuOpen(true)} aria-label="전체 메뉴"
-            className="pill-shadow flex items-center gap-1.5 text-xs font-semibold border border-[var(--border)] rounded-full px-3 py-1.5 bg-[var(--pill-bg)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden><path d="M4 6.5h16M4 12h16M4 17.5h16" /></svg>
-            전체메뉴
+          <button type="button" onClick={() => setMenuOpen(true)} aria-label="전체 메뉴" title="전체 메뉴" className="btn-icon">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden><path d="M4 6.5h16M4 12h16M4 17.5h16" /></svg>
           </button>
         </div>
 
