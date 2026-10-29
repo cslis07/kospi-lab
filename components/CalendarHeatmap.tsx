@@ -89,7 +89,7 @@ export default function CalendarHeatmap({ trades, unit, fmt, selected, onSelect,
           const has = c.pnl != null;
           const tip = has ? `${c.date} · ${c.pnl! > 0 ? '+' : ''}${fmt(c.pnl!)} ${unit} · ${c.count}건` : c.date;
           const cls = 'aspect-square rounded-md grid place-items-center text-[10px] leading-none tabular-nums';
-          const label = <span className={has ? 'font-semibold' : ''} style={{ color: has ? '#fff' : 'var(--faint)' }}>{c.day}</span>;
+          const label = <span className={has ? 'font-semibold' : ''} style={{ color: has ? 'var(--text)' : 'var(--faint)' }}>{c.day}</span>;
           if (has && onSelect) {
             const on = selected === c.date;
             return (

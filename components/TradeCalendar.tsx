@@ -82,7 +82,7 @@ export default function TradeCalendar({ trades, fmt, krw, marks = [] }: { trades
               aria-label={`${Number(m)}월 ${c.day}일${c.count ? ` 진입 ${c.count}건 순손익 ${signed(c.pnl ?? 0)}` : ' 매매 없음'}${mk.length ? ` 가드 경보 ${mk.map((k) => MARK_LABEL[k]).join('·')}` : ''}`}
               className="relative rounded-md min-h-[46px] px-0.5 py-1 flex flex-col items-center justify-start tabular-nums"
               style={{ background: bg(c.pnl, maxAbs), outline: on ? '2px solid var(--accent)' : undefined }}>
-              <span className="text-[9.5px] leading-none text-[var(--text-muted)]">{c.day}</span>
+              <span className="text-[9.5px] leading-none text-[var(--text)] opacity-75">{c.day}</span>
               {c.count > 0 && <span className="text-[11px] font-bold leading-tight text-[var(--text)] mt-0.5">{c.count}건</span>}
               {c.count > 0 && <span className="text-[9px] leading-none text-[var(--text)] opacity-80">{c.pnl != null ? `${c.pnl > 0 ? '+' : c.pnl < 0 ? '−' : ''}${Math.round(Math.abs(c.pnl))}` : ''}</span>}
               {scalpDays.has(c.date) && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{ background: '#ff8833' }} aria-hidden />}

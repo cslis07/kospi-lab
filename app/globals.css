@@ -1124,6 +1124,19 @@ html.light .nv-gc:hover { border-color: var(--accent); }
    ══════════════════════════════════════════════════════════════ */
 html.light .site-header { background: rgba(255,255,255,.92); }
 html.light .app-tabbar { background: rgba(255,255,255,.94); }
+/* 라이트 — 활성 탭 글자(흰색 전제)를 포인트 블루로 */
+html.light .app-tab.on { color: var(--accent); font-weight: 700; }
+
+/* 라이트 — 다크 바탕용으로 밝게 잡은 라임·해바라기·탠저린 계열을 흰 바탕 가독 톤으로(전 화면 대비 점검 2026-10-29).
+   Tailwind v4 팔레트 변수만 덮어써 수십 개 파일의 text-emerald-400·text-amber-400 등을 그대로 고친다. 배경 틴트(/10·/15)는 원래 색이라 은은하게 유지. */
+html.light {
+  --color-emerald-300: #1aa356; --color-emerald-400: #0b9446; --color-emerald-500: #08853e; --color-emerald-600: #077536;
+  --color-green-400: #0b9446; --color-green-500: #08853e;
+  --color-amber-300: #b77d0c; --color-amber-400: #a86f05; --color-amber-500: #9a6604; --color-amber-600: #865803;
+  --color-yellow-400: #a86f05; --color-yellow-500: #9a6604;
+  --color-orange-400: #d9600f; --color-orange-500: #c9560c;
+  --tag-lime: #08853e; --tag-sunflower: #a86f05; --tag-tangerine: #d9600f;
+}
 
 /* 왼쪽 사이드바(lg+) — 다크·라이트 공통 남색 */
 .side-nav {
