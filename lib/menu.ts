@@ -132,7 +132,7 @@ export const MENU: MenuGroup[] = [
   // 복기 — 규칙을 지켰나. 복기 대시보드 한 화면(2026-10-29: 일별 매매 횟수·손익 분해·비용 분석·수수료 진단만).
   // 매매일지 하위 탭·선행 테스트는 더보기 '📒 복기 상세'(EXTRAS) — 거기서 들어가도 하단 복기 탭이 켜지게 tabExtra.
   G('review', '복기', 'c-rose', 'qc-rose', 'journal', [
-    { href: '/review', icon: 'journal', label: '복기 대시보드', desc: '일별 매매 횟수·손익 분해·비용 분석·수수료 진단' },
+    { href: '/review', icon: 'journal', label: '복기 대시보드', desc: '비용 분석(원화)·매매 달력·월별 보고서·손익 분해' },
   ], ['/journal', '/paper', '/performance']),
   // 자산 — 계좌·보유 한 화면. 계산·장기투자 도구는 더보기로.
   G('assets', '자산', 'c-green', 'qc-green', 'portfolio', [
