@@ -1193,3 +1193,10 @@ html.light {
 .dash-h { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .dash-h h2 { font-size: 14.5px; font-weight: 800; color: var(--text); letter-spacing: -.01em; }
 .dash-h .dash-more { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--accent-ink); white-space: nowrap; }
+
+/* ── 홈 상단(2026-10-29) — PC: 왼쪽 바로가기+KPI 2×2 · 오른쪽 지수 레일 4열. KPI가 없으면(잠금 안 된 기기) 위아래 그대로 ── */
+.home-top { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
+@media (min-width: 1024px) {
+  .home-top:has(.home-kpis) { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 16px; align-items: start; }
+  .home-top:has(.home-kpis) .idx-rail { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

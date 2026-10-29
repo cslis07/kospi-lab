@@ -8,6 +8,7 @@
  */
 import { Suspense } from 'react';
 import NaverHome from '@/components/home/naver/NaverHome';
+import IndexRail from '@/components/home/naver/IndexRail';
 import PcMarketSections from '@/components/home/naver/PcMarketSections';
 import MyReviewLine from '@/components/home/MyReviewLine';
 import MyStatusLine from '@/components/home/MyStatusLine';
@@ -20,10 +21,13 @@ function DashboardInner() {
     <>
       {/* 지금 내 상태 — 가드·포지션 손절·냉각(잠금 해제 기기만) */}
       <MyStatusLine />
-      {/* 내 매매 KPI 타일 4개 + 바로가기(PC는 타일 옆 2×2) — 잠금 안 된 기기는 바로가기 줄만 */}
-      <HomeKpis />
+      {/* 상단 — PC: 왼쪽(바로가기 한 줄 + 내 매매 KPI 2×2) · 오른쪽(지수 레일 4열). 모바일·잠금 안 된 기기는 위아래로 */}
+      <div className="home-top">
+        <HomeKpis />
+        <IndexRail />
+      </div>
       <MyReviewLine />
-      <NaverHome />
+      <NaverHome rail={false} />
       {/* 데스크탑 — 실시간 랭킹·산업 트렌드·리서치·테마 ETF(섹션별 지연 마운트). 모바일은 시장 탭에서 */}
       <DesktopOnly><PcMarketSections /></DesktopOnly>
       {/* 모바일 — 데스크탑에만 남긴 시장 섹션으로 가는 길(2026-10-26 메뉴 2단계: 홈 7화면 → 매매자 기준) */}

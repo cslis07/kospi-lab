@@ -14,10 +14,10 @@ import HomeSidebar from './HomeSidebar';
 import NowcastStrip from '@/components/NowcastStrip';
 import DesktopOnly from '@/components/home/DesktopOnly';
 
-export default function NaverHome() {
+export default function NaverHome({ rail = true }: { rail?: boolean }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <IndexRail />
+      {rail && <IndexRail />}
       <div className="nh-grid">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
           <DesktopOnly minHeight={420}><IndexBoard /></DesktopOnly>

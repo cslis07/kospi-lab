@@ -5,7 +5,7 @@
  * 오늘 손익 · 이번 달 순손익 · 30일 수수료 · 이번 주 1시간 미만 매매 — 모두 USDT + 업비트 테더 원화.
  * 데이터 = 복기 대시보드와 같은 Bitget 청산 이력(게이트 뒤). 잠금 안 된 기기(401)·키 없음이면 타일은 숨기고 바로가기 줄만. 계산은 lib/reviewDash.
  * 추세선(스파크라인)은 빼고 숫자만(2026-10-29 사용자 요청 — 내용만 알면 됨).
- * 바로가기는 PC에서 타일 줄 오른쪽 2×2 작은 상자(넓은 줄 한 칸을 아낀다).
+ * PC(≥1024)에선 홈 상단 왼쪽 칸(.home-top)에 바로가기 한 줄 + 타일 2×2, 오른쪽 칸은 지수 레일 4열.
  */
 import useSWR from 'swr';
 import { useState } from 'react';
@@ -39,8 +39,8 @@ export default function HomeKpis() {
   const wk = weekRules(ps, now);
 
   return (
-    <section aria-label="내 매매 요약" className="mb-3 lg:flex lg:gap-3">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:flex-1 lg:min-w-0">
+    <section aria-label="내 매매 요약" className="home-kpis flex flex-col">
+      <div className="grid grid-cols-2 gap-3">
         <Link href="/review" className="block"><KpiTile label="오늘 손익" icon="growth" value={signed(todayNet)} unit="USDT" sub={krw(todayNet)} foot={`오늘 청산 ${todayPs.length}건`} /></Link>
         <Link href="/review" className="block"><KpiTile label="이번 달 순손익" icon="calendar" value={signed(monthNet)} unit="USDT" sub={krw(monthNet)} foot={`${Number(month.slice(5))}월 청산 ${monthPs.length}건`} /></Link>
         <Link href="/journal?tab=cost" className="block"><KpiTile label="30일 수수료" icon="tax" value={signed(fee)} unit="USDT" sub={krw(fee)} foot={`청산 ${ps30.length}건 · 건당 ${ps30.length ? fmt(Math.abs(fee) / ps30.length) : '0'}`} /></Link>
