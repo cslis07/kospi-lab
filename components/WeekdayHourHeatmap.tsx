@@ -60,8 +60,8 @@ export default function WeekdayHourHeatmap({ h, fmt, sub, selected, onSelect, de
                   const title = c ? `${WEEKDAYS[wd]} ${HOUR_BANDS[b].label}: ${c.n}건 · 순손익 ${fmt(c.net)} · 승률 ${c.winRate == null ? '—' : Math.round(c.winRate) + '%'}${c.n < THIN_SAMPLE ? ' (표본 적음)' : ''}${clickable ? ' · 눌러서 매매 보기' : ''}` : '매매 없음';
                   const inner = c ? (
                     <div className="leading-tight">
-                      <div className="text-[11px] font-bold" style={{ color: c.net > 0 ? 'var(--warn)' : c.net < 0 ? 'var(--accent-ink)' : 'var(--text-muted)' }}>{compact(c.net)}</div>
-                      <div className="text-[8.5px] text-[var(--text-muted)]">{c.n}건{c.winRate != null ? ` ${Math.round(c.winRate)}%` : ''}</div>
+                      <div className="text-[11px] font-bold text-[var(--text)]">{compact(c.net)}</div>
+                      <div className="text-[8.5px] text-[var(--text)] opacity-75">{c.n}건{c.winRate != null ? ` ${Math.round(c.winRate)}%` : ''}</div>
                     </div>
                   ) : null;
                   return (
