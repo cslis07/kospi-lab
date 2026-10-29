@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { evaluateGuard, suggestStop, cooldownState, feeRisk, SL_GRACE_MS, SL_ALT_MULT, type GuardInput, type OpenPos } from '../lib/guard';
+import { evaluateGuard, suggestStop, cooldownState, feeRisk, guardMarksFrom, SL_GRACE_MS, SL_ALT_MULT, type GuardInput, type OpenPos } from '../lib/guard';
 import { feeVsRisk } from '../lib/positionSizing';
 
 let passed = 0;
@@ -123,5 +123,10 @@ ok('진입 전 비용 미리보기(feeVsRisk): 왕복 수수료율 ÷ 손절 거
   const f = feeVsRisk(0.4, 0.0012)!;   // 시장가 왕복 0.12% · 손절 0.4% → 30%
   assert.ok(Math.abs(f.ratio - 0.3) < 1e-9); assert.ok(Math.abs(f.breakEvenWinPct - 65) < 1e-9); assert.ok(Math.abs(f.minStopPct - 0.48) < 1e-9);
   assert.equal(feeVsRisk(0, 0.0012), null);
+});
+ok('guardMarksFrom: 서킷브레이커·복구 매매·단타만, 시간순, 무한대 제외', () => {
+  const m = guardMarksFrom({ fired: { 'nosl:a': 5, 'cb:blocked:1': 30, 'revenge:x': 10, 'scalp:1:3': 20, 'warn:BTC': 1, 'revenge:y': Number.POSITIVE_INFINITY } });
+  assert.deepEqual(m, [{ kind: 'revenge', ts: 10 }, { kind: 'scalp', ts: 20 }, { kind: 'cb', ts: 30 }]);
+  assert.deepEqual(guardMarksFrom(null), []);
 });
 console.log(`\n${passed} passed`);

@@ -114,7 +114,8 @@ function NavTabsInner() {
       })()}
 
       {/* ── 데스크탑: 섹션 알약 + 하위 칩 (md+) ── */}
-      <nav className="hidden md:block relative mb-6 space-y-3">
+      {/* lg+ 는 왼쪽 사이드바(SideNav)가 대신한다 — 태블릿 폭(md~lg)만 알약 내비 */}
+      <nav className="hidden md:block lg:hidden relative mb-6 space-y-3">
         <div className="flex items-center gap-3">
           <div className="topnav">
             {NAV_GROUPS.map((g) => {

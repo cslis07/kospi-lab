@@ -4,6 +4,7 @@ import './globals.css';
 import Header from '@/components/Header';
 import NavTabs from '@/components/NavTabs';
 import BottomNav from '@/components/BottomNav';
+import SideNav from '@/components/SideNav';
 import PwaRegister from '@/components/PwaRegister';
 import PriceAlertWatcher from '@/components/PriceAlertWatcher';
 import CooldownBanner from '@/components/CooldownBanner';
@@ -31,30 +32,33 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 const grotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-grotesk', display: 'swap' });
 
 export const viewport: Viewport = {
-  // 기본 다크(미드나잇 캔버스). 라이트 전환 시 ThemeToggle 이 meta theme-color 를 갱신.
-  themeColor: '#000814',
-  colorScheme: 'dark light',
+  // 기본 라이트(2026-10-29 대시보드형 디자인). 다크 전환 시 ThemeToggle 이 meta theme-color 를 갱신.
+  themeColor: '#f2f5fb',
+  colorScheme: 'light dark',
   width: 'device-width',
   initialScale: 1,
   // 노치·제스처바 안전영역(env(safe-area-inset-*))을 쓰려면 cover 필요 — 하단 탭바 여백에 사용
   viewportFit: 'cover',
 };
 
-// 페인트 전에 저장된 테마를 html 클래스로 적용(FOUC 방지). 기본 = 다크.
-// 우선순위: ?theme=light|dark 쿼리(딥링크·공유·테스트, 지정 시 저장) → localStorage → 다크.
-const themeInit = `(function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='light'||q==='dark')?q:localStorage.getItem('kl-theme');t=(t==='light')?'light':'dark';if(q==='light'||q==='dark'){try{localStorage.setItem('kl-theme',t);}catch(_){}}var e=document.documentElement;e.classList.remove('light','dark');e.classList.add(t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#ffffff':'#000814');}catch(_){document.documentElement.classList.add('dark');}})();`;
+// 페인트 전에 저장된 테마를 html 클래스로 적용(FOUC 방지). 기본 = 라이트(2026-10-29).
+// 우선순위: ?theme=light|dark 쿼리(딥링크·공유·테스트, 지정 시 저장) → localStorage → 라이트.
+const themeInit = `(function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='light'||q==='dark')?q:localStorage.getItem('kl-theme');t=(t==='dark')?'dark':'light';if(q==='light'||q==='dark'){try{localStorage.setItem('kl-theme',t);}catch(_){}}var e=document.documentElement;e.classList.remove('light','dark');e.classList.add(t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#f2f5fb':'#000814');}catch(_){document.documentElement.classList.add('light');}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // 기본 다크(className 에 dark) + 인라인 스크립트가 저장값이 light 면 교체. DOM 클래스가 진실원.
+  // 기본 라이트(className 에 light) + 인라인 스크립트가 저장값이 dark 면 교체. DOM 클래스가 진실원.
   return (
-    <html lang="ko" suppressHydrationWarning className={`h-full dark ${inter.variable} ${grotesk.variable}`}>
+    <html lang="ko" suppressHydrationWarning className={`h-full light ${inter.variable} ${grotesk.variable}`}>
       <body className="min-h-full flex flex-col">
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
         <PwaRegister />
         {/* 국내 종목 가격 알림 감시(켜진 알림이 있을 때만 30초 확인) */}
         <PriceAlertWatcher />
+        {/* PC(lg+) 왼쪽 남색 사이드바 — 2026-10-29 대시보드형 디자인. 본문은 .with-side 로 오른쪽에 */}
+        <SideNav />
+        <div className="with-side flex-1 flex flex-col min-w-0">
         <Header />
-        <div className="flex-1 max-w-[1200px] mx-auto w-full px-4 sm:px-6 pt-4 md:pt-6">
+        <div className="flex-1 max-w-[1280px] mx-auto w-full px-4 sm:px-6 pt-4 md:pt-6">
           <NavTabs />
           {/* 냉각 타이머 — 손실 청산 직후·서킷브레이커 차단 때만(잠금 해제 기기) */}
           <CooldownBanner />
@@ -80,6 +84,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </span>
           </div>
         </footer>
+        </div>
         <BottomNav />
       </body>
     </html>

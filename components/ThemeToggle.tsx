@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 
-// 다크/라이트 토글. 기본 = 다크(html.dark). 라이트는 html.light.
+// 다크/라이트 토글. 기본 = 라이트(html.light, 2026-10-29). 다크는 html.dark.
 // 초기 클래스는 layout 의 인라인 스크립트가 페인트 전에 적용(깜빡임 방지).
 // DOM 클래스를 진실원으로 삼아 연속 클릭이 어긋나지 않게 한다.
 export default function ThemeToggle({ className = 'appbar-ic' }: { className?: string }) {
-  const [light, setLight] = useState(false);
+  const [light, setLight] = useState(true);
 
   useEffect(() => {
     setLight(document.documentElement.classList.contains('light'));
@@ -19,7 +19,7 @@ export default function ThemeToggle({ className = 'appbar-ic' }: { className?: s
     el.classList.toggle('dark', !nowLight);
     try { localStorage.setItem('kl-theme', nowLight ? 'light' : 'dark'); } catch {}
     const m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.setAttribute('content', nowLight ? '#ffffff' : '#000814');
+    if (m) m.setAttribute('content', nowLight ? '#f2f5fb' : '#000814');
     setLight(nowLight);
   };
 

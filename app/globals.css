@@ -126,29 +126,29 @@ html.light {
   color-scheme: light;
 
   /* Copilot 팔레트의 라이트 대응 */
-  --cp-canvas: #ffffff;
-  --cp-deep: #f6f7f9;     /* 카드 1단 — 연회색 */
-  --cp-indigo: #eef1f5;   /* 보조 2단 */
-  --cp-cobalt: #123a8f;   /* 강조 블록 — 진한 블루 유지(흰 글자 대비) */
+  --cp-canvas: #f2f5fb;   /* 2026-10-29 대시보드형: 연회색 바닥 */
+  --cp-deep: #ffffff;     /* 카드 1단 — 흰 카드 */
+  --cp-indigo: #f4f6fb;   /* 보조 2단 */
+  --cp-cobalt: #1c6cff;   /* 강조 블록 = 포인트 블루 하나로 */
   --cp-white: #ffffff;
   --cp-fog: #4a5568;
   --cp-mist: #6b7480;
-  --cp-steel: #e4e8ef;
+  --cp-steel: #e7ebf3;
   --cp-blue: #1c6cff;
 
   /* 깊이 — 라이트는 흰빛 인셋 대신 회색 드롭섀도 + 옅은 보더 */
-  --neo: 0 1px 2px rgba(16,24,40,.05), 0 4px 12px -2px rgba(16,24,40,.07);
-  --neo-sm: 0 1px 2px rgba(16,24,40,.06);
+  --neo: 0 1px 2px rgba(16,24,40,.04), 0 8px 24px -12px rgba(16,24,40,.16);
+  --neo-sm: 0 1px 2px rgba(16,24,40,.05);
   --glow: inset 0 0 0 1px rgba(16,24,40,.03);
   --pressed: inset 0 2px 5px rgba(16,24,40,.10);
 
-  --surface: #f6f7f9;
-  --surface-2: #eef1f5;
-  --ink: #0b1220;
-  --ink-2: #4a5568;
-  --muted: #4a5568;
-  --faint: #8a94a3;
-  --line: #e4e8ef;
+  --surface: #ffffff;
+  --surface-2: #f4f6fb;
+  --ink: #101a3a;
+  --ink-2: #59647f;
+  --muted: #59647f;
+  --faint: #8b94ab;
+  --line: #e7ebf3;
   --line-2: rgba(16,24,40,.08);
   --accent-ink: #155ce0;                         /* 흰 배경 위 액센트 글자 — 다크(#5b93ff)보다 진하게 */
   --ok: #00a83e;   --ok-soft: rgba(0,168,62,.12);
@@ -160,16 +160,16 @@ html.light {
   --sh-2: var(--neo);
   --sh-pop: var(--neo);
 
-  --bg: #ffffff;
-  --bg-elev: #f6f7f9;
-  --bg-card: #f6f7f9;
-  --bg-card-hover: #eef1f5;
-  --card: #f6f7f9;
-  --text: #0b1220;
-  --text-muted: #4a5568;
-  --text-dim: #8a94a3;
-  --border: #e4e8ef;
-  --border-hover: #cdd5e0;
+  --bg: #f2f5fb;
+  --bg-elev: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f7f9fd;
+  --card: #ffffff;
+  --text: #101a3a;
+  --text-muted: #59647f;
+  --text-dim: #8b94ab;
+  --border: #e7ebf3;
+  --border-hover: #cfd7e6;
 
   --accent: #1c6cff;                             /* 하락 = 관행 시그널 블루 유지 */
   --accent-soft: rgba(28,108,255,.10);
@@ -179,8 +179,9 @@ html.light {
   --shadow-pill:   var(--neo-sm);
   --shadow-bar:    none;
 
-  --nav-active: #0b1220;
+  --nav-active: #101a3a;
   --pill-bg: #ffffff;
+  --r: 16px; --r-md: 12px;
 }
 
 /* 라이트 — 어두운 배경을 전제로 박힌 흰빛 값 교정(스크롤바·그랩·시트·토스트 등) */
@@ -1116,3 +1117,61 @@ html.light .nv-gc:hover { border-color: var(--accent); }
   .text-\[13px\]  { font-size: 13.5px; }
   .text-xs        { font-size: 13px; }   /* 12 → 13 */
 }
+
+/* ══════════════════════════════════════════════════════════════
+   2026-10-29 대시보드형 레이아웃 — 참고 이미지(왼쪽 남색 사이드바 · 연회색 바닥 · 흰 카드 · 그라데이션 KPI 타일).
+   색은 포인트 블루 하나 + 남색 사이드바로 절제(그래프만 다채롭게). 상승 빨강·하락 파랑 관행 유지.
+   ══════════════════════════════════════════════════════════════ */
+html.light .site-header { background: rgba(255,255,255,.92); }
+html.light .app-tabbar { background: rgba(255,255,255,.94); }
+
+/* 왼쪽 사이드바(lg+) — 다크·라이트 공통 남색 */
+.side-nav {
+  position: fixed; top: 0; left: 0; bottom: 0; width: var(--side-w); z-index: 45;
+  display: none; flex-direction: column;
+  background: linear-gradient(180deg, #0e1d4d 0%, #0a1638 100%);
+  color: #c7d1ec; border-right: 1px solid rgba(255,255,255,.06);
+}
+:root { --side-w: 236px; }
+@media (min-width: 1024px) {
+  .side-nav { display: flex; }
+  .with-side { padding-left: var(--side-w); }
+  .site-header .hdr-logo { display: none; }
+}
+.side-nav .sn-logo { display: flex; align-items: center; gap: 10px; padding: 18px 18px 14px; color: #fff; }
+.side-nav .sn-scroll { flex: 1; overflow-y: auto; padding: 4px 10px 12px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.14) transparent; }
+.side-nav .sn-item {
+  display: flex; align-items: center; gap: 11px; width: 100%; min-height: 40px; padding: 0 12px; border-radius: 10px;
+  font-size: 13.5px; font-weight: 600; color: #c7d1ec; text-align: left; transition: background .15s var(--ease), color .15s var(--ease);
+}
+.side-nav .sn-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+.side-nav .sn-item.on { background: #2f6bff; color: #fff; box-shadow: 0 6px 16px -6px rgba(47,107,255,.7); }
+.side-nav .sn-item svg { width: 18px; height: 18px; flex: none; }
+.side-nav .sn-sub { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 6px 29px; padding-left: 10px; border-left: 1px solid rgba(255,255,255,.10); }
+.side-nav .sn-sub a { padding: 6px 8px; border-radius: 8px; font-size: 12.5px; color: #9fabcf; }
+.side-nav .sn-sub a:hover { color: #fff; background: rgba(255,255,255,.05); }
+.side-nav .sn-sub a.on { color: #fff; font-weight: 700; }
+.side-nav .sn-label { padding: 14px 12px 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; color: #6f7ca6; }
+.side-nav .sn-live { margin: 0 12px 14px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07); }
+
+/* KPI 타일 — 포인트 블루 그라데이션 하나(색 절제) + 흰 글자 + 흰 추세선 */
+.kpi {
+  position: relative; overflow: hidden; border-radius: 16px; padding: 14px 14px 10px; color: #fff;
+  background: linear-gradient(135deg, #3b74ff 0%, #2453e0 100%);
+  box-shadow: 0 10px 24px -14px rgba(36,83,224,.8);
+}
+.kpi.kpi-navy { background: linear-gradient(135deg, #24305e 0%, #151d42 100%); box-shadow: 0 10px 24px -14px rgba(21,29,66,.8); }
+.kpi .kpi-ic { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,.16); }
+.kpi .kpi-ic svg { width: 18px; height: 18px; }
+.kpi .kpi-label { font-size: 12px; font-weight: 600; opacity: .88; }
+.kpi .kpi-val { font-size: 21px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.kpi .kpi-unit { font-size: 11px; font-weight: 700; opacity: .85; letter-spacing: 0; }
+@media (max-width: 480px) { .kpi .kpi-val { font-size: 18px; } .kpi { padding: 12px 12px 8px; } }
+.kpi .kpi-sub { font-size: 11.5px; font-weight: 600; opacity: .9; font-variant-numeric: tabular-nums; }
+.kpi .kpi-foot { font-size: 10.5px; opacity: .75; margin-top: 2px; }
+.kpi .kpi-spark { display: block; width: 100%; height: 34px; margin-top: 6px; }
+
+/* 카드 헤더(제목 + 오른쪽 링크) */
+.dash-h { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.dash-h h2 { font-size: 14.5px; font-weight: 800; color: var(--text); letter-spacing: -.01em; }
+.dash-h .dash-more { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--accent-ink); white-space: nowrap; }

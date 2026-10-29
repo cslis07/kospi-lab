@@ -11,6 +11,7 @@ import PcMarketSections from '@/components/home/naver/PcMarketSections';
 import MyReviewLine from '@/components/home/MyReviewLine';
 import MyStatusLine from '@/components/home/MyStatusLine';
 import QuickChips from '@/components/home/QuickChips';
+import HomeKpis from '@/components/home/HomeKpis';
 import DesktopOnly from '@/components/home/DesktopOnly';
 import MobileMarketLinks from '@/components/home/MobileMarketLinks';
 
@@ -27,6 +28,8 @@ function DashboardInner() {
     <>
       {/* 지금 내 상태 — 가드·포지션 손절·냉각(잠금 해제 기기만) */}
       <MyStatusLine />
+      {/* 내 매매 KPI 타일 4개 — 2026-10-29 대시보드형(잠금 해제 기기만) */}
+      <HomeKpis />
       {/* 바로가기 — 매일 쓰는 4곳(2026-10-26 1단계 정리) */}
       <QuickChips />
       <MyReviewLine />

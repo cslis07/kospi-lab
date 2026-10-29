@@ -165,11 +165,12 @@ export default function Header() {
       {(sheetsReady || menuOpen) && <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} />}
 
       {/* ── 데스크탑 헤더 (md+) ── */}
-      <div className="hidden md:flex max-w-7xl mx-auto px-3 sm:px-6 h-14 items-center gap-3">
+      <div className="hidden md:flex max-w-[1280px] mx-auto px-3 sm:px-6 h-14 items-center gap-3">
 
         {/* ── Left: 로고 + 시장 상태 ── */}
         <div className="flex items-center gap-3 shrink-0 min-w-0">
-          <Link href="/" aria-label="홈으로" className="flex items-center gap-2 leading-tight">
+          {/* 로고 — lg+ 에선 사이드바에 있어 숨김(.hdr-logo) */}
+          <Link href="/" aria-label="홈으로" className="hdr-logo flex items-center gap-2 leading-tight">
             <span aria-hidden className="grid place-items-center w-7 h-7 rounded-lg text-[13px] font-black text-white"
               style={{ background: 'linear-gradient(135deg,#1c6cff,#1b64da)', boxShadow: '0 2px 8px rgba(28,108,255,.35)' }}>K</span>
             <span className="block">

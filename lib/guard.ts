@@ -449,6 +449,24 @@ export async function alertLogSummary(): Promise<AlertLogSummary> {
   return summarizeAlertLog(await sbGet<AlertLog>(ALERT_LOG_ID));
 }
 
+/* ── 복기 달력 표시용 — 가드가 보낸 규율 경보 ─────── */
+export type GuardMarkKind = 'cb' | 'revenge' | 'scalp';
+export interface GuardMark { kind: GuardMarkKind; ts: number }
+/** guard-state.fired(키별 마지막 발송 시각, 8일 지나면 정리됨)에서 서킷브레이커·복구 매매·단타 경보만 뽑는다.
+ *  그래서 최근 약 8일만 보이고, 같은 키가 다시 울리면 마지막 시각만 남는다(화면에 명시). */
+export function guardMarksFrom(state: GuardState | null): GuardMark[] {
+  const out: GuardMark[] = [];
+  for (const [k, ts] of Object.entries(state?.fired ?? {})) {
+    if (!Number.isFinite(ts)) continue;
+    const kind = k.startsWith('cb:') ? 'cb' : k.startsWith('revenge:') ? 'revenge' : k.startsWith('scalp:') ? 'scalp' : null;
+    if (kind) out.push({ kind, ts });
+  }
+  return out.sort((a, b) => a.ts - b.ts);
+}
+export async function guardMarks(): Promise<GuardMark[]> {
+  return guardMarksFrom(await sbGet<GuardState>(STATE_ID));
+}
+
 /* ── 냉각 타이머(앱 상단 배너) ─────────────────── */
 /** 손실 청산 뒤 다음 진입까지 쉬는 시간 — 복구 매매 판정(30분)과 같은 기준 */
 export const COOLDOWN_AFTER_LOSS_MS = 30 * 60_000;
