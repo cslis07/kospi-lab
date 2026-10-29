@@ -51,3 +51,4 @@ data/coin-signals.json
 
 # 로컬 전용 프로젝트 진행 기록(다른 도구가 관리) — 저장소에 올리지 않음
 project-state.json
+.redesign-preview/
