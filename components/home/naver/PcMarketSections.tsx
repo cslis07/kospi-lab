@@ -1,8 +1,9 @@
 'use client';
 
 /**
- * 홈 시장 섹션 — 네이버 증권 홈처럼 큰 부제목 기준으로 간격을 두고 5개 기능을 모두 펼친다.
- * 순서 = stock.naver.com 홈 페이지 코드의 위젯 배치 순서(실시간 랭킹 → 산업 트렌드 → 리서치 → 테마 ETF → 환율·시장지표).
+ * 홈 시장 섹션 — 네이버 증권 홈처럼 큰 부제목 기준으로 간격을 두고 4개 기능을 모두 펼친다.
+ * 순서 = stock.naver.com 홈 페이지 코드의 위젯 배치 순서(실시간 랭킹 → 산업 트렌드 → 리서치 → 테마 ETF).
+ * 환율·시장지표는 2026-10-29 홈에서 뺐다(사용자 요청) — 상단 지수 레일에 올려 누르면 상세, 전체는 /indicators.
  *
  * 모든 화면 폭에서 노출(10-01 사용자 지시 "어떤 상황에서도"). 예전엔 ≥1024px 에서만 마운트해서
  * 창을 줄이거나 배율 150%(CSS 폭 960px) 노트북에선 섹션이 통째로 사라졌다.
@@ -14,7 +15,6 @@ import RankingSection from '@/components/naver/sections/RankingSection';
 import IndustrySection from '@/components/naver/sections/IndustrySection';
 import ResearchSection from '@/components/naver/sections/ResearchSection';
 import ThemeEtfSection from '@/components/naver/sections/ThemeEtfSection';
-import IndicatorsSection from '@/components/naver/sections/IndicatorsSection';
 
 function LazyMount({ minHeight, children }: { minHeight: number; children: React.ReactNode }) {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
@@ -36,7 +36,6 @@ export default function PcMarketSections() {
       <LazyMount minHeight={420}><IndustrySection home /></LazyMount>
       <LazyMount minHeight={560}><ResearchSection home /></LazyMount>
       <LazyMount minHeight={520}><ThemeEtfSection home /></LazyMount>
-      <LazyMount minHeight={300}><IndicatorsSection home /></LazyMount>
     </div>
   );
 }
