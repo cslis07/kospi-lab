@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import useSWR from 'swr';
-import { leverageGuard, recommendSizing, type RegimeRead, type LayerTilt } from '@/lib/coinRegime';
+import type { RegimeRead, LayerTilt } from '@/lib/coinRegime';
 import type { SupplyLayer } from '@/lib/coinSupply';
 import type { DemandLayer } from '@/lib/coinPremium';
 import type { OptionsLayer } from '@/lib/coinOptions';
@@ -83,26 +83,7 @@ function TiltCard({ t, children }: { t: LayerTilt; children?: React.ReactNode })
 
 export default function EthRegimePage() {
   const { data, isLoading } = useSWR<RegimePayload>('/api/coin/regime', fetcher, { refreshInterval: 60000 });
-  const [lev, setLev] = useState(10);
-  const [side, setSide] = useState<'long' | 'short'>('long');
-  const [entry, setEntry] = useState<string>('');
-  const [stop, setStop] = useState<number>(5);
-  const [seed, setSeed] = useState<string>('1000');
-  const [riskPct, setRiskPct] = useState<number>(1);
-
   const price = data?.positioning?.priceUsd ?? data?.edge?.priceUsd ?? data?.demand?.ethUsd ?? null;
-  const entryNum = entry ? Number(entry) : price ?? 0;
-  const maxAdverse = data?.edge?.matched?.p90MaxAdversePct ?? null;
-
-  const guard = useMemo(() => {
-    if (!entryNum) return null;
-    return leverageGuard({ entry: entryNum, leverage: lev, isShort: side === 'short', stopPct: stop, maxAdversePct: maxAdverse });
-  }, [entryNum, lev, side, stop, maxAdverse]);
-
-  const sizing = useMemo(
-    () => recommendSizing({ seedUsdt: Number(seed), riskPct, stopPct: stop, leverage: lev, entry: entryNum }),
-    [seed, riskPct, stop, lev, entryNum],
-  );
   const catalysts = useMemo(() => upcomingCatalysts(CRYPTO_CATALYSTS, Date.now()), []);
 
   const r = data?.regime;
@@ -117,7 +98,7 @@ export default function EthRegimePage() {
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 mb-5">
         <p className="text-[11px] text-amber-300/90 leading-snug">
           ⚠ <b>방향 예측·매매 신호가 아닙니다.</b> 이 앱 실측 결론은 “방향 우위 없음”. 여기 정렬도(confluence)는 맞힐 확신이 아니라
-          <b className="text-amber-200"> 레버리지·사이징을 조절</b>하는 용도입니다. 배경(공급·수요·거시)은 상승의 <b>증폭 조건</b>일 뿐 트리거가 아닙니다.
+          <b className="text-amber-200"> 레버리지·사이징을 조절</b>하는 참고입니다(계산은 계산기에서). 배경(공급·수요·거시)은 상승의 <b>증폭 조건</b>일 뿐 트리거가 아닙니다.
         </p>
       </div>
 
@@ -233,72 +214,6 @@ export default function EthRegimePage() {
             )}
           </div>
 
-          {/* 레버리지 가드 */}
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
-            <p className="text-[12px] font-bold text-[var(--text)] mb-2">레버리지 가드 <span className="text-[10px] font-normal text-[var(--text-muted)]">(청산가·과거 최대 역행 대비)</span></p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-              <label className="text-[11px] text-[var(--text-muted)]">진입가($)
-                <input value={entry} onChange={(e) => setEntry(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={price ? String(Math.round(price)) : '0'}
-                  inputMode="decimal" className="mt-1 w-full rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-2 py-1.5 text-[13px] text-[var(--text)] tabular-nums" />
-              </label>
-              <label className="text-[11px] text-[var(--text-muted)]">레버리지({lev}x)
-                <input type="range" min={1} max={50} value={lev} onChange={(e) => setLev(Number(e.target.value))} className="mt-2 w-full accent-[var(--accent)]" />
-              </label>
-              <label className="text-[11px] text-[var(--text-muted)]">손절폭(%)
-                <input type="number" value={stop} min={0.5} step={0.5} onChange={(e) => setStop(Number(e.target.value))}
-                  className="mt-1 w-full rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-2 py-1.5 text-[13px] text-[var(--text)] tabular-nums" />
-              </label>
-              <div className="text-[11px] text-[var(--text-muted)]">방향
-                <div className="mt-1 flex rounded-lg overflow-hidden border border-[var(--border)]">
-                  <button onClick={() => setSide('long')} className={`flex-1 py-1.5 text-[12px] font-semibold ${side === 'long' ? 'bg-rose-500/20 text-rose-300' : 'text-[var(--text-muted)]'}`}>롱</button>
-                  <button onClick={() => setSide('short')} className={`flex-1 py-1.5 text-[12px] font-semibold ${side === 'short' ? 'bg-blue-500/20 text-blue-300' : 'text-[var(--text-muted)]'}`}>숏</button>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <label className="text-[11px] text-[var(--text-muted)]">자본(USDT)
-                <input value={seed} onChange={(e) => setSeed(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal"
-                  className="mt-1 w-full rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-2 py-1.5 text-[13px] text-[var(--text)] tabular-nums" />
-              </label>
-              <label className="text-[11px] text-[var(--text-muted)]">회당 리스크(%)
-                <input type="number" value={riskPct} min={0.1} step={0.1} onChange={(e) => setRiskPct(Number(e.target.value))}
-                  className="mt-1 w-full rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-2 py-1.5 text-[13px] text-[var(--text)] tabular-nums" />
-              </label>
-            </div>
-            {guard && (
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                  <Stat label="청산가" value={usd(guard.liqPrice)} />
-                  <Stat label="청산거리" value={signed(guard.liqDistPct, 1)} />
-                  <Stat label="손절 안전배수" value={guard.stopSafety == null ? '—' : `${guard.stopSafety.toFixed(1)}x`} warn={guard.stopSafety != null && guard.stopSafety < 2} />
-                  <Stat label="과거 최대역행" value={maxAdverse == null ? '—' : `±${maxAdverse.toFixed(1)}%`} warn={guard.survivesMaxAdverse === false} />
-                </div>
-                {guard.warnings.length > 0 && (
-                  <ul className="space-y-1">
-                    {guard.warnings.map((w, i) => (
-                      <li key={i} className="text-[11px] text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-lg px-2 py-1 leading-snug">⚠ {w}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-            {sizing && (
-              <div className="mt-3 pt-3 border-t border-[var(--border)]">
-                <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">권장 사이징 <span className="opacity-70">(자본 리스크 {riskPct}% · 손절 {stop}% 기준 · 방향·승률과 무관한 자금관리)</span></p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                  <Stat label="권장 수량" value={`${sizing.qty.toFixed(3)} ETH`} />
-                  <Stat label="명목가" value={usd(sizing.notionUsdt)} />
-                  <Stat label={`증거금(자본 ${sizing.marginPctOfSeed.toFixed(0)}%)`} value={usd(sizing.marginUsdt)} warn={sizing.overMargin} />
-                  <Stat label="손절 시 손실" value={usd(sizing.riskUsdt)} />
-                </div>
-                {sizing.overMargin && (
-                  <p className="mt-2 text-[11px] text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-lg px-2 py-1 leading-snug">⚠ 필요 증거금이 자본보다 큼 — 레버리지를 높이거나 리스크%·손절폭을 줄이세요(현재 설정으론 이 포지션을 감당 못 함).</p>
-                )}
-                <p className="mt-2 text-[10px] text-[var(--text-muted)] opacity-70 leading-snug">손절거리가 리스크를 결정합니다: 손절 시 손실이 자본의 {riskPct}%가 되도록 명목가를 역산했습니다. 수수료·미끄러짐은 미반영(실제론 조금 더 보수적으로).</p>
-              </div>
-            )}
-          </div>
-
           <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
             출처(무키): 공급=DefiLlama·CoinGecko · 수요=Coinbase·Upbit · 포지셔닝=Bitget·Binance · 옵션=Deribit · 과거통계=Bitget 일봉.
             거래소 ETH 단독 보유량 정밀값·온체인 순유입은 유료라 제외했고, 스테이블코인·stETH·리저브 추세로 공급 그림을 대신합니다.
@@ -306,15 +221,6 @@ export default function EthRegimePage() {
           </p>
         </>
       )}
-    </div>
-  );
-}
-
-function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
-  return (
-    <div className={`rounded-lg px-2 py-1.5 border ${warn ? 'border-rose-500/40 bg-rose-500/10' : 'border-[var(--border)] bg-[var(--surface-2)]'}`}>
-      <p className="text-[10px] text-[var(--text-muted)]">{label}</p>
-      <p className={`text-[13px] font-bold tabular-nums ${warn ? 'text-rose-300' : 'text-[var(--text)]'}`}>{value}</p>
     </div>
   );
 }

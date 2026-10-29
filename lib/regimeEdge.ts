@@ -7,7 +7,7 @@
  *
  * 레이어1·2(공급·수요)는 과거 이력 저장이 없어(무료 소스는 현재값만) base rate 를 못 만든다 →
  * 가격 캔들로 재구성 가능한 '추세·변동성' 축만 실측한다. 결과가 대조군과 비슷하면 "우위 없음"이 결론.
- * 변동폭(변동성 군집)은 체제에 따라 다를 수 있다 — 그건 레버리지 가드(최대 역행)에 쓴다(방향 아님).
+ * 변동폭(변동성 군집)은 체제에 따라 다를 수 있다 — 최대 역행 통계로 남긴다(방향 아님).
  */
 
 export interface Candle {
@@ -104,7 +104,7 @@ export interface StateStat {
   n: number;
   upRatio: number; // 다음 h일 상승 비율
   medianAbsMovePct: number;
-  p90MaxAdversePct: number; // 롱 기준 과거 이 상태 최대 역행 90분위 → 레버리지 가드
+  p90MaxAdversePct: number; // 롱 기준 과거 이 상태 최대 역행 90분위
 }
 export type Verdict = 'insufficient' | 'edge-unclear' | 'vol-differs';
 

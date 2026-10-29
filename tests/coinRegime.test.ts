@@ -7,7 +7,7 @@ import { summarizeStables, summarizeCex, supplyState } from '../lib/coinSupply';
 import { premiumPct, demandState, takerDelta, cvdSummary } from '../lib/coinPremium';
 import { parseInstrument, expiryToTs, maxPain, summarizeOptions } from '../lib/coinOptions';
 import {
-  supplyTilt, demandTilt, macroTilt, confluenceOf, crowdingState, synthesizeRegime, leverageGuard, recommendSizing,
+  supplyTilt, demandTilt, macroTilt, confluenceOf, crowdingState, synthesizeRegime,
 } from '../lib/coinRegime';
 import {
   sma, trueRange, atrPct, forwardMovePct, maxAdverseFwd, median, quantile, classifyState, baseRates,
@@ -197,35 +197,6 @@ ok('synthesizeRegime: 태그 — amplifier / supply_no_demand / macro_headwind',
   assert.ok(mh.tags.includes('macro_headwind'));
   const mix = synthesizeRegime({ supply: supply('neutral'), demand: demand('neutral'), macro: macro('mixed'), positioning: null });
   assert.deepEqual(mix.tags, ['mixed']);
-});
-
-ok('leverageGuard: 청산거리·손절안전·최대역행 경고(isolatedLiqPrice 재사용)', () => {
-  const g = leverageGuard({ entry: 2000, leverage: 10, isShort: false, stopPct: 5, maxAdversePct: 12 });
-  // 롱 10배 청산거리 ≈ 9.5%
-  assert.ok(g.liqDistPct > 9 && g.liqDistPct < 10);
-  assert.ok(g.stopSafety !== null && g.stopSafety < 2); // 9.5/5 ≈ 1.9
-  assert.equal(g.survivesMaxAdverse, false); // 9.5 < 12
-  assert.ok(g.warnings.some((w) => w.includes('10배')));
-  assert.ok(g.warnings.length >= 2);
-  // 저레버리지·여유 충분
-  const safe = leverageGuard({ entry: 2000, leverage: 2, isShort: false, stopPct: 5, maxAdversePct: 12 });
-  assert.equal(safe.survivesMaxAdverse, true);
-  assert.equal(safe.warnings.length, 0);
-});
-
-ok('recommendSizing: 리스크% → 명목가·수량·증거금(notionForRisk 재사용)', () => {
-  const s = recommendSizing({ seedUsdt: 1000, riskPct: 1, stopPct: 5, leverage: 10, entry: 2000 })!;
-  assert.equal(s.riskUsdt, 10); // 1000*1%
-  assert.equal(s.notionUsdt, 200); // 10 / 0.05
-  assert.ok(Math.abs(s.qty - 0.1) < 1e-9); // 200/2000
-  assert.equal(s.marginUsdt, 20); // 200/10
-  assert.equal(s.marginPctOfSeed, 2);
-  assert.equal(s.overMargin, false);
-  // 레버리지가 낮아 증거금이 자본 초과
-  const over = recommendSizing({ seedUsdt: 1000, riskPct: 5, stopPct: 1, leverage: 2, entry: 2000 })!;
-  assert.equal(over.notionUsdt, 5000);
-  assert.equal(over.overMargin, true);
-  assert.equal(recommendSizing({ seedUsdt: 0, riskPct: 1, stopPct: 5, leverage: 10, entry: 2000 }), null);
 });
 
 console.log('regimeEdge.ts');
