@@ -159,7 +159,7 @@ function MyStocksInner() {
   const TABS: { key: MarketTab; label: string }[] = [{ key: 'domestic', label: '국내' }, { key: 'overseas', label: '해외' }, { key: 'crypto', label: '코인' }];
 
   return (
-    <div className="max-w-3xl mx-auto pb-6">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-6">
       <RailIndicesCard />
       <div className="seg w-full mb-3" role="tablist" aria-label="관심종목 시장">
         {TABS.map((t) => (

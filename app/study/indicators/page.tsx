@@ -11,7 +11,7 @@ const HERE = '/study/indicators';
 
 export default function StudyIndicatorsPage() {
   return (
-    <div className="max-w-3xl mx-auto pb-12">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
       <StudyNav current={HERE} />
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">2. 보조지표 — RSI·MACD·볼린저</h1>
       <StudyLead>보조지표는 <b className="text-[var(--text)]">가격을 다른 방식으로 다시 계산한 것</b>이다. 새로운 정보를 더하지 않고, 이미 지나간 가격을 요약할 뿐이다. 그래서 &lsquo;신호&rsquo;가 아니라 <b className="text-[var(--text)]">지금 상태를 숫자로 보여 주는 계기판</b>으로 쓴다.</StudyLead>

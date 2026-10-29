@@ -129,7 +129,7 @@ export default function AssetsPage() {
   }, [hist]);
 
   return (
-    <div className="max-w-lg mx-auto pb-12 space-y-4">
+    <div className="max-w-lg lg:max-w-4xl mx-auto pb-12 space-y-4">
       {/* ── 계좌 ── */}
       <section>
         <div className="fin-sec"><h3>계좌</h3></div>

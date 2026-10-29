@@ -165,7 +165,7 @@ export default function Header() {
       {(sheetsReady || menuOpen) && <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} />}
 
       {/* ── 데스크탑 헤더 (md+) ── */}
-      <div className="hidden md:flex max-w-[1280px] mx-auto px-3 sm:px-6 h-14 items-center gap-3">
+      <div className="hidden md:flex max-w-[1760px] mx-auto px-3 sm:px-6 xl:px-8 h-14 items-center gap-3">
 
         {/* ── Left: 로고 + 시장 상태 ── */}
         <div className="flex items-center gap-3 shrink-0 min-w-0">

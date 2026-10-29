@@ -27,7 +27,7 @@ const SENTENCES: { kind: string; tone: string; example: string; how: string }[] 
 
 export default function StudyPage() {
   return (
-    <div className="max-w-3xl mx-auto pb-12">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
       <StudyNav current={HERE} />
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">코인 기초 공부법</h1>
       <StudyLead>차트 읽기부터 RSI·MACD·피보나치, 금리·국채·유가와 코인의 관계까지 — <b className="text-[var(--text)]">그림으로 배우고 → 앱에서 숫자로 확인하고 → 오늘의 행동(사이즈)을 정하는</b> 과정입니다.</StudyLead>

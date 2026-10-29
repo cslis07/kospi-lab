@@ -115,7 +115,7 @@ export default function BitgetPage() {
   );
 
   return (
-    <div className="max-w-lg mx-auto pb-12">
+    <div className="max-w-lg lg:max-w-4xl mx-auto pb-12">
       <h1 className="text-xl font-bold text-[var(--text)] mb-1">비트겟 포트폴리오</h1>
       <p className="text-sm text-[var(--text-muted)] mb-3">내 Bitget 계좌 잔고를 실시간으로 조회합니다 (읽기 전용)</p>
 

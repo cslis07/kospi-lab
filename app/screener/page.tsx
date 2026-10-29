@@ -475,7 +475,7 @@ function ScreenerInner() {
     localNames[t] ?? t.replace(/\.(KS|KQ)$/, '');
 
   return (
-    <div className="max-w-4xl mx-auto pb-16">
+    <div className="max-w-4xl xl:max-w-none mx-auto pb-16">
       {/* ── Title ── */}
       <div className="mb-6">
         <h1 className="text-lg font-bold text-[var(--text)]">종목 비교 <span className="text-xs font-normal text-[var(--text-muted)]">간단 재무 스냅샷</span></h1>

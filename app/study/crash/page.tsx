@@ -88,7 +88,7 @@ function ShockRow({ label, s }: { label: string; s: ShockStat }) {
 
 export default function CrashPlaybookPage() {
   return (
-    <div className="max-w-2xl mx-auto pb-12 min-w-0">
+    <div className="max-w-2xl lg:max-w-4xl mx-auto pb-12 min-w-0">
       <Link href="/study" className="text-[12px] font-semibold text-[var(--accent-ink)]">← 코인 기초 공부법</Link>
       <h1 className="text-xl font-extrabold text-[var(--text)] mt-2 mb-1">폭락 대응 교본</h1>
       <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">

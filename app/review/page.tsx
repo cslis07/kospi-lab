@@ -158,7 +158,7 @@ export default function ReviewPage() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto pb-4">
+    <div className="pb-4">
       {/* 제목 + 상세 바로가기 */}
       <div className="flex items-end gap-3 flex-wrap mb-3">
         <div className="mr-auto">

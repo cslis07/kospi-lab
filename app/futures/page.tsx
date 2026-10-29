@@ -89,7 +89,7 @@ export default function FuturesPage() {
   const CHART_TABS: [ChartView, string][] = [['gainers', '상승 TOP'], ['losers', '하락 TOP'], ['volume', '거래대금 TOP']];
 
   return (
-    <div className="max-w-4xl mx-auto pb-12">
+    <div className="max-w-4xl xl:max-w-none mx-auto pb-12">
       <h1 className="text-xl font-bold text-[var(--text)] mb-1">선물 시세 (USDT 무기한)</h1>
       <p className="text-sm text-[var(--text-muted)] mb-5">Bitget USDT-Margined Perpetual Futures · 10초마다 갱신</p>
 

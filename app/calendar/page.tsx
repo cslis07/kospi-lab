@@ -115,7 +115,7 @@ export default function CalendarPage() {
   }, [target, grouped]);
 
   return (
-    <div className="max-w-3xl mx-auto pb-8">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-8">
       {/* 다음 주요 발표 카운트다운 — 컨센서스·나우캐스트·직전(Nowflation 참고) */}
       {relCal?.events?.length ? (
         <div className="mb-4">

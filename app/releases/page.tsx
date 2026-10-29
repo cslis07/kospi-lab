@@ -92,7 +92,7 @@ export default function ReleasesPage() {
   }, [file, year]);
 
   return (
-    <div className="max-w-3xl mx-auto pb-12">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">경제지표 발표 이력</h1>
       <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">
         인베스팅닷컴의 지표별 발표 내역(<b className="text-[var(--text)]">결과·예측·이전</b>)을 2021년 1월부터 모았습니다.

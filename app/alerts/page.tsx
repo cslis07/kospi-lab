@@ -83,7 +83,7 @@ export default function AlertsPage() {
   const del = (label: string, fn: () => void) => { if (window.confirm(`${label} 알림을 삭제할까요?`)) fn(); };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5 pb-8">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto space-y-5 pb-8">
       <div className="px-1">
         <p className="text-xs leading-relaxed text-[var(--text-muted)]">
           종목마다 따로 걸어 둔 알림을 여기서 한 번에 켜고 끄고 지웁니다. 지금 켜진 알림 <b className="text-[var(--text)]">{onCount}개</b>.

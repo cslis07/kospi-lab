@@ -109,7 +109,7 @@ export default function EthRegimePage() {
   const STRENGTH_CLS: Record<string, string> = { '강': 'text-emerald-400', '보통': 'text-[var(--accent)]', '약': 'text-amber-400', '혼조': 'text-[var(--text-muted)]' };
 
   return (
-    <div className="max-w-3xl mx-auto pb-12">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">ETH 체제 보드</h1>
       <p className="text-sm text-[var(--text-muted)] mb-3 leading-relaxed">
         공급·수요·포지셔닝·거시 4개 층을 모아 <b className="text-[var(--text)]">“지금 어떤 체제인가”</b>를 읽습니다.

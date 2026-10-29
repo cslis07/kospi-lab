@@ -84,7 +84,7 @@ function ToolLinks({ note, tools }: { note?: string; tools?: Tool[] }) {
 
 export default function PrinciplesPage() {
   return (
-    <div className="max-w-3xl mx-auto pb-12">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">매매 대원칙</h1>
       <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
         오래 살아남은 매매에는 공통점이 있습니다 — 방향을 잘 맞혀서가 아니라, <strong className="text-[var(--text)]">잃는 쪽을 통제</strong>했기 때문입니다.

@@ -11,7 +11,7 @@ const HERE = '/study/chart';
 
 export default function StudyChartPage() {
   return (
-    <div className="max-w-3xl mx-auto pb-12">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
       <StudyNav current={HERE} />
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">1. 차트 보는 법</h1>
       <StudyLead>차트는 미래를 보여 주지 않는다. 대신 <b className="text-[var(--text)]">지금까지 사람들이 어디서 사고팔았는지</b>를 보여 준다. 그걸 읽어서 &lsquo;어디서 틀렸다고 인정할지(손절)&rsquo;를 정하는 게 목표다.</StudyLead>

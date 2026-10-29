@@ -375,7 +375,7 @@ export default function JournalPage() {
   const show = (t: JournalTab) => t === tab || visited.has(t);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6">
+    <div className="max-w-3xl xl:max-w-6xl mx-auto px-4 py-6">
       <div className="mb-4">
         <h1 className="text-lg font-bold text-[var(--text)]">매매일지 <span className="text-xs font-normal text-[var(--text-muted)]">거래소 대조 · 기분 · 월별 보고서</span></h1>
         <p className="text-xs text-[var(--text-muted)] mt-1">Bitget 청산 기록을 그대로 가져와 복기합니다(수수료·펀딩 반영 · 읽기 전용).</p>

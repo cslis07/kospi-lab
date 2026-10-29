@@ -58,7 +58,7 @@ export default function KrxPage() {
   const etfRows: EtfItem[] = etf?.[etfTab] ?? [];
 
   return (
-    <div className="max-w-3xl mx-auto pb-12">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
       <h1 className="text-xl font-bold text-[var(--text)] mb-1">KRX 시장 데이터</h1>
       <p className="text-sm text-[var(--text-muted)] mb-5">
         한국거래소(KRX) 공식 데이터 · 지수 · 전종목 랭킹 · ETF · 상품

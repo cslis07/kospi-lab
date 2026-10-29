@@ -11,7 +11,7 @@ const HERE = '/study/macro';
 
 export default function StudyMacroPage() {
   return (
-    <div className="max-w-3xl mx-auto pb-12">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
       <StudyNav current={HERE} />
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">4. 금리·국채·유가와 코인</h1>
       <StudyLead>차트가 &lsquo;사람들이 어디서 사고팔았나&rsquo;라면, 거시·수급은 <b className="text-[var(--text)]">왜 돈이 들어오거나 빠지나</b>다. 비트코인은 이자도 실적도 없어서 &lsquo;돈이 얼마나 풍부한가&rsquo;에 특히 민감하다.</StudyLead>

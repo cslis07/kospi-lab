@@ -62,7 +62,7 @@ function RiseFallSvg() {
 
 export default function EntrySignalsGuidePage() {
   return (
-    <div className="max-w-3xl mx-auto pb-14">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-14">
       <Link href="/study" className="text-[12px] text-[var(--text-muted)] hover:text-[var(--text)]">← 공부법으로</Link>
       <h1 className="text-xl font-extrabold text-[var(--text)] mt-2 mb-1">롱·숏 진입 신호 가이드</h1>
       <p className="text-sm text-[var(--text-muted)] mb-3 leading-relaxed">

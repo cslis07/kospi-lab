@@ -62,7 +62,7 @@ export default function ReentryChecklistPage() {
   const protoOk = proto.every((x) => x);
 
   return (
-    <div className="max-w-2xl mx-auto pb-12">
+    <div className="max-w-2xl lg:max-w-4xl mx-auto pb-12">
       <Link href="/study" className="text-[12px] font-semibold text-[var(--accent-ink)]">← 코인 기초 공부법</Link>
       <h1 className="text-xl font-extrabold text-[var(--text)] mt-2 mb-1">진입·재진입 체크리스트</h1>
       <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">

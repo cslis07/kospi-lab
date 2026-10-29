@@ -106,7 +106,7 @@ export default function PaperPage() {
   const judgedById = new Map((judged ?? []).map((j) => [j.trade.id, j]));
 
   return (
-    <div className="max-w-2xl mx-auto pb-12 min-w-0">
+    <div className="max-w-2xl lg:max-w-4xl mx-auto pb-12 min-w-0">
       {/* 제목·안내 */}
       <div className="mb-4">
         <h2 className="text-xl font-extrabold text-[var(--text)]">모의 선행테스트</h2>

@@ -10,7 +10,7 @@ const HERE = '/study/execution';
 
 export default function StudyExecutionPage() {
   return (
-    <div className="max-w-3xl mx-auto pb-12">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
       <StudyNav current={HERE} />
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">5. 실전 매매 체계</h1>
       <StudyLead>

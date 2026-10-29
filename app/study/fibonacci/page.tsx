@@ -14,7 +14,7 @@ export default function StudyFibonacciPage() {
   const lv = fibRetracement(100, 160);
   const ex = fibExtension(100, 160, 122.92);
   return (
-    <div className="max-w-3xl mx-auto pb-12">
+    <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
       <StudyNav current={HERE} />
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">3. 피보나치와 차트 패턴</h1>
       <StudyLead>피보나치·패턴은 &lsquo;많은 사람이 같은 자리를 본다&rsquo;는 점에서 쓸모가 있다. 수학적 법칙이 아니라 <b className="text-[var(--text)]">주문이 몰리기 쉬운 후보 자리</b>를 미리 표시해 두는 도구다.</StudyLead>
