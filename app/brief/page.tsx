@@ -244,7 +244,8 @@ export default function BriefPage() {
   return (
     <div>
       {/* 헤더 */}
-      <div className="mb-3">
+      {/* PC(lg+)는 공통 페이지 머리(NavTabs)가 제목을 보여 준다 */}
+      <div className="mb-3 lg:hidden">
         <h2 className="text-lg font-semibold text-[var(--text)]">모닝 브리핑</h2>
         <p className="text-xs text-[var(--text-muted)] mt-0.5">
           간밤 美 시장·금리·유가·지정학이 각 시장에 주는 <b className="text-[var(--text)]">맥락</b>과 과거 실측 통계. 매일 아침 자동 정리.
@@ -252,17 +253,11 @@ export default function BriefPage() {
       </div>
 
       {/* 시장 탭 */}
-      <div className="flex gap-0 mb-4 border-b border-[var(--border)]">
+      <div className="seg mb-4" role="radiogroup" aria-label="시장">
         {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setMarket(t.key)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              market === t.key ? 'border-sky-500 text-sky-400' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
-            }`}
-          >
-            <span>{t.emoji}</span>
-            {t.label}
+          <button key={t.key} type="button" role="radio" aria-checked={market === t.key} onClick={() => setMarket(t.key)}
+            className={`seg-i ${market === t.key ? 'on' : ''}`}>
+            <span className="mr-1" aria-hidden>{t.emoji}</span>{t.label}
           </button>
         ))}
       </div>
@@ -288,10 +283,11 @@ export default function BriefPage() {
 
       {!isLoading && !error && data && (
         <div className="space-y-5">
-          {/* AI 요약 */}
-          <div className="fin-card p-4">
+          {/* ① 오늘의 핵심 3가지 — AI 요약(2.0 기획서 §5.5: 요약 → 일정 → 상세 자료) */}
+          <div className="fin-card ai p-4">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">AI 요약</span>
+              <h3 className="text-sm font-semibold text-[var(--text)]">① 오늘의 핵심 3가지</h3>
+              <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[var(--ai-soft)] text-[var(--ai)]">AI 요약 · 투자 신호 아님</span>
               {ai?.at && <span className="text-[10px] text-[var(--text-muted)] opacity-70 tabular-nums">{hhmm(ai.at)} 작성</span>}
               {ai?.model && <span className="text-[10px] text-[var(--text-muted)] opacity-50">{ai.model}</span>}
               {ai?.stale && <span className="text-[10px] text-amber-400 opacity-80">이전 요약</span>}
@@ -299,16 +295,24 @@ export default function BriefPage() {
             {ai?.headline ? (
               <>
                 <p className="text-base font-semibold text-[var(--text)] leading-snug">{ai.headline}</p>
-                <ul className="mt-2 space-y-1.5">
-                  {ai.bullets.map((b, i) => (
-                    <li key={i} className="flex gap-2 text-sm text-[var(--text-muted)] leading-snug">
-                      <span className="text-sky-400 shrink-0">·</span>
+                <ol className="mt-2 space-y-1.5">
+                  {ai.bullets.slice(0, 3).map((b, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-[var(--text)] leading-snug">
+                      <span className="text-[var(--ai)] font-bold tabular-nums shrink-0">{i + 1}</span>
                       <span>{b}</span>
                     </li>
                   ))}
-                </ul>
-                <p className="mt-2 text-[10.5px] text-[var(--text-muted)] opacity-70">
-                  문장 속 수치는 아래 수치·헤드라인과 자동 대조했습니다{ai.dropped ? ` — 근거에 없는 숫자를 쓴 문장 ${ai.dropped}개 제외` : ''}. 요약 뒤에도 수치는 계속 갱신됩니다.
+                </ol>
+                {ai.bullets.length > 3 && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-[12px] text-[var(--accent-ink)] font-semibold">요약 더 보기 ({ai.bullets.length - 3})</summary>
+                    <ul className="mt-1.5 space-y-1.5">
+                      {ai.bullets.slice(3).map((b, i) => <li key={i} className="flex gap-2 text-sm text-[var(--text-muted)] leading-snug"><span className="shrink-0">·</span><span>{b}</span></li>)}
+                    </ul>
+                  </details>
+                )}
+                <p className="mt-2 text-[10.5px] text-[var(--text-muted)]">
+                  <b>사실</b> = 아래 수치·뉴스 헤드라인(원문 출처·시각 표시) · <b>AI</b> = 그 사실을 문장으로 정리한 것(모델 의견 아님). 문장 속 수치는 아래 수치·헤드라인과 자동 대조했습니다{ai.dropped ? ` — 근거에 없는 숫자를 쓴 문장 ${ai.dropped}개 제외` : ''}. 요약 뒤에도 수치는 계속 갱신됩니다.
                 </p>
               </>
             ) : (
@@ -317,6 +321,24 @@ export default function BriefPage() {
               </p>
             )}
           </div>
+
+          {/* 오늘 일정 */}
+          {data.events.length > 0 && (
+            <div>
+              <div className="flex items-baseline gap-2 mb-2"><h3 className="text-sm font-semibold text-[var(--text)]">② 변동성 주의 일정</h3><Link href="/calendar" className="dash-more">경제 캘린더 →</Link></div>
+              <div className="space-y-1.5">
+                {data.events.map((e, i) => (
+                  <div key={`e-${i}`} className="flex items-center gap-3 p-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]">
+                    <span className="text-xs font-mono text-[var(--text-muted)] shrink-0">{e.date.slice(5)}</span>
+                    <span className="text-sm text-[var(--text)] flex-1 min-w-0 truncate">{e.title}</span>
+                    {e.importance === 'high' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--warn-soft)] text-[var(--warn)] shrink-0">중요</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="sec-label !mb-0">③ 상세 자료</p>
 
           {/* 수치 */}
           <div>
@@ -355,22 +377,6 @@ export default function BriefPage() {
               <p className="text-sm text-[var(--text-muted)] py-2">관련 뉴스를 찾지 못했습니다.</p>
             )}
           </div>
-
-          {/* 오늘 일정 */}
-          {data.events.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-[var(--text)] mb-2">변동성 주의 일정</h3>
-              <div className="space-y-1.5">
-                {data.events.map((e, i) => (
-                  <div key={`e-${i}`} className="flex items-center gap-3 p-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]">
-                    <span className="text-xs font-mono text-[var(--text-muted)] shrink-0">{e.date.slice(5)}</span>
-                    <span className="text-sm text-[var(--text)] flex-1 min-w-0 truncate">{e.title}</span>
-                    {e.importance === 'high' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--warn-soft)] text-[var(--warn)] shrink-0">중요</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* 면책 */}
           <div className="text-[11px] text-[var(--text-muted)] opacity-70 leading-relaxed border-t border-[var(--border)] pt-3">

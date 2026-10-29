@@ -419,6 +419,29 @@ export default function JournalPage() {
       {err && <p className="mb-3 text-[12px] text-red-400">⚠ {err} {err.includes('잠금') && <Link href="/bitget" className="underline">계좌로 이동</Link>}</p>}
       {msg && !err && <p className="mb-3 text-[12px] text-[var(--text-muted)]">{msg}</p>}
 
+      {/* 매매 복기 공통 상단 요약(2.0 기획서 §5.4) — 선택 기간 청산 건수·순손익·수수료·펀딩(있는 데이터만, 계산 없이 합계) */}
+      {positions.length > 0 && (() => {
+        const sum = (f: (p: ClosedPosition) => number) => positions.reduce((a, p) => a + f(p), 0);
+        const net = sum((p) => p.netProfit), fee = sum((p) => p.fee), fund = sum((p) => p.funding);
+        const cell = (k: string, v: number, signed = true) => (
+          <div className="min-w-0">
+            <p className="text-[11px] text-[var(--text-muted)]">{k}</p>
+            <p className="text-[17px] font-bold tabular-nums" style={{ color: !signed ? 'var(--text)' : v > 0 ? 'var(--up)' : v < 0 ? 'var(--down)' : 'var(--text)' }}>
+              {signed ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 2 })}` : v}
+              {signed && <span className="text-[10.5px] font-medium text-[var(--text-muted)] ml-1">USDT</span>}
+            </p>
+          </div>
+        );
+        return (
+          <div className="fin-card px-4 py-3 mb-3 grid grid-cols-2 sm:grid-cols-4 gap-3" aria-label={`최근 ${days}일 요약`}>
+            {cell(`최근 ${days}일 청산`, positions.length, false)}
+            {cell('순손익', net)}
+            {cell('수수료', fee)}
+            {cell('펀딩', fund)}
+          </div>
+        );
+      })()}
+
       <Suspense fallback={null}><UrlTabWatch onTab={onUrlTab} /></Suspense>
       {/* 하위 탭 전환은 공통 내비(components/NavTabs — 폰 밑줄 탭 · 태블릿 칩 · PC 2차 탭, lib/menu '매매 복기' 그룹)가 맡는다 */}
       <p className="text-[11px] text-[var(--faint)] mb-3 px-1 leading-relaxed">{TABS.find((t) => t.key === tab)?.hint}</p>

@@ -1314,11 +1314,11 @@ export default function CoinAnalysisPage() {
         <div className="fin-card p-4 lg:p-5">
           <p className="text-[14px] font-semibold text-[var(--text)]">{COINS.find((c) => c.symbol === symbol)?.short} 심층 분석은 아직 실행하지 않았습니다.</p>
           <p className="text-[12.5px] text-[var(--text-muted)] mt-1 leading-relaxed">
-            진입 판단·가격대·체크리스트·AI 브리핑·백테스트 성적표·오더북·뉴스·파생 수급을 한 번에 계산합니다.
+            진입 판단·중요 가격대·체크리스트·시간대별 지표·캔들 차트·오더북·뉴스·파생 수급(OI·펀딩·롱숏)을 한 번에 계산합니다.
             캔들 수집과 AI 호출을 아끼려고 <b className="text-[var(--text)]">심층 분석 실행</b>을 눌렀을 때만 돌고, 결과에는 분석 시각이 함께 표시됩니다.
           </p>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-3" aria-hidden>
-            {['가격·추세', '거래량·OI', '리스크', '뉴스·AI'].map((t) => (
+            {['가격·추세', '거래량·OI', '리스크', '뉴스'].map((t) => (
               <div key={t} className="rounded-xl border border-dashed border-[var(--border)] p-3">
                 <p className="text-[11px] text-[var(--text-muted)]">{t}</p>
                 <div className="skeleton mt-2" style={{ height: 10, width: '70%', animation: 'none' }} />
@@ -1559,14 +1559,10 @@ export default function CoinAnalysisPage() {
           <div className="space-y-3">
             {/* 자주 쓰는 3개만 크게 + 나머지는 '더보기' 시트(2026-10-26 단순화 — 예전엔 버튼 8개가 한 줄에 몰려 있었다) */}
             <div className="grid grid-cols-4 gap-1.5">
-              <button onClick={() => setModal('entry')}
-                className="py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[12px] font-bold text-[var(--text)] hover:border-[var(--border-hover)]">🎯 진입 판단</button>
-              <button onClick={() => setModal('position')}
-                className="py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[12px] font-bold text-[var(--text)] hover:border-[var(--border-hover)]">📍 내 포지션</button>
-              <button onClick={saveToJournal}
-                className="py-2.5 rounded-xl border border-sky-500/40 bg-sky-500/10 text-[12px] font-bold text-sky-400 hover:bg-sky-500/15">＋ 일지 기록</button>
-              <button onClick={() => setModal('more')} aria-label="분석 도구 더보기"
-                className="py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[12px] font-bold text-[var(--text-muted)] hover:border-[var(--border-hover)]">⋯ 더보기</button>
+              <button type="button" onClick={() => setModal('entry')} className="btn-3d min-h-[42px] text-[12.5px]">진입 판단</button>
+              <button type="button" onClick={() => setModal('position')} className="btn-2nd min-h-[42px] text-[12.5px]">내 포지션</button>
+              <button type="button" onClick={saveToJournal} className="btn-2nd min-h-[42px] text-[12.5px]">＋ 일지 기록</button>
+              <button type="button" onClick={() => setModal('more')} aria-label="분석 도구 더보기" className="btn-2nd min-h-[42px] text-[12.5px]">분석 도구</button>
             </div>
             <DerivFlowCompact data={data} />
             <PrecursorCard symbol={symbol} />
@@ -1576,15 +1572,17 @@ export default function CoinAnalysisPage() {
           {/* ⋯ 더보기 — 자주 안 쓰는 분석 도구 모음 */}
           <BottomSheet open={modal === 'more'} onClose={() => setModal(null)} title="분석 도구">
             <div className="grid grid-cols-1 gap-2">
+              {/* 2.0 기획서 §5.3 결과 섹션 순서 — 가격·추세 / 거래량·OI / 리스크 / 거시 / 기록(이 화면에 실제 있는 것만) */}
               {([
-                ['timeframes', '📈 시간대별 지표', '1시간봉·15분·5분 추세·RSI·MACD'],
-                ['flow', '📊 흐름 읽기', '지금 왜 움직이나 — 수급·뉴스·청산'],
-                ...(data.macro && data.macro.values && (data.macro.values.us10 || data.macro.values.dxy) ? [['macro', '🌐 거시 배경', '금리·달러 순풍/맞바람'] as const] : []),
-                ['risk', '🧮 리스크 패널', '사이징·청산가·펀딩'],
-                ['journal', '📓 이 기기 매매일지', '분석 화면에서 남긴 기록'],
-              ] as const).map(([k, label, desc]) => (
+                ['가격·추세', 'timeframes', '시간대별 지표', '1시간봉·15분·5분 추세·RSI·MACD'],
+                ['거래량·OI', 'flow', '흐름 읽기', '지금 왜 움직이나 — 수급·뉴스·청산'],
+                ['리스크', 'risk', '리스크 패널', '사이징·청산가·펀딩'],
+                ...(data.macro && data.macro.values && (data.macro.values.us10 || data.macro.values.dxy) ? [['거시', 'macro', '거시 배경', '금리·달러 순풍/맞바람'] as const] : []),
+                ['기록', 'journal', '이 기기 매매일지', '분석 화면에서 남긴 기록'],
+              ] as const).map(([sec, k, label, desc]) => (
                 <button key={k} onClick={() => setModal(k)}
                   className="text-left px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--border-hover)]">
+                  <span className="block text-[10.5px] font-semibold text-[var(--text-muted)]">{sec}</span>
                   <span className="block text-[13px] font-semibold text-[var(--text)]">{label}</span>
                   <span className="block text-[11px] text-[var(--text-muted)] mt-0.5">{desc}</span>
                 </button>

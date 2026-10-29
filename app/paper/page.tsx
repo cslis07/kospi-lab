@@ -109,7 +109,7 @@ export default function PaperPage() {
     <div className="max-w-2xl lg:max-w-4xl mx-auto pb-12 min-w-0">
       {/* 제목·안내 */}
       <div className="mb-4">
-        <h2 className="text-xl font-extrabold text-[var(--text)]">모의 선행테스트</h2>
+        <h2 className="text-xl font-extrabold text-[var(--text)] lg:hidden">모의 선행테스트</h2>{/* PC는 공통 페이지 머리가 제목 */}
         <p className="text-[13px] text-[var(--text-muted)] mt-1 leading-relaxed">
           12시간마다 BTC·ETH·SOL·XRP 중 조건이 맞는 매매를 <b className="text-[var(--text)]">결과 보기 전에</b> 진입·손절·목표까지 기록하고,
           이후 1시간봉으로 자동 채점합니다. 목표는 확정 {MIN_N}건 — 그 전엔 어떤 결론도 내리지 않습니다.
