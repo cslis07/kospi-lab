@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 시장지표(환율·금리·원자재) 단일 종목 상세 — 시장지표 페이지 바텀시트 전용.
+ * 시장지표(환율·금리·원자재) 단일 종목 상세 — 시장지표 페이지 바텀시트 + 홈 지수 레일 카드(cat 'index' = 주가지수).
  * 경제지표(MacroDetail)와 같은 결: 현재값 요약 + 히스토리 차트 + 최근 내역 표 + 설명·영향.
  * live 수치는 호출부에서 받은 네이버 시세, 히스토리는 /api/naver/indicator-history.
  */
@@ -118,7 +118,7 @@ export default function MarketIndicatorDetail({ q }: { q: LiveQuote }) {
       )}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-1">
-        출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물). ‘N분 지연’ 표시는 실시간이 아닙니다. 투자 권유가 아닙니다.
+        {q.cat === 'index' ? '출처: 네이버페이 증권(지수 일봉 종가). 해외 지수는 현지 종가 기준입니다.' : '출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물). ‘N분 지연’ 표시는 실시간이 아닙니다.'} 투자 권유가 아닙니다.
       </p>
     </div>
   );

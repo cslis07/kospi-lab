@@ -5,9 +5,13 @@
  * 모바일 = 가로 스크롤, 데스크탑(≥1024) = 6칸 그리드로 전부 노출(.idx-rail — globals.css).
  * 스파크: 국내 = 당일 분봉(점선 = 전일 종가), 해외·환율 = 최근 1개월. 장중이면 '● 실시간', 아니면 '장마감'.
  * 색: 상승=빨강(--warn) · 하락=파랑(--accent).
+ * 카드를 누르면 시장지표 페이지와 같은 상세 시트(현재값·히스토리 차트·최근 내역·설명/영향)가 열린다(2026-10-29).
  */
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
+import dynamic from 'next/dynamic';
+import BottomSheet from '@/components/ui/BottomSheet';
+import type { LiveQuote } from '@/components/MarketIndicatorDetail';
 import { useRailPref, DEFAULT_RAIL } from '@/hooks/useRailPref';
 import RailManager from '@/components/RailManager';
 
@@ -26,6 +30,16 @@ function fromIndicator(q: IndicatorQuote): IndexCard {
   return { code: q.code, name: q.name, value: q.price, change: q.change, changeRate: q.changeRate, live, spark: q.spark ?? [], sparkLabel: '1개월', week52High: null, week52Low: null, unit: q.unit, dec };
 }
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// 상세 시트는 카드를 눌러야 열리므로 지연 로딩(홈 첫 화면 번들에서 뺀다)
+const MarketIndicatorDetail = dynamic(() => import('@/components/MarketIndicatorDetail'), {
+  ssr: false, loading: () => <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0' }}>지표 불러오는 중…</p>,
+});
+// 레일 카드 → 상세 시트 입력. 시장지표 병합분은 원래 시세(지연 표기 포함) 그대로, 지수는 cat 'index', 홈의 원/달러는 시장지표 코드로.
+function toQuote(c: IndexCard, ind?: IndicatorQuote): LiveQuote {
+  if (ind) return ind;
+  const fx = c.code === 'USDKRW';
+  return { code: fx ? 'FX_USDKRW' : c.code, name: c.name, cat: fx ? 'exchange' : 'index', unit: fx ? '원' : c.unit, price: c.value, change: c.change, changeRate: c.changeRate, status: c.live ? '실시간' : '장마감' };
+}
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const colorOf = (c: number) => (c > 0 ? 'var(--warn)' : c < 0 ? 'var(--accent)' : 'var(--faint)');
 
@@ -78,6 +92,15 @@ function Card({ c, on }: { c: IndexCard; on?: boolean }) {
   );
 }
 
+function CardButton({ c, on, onClick }: { c: IndexCard; on?: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={`${c.name} 상세`} className="idx-card-btn"
+      style={{ display: 'block', width: '100%', minWidth: 0, padding: 0, background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', font: 'inherit' }}>
+      <Card c={c} on={on} />
+    </button>
+  );
+}
+
 /** 52주 범위 내 현재가 위치 — 레일 카드용 미니 바 */
 function Pos52({ low, high, value }: { low?: number | null; high?: number | null; value: number }) {
   if (low == null || high == null || high <= low) return <div style={{ height: 16 }} aria-hidden />;
@@ -105,6 +128,10 @@ export default function IndexRail() {
   const byCode = new Map(cards.map((c) => [c.code, c]));
   const poolCodes = cards.map((c) => c.code);
   const nameOf = (code: string) => byCode.get(code)?.name ?? code;
+  const indByCode = new Map((indData?.items ?? []).map((q) => [q.code, q]));
+  const [sel, setSel] = useState<string | null>(null); // 상세 시트에 띄울 카드 코드
+  const selCard = sel ? byCode.get(sel) : undefined;
+  const open = (code: string) => { setShowAll(false); setSel(code); };
 
   const { pref, save } = useRailPref(); // 관심종목 화면과 공유되는 단일 리스트(라이브 동기화)
   const [editing, setEditing] = useState(false);
@@ -144,7 +171,7 @@ export default function IndexRail() {
           ? Array.from({ length: DEFAULT_RAIL.length }).map((_, i) => <div key={i} className="idx-card skeleton" style={{ height: 128 }} />)
           : shown.length === 0
             ? <p style={{ fontSize: 12, color: 'var(--faint)', gridColumn: '1 / -1' }}>표시할 지수가 없습니다. ⚙ 지수 편집에서 추가하세요.</p>
-            : shown.map((code, i) => <Card key={code} c={byCode.get(code)!} on={i === 0} />)}
+            : shown.map((code, i) => <CardButton key={code} c={byCode.get(code)!} on={i === 0} onClick={() => open(code)} />)}
       </div>
 
       {showAll && (
@@ -160,14 +187,19 @@ export default function IndexRail() {
                 style={{ marginLeft: 'auto', width: 30, height: 30, borderRadius: 9, border: '1px solid var(--line)', background: 'var(--surface-2)', color: 'var(--ink)', fontSize: 15, lineHeight: 1, cursor: 'pointer' }}>✕</button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
-              {cards.map((c) => <Card key={c.code} c={c} />)}
+              {cards.map((c) => <CardButton key={c.code} c={c} onClick={() => open(c.code)} />)}
             </div>
             <p style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 12, lineHeight: 1.5 }}>
-              레일에 안 보이는 지수까지 전부 표시합니다. 레일에 넣을 지수는 <b style={{ color: 'var(--ink)' }}>⚙ 지수 편집</b>에서 고르세요. 상승 <span style={{ color: 'var(--warn)' }}>빨강</span>·하락 <span style={{ color: 'var(--accent)' }}>파랑</span>.
+              레일에 안 보이는 지수까지 전부 표시합니다. 카드를 누르면 상세를 봅니다. 레일에 넣을 지수는 <b style={{ color: 'var(--ink)' }}>⚙ 지수 편집</b>에서 고르세요. 상승 <span style={{ color: 'var(--warn)' }}>빨강</span>·하락 <span style={{ color: 'var(--accent)' }}>파랑</span>.
             </p>
           </div>
         </div>
       )}
+
+      {/* 상세 시트 — 시장지표 페이지와 같은 화면(현재값 · 히스토리 · 최근 내역 · 설명/영향) */}
+      <BottomSheet open={!!selCard} onClose={() => setSel(null)} title={selCard?.name ?? ''} full>
+        {selCard && <MarketIndicatorDetail q={toQuote(selCard, indByCode.get(selCard.code))} />}
+      </BottomSheet>
     </div>
   );
 }
