@@ -7,11 +7,12 @@
  *   가상 계좌(백업은 /tools#backup 으로)·경제지표 /macro(시장지표에 이미 포함)·물가 생활 도구 5종 삭제. 옛 주소는 next.config redirects.
  * 2026-10-26 오후 1단계 정리: 시장지표 → 더보기 '거시'(지표 4종 한 묶음), 이름 구분(모의 테스트→선행 테스트·가상투자→가상 계좌·시뮬레이션→계산기),
  *   시장 탭은 밑줄 탭 4개 + '더보기' 시트(components/NavTabs), /more 는 /tools 로 합침.
+ * 2026-10-29: 복기 탭 = 복기 대시보드(/review) 한 화면, 매매일지 하위 탭 4개·선행 테스트는 더보기 '📒 복기 상세'로(주소 유지).
  * 2026-10-29: 알림(/alerts)을 트레이딩 탭에서 더보기 › 종목 도구로(주소 유지).
  * IA(2026-10-26 재편 — "직관적·편리" 요청, 실제 매매 흐름 순서 = 하단 5탭):
  *   홈(대시보드 + 지금 내 상태) · 시장(국내·해외·코인·선물·산업·랭킹·지표·ETF·리서치)
- *   · 트레이딩(코인 분석·ETH 체제 — 들어가도 되나·얼마나·어디서 끊나) · 복기(매매일지·성과·모의 테스트 — 규칙을 지켰나)
- *   · 자산(계좌·보유). 나머지 보조 도구는 '더보기'(/tools)에서 5묶음(EXTRAS.section)으로.
+ *   · 트레이딩(코인 분석·ETH 체제 — 들어가도 되나·얼마나·어디서 끊나) · 복기(복기 대시보드 — 규칙을 지켰나)
+ *   · 자산(계좌·보유). 나머지 보조 도구는 '더보기'(/tools)에서 6묶음(EXTRAS.section)으로.
  * 탭 안의 항목 이동은 상단 밑줄 탭(가로), 탭 밖으로 들어가는 상세(종목·코인 상세·기타 도구)는 드릴다운(뒤로가기).
  */
 
@@ -26,9 +27,10 @@ export interface MenuItem {
   /** 같은 경로 안 하위 탭 구분 — 이 쿼리 값이어야 활성(null = 그 키가 없어야 함). 예: 매매일지 성적 { tab: null } · 비용 { tab: 'cost' } */
   query?: Record<string, string | null>;
 }
-export type ToolSection = 'morning' | 'macro' | 'study' | 'stocks' | 'calc';
+export type ToolSection = 'review' | 'morning' | 'macro' | 'study' | 'stocks' | 'calc';
 /** 더보기 묶음 — 순서대로 노출 */
 export const TOOL_SECTIONS: { key: ToolSection; label: string; desc: string }[] = [
+  { key: 'review', label: '📒 복기 상세', desc: '성적·비용 누수·규율·가정·선행 테스트' },
   { key: 'morning', label: '📰 아침 정보', desc: '브리핑·뉴스·일정' },
   { key: 'macro', label: '🌐 거시', desc: '시장지표(경제지표 포함)·실시간 물가·발표 이력' },
   { key: 'study', label: '📚 매매 교본', desc: '원칙·공부법·체크리스트·폭락 대응' },
@@ -127,15 +129,11 @@ export const MENU: MenuGroup[] = [
     { href: '/coin-analysis', icon: 'analysis', label: '코인 분석', desc: '진입 판단·급변 계기판·폭락 경보·내 포지션' },
     { href: '/eth',           icon: 'risk',     label: 'ETH 체제',  desc: '공급·수요·포지셔닝·거시 4층(예측 아님)' },
   ], ['/stock-analysis', '/overseas-analysis']),
-  // 복기 — 규칙을 지켰나. 매매일지 하위 탭을 상단 밑줄 탭으로 올려 2단계(하단 복기 → 밑줄 탭)로(2026-10-26 메뉴 2단계).
-  // 옛 '성과'(/performance, 계획 매매 R 기준)는 성적 탭 맨 아래 접힘 섹션으로 흡수 — 주소는 드릴다운으로 유지.
+  // 복기 — 규칙을 지켰나. 복기 대시보드 한 화면(2026-10-29: 일별 매매 횟수·손익 분해·비용 분석·수수료 진단만).
+  // 매매일지 하위 탭·선행 테스트는 더보기 '📒 복기 상세'(EXTRAS) — 거기서 들어가도 하단 복기 탭이 켜지게 tabExtra.
   G('review', '복기', 'c-rose', 'qc-rose', 'journal', [
-    { href: '/journal',               icon: 'journal',  label: '성적',       desc: '매매일지 — 요약·자산 곡선·달력·월별·계획 매매 성과', query: { tab: null } },
-    { href: '/journal?tab=cost',       icon: 'tax',      label: '비용',       desc: '매매일지 — 수수료·펀딩·비용 누수', query: { tab: 'cost' } },
-    { href: '/journal?tab=discipline', icon: 'risk',     label: '규율',       desc: '매매일지 — 손절·손실 크기·과매매·규율 점수', query: { tab: 'discipline' } },
-    { href: '/journal?tab=whatif',     icon: 'simulate', label: '가정',       desc: '매매일지 — 규칙대로였다면·손절 배수 비교', query: { tab: 'whatif' } },
-    { href: '/paper',                  icon: 'target',   label: '선행 테스트', desc: '규칙 사전 기록 30건(R30) 진행·자동 판정' },
-  ], ['/performance']),
+    { href: '/review', icon: 'journal', label: '복기 대시보드', desc: '일별 매매 횟수·손익 분해·비용 분석·수수료 진단' },
+  ], ['/journal', '/paper', '/performance']),
   // 자산 — 계좌·보유 한 화면. 계산·장기투자 도구는 더보기로.
   G('assets', '자산', 'c-green', 'qc-green', 'portfolio', [
     { href: '/assets', icon: 'portfolio', label: '자산', desc: '계좌·보유·청산·이체' },
@@ -146,6 +144,11 @@ export const MENU: MenuGroup[] = [
  *  ※ KRX 시장(/krx)·성장주 발굴(/growth)은 중복이라 제거: KRX는 시장›국내 "전체보기"로,
  *    성장주 스크리닝은 분석›스크리너로 대체된다. */
 export const EXTRAS: MenuItem[] = [
+  { href: '/journal',               icon: 'journal',  label: '성적',       desc: '매매일지 — 요약·자산 곡선·달력·월별·계획 매매 성과', query: { tab: null }, section: 'review' },
+  { href: '/journal?tab=cost',       icon: 'tax',      label: '비용 누수',   desc: '매매일지 — 수수료·펀딩·비용 누수 집중 분석', query: { tab: 'cost' }, section: 'review' },
+  { href: '/journal?tab=discipline', icon: 'risk',     label: '규율',       desc: '매매일지 — 손절·손실 크기·과매매·규율 점수', query: { tab: 'discipline' }, section: 'review' },
+  { href: '/journal?tab=whatif',     icon: 'simulate', label: '가정',       desc: '매매일지 — 규칙대로였다면·손절 배수 비교', query: { tab: 'whatif' }, section: 'review' },
+  { href: '/paper',                  icon: 'target',   label: '선행 테스트', desc: '규칙 사전 기록 30건(R30) 진행·자동 판정', section: 'review' },
   { href: '/brief',      icon: 'sunrise',    label: '모닝 브리핑',  desc: '증시별 거시·금리·유가·뉴스 아침 정리', section: 'morning' },
   { href: '/news',       icon: 'news',       label: '뉴스',        desc: '시장 소식', section: 'morning' },
   { href: '/calendar',   icon: 'calendar',   label: '경제 캘린더', desc: 'FOMC·CPI·실적 등 주요 일정', section: 'morning' },
@@ -203,6 +206,7 @@ export function drillTitle(pathname: string): string {
   // 자산 허브에서 진입하는 상세 페이지
   if (under(pathname, '/bitget')) return '계좌 상세';
   if (under(pathname, '/performance')) return '계획 매매 성과';
+  if (under(pathname, '/journal')) return '매매일지';
   // 시장 목록의 '분석' 버튼으로 진입(트레이딩 탭 강조만 유지)
   if (under(pathname, '/stock-analysis')) return '종목 분석';
   if (under(pathname, '/overseas-analysis')) return '해외 분석';
@@ -215,7 +219,7 @@ export function drillTitle(pathname: string): string {
  * '/'로 끝나는 항목은 접두사(동적 경로). tests/headings.test.ts 가 app/ 의 실제 <h1>과 대조한다.
  */
 export const OWN_H1_ROUTES = [
-  '/bitget', '/crypto/', '/futures', '/journal', '/krx',
+  '/bitget', '/crypto/', '/futures', '/journal', '/krx', '/review',
   '/overseas/', '/overseas-analysis', '/inflation', '/principles', '/releases', '/screener', '/simulate', '/stock/', '/study', '/tools', '/eth',
 ];
 export const pageOwnsH1 = (pathname: string) =>
@@ -233,4 +237,4 @@ export const FLAT: FlatMenuItem[] = [
 export const BY_HREF = new Map(FLAT.map((f) => [f.href, f]));
 
 /** 방문 데이터 없을 때 기본 '자주 쓰는' — 손이 가는 자동 데이터 위주 */
-export const DEFAULT_QUICK = ['/brief', '/coin-analysis', '/journal', '/paper', '/simulate'];
+export const DEFAULT_QUICK = ['/brief', '/coin-analysis', '/review', '/paper', '/simulate'];

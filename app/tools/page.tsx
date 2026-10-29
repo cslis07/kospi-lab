@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 더보기 — 하단 5탭(홈·시장·트레이딩·복기·자산)에 없는 보조 도구를 목적별 5묶음(lib/menu TOOL_SECTIONS)으로.
+ * 더보기 — 하단 5탭(홈·시장·트레이딩·복기·자산)에 없는 보조 도구를 목적별 6묶음(lib/menu TOOL_SECTIONS)으로.
  * 아래엔 '오늘의 경제' 요약(경제지표 4개 + 다음 발표 2건)만 — 달력·지난 발표·뉴스 전문은 각 화면에서(2026-10-26 단순화).
  * '더보기' 상단 내비 알약이 이 페이지로 연결된다(components/NavTabs). 맨 아래 '설정 · 정보'(동기화·이용가이드)는 옛 /more 에서, 데이터 백업·복원(#backup)은 옛 가상 계좌(/virtual)에서 옮김(둘 다 여기로 리디렉션).
  */
@@ -36,7 +36,7 @@ export default function ToolsPage() {
   return (
     <div className="pb-12">
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">더보기 도구</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">하단 탭에 없는 보조 도구를 <b className="text-[var(--text)]">목적별 5묶음</b>으로 모았습니다.</p>
+      <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">하단 탭에 없는 보조 도구를 <b className="text-[var(--text)]">목적별 6묶음</b>으로 모았습니다.</p>
 
       {/* 도구 — 목적별 묶음(lib/menu TOOL_SECTIONS) */}
       {TOOL_SECTIONS.map((sec) => {

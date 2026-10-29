@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 
 const BASE = 'https://kospi-lab.vercel.app';
 const ROUTES = [
-  '', '/brief', '/stock-analysis', '/coin-analysis', '/journal', '/screener', '/krx', '/news',
+  '', '/brief', '/stock-analysis', '/coin-analysis', '/journal', '/review', '/screener', '/krx', '/news',
   '/calendar', '/domestic', '/overseas', '/futures', '/my-stocks',
   '/assets', '/simulate', '/principles', '/study', '/study/chart', '/study/indicators', '/study/fibonacci', '/study/macro', '/study/execution', '/study/reentry', '/study/entry-signals',
   '/industry', '/ranking', '/indicators', '/theme-etf', '/research', '/coins', '/overseas-analysis', '/releases', '/eth',

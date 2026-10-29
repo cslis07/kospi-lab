@@ -24,7 +24,7 @@ export default function MyStatusLine() {
   // 냉각(서킷브레이커·손실 직후)은 상단 전역 배너(CooldownBanner)가 이미 크게 보여 줘서 여기선 중복 표시하지 않는다
   const bad = stale || noSl.length > 0;
   return (
-    <Link href={data.positions.length ? '/coin-analysis' : '/journal'}
+    <Link href={data.positions.length ? '/coin-analysis' : '/review'}
       className={`block rounded-2xl border px-3.5 py-2.5 mb-3 text-[12.5px] leading-snug ${bad ? 'border-[var(--warn)] bg-[var(--warn-soft)]' : 'border-[var(--border)] bg-[var(--bg-card)]'}`}>
       <span className="text-[var(--text)] font-semibold">{bad ? '⚠️ ' : '🛡 '}지금 내 상태</span>
       <span className="text-[var(--text-muted)]"> · 가드 {hbAge == null ? '기록 없음' : `${ago(hbAge)} 확인`}{stale ? '(멈춤?)' : ''}</span>

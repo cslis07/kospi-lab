@@ -99,7 +99,7 @@ const TABS: { key: JournalTab; label: string; hint: string }[] = [
   { key: 'whatif',     label: '가정', hint: '규칙대로 했다면, 끝까지 들고 있었다면' },
 ];
 const parseTab = (q: string | null): JournalTab => TABS.find((x) => x.key === q)?.key ?? 'perf';
-/** ?tab= 감시 — 탭 전환은 앱 상단 밑줄 탭(lib/menu 복기 그룹 = /journal?tab=…)이 맡는다(2026-10-26 메뉴 2단계: 복기 2단계화).
+/** ?tab= 감시 — 탭 전환은 페이지 안 하위 탭 링크와 더보기 '📒 복기 상세'(lib/menu EXTRAS = /journal?tab=…)가 맡는다.
  *  useSearchParams 는 이 작은 조각만 Suspense 로 감싸 정적 HTML(첫 화면=성적)을 비우지 않는다. */
 function UrlTabWatch({ onTab }: { onTab: (t: JournalTab) => void }) {
   const tab = useSearchParams().get('tab');
@@ -422,6 +422,13 @@ export default function JournalPage() {
       {msg && !err && <p className="mb-3 text-[12px] text-[var(--text-muted)]">{msg}</p>}
 
       <Suspense fallback={null}><UrlTabWatch onTab={onUrlTab} /></Suspense>
+      {/* 하위 탭 — 2026-10-29부터 복기 탭은 대시보드(/review) 한 화면이라 상단 밑줄 탭 대신 여기서 전환 */}
+      <nav className="seg mb-2" aria-label="매매일지 하위 탭">
+        {TABS.map((t) => (
+          <Link key={t.key} href={t.key === 'perf' ? '/journal' : `/journal?tab=${t.key}`} scroll={false}
+            aria-current={tab === t.key ? 'page' : undefined} className={`seg-i ${tab === t.key ? 'on' : ''}`}>{t.label}</Link>
+        ))}
+      </nav>
       <p className="text-[11px] text-[var(--faint)] mb-3 px-1 leading-relaxed">{TABS.find((t) => t.key === tab)?.hint}</p>
 
       {show('perf') && (
