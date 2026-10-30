@@ -285,3 +285,31 @@ export function OverseasInsightSections({ symbol, price }: { symbol: string; pri
     </>
   );
 }
+
+/* ── 주요 주주(DART 사업보고서 최대주주 및 특수관계인) ── 참고: FnGuide 지분분석 */
+interface Holder { name: string; shares: number; ownershipPct: number }
+export function ShareholdersSection({ code }: { code: string }) {
+  const year = new Date().getFullYear() - 1; // 직전 사업연도 사업보고서
+  const { data } = useSWR<Holder[] | { error: string }>(`/api/dart/shareholders?code=${code}&year=${year}`, fetcher, { revalidateOnFocus: false });
+  if (!Array.isArray(data) || !data.length) return null;
+  const rows = [...data].sort((a, b) => b.ownershipPct - a.ownershipPct).slice(0, 10);
+  const sum = data.reduce((a, h) => a + h.ownershipPct, 0);
+  const max = Math.max(...rows.map((r) => r.ownershipPct), 1);
+  return (
+    <Collapsible title="주요 주주" sub={`DART · ${year}년 사업보고서`}>
+      <p className="text-[12px] text-[var(--text-muted)] mb-2">최대주주와 특수관계인 합계 <b className="text-[var(--ink)] tabular-nums">{sum.toFixed(2)}%</b> (보통주, 기말 기준)</p>
+      <ul className="space-y-2">
+        {rows.map((h) => (
+          <li key={h.name}>
+            <div className="flex items-baseline justify-between gap-2 text-[12.5px]">
+              <span className="truncate text-[var(--ink)]">{h.name}</span>
+              <span className="tabular-nums shrink-0"><b className="text-[var(--ink)]">{h.ownershipPct.toFixed(2)}%</b><span className="text-[10.5px] text-[var(--faint)] ml-1.5">{h.shares.toLocaleString('ko-KR')}주</span></span>
+            </div>
+            <div className="h-1.5 rounded-full bg-[var(--surface-2)] mt-1 overflow-hidden" aria-hidden><div className="h-full rounded-full" style={{ width: `${(h.ownershipPct / max) * 100}%`, background: 'var(--accent)' }} /></div>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[10.5px] text-[var(--faint)] mt-2">연 1회 사업보고서 기준이라 그 뒤 지분 변동은 반영되지 않습니다. 최신 변동은 공시 탭을 확인하세요.</p>
+    </Collapsible>
+  );
+}

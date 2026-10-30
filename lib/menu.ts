@@ -129,6 +129,7 @@ export const MENU: MenuGroup[] = [
     { href: '/indicators', icon: 'signal',   label: '시장지표',       desc: '환율·금리·원자재 + 미국 CPI·PPI 등 경제지표', sub: '거시' },
     { href: '/releases',   icon: 'calendar', label: '지표 발표 이력', desc: '인베스팅 결과·예측·이전(2021~)' },
     { href: '/inflation',  icon: 'signal',   label: '실시간 물가',    desc: '나우캐스트 인플레이션·공식 CPI 대비' },
+    { href: '/seasonality', icon: 'calendar', label: '계절성',        desc: '코스피·S&P·비트코인 월별 수익률(최대 20년)' },
   ]),
   G('trading', '트레이딩', 'c-amber', 'qc-amber', 'futures', [
     { href: '/coin-analysis', icon: 'analysis', label: '코인 분석',   desc: '진입 판단·급변 계기판·폭락 경보·내 포지션' },

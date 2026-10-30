@@ -20,7 +20,9 @@ import BottomSheet from '@/components/ui/BottomSheet';
 import ActionSheet, { KebabButton, type SheetAction } from '@/components/ui/ActionSheet';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import SwipeNav from '@/components/detail/SwipeNav';
-import { ValuationSection, FlowSection, PeersSection, ReportsSection } from '@/components/stock/StockInsight';
+import { ValuationSection, FlowSection, PeersSection, ReportsSection, ShareholdersSection } from '@/components/stock/StockInsight';
+import FinanceSection from '@/components/stock/FinanceSection';
+import StockNews from '@/components/stock/StockNews';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 // 한국 관행: 상승=빨강, 하락=파랑 (앱 전체와 통일 — 이 화면만 초록/빨강이던 불일치 수정)
@@ -625,12 +627,15 @@ export default function StockDetailPage() {
         return (
           <>
             <ValuationSection code={code} price={stock.price} />
+            <FinanceSection kind="kr" code={code} />
             <FlowSection code={code} />
+            <StockNews code={code} />
             <PeersSection code={code} />
             <KrxListingSection code={code} />
             <DartCompanySection code={code} />
             <DartFinancialSection code={code} />
             <DartDividendSection code={code} />
+            <ShareholdersSection code={code} />
             <ReportsSection code={code} />
           </>
         );
