@@ -12,6 +12,7 @@ import BottomSheet from '@/components/ui/BottomSheet';
 import UnlockGate from '@/components/UnlockGate';
 import { ICON } from '@/lib/menu';
 import HoldingsConcentration from '@/components/HoldingsConcentration';
+import CorrelationMatrix from '@/components/CorrelationMatrix';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
@@ -235,6 +236,12 @@ export default function AssetsPage() {
       <section>
         <div className="fin-sec"><h3>보유 주식 비중</h3></div>
         <HoldingsConcentration />
+      </section>
+
+      {/* ── 상관관계 — 보유 주식·코인 포지션·기준 지수가 같이 움직이는지(분산 점검) ── */}
+      <section>
+        <div className="fin-sec"><h3>상관관계</h3></div>
+        <CorrelationMatrix />
       </section>
 
       {/* ── 실적 (거래소 청산 요약) ── */}
