@@ -11,7 +11,7 @@
  * 2026-10-29: 알림(/alerts)을 트레이딩 탭에서 더보기 › 종목 도구로(주소 유지).
  * 2026-10-29 KOSPI LAB 2.0(리디자인 기획서 §3): 1차 메뉴 6개 = 대시보드 · 시장 탐색 · 인사이트 · 트레이딩 · 매매 복기 · 내 자산.
  *   그룹 안 소제목(sub: 발견·거시·상세 복기)으로 2단계까지만. 보조 도구(종목 비교·학습/매매 교본)는 도구 허브(/tools). 모든 주소는 그대로.
- *   모바일 하단 탭 = 홈·시장·분석·복기·더보기(BOTTOM_TABS).
+ *   모바일 하단 탭 = 홈·시장·분석·복기·자산·더보기(BOTTOM_TABS).
  * (이전) IA(2026-10-26 재편 — "직관적·편리" 요청, 실제 매매 흐름 순서 = 하단 5탭):
  *   홈(대시보드 + 지금 내 상태) · 시장(국내·해외·코인·선물·산업·랭킹·지표·ETF·리서치)
  *   · 트레이딩(코인 분석·ETH 체제 — 들어가도 되나·얼마나·어디서 끊나) · 복기(복기 대시보드 — 규칙을 지켰나)
@@ -150,13 +150,14 @@ export const MENU: MenuGroup[] = [
   ], ['/bitget']),
 ];
 
-/** 모바일 하단 탭 5개(기획서 §6) — 홈·시장·분석·복기·더보기. 더보기 = 전체 메뉴(/tools: 인사이트·내 자산·도구) */
+/** 모바일 하단 탭 6개 — 홈·시장·분석·복기·자산·더보기(기획서 §6의 5개 + 자산, 2026-10-30 요청). 더보기 = 전체 메뉴(/tools: 인사이트·도구) */
 export const BOTTOM_TABS: { key: string; label: string; href: string; icon: string; groups: string[] }[] = [
   { key: 'home', label: '홈', href: '/', icon: 'home', groups: ['home'] },
   { key: 'market', label: '시장', href: '/domestic', icon: 'domestic', groups: ['market'] },
   { key: 'trading', label: '분석', href: '/coin-analysis', icon: 'analysis', groups: ['trading'] },
   { key: 'review', label: '복기', href: '/review', icon: 'journal', groups: ['review'] },
-  { key: 'more', label: '더보기', href: '/tools', icon: 'tools', groups: ['insight', 'assets'] },
+  { key: 'assets', label: '자산', href: '/assets', icon: 'portfolio', groups: ['assets'] },
+  { key: 'more', label: '더보기', href: '/tools', icon: 'tools', groups: ['insight'] },
 ];
 
 /** 6개 1차 메뉴 밖의 보조 도구 — 도구 허브(/tools)·사이드바 '도구'에서만 노출(주소 유지) */
