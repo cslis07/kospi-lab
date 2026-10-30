@@ -21,15 +21,17 @@ function fmtDate(s: string): string {
 }
 
 async function handler(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
   const { ticker } = await params;
+  // ?days=20 → 최근 20일(외국인 보유율 추이·누적 순매수용). 기본 5일(기존 호출 그대로)
+  const days = new URL(req.url).searchParams.get('days') === '20' ? 20 : 5;
 
   try {
     // 네이버 투자자별 매매동향 (순매수 수량 기준)
     const res = await fetch(
-      `https://m.stock.naver.com/api/stock/${ticker}/trend`,
+      `https://m.stock.naver.com/api/stock/${ticker}/trend?pageSize=${days}`,
       { headers: HEADERS, next: { revalidate: 60 } }
     );
     if (!res.ok) throw new Error(`investor API ${res.status}`);
@@ -38,12 +40,13 @@ async function handler(
     const raw: any[] = await res.json();
     if (!Array.isArray(raw)) throw new Error('investor API bad shape');
 
-    // 최근 5일
-    const data = raw.slice(0, 5).map((row) => ({
+    const data = raw.slice(0, days).map((row) => ({
       date:        fmtDate(row.bizdate ?? row.localTradedAt ?? ''),
       individual:  num(row.individualPureBuyQuant),
       foreign:     num(row.foreignerPureBuyQuant),
       institution: num(row.organPureBuyQuant),
+      foreignHoldRatio: row.foreignerHoldRatio != null ? num(String(row.foreignerHoldRatio).replace('%', '')) : null,
+      close:       num(row.closePrice),
     }));
 
     return NextResponse.json(data);

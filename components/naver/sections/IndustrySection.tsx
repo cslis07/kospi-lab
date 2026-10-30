@@ -7,6 +7,7 @@
  */
 import { useState } from 'react';
 import useSWR from 'swr';
+import IndustryHeatmap from './IndustryHeatmap';
 import { fetcher, colorOf, signPct, Badge, Change, Seg, SectionTitle, SourceNote, Empty, EMPTY_SOURCE, StockLink, fmtUsd, MoreLink, Flash } from '@/components/naver/ui';
 
 interface TrendStock { code: string; name: string; logo?: string; price: number; change: number; changeRate: number }
@@ -16,6 +17,7 @@ interface Resp { market: 'kr' | 'us'; cat: string; period: string; cards: TrendC
 type Market = 'kr' | 'us';
 type Cat = 'industries' | 'themes';
 type Period = 'daily' | 'weekly' | 'monthly';
+type View = 'cards' | 'heat';
 
 function Bar({ rising, flat, falling }: { rising: number; flat: number; falling: number }) {
   const t = rising + flat + falling || 1;
@@ -69,6 +71,7 @@ export default function IndustrySection({ home = false }: { home?: boolean }) {
   const [cat, setCat] = useState<Cat>('industries');
   const [period, setPeriod] = useState<Period>('daily');
   const [size, setSize] = useState(home ? 3 : 6);
+  const [view, setView] = useState<View>('cards');
   const key = `/api/naver/industry?market=${market}&cat=${cat}&period=${period}&size=${size}`;
   const { data, error, isLoading } = useSWR<Resp>(key, fetcher, { refreshInterval: 15000, keepPreviousData: true });
   const cards = data?.cards ?? [];
@@ -84,14 +87,15 @@ export default function IndustrySection({ home = false }: { home?: boolean }) {
         <Seg<Market> value={market} onChange={(v) => { setMarket(v); setSize(home ? 3 : 6); }} options={[['kr', '국내'], ['us', '미국']]} />
         {market === 'kr' && <Seg<Cat> value={cat} onChange={setCat} options={[['industries', '업종'], ['themes', '테마']]} />}
       </div>
+      {!home && <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -4, marginBottom: 12 }}><Seg<View> value={view} onChange={setView} options={[['cards', '순위 카드'], ['heat', '히트맵']]} /></div>}
 
-      {error ? <div className="fin-card"><Empty /></div> : data && !cards.length ? <div className="fin-card"><Empty text={EMPTY_SOURCE} /></div> : (
+      {!home && view === 'heat' ? <IndustryHeatmap market={market} cat={cat} period={period} /> : error ? <div className="fin-card"><Empty /></div> : data && !cards.length ? <div className="fin-card"><Empty text={EMPTY_SOURCE} /></div> : (
         <div className="nv-it-grid">
           {(isLoading && !cards.length ? Array.from({ length: home ? 3 : 6 }) : cards).map((c, i) =>
             c ? <Card key={(c as TrendCard).code} c={c as TrendCard} market={market} /> : <div key={i} className="skeleton" style={{ height: 300, borderRadius: 'var(--r)' }} />)}
         </div>
       )}
-      {!home && cards.length > 0 && size < 18 && (
+      {!home && view === 'cards' && cards.length > 0 && size < 18 && (
         <button type="button" className="kl-ghost" onClick={() => setSize((s) => s + 6)} style={{ width: '100%', marginTop: 14, padding: '11px 0', fontSize: 13.5 }}>
           순위 더보기
         </button>

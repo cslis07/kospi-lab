@@ -117,6 +117,21 @@ export async function industryTrend(market: 'kr' | 'us', category: 'industries' 
   }));
 }
 
+/** 업종 히트맵용 — 업종(테마·미국 섹터) 전체의 등락률·시가총액·시총 상위 3종목(가격 조회 없이 1회 호출) */
+export interface HeatItem { code: string; name: string; changeRate: number; rising: number; flat: number; falling: number; marketCap: number; top: { code: string; name: string }[] }
+export async function industryHeat(market: 'kr' | 'us', category: 'industries' | 'themes', period: Period): Promise<HeatItem[]> {
+  const path = market === 'kr'
+    ? `/stockSecurity/rankings/v2/domestic/${category}?${qs({ sortType: 'changeRate', size: 100, period })}`
+    : `/stockSecurity/rankings/v2/foreign/USA/sectors?${qs({ sortType: 'changeRate', size: 100, period })}`;
+  const raw = await nget<{ items?: (RawTrend & { totalMarketCap?: string; topByMarketCap?: { code: string; name: string }[] })[] }>(path, LIVE);
+  return (raw?.items ?? []).map((it) => ({
+    code: it.code, name: it.name, changeRate: r2(n(it.changeRate)),
+    rising: n(it.risingCount), flat: n(it.unchangedCount), falling: n(it.fallingCount),
+    marketCap: n(it.totalMarketCap),
+    top: (it.topByMarketCap ?? []).slice(0, 3).map((s) => ({ code: s.code, name: s.name })),
+  })).filter((x) => x.marketCap > 0);
+}
+
 /* ────────────────── 리서치 ────────────────── */
 export interface GoalPriceResearch { nid: string; title: string; writeDate: string; goalPrice: number; priceAtWriteDate: number; opinion: string; opinionType: string }
 export interface GoalPriceSet {

@@ -20,6 +20,7 @@ import BottomSheet from '@/components/ui/BottomSheet';
 import ActionSheet, { KebabButton, type SheetAction } from '@/components/ui/ActionSheet';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import SwipeNav from '@/components/detail/SwipeNav';
+import { ValuationSection, FlowSection, PeersSection, ReportsSection } from '@/components/stock/StockInsight';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 // 한국 관행: 상승=빨강, 하락=파랑 (앱 전체와 통일 — 이 화면만 초록/빨강이던 불일치 수정)
@@ -27,11 +28,6 @@ const UP = '#ff4433';
 const DOWN = '#1c6cff';
 
 function fmt(n: number) { return new Intl.NumberFormat('ko-KR').format(Math.round(n)); }
-function fmtVol(n: number) {
-  if (n >= 1e8) return `${(n / 1e8).toFixed(1)}억`;
-  if (n >= 1e4) return `${(n / 1e4).toFixed(1)}만`;
-  return String(n);
-}
 
 const TIMEFRAMES = [
   { label: '1개월', months: 1 },
@@ -39,41 +35,6 @@ const TIMEFRAMES = [
   { label: '6개월', months: 6 },
   { label: '1년',   months: 12 },
 ];
-
-/* ── 수급 동향 컴포넌트 ──────────────────────────────── */
-function InvestorSection({ ticker }: { ticker: string }) {
-  const { data, error } = useSWR(`/api/stock/${ticker}/investor`, fetcher, { refreshInterval: 60000 });
-  if (error || (data && 'error' in data)) return null;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows: any[] = Array.isArray(data) ? data : [];
-  if (!rows.length) return null;
-
-  const today = rows[0];
-  const items = [
-    { label: '개인', value: today.individual, color: 'text-sky-400' },
-    { label: '외국인', value: today.foreign, color: 'text-emerald-400' },
-    { label: '기관', value: today.institution, color: 'text-amber-400' },
-  ];
-
-  return (
-    <Collapsible title="투자자별 수급" sub="당일 순매수" defaultOpen>
-      <div className="grid grid-cols-3 gap-3">
-        {items.map(({ label, value, color }) => {
-          const pos = value >= 0;
-          return (
-            <div key={label} className="text-center p-3 rounded-xl bg-[var(--surface-2)]">
-              <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>
-              <p className="font-bold text-sm tabular-nums" style={{ color: pos ? UP : DOWN }}>
-                {pos ? '+' : '−'}{fmtVol(Math.abs(value))}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-    </Collapsible>
-  );
-}
 
 /* ── KRX 상장정보 컴포넌트 ───────────────────────────── */
 interface KrxInfo {
@@ -658,18 +619,19 @@ export default function StockDetailPage() {
 
       </BottomSheet>
 
-      {/* ── 수급 동향 ── */}
-      <InvestorSection ticker={ticker} />
-
-      {/* ── DART 섹션 (KR 주식만) ── */}
+      {/* ── 투자 지표·목표주가 · 수급(20일·외국인 보유율) · 동종업계 · DART · 리포트 (KR 주식만) ── */}
       {/^\d{6}(\.(KS|KQ))?$/.test(ticker) && (() => {
         const code = ticker.replace(/\.(KS|KQ)$/, '');
         return (
           <>
+            <ValuationSection code={code} price={stock.price} />
+            <FlowSection code={code} />
+            <PeersSection code={code} />
             <KrxListingSection code={code} />
             <DartCompanySection code={code} />
             <DartFinancialSection code={code} />
             <DartDividendSection code={code} />
+            <ReportsSection code={code} />
           </>
         );
       })()}

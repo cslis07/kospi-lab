@@ -10,6 +10,7 @@ import { useParams } from 'next/navigation';
 import useSWR from 'swr';
 import PriceChart from '@/components/detail/PriceChartLazy';
 import { TIMEFRAMES } from '@/components/detail/chartLayout';
+import { OverseasInsightSections } from '@/components/stock/StockInsight';
 import SwipeNav from '@/components/detail/SwipeNav';
 import Collapsible from '@/components/ui/Collapsible';
 import Range52Bar from '@/components/Range52Bar';
@@ -131,6 +132,8 @@ export default function OverseasDetailPage() {
           </div>
         </Collapsible>
       )}
+
+      {symbol && <OverseasInsightSections symbol={symbol} price={d?.price ?? null} />}
 
       <ActionSheet open={menuOpen} onClose={() => setMenuOpen(false)} title={name} actions={actions} />
     </div>
