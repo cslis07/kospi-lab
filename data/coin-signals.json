@@ -1,6 +1,22 @@
 {
-  "updated": "2026-11-01T07:51:19.480Z",
-  "open": [],
+  "updated": "2026-11-01T14:44:14.591Z",
+  "open": [
+    {
+      "id": "ETHUSDT-scalp-1793544251225",
+      "sym": "ETHUSDT",
+      "mode": "scalp",
+      "dir": 1,
+      "dirLabel": "LONG",
+      "entry": 2266.5,
+      "tp": 2270.81,
+      "sl": 2262.94,
+      "ts": 1793544251225,
+      "price0": 2269.99,
+      "ultra": false,
+      "conf": 100,
+      "eq": 64
+    }
+  ],
   "closed": [
     {
       "id": "ETHUSDT-scalp-1793081748331",
