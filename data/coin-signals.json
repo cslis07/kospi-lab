@@ -1,6 +1,7 @@
 {
-  "updated": "2026-11-01T14:44:14.591Z",
-  "open": [
+  "updated": "2026-11-01T19:13:37.443Z",
+  "open": [],
+  "closed": [
     {
       "id": "ETHUSDT-scalp-1793544251225",
       "sym": "ETHUSDT",
@@ -14,10 +15,12 @@
       "price0": 2269.99,
       "ultra": false,
       "conf": 100,
-      "eq": 64
-    }
-  ],
-  "closed": [
+      "eq": 64,
+      "closeTs": 1793560414521,
+      "closePrice": 2253.99,
+      "outcome": "LOSS",
+      "r": -1
+    },
     {
       "id": "ETHUSDT-scalp-1793081748331",
       "sym": "ETHUSDT",
@@ -762,9 +765,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 35,
-      "winRate": 49,
-      "avgR": 0.16
+      "n": 36,
+      "winRate": 47,
+      "avgR": 0.13
     },
     "swing": {
       "n": 4,
@@ -772,9 +775,9 @@
       "avgR": 2.21
     },
     "all": {
-      "n": 39,
-      "winRate": 54,
-      "avgR": 0.37
+      "n": 40,
+      "winRate": 53,
+      "avgR": 0.34
     }
   },
   "watch": {
