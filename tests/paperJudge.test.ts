@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { judgeTrade, checkSkip, summarize, byCondition, binomTailP, verdictText, roundStatus, remindText, meanRTest, meanRText, normCdf, type Candle, type PaperTrade } from '../lib/paperJudge';
+import { judgeTrade, checkSkip, summarize, byCondition, binomTailP, verdictText, roundStatus, remindText, meanRTest, meanRText, normCdf, hourlyCovers, firstSeenAt, type Candle, type PaperTrade } from '../lib/paperJudge';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -83,5 +83,15 @@ ok('보조 기준 평균 R: 정규 근사 단측, n<30은 결론 불가', () => 
   assert.match(meanRText(m), /0보다 유의/);
   assert.match(meanRText(meanRTest([2, -1, 2])), /결론 불가/);
   assert.match(meanRText(meanRTest(Array.from({ length: 30 }, (_, i) => (i % 2 ? 1 : -1)))), /우연 범위/);
+});
+ok('봉 범위 검사 — 첫 기록 시각까지 못 덮으면 판정 안 함(41일 넘은 라운드 대비)', () => {
+  const cs = bars([[100, 101, 99, 100], [100, 101, 99, 100]]);
+  assert.equal(hourlyCovers(cs, T0), true);
+  assert.equal(hourlyCovers(cs, T0 - H), false);
+  assert.equal(hourlyCovers([], T0), false);
+  const first = firstSeenAt({ trades: [{ id: 'a', round: 2, coin: 'BTC', side: 'long', type: 'market', entry: 1, stop: 0.9, target: 1.2, openedAt: '2026-10-22T05:00:00Z', conditions: {} }],
+    skips: [{ round: 1, coin: 'BTC', price: 1, at: '2026-10-21T05:00:00Z', reason: '' }, { round: 1, coin: 'ETH', price: 1, at: '2026-10-21T06:00:00Z', reason: '' }] });
+  assert.equal(first.get('BTC'), Date.parse('2026-10-21T05:00:00Z'));
+  assert.equal(first.get('ETH'), Date.parse('2026-10-21T06:00:00Z'));
 });
 console.log(`\n${passed} passed`);

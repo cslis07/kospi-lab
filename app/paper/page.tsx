@@ -42,16 +42,25 @@ async function loadHourly(coin: string, from: number): Promise<Candle[]> {
   const byTs = new Map<number, Candle>();
   let end = Date.now();
   for (let page = 0; page < 20; page++) {
-    const r = await fetch(`/api/candles?symbol=${coin}USDT&granularity=1H&endTime=${end}&limit=200`);
-    const j = (await r.json()) as { candles?: Candle[]; error?: string };
+    // 여러 코인을 동시에 받으면 거래소가 가끔 빈 응답을 준다 — 같은 페이지를 두 번까지 다시 받는다(재시도는 캐시를 피하려 a= 붙임)
+    let j: { candles?: Candle[]; error?: string } = {};
+    for (let a = 0; a < 3; a++) {
+      if (a) await new Promise((res) => setTimeout(res, 600 * a));
+      const r = await fetch(`/api/candles?symbol=${coin}USDT&granularity=1H&endTime=${end}&limit=200${a ? `&a=${a}` : ''}`);
+      j = (await r.json()) as { candles?: Candle[]; error?: string };
+      if (j.candles?.length) break;
+    }
     const cs = j.candles ?? [];
     if (!cs.length) { if (page === 0) throw new Error(j.error || `${coin} 캔들 없음`); break; }
     for (const c of cs) byTs.set(c.ts, c);
     const oldest = Math.min(...cs.map((c) => c.ts));
     if (oldest <= from - H || oldest >= end) break;
-    end = oldest - 1;
+    end = oldest; // Bitget endTime 은 그 시각에 시작하는 봉을 빼고 준다 — oldest−1 이면 경계 봉 1개가 빠진다(실측)
   }
-  return [...byTs.values()].sort((a, b) => a.ts - b.ts);
+  const out = [...byTs.values()].sort((a, b) => a.ts - b.ts);
+  // 중간 페이지가 비어 앞쪽이 잘렸으면 판정하지 않는다(잘린 봉으로 조용히 판정 금지)
+  if (!out.length || out[0].ts > from) throw new Error(`${coin} 1시간봉이 첫 기록 시각까지 안 닿음`);
+  return out;
 }
 
 function Chip({ kind, children }: { kind: string; children: React.ReactNode }) {
@@ -125,7 +134,7 @@ export default function PaperPage() {
       <section className="fin-card p-4 mb-4" aria-label="누적 요약">
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-[13px] font-bold text-[var(--text)]">확정 {decided}/{MIN_N}건</span>
-          <span className="text-[11px] text-[var(--text-muted)]">{judged ? `미결 ${s!.open} · 대기 ${s!.pending} · 무효 ${s!.voided}` : '판정 중…'}</span>
+          <span className="text-[11px] text-[var(--text-muted)]">{judged ? `미결 ${s!.open} · 대기 ${s!.pending} · 무효 ${s!.voided}` : err ? '판정 불가' : '판정 중…'}</span>
         </div>
         <div className="h-2 rounded-full mt-2 overflow-hidden" style={{ background: 'var(--surface-2)' }}
           role="progressbar" aria-valuemin={0} aria-valuemax={MIN_N} aria-valuenow={decided} aria-label="확정 건수">
@@ -149,9 +158,9 @@ export default function PaperPage() {
 
         <ul className="mt-4 space-y-1.5 text-[12.5px] leading-snug">
           <li className="flex gap-2"><b className="shrink-0 text-[var(--text)] w-14">승률</b>
-            <span className="text-[var(--text-muted)] min-w-0">{judged ? <>{s!.winRate != null ? `${Math.round(s!.winRate * 100)}% · ` : ''}{verdictText(decided, s!.winRate, binomTailP(s!.wins, decided))}</> : '판정 중…'}</span></li>
+            <span className="text-[var(--text-muted)] min-w-0">{judged ? <>{s!.winRate != null ? `${Math.round(s!.winRate * 100)}% · ` : ''}{verdictText(decided, s!.winRate, binomTailP(s!.wins, decided))}</> : err ? '판정 불가' : '판정 중…'}</span></li>
           <li className="flex gap-2"><b className="shrink-0 text-[var(--text)] w-14">평균 R</b>
-            <span className="text-[var(--text-muted)] min-w-0">{judged ? meanRText(meanRTest(decidedR)) : '판정 중…'}</span></li>
+            <span className="text-[var(--text-muted)] min-w-0">{judged ? meanRText(meanRTest(decidedR)) : err ? '판정 불가' : '판정 중…'}</span></li>
         </ul>
         <p className="text-[11px] text-[var(--faint)] mt-2 leading-relaxed">두 기준은 따로 봅니다. 하나만 유의해도 &lsquo;우위 확인&rsquo;이라 부르지 않습니다. 수수료·슬리피지 미반영.</p>
 

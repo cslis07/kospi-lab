@@ -167,12 +167,41 @@ export const verdictText = (n: number, winRate: number | null, p: number) =>
   n < MIN_N ? `결론 불가 (n=${n} < ${MIN_N})` : p < 0.05 ? `50% 대비 유의 (p=${p.toFixed(3)})` : `우연 범위 (p=${p.toFixed(3)})`;
 
 /* ── 로더·리마인더(네트워크·텔레그램 문구) ─────────────────── */
-/** Bitget USDT 선물 1시간봉 최근 1000개(≈41일) — 라운드가 그보다 오래 열려 있으면 history-candles 페이징 필요 */
-export async function fetchHourly(coin: string): Promise<Candle[]> {
-  const u = `https://api.bitget.com/api/v2/mix/market/candles?symbol=${coin}USDT&productType=USDT-FUTURES&granularity=1H&limit=1000`;
-  const j = await (await fetch(u, { signal: AbortSignal.timeout(15000) })).json();
-  if (j.code !== '00000') throw new Error(`Bitget ${coin}: ${j.msg}`);
-  return (j.data as string[][]).map((r) => ({ ts: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4] })).sort((a, b) => a.ts - b.ts);
+/** 봉 목록이 since(ms) 직전 1시간봉부터 덮는가 — 앞쪽이 잘린 봉으로 판정하면 체결·손절을 놓친다 */
+export const hourlyCovers = (candles: Candle[], since: number) => candles.length > 0 && candles[0].ts <= since;
+
+/** 코인별 가장 이른 기록 시각(매매·관망) — 봉을 그때부터 받아야 판정이 맞다 */
+export function firstSeenAt(log: PaperLog): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const t of log.trades) m.set(t.coin, Math.min(m.get(t.coin) ?? Infinity, Date.parse(t.openedAt)));
+  for (const s of log.skips) m.set(s.coin, Math.min(m.get(s.coin) ?? Infinity, Date.parse(s.at)));
+  return m;
+}
+
+/**
+ * Bitget USDT 선물 1시간봉 — 최근 1000개(≈41일) + since 가 그보다 오래면 history-candles(200개씩)로 과거를 채운다.
+ * since 까지 못 덮으면 오류(앞이 잘린 봉으로 조용히 판정하지 않음). since 생략 = 예전처럼 최근 1000개만.
+ */
+export async function fetchHourly(coin: string, since?: number): Promise<Candle[]> {
+  const parse = (rows: string[][]) => rows.map((r) => ({ ts: +r[0], o: +r[1], h: +r[2], l: +r[3], c: +r[4] }));
+  const get = async (u: string) => {
+    const j = await (await fetch(u, { signal: AbortSignal.timeout(15000) })).json();
+    if (j.code !== '00000') throw new Error(`Bitget ${coin}: ${j.msg}`);
+    return parse(j.data as string[][]);
+  };
+  const byTs = new Map<number, Candle>();
+  for (const c of await get(`https://api.bitget.com/api/v2/mix/market/candles?symbol=${coin}USDT&productType=USDT-FUTURES&granularity=1H&limit=1000`)) byTs.set(c.ts, c);
+  const from = since == null ? null : Math.floor(since / 3_600_000) * 3_600_000;
+  for (let page = 0; from != null && page < 60; page++) {
+    const oldest = Math.min(...byTs.keys());
+    if (oldest <= from) break;
+    const more = await get(`https://api.bitget.com/api/v2/mix/market/history-candles?symbol=${coin}USDT&productType=USDT-FUTURES&granularity=1H&endTime=${oldest}&limit=200`); // endTime 은 그 시각 봉 제외(실측) — oldest−1 이면 경계 봉 1개 누락
+    if (!more.length) break;
+    for (const c of more) byTs.set(c.ts, c);
+  }
+  const out = [...byTs.values()].sort((a, b) => a.ts - b.ts);
+  if (from != null && !hourlyCovers(out, from)) throw new Error(`Bitget ${coin}: 1시간봉이 ${new Date(from).toISOString()}까지 안 닿음 — 판정 중단`);
+  return out;
 }
 
 export const ROUND_GAP_MS = 12 * 3_600_000;

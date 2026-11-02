@@ -6,7 +6,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import {
-  judgeTrade, checkSkip, summarize, byCondition, binomTailP, verdictText, fetchHourly, meanRTest, meanRText,
+  judgeTrade, checkSkip, summarize, byCondition, binomTailP, verdictText, fetchHourly, firstSeenAt, meanRTest, meanRText,
   type Candle, type PaperLog, type Judged,
 } from '../lib/paperJudge';
 
@@ -24,7 +24,8 @@ async function main() {
   const log = JSON.parse(readFileSync(LOG, 'utf8')) as PaperLog;
   const coins = [...new Set([...log.trades.map((t) => t.coin), ...log.skips.map((s) => s.coin)])];
   const data = new Map<string, Candle[]>();
-  for (const c of coins) data.set(c, await fetchHourly(c));
+  const first = firstSeenAt(log);
+  for (const c of coins) data.set(c, await fetchHourly(c, first.get(c)));
   const now = Date.now();
 
   const judged: Judged[] = log.trades.map((t) => judgeTrade(t, data.get(t.coin)!, now));

@@ -4,13 +4,14 @@
  *   PAPER_DRY=1 npx tsx scripts/paperRemind.mts   # 발송 없이 문구만
  */
 import { readFileSync } from 'node:fs';
-import { judgeTrade, fetchHourly, remindText, type PaperLog, type Candle } from '../lib/paperJudge';
+import { judgeTrade, fetchHourly, firstSeenAt, remindText, type PaperLog, type Candle } from '../lib/paperJudge';
 
 const log = JSON.parse(readFileSync('data/paper-trades.json', 'utf8')) as PaperLog;
 const now = Date.now();
 const coins = [...new Set(log.trades.map((t) => t.coin))];
 const data = new Map<string, Candle[]>();
-for (const c of coins) data.set(c, await fetchHourly(c));
+const first = firstSeenAt(log);
+for (const c of coins) data.set(c, await fetchHourly(c, first.get(c)));
 const text = remindText(log, log.trades.map((t) => judgeTrade(t, data.get(t.coin)!, now)), now);
 if (!text) { console.log('다음 라운드 아직 — 발송 안 함'); process.exit(0); }
 if (process.env.PAPER_DRY) { console.log(text); process.exit(0); }
