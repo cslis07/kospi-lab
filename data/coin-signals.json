@@ -1,6 +1,22 @@
 {
-  "updated": "2026-11-02T02:06:14.778Z",
-  "open": [],
+  "updated": "2026-11-02T09:29:19.681Z",
+  "open": [
+    {
+      "id": "BTCUSDT-scalp-1793611756512",
+      "sym": "BTCUSDT",
+      "mode": "scalp",
+      "dir": -1,
+      "dirLabel": "SHORT",
+      "entry": 78225.25,
+      "tp": 78000.5,
+      "sl": 78357.1,
+      "ts": 1793611756512,
+      "price0": 78109.8,
+      "ultra": false,
+      "conf": 92,
+      "eq": 73
+    }
+  ],
   "closed": [
     {
       "id": "ETHUSDT-scalp-1793544251225",
