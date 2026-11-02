@@ -5,6 +5,7 @@ import Link from 'next/link';
 import DataStatus from '@/components/ui/DataStatus';
 import AnalysisSwitch from '@/components/AnalysisSwitch';
 import PrecursorCard from '@/components/PrecursorCard';
+import MultiExchangeDerivs from '@/components/coin/MultiExchangeDerivs';
 import useSWR from 'swr';
 import dynamic from 'next/dynamic';
 import type { ChartCandle } from '@/components/CoinCandleChart';
@@ -1568,6 +1569,9 @@ export default function CoinAnalysisPage() {
             <PrecursorCard symbol={symbol} />
           </div>
           </div>
+
+          {/* 거래소별 파생 수급 — 분석과 따로 불러옴(바이낸스·바이비트·OKX·비트겟·하이퍼리퀴드) */}
+          <MultiExchangeDerivs symbol={data.symbol} />
 
           {/* 뉴스·AI · 백테스트 성적표(2.0 기획서 §5.3 결과 섹션) — API가 이미 계산해 보내는 값을 그대로 표시(추가 호출 없음) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
