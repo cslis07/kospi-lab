@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { bitgetKeysConfigured } from '@/lib/bitget';
 import { cooldownNow } from '@/lib/guard';
+import { PRIVATE } from '@/lib/cdn';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 15;
@@ -9,7 +10,7 @@ export const maxDuration = 15;
 export async function GET() {
   if (!bitgetKeysConfigured()) return NextResponse.json({ configured: false, cooldown: null });
   try {
-    return NextResponse.json({ configured: true, cooldown: await cooldownNow() }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ configured: true, cooldown: await cooldownNow() }, { headers: { 'Cache-Control': PRIVATE(60) } });
   } catch (e) {
     return NextResponse.json({ configured: true, cooldown: null, error: String(e) });
   }

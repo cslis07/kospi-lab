@@ -13,11 +13,12 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { pollingIdle } from '@/components/PollingGovernor';
 import { applyRemote, detectLocalChanges, findFirstSyncConflicts, labelFor, readMeta, writeMeta, type SyncItem } from '@/lib/cloudSync';
 
 const PUSH_DEBOUNCE = 2500;
 const WATCH_INTERVAL = 4000;
-const PULL_INTERVAL = 90_000;
+const PULL_INTERVAL = 5 * 60_000; // 다른 기기 변경 받기 — 탭 복귀 때도 바로 받으므로 길게(Vercel 함수 호출 절약)
 const RELOAD_FLAG = 'kl-sync-reloaded';
 const DEVICE_KEY = 'kospi-lab-device-id';
 
@@ -183,7 +184,8 @@ export function useCloudSync(): CloudSyncState {
     }, WATCH_INTERVAL);
 
     // 주기 pull — 다른 기기에서 바뀐 것을 받아온다
-    const pull = setInterval(() => void sync(), PULL_INTERVAL);
+    // 숨긴 탭·10분 무입력이면 건너뜀(돌아오면 visibilitychange 로 한 번 받는다)
+    const pull = setInterval(() => { if (!pollingIdle()) void sync(); }, PULL_INTERVAL);
     // 탭으로 돌아왔을 때도 한 번
     const onVis = () => { if (document.visibilityState === 'visible') void sync(); };
     document.addEventListener('visibilitychange', onVis);

@@ -19,3 +19,9 @@ export function withCdn<A extends unknown[]>(
     return res;
   };
 }
+
+/**
+ * 개인(게이트) 라우트용 — CDN 은 캐시하지 않고(private) 브라우저만 maxAge 초 동안 재사용.
+ * 화면 이동·여러 카드가 같은 주소를 다시 부를 때 Vercel 함수가 다시 돌지 않게 한다(사용자별 데이터라 CDN 금지).
+ */
+export const PRIVATE = (maxAge: number) => `private, max-age=${maxAge}`;

@@ -1,0 +1,32 @@
+# 포지션 가드 — Supabase pg_cron 이 5분마다 workflow_dispatch 로 깨운다(GitHub 자체 크론은 3~5시간씩 밀려서 못 씀).
+# 예전엔 pg_cron 이 Vercel /api/guard 를 불렀다 → 5분마다 Vercel 함수 실행(Active CPU) 소모. 공개 저장소 Actions 는 무료라 여기로 옮김.
+# 설정: supabase/migrations/2026-11-02-guard-github-dispatch.sql (GitHub 토큰은 SQL Editor 에서만 넣고 파일엔 저장하지 말 것)
+name: 포지션 가드
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: guard
+  cancel-in-progress: false
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 가드 실행
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          KL_TELEGRAM_BOT_TOKEN: ${{ secrets.KL_TELEGRAM_BOT_TOKEN }}
+          KL_TELEGRAM_CHAT_ID: ${{ secrets.KL_TELEGRAM_CHAT_ID }}
+          BITGET_API_KEY: ${{ secrets.BITGET_API_KEY }}
+          BITGET_API_SECRET: ${{ secrets.BITGET_API_SECRET }}
+          BITGET_API_PASSPHRASE: ${{ secrets.BITGET_API_PASSPHRASE }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npx --yes tsx scripts/guardRun.mts

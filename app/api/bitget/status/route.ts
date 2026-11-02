@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { bitgetKeysConfigured } from '@/lib/bitget';
 import { myStatus } from '@/lib/guard';
+import { PRIVATE } from '@/lib/cdn';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 15;
@@ -9,7 +10,7 @@ export const maxDuration = 15;
 export async function GET() {
   if (!bitgetKeysConfigured()) return NextResponse.json({ configured: false });
   try {
-    return NextResponse.json({ configured: true, asOf: Date.now(), ...(await myStatus()) }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ configured: true, asOf: Date.now(), ...(await myStatus()) }, { headers: { 'Cache-Control': PRIVATE(30) } });
   } catch (e) {
     return NextResponse.json({ configured: true, error: String(e) }, { status: 502 });
   }

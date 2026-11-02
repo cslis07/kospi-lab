@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { bitgetKeysConfigured } from '@/lib/bitget';
 import { fetchClosedPositions, type ClosedPosition } from '@/lib/bitgetPositions';
+import { PRIVATE } from '@/lib/cdn';
 
 export type { ClosedPosition };
 export const dynamic = 'force-dynamic';
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const { positions, slRecovered } = await fetchClosedPositions(startTime, endTime);
-    return NextResponse.json({ configured: true, days, positions, slRecovered });
+    return NextResponse.json({ configured: true, days, positions, slRecovered }, { headers: { 'Cache-Control': PRIVATE(120) } });
   } catch (e) {
     return NextResponse.json({ configured: true, error: String(e), positions: [] });
   }

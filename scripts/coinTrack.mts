@@ -120,7 +120,7 @@ async function main() {
   }
 
   // ── 포지션 가드: 손절 미설정·추세 역행·복구 매매·청산 근접·계획 손절/목표·서킷브레이커 → 텔레그램 ──
-  // 로직은 lib/guard.ts 공용. 정시 실행은 Supabase pg_cron → /api/guard(5분), 이 크론은 보조(실제 3~5시간 간격).
+  // 로직은 lib/guard.ts 공용. 정시 실행은 Supabase pg_cron → GitHub guard.yml(5분, 예전엔 /api/guard), 이 크론은 보조(실제 3~5시간 간격).
   // 발화 기록을 Supabase guard-state로 공유해 두 경로가 같은 알림을 두 번 보내지 않는다. 주간 복기는 일요일 모닝 브리핑으로 이전.
   if (bitgetKeysConfigured()) {
     try {

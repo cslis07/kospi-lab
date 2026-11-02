@@ -10,6 +10,7 @@ import { bitgetKeysConfigured } from '@/lib/bitget';
 import { fetchFills } from '@/lib/bitgetFills';
 import { feeDiag, entryScopeByDay } from '@/lib/feeDiag';
 import { fillLeak, lossCloseByWeek } from '@/lib/costLeak';
+import { PRIVATE } from '@/lib/cdn';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const { fills, truncated } = await fetchFills(startTime, endTime);
-    return NextResponse.json({ configured: true, days, diag: feeDiag(fills), leak: fillLeak(fills), truncated, ...(byDay ? { entryByDay: entryScopeByDay(fills), lossByWeek: lossCloseByWeek(fills) } : {}) });
+    return NextResponse.json({ configured: true, days, diag: feeDiag(fills), leak: fillLeak(fills), truncated, ...(byDay ? { entryByDay: entryScopeByDay(fills), lossByWeek: lossCloseByWeek(fills) } : {}) }, { headers: { 'Cache-Control': PRIVATE(300) } });
   } catch (e) {
     return NextResponse.json({ configured: true, days, error: String(e) });
   }

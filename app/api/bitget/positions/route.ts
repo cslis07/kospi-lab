@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { bitgetKeysConfigured, bitgetSignedGet } from '@/lib/bitget';
+import { PRIVATE } from '@/lib/cdn';
 
 /**
  * Bitget USDT 선물 — 열린 포지션 + 선물 계좌.
@@ -59,7 +60,7 @@ export async function GET() {
       marginCoin: acc.marginCoin ?? 'USDT',
     } : null;
 
-    return NextResponse.json({ configured: true, positions, account });
+    return NextResponse.json({ configured: true, positions, account }, { headers: { 'Cache-Control': PRIVATE(15) } });
   } catch (e) {
     // 선물 권한 없음/조회 실패 — spot 은 별개 라우트라 영향 없음
     return NextResponse.json({ configured: true, error: String(e), positions: [], account: null }, { status: 200 });

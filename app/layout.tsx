@@ -7,6 +7,7 @@ import BottomNav from '@/components/BottomNav';
 import SideNav from '@/components/SideNav';
 import PwaRegister from '@/components/PwaRegister';
 import PriceAlertWatcher from '@/components/PriceAlertWatcher';
+import PollingGovernor from '@/components/PollingGovernor';
 import CooldownBanner from '@/components/CooldownBanner';
 
 export const metadata: Metadata = {
@@ -55,6 +56,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-full flex flex-col">
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+        {/* 자동 갱신 절약(화면 요소 없음) — 숨긴 탭·10분 무입력이면 주기 요청 멈춤 */}
+        <PollingGovernor>
         <PwaRegister />
         {/* 국내 종목 가격 알림 감시(켜진 알림이 있을 때만 30초 확인) */}
         <PriceAlertWatcher />
@@ -90,6 +93,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </footer>
         </div>
         <BottomNav />
+        </PollingGovernor>
       </body>
     </html>
   );

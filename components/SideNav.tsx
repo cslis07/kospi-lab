@@ -59,7 +59,7 @@ function Group({ gkey, label, icon, items, open, onToggle, pathname, q }: {
 }
 
 function Live() {
-  const { data: c } = useSWR<Record<string, { price: number; changeRate: number }>>('/api/crypto/batch?symbols=BTC,ETH', fetcher, { refreshInterval: 30_000 });
+  const { data: c } = useSWR<Record<string, { price: number; changeRate: number }>>('/api/crypto/batch?symbols=BTC,ETH', fetcher, { refreshInterval: 60_000 });
   const { data: fx } = useSWR<{ price: number | null }>('/api/crypto/usdt-krw', fetcher, { refreshInterval: 60_000 });
   const row = (label: string, v: string, ch?: number) => (
     <div className="flex items-center justify-between text-[12px] tabular-nums py-0.5">

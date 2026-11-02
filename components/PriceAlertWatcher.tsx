@@ -19,6 +19,9 @@ const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error
 interface Hit { id: string; ticker: string; name: string; side: 'above' | 'below'; price: number; target: number; coin?: boolean }
 const px = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: n >= 1000 ? 1 : n >= 1 ? 3 : 5 });
 
+// 가격 알림은 자리를 비운 동안에도 돌아야 한다 — 전역 '10분 무입력 멈춤'(PollingGovernor)에서 제외(숨긴 탭은 SWR 기본대로 쉼)
+const noPause = () => false;
+
 export default function PriceAlertWatcher() {
   const { alerts, patchAlert } = useAlerts();
   const { alerts: coinAlerts, patch: patchCoin } = useCoinPriceAlerts();
@@ -27,14 +30,14 @@ export default function PriceAlertWatcher() {
   const tickers = useMemo(() => Object.entries(alerts).filter(([, a]) => isAlertOn(a)).map(([t]) => t).sort().slice(0, 20), [alerts]);
   const { data } = useSWR<Record<string, { price?: number; name?: string }>>(
     tickers.length ? `/api/stock/batch?tickers=${tickers.join(',')}` : null, fetcher,
-    { refreshInterval: 30000, revalidateOnFocus: true, dedupingInterval: 10000 },
+    { refreshInterval: 30000, revalidateOnFocus: true, dedupingInterval: 10000, isPaused: noPause },
   );
 
   // 코인 선물 가격 알림 — 켜진 알림의 심볼만 /api/crypto/batch 로 확인
   const coinSymbols = useMemo(() => [...new Set(coinAlerts.filter((a) => a.enabled).map((a) => a.symbol))].sort().slice(0, 8), [coinAlerts]);
   const { data: coinData } = useSWR<Record<string, { price?: number }>>(
     coinSymbols.length ? `/api/crypto/batch?symbols=${coinSymbols.join(',')}` : null, fetcher,
-    { refreshInterval: 20000, revalidateOnFocus: true, dedupingInterval: 8000 },
+    { refreshInterval: 20000, revalidateOnFocus: true, dedupingInterval: 8000, isPaused: noPause },
   );
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { bitgetKeysConfigured, bitgetSignedGet } from '@/lib/bitget';
+import { PRIVATE } from '@/lib/cdn';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +65,7 @@ export async function GET() {
       }))
       .sort((a, b) => b.ts - a.ts);
 
-    return NextResponse.json({ configured: true, bills, fills });
+    return NextResponse.json({ configured: true, bills, fills }, { headers: { 'Cache-Control': PRIVATE(60) } });
   } catch (e) {
     return NextResponse.json({ configured: true, error: String(e) }, { status: 502 });
   }

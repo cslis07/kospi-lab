@@ -3,7 +3,7 @@
  *
  * 왜 필요한가: 실측(2026-10) 7일 19건 중 18건이 거래소 손절 주문 없이 진입했고, 매매는 대개 1~4시간 안에 끝났다.
  * 기존 감시는 GitHub 크론(설정 15분, 실제 3~5시간 간격)이라 매매가 끝난 뒤에야 돌았다.
- * → Supabase pg_cron 이 5분마다 /api/guard 를 부르고, coin-track 도 같은 runGuard 를 돌린다.
+ * → Supabase pg_cron 이 5분마다 GitHub Actions guard.yml(scripts/guardRun.mts)을 깨우고(2026-11 Vercel 함수 절약 — 예전엔 /api/guard), coin-track 도 같은 runGuard 를 돌린다.
  *   발화 기록은 Supabase kl_sync 의 `guard-state` 한 줄(접두사가 kospi-lab- 가 아니라 기기 동기화엔 안 섞임)을 공유해 중복 없음.
  *
  * 알림(고정 규칙):

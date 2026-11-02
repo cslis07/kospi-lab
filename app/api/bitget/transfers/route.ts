@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { bitgetKeysConfigured, bitgetSignedGet } from '@/lib/bitget';
 import type { CashMove } from '@/lib/tradeCosts';
+import { PRIVATE } from '@/lib/cdn';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 20;
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
   const end = Date.now(), start = end - days * DAY;
   try {
     const [withdrawals, deposits] = await Promise.all([records('withdrawal', start, end), records('deposit', start, end)]);
-    return NextResponse.json({ configured: true, withdrawals, deposits }, { headers: { 'Cache-Control': 'private, no-store' } });
+    return NextResponse.json({ configured: true, withdrawals, deposits }, { headers: { 'Cache-Control': PRIVATE(600) } });
   } catch (e) {
     // 키에 지갑 읽기 권한이 없을 수 있다 — 매매일지는 계속 동작하게 빈 값 + error
     return NextResponse.json({ configured: true, withdrawals: [], deposits: [], error: String(e).slice(0, 200) }, { headers: { 'Cache-Control': 'private, no-store' } });

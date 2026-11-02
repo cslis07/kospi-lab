@@ -17,7 +17,7 @@ function left(ms: number) {
 }
 
 export default function CooldownBanner() {
-  const { data } = useSWR<{ cooldown: Cooldown | null }>('/api/bitget/cooldown', fetcher, { refreshInterval: 60_000, shouldRetryOnError: false, revalidateOnFocus: true });
+  const { data } = useSWR<{ cooldown: Cooldown | null }>('/api/bitget/cooldown', fetcher, { refreshInterval: 120_000, shouldRetryOnError: false, revalidateOnFocus: true });
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 15_000); return () => clearInterval(t); }, []);
   const c = data?.cooldown;
