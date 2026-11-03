@@ -1,0 +1,45 @@
+{
+  "exchange": "bitget",
+  "symbol": "ETHUSDT",
+  "interval": "15m",
+  "collector": "scripts/bnf-fetch.ts",
+  "generatedAt": "2026-11-03T05:54:34.596Z",
+  "range": {
+    "requestedStartUtc": "2021-11-01T00:00:00Z",
+    "firstUtc": "2021-11-01T00:00:00Z",
+    "lastBarOpenUtc": "2026-10-27T23:45:00Z",
+    "lastBarCloseUtc": "2026-10-28T00:00:00Z",
+    "bars": 174912,
+    "days": 1822
+  },
+  "excludedAfterFirstGap": 0,
+  "gaps": [],
+  "validation": {
+    "duplicates": 0,
+    "conflicts": 0,
+    "misaligned": 0,
+    "ohlcErrors": [],
+    "ohlcErrorCount": 0,
+    "closeTimeErrors": 0,
+    "partialRemoved": 0
+  },
+  "normalized": {
+    "path": ".bnf-data/bitget/ETHUSDT-15m.csv",
+    "columns": "t(open_time ms UTC),o,h,l,c,v",
+    "sha256": "4604d53a14929b3aca2c1569ab17bbf45b5ce8989c364fa387ae002afc231ca9",
+    "rows": 174912
+  },
+  "notIncluded": {
+    "openInterest": "미포함 — 전략에 쓰지 않고 추정값도 만들지 않음",
+    "liquidations": "미포함 — 같은 이유"
+  },
+  "contract": "Bitget USDT-FUTURES ETHUSDT perpetual",
+  "source": "https://api.bitget.com/api/v2/mix/market/history-candles (granularity=15m, 공개 API · 원본 파일 해시 없음 → 정규화 CSV SHA256 기록)",
+  "apiCalls": 875,
+  "endCapUtc": "2026-10-28T00:00:00Z",
+  "endCapReason": "Binance 실험과 같은 기간 비교 — Binance 가 2026-10-28 결측으로 2026-10-27 23:45 봉에서 멈춤",
+  "funding": {
+    "status": "미포함",
+    "reason": "Bitget 공개 history-fund-rate 는 최근 약 100일(약 300건)만 제공 — 2021-11 부터의 이력 없음"
+  }
+}
