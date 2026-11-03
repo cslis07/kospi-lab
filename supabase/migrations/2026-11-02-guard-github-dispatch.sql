@@ -23,6 +23,7 @@ select cron.schedule(
     headers := jsonb_build_object(
       'Authorization', 'Bearer <GITHUB_TOKEN>',
       'Accept', 'application/vnd.github+json',
+      'Content-Type', 'application/json',   -- headers 를 직접 주면 pg_net 기본 Content-Type 이 빠져 GitHub 가 400(Problems parsing JSON)
       'X-GitHub-Api-Version', '2022-11-28',
       'User-Agent', 'kospi-lab-pg-cron'
     ),
