@@ -1,4 +1,4 @@
-exchange,tf,regime,leverage,period,month,return_pct,end_equity
+experiment,tf,regime,leverage,period,month,return_pct,end_equity
 bitget,15m,all,5,dev,2022-11,0,1000
 bitget,15m,all,5,dev,2022-12,0,1000
 bitget,15m,all,5,dev,2023-01,0,1000

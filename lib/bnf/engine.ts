@@ -22,6 +22,9 @@ export interface Params {
   maxHoldMs: number;
   cooldownMs: number;
   lookback: number;       // 최근 N개 봉(현재 포함) 안의 과매도
+  /** 목표 청산(지정가)만 다른 비용을 쓸 때 — 없으면 feeRate·slip 과 같음(E5 실사용 비용 가정) */
+  targetFeeRate?: number;
+  targetSlip?: number;
 }
 
 export const DEFAULT_PARAMS: Params = {
@@ -162,8 +165,9 @@ export function simulate(inp: RunInput): RunResult {
     }
     const applyFunding = !!inp.funding?.apply && funding != null;
 
-    const exit = rawExit * (1 - P.slip);
-    const feeOut = qty * exit * P.feeRate;
+    const isTarget = reason === 'target';
+    const exit = rawExit * (1 - (isTarget ? P.targetSlip ?? P.slip : P.slip));
+    const feeOut = qty * exit * (isTarget ? P.targetFeeRate ?? P.feeRate : P.feeRate);
     const pricePnl = qty * (exit - entry);
     const net = pricePnl - feeIn - feeOut + (applyFunding ? funding! : 0);
     const equityBefore = cash;

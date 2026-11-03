@@ -3,9 +3,13 @@
  *
  *   npx tsx scripts/bnf-fetch.ts binance   # data.binance.vision 월별 15m klines + fundingRate (공식 CHECKSUM 검증)
  *   npx tsx scripts/bnf-fetch.ts bitget    # Bitget 공개 history-candles 15m (펀딩 이력은 약 100일뿐 → 미포함)
+ *   추가 실험(docs/bnf/EXPERIMENTS.md):
+ *   npx tsx scripts/bnf-fetch.ts binance --id binance-btc --symbol BTCUSDT --end 2026-10-28
+ *   npx tsx scripts/bnf-fetch.ts binance --id binance-pre --start 2020-01-01 --restart-before 2021-11-01
  *
- * 출력: .bnf-data/<거래소>/ (원본·정규화 CSV, git 제외) + data/bnf/<거래소>/manifest.json (출처·기간·SHA256·결측)
+ * 출력: .bnf-data/<ID>/ (원본·정규화 CSV, git 제외) + data/bnf/<ID>/manifest.json (출처·기간·SHA256·결측). ID 기본값 = 거래소
  * ⚠ 결측은 보간하지 않는다. 시작부터 연속 구간만 쓰고 첫 결측 직전에서 멈춘다(manifest 에 기록).
+ *   --restart-before D: D 이전 결측이 있으면 D 이전 마지막 결측 다음 봉부터 연속 구간을 쓴다(E1 사전등록 규칙).
  */
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -13,8 +17,13 @@ import { join } from 'node:path';
 import { parseBinanceKlines, parseBinanceFunding, validateBars, continuousSpan, toCsv, fundingGaps, isoUtc, MIN15, DAY, type Bar, type FundingEvent } from '../lib/bnf/data';
 import { unzipFirst } from '../lib/bnf/zip';
 
-const SYMBOL = 'ETHUSDT';
-const START = Date.UTC(2021, 10, 1);           // 2021-11-01 00:00 UTC
+const arg = (k: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : undefined; };
+const utcDate = (s: string) => { const t = Date.parse(`${s}T00:00:00Z`); if (!Number.isFinite(t)) throw new Error(`날짜 형식 오류: ${s}`); return t; };
+const SYMBOL = arg('symbol') ?? 'ETHUSDT';
+const START = utcDate(arg('start') ?? '2021-11-01');
+const END_EXCL = arg('end') ? utcDate(arg('end')!) : Infinity;       // 이 시각 이전 봉까지만
+const RESTART_BEFORE = arg('restart-before') ? utcDate(arg('restart-before')!) : null;
+const ID = arg('id') ?? process.argv[2];
 const ROOT = join(__dirname, '..');
 const sha256 = (b: Buffer | string) => createHash('sha256').update(b).digest('hex');
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -74,33 +83,37 @@ function finish(exchange: string, raw: Bar[], closeTimeErrors: number[], now: nu
     console.error('검증 실패', summarizeValidation(v, closeTimeErrors));
     process.exit(1);
   }
-  const span = continuousSpan(v.bars, MIN15, START, endT);
-  if (!span.length) { console.error('시작 봉(2021-11-01 00:00 UTC) 없음'); process.exit(1); }
+  // E1 규칙: RESTART_BEFORE 이전에 결측이 있으면 그 이전 마지막 결측 다음 봉부터
+  const early = RESTART_BEFORE == null ? [] : v.gaps.filter((g) => g.afterT >= START && g.nextT <= RESTART_BEFORE);
+  const spanStart = early.length ? early[early.length - 1].nextT : START;
+  const span = continuousSpan(v.bars, MIN15, spanStart, Math.min(endT, END_EXCL - MIN15));
+  if (!span.length) { console.error(`시작 봉(${isoUtc(spanStart)}) 없음`); process.exit(1); }
   const last = span[span.length - 1];
   const gaps = v.gaps.filter((g) => g.afterT >= START).map((g) => ({ afterUtc: isoUtc(g.afterT), nextUtc: isoUtc(g.nextT), missing: g.missing }));
   const csv = toCsv(span);
-  const dataDir = join(ROOT, '.bnf-data', exchange);
+  const dataDir = join(ROOT, '.bnf-data', ID);
   writeFileSync(join(dataDir, `${SYMBOL}-15m.csv`), csv);
   const manifest = {
-    exchange, symbol: SYMBOL, interval: '15m', collector: 'scripts/bnf-fetch.ts', generatedAt: new Date(now).toISOString(),
-    range: { requestedStartUtc: isoUtc(START), firstUtc: isoUtc(span[0].t), lastBarOpenUtc: isoUtc(last.t), lastBarCloseUtc: isoUtc(last.t + MIN15), bars: span.length, days: span.length / 96 },
-    excludedAfterFirstGap: v.bars.filter((b) => b.t > last.t && b.t <= endT).length,
+    id: ID, exchange, symbol: SYMBOL, interval: '15m', collector: 'scripts/bnf-fetch.ts', generatedAt: new Date(now).toISOString(),
+    range: { requestedStartUtc: isoUtc(START), restartBeforeUtc: RESTART_BEFORE == null ? null : isoUtc(RESTART_BEFORE), endCapUtc: Number.isFinite(END_EXCL) ? isoUtc(END_EXCL) : null, firstUtc: isoUtc(span[0].t), lastBarOpenUtc: isoUtc(last.t), lastBarCloseUtc: isoUtc(last.t + MIN15), bars: span.length, days: span.length / 96 },
+    excludedBeforeRestart: v.bars.filter((b) => b.t >= START && b.t < spanStart).length,
+    excludedAfterFirstGap: v.bars.filter((b) => b.t > last.t && b.t <= Math.min(endT, END_EXCL - MIN15)).length,
     gaps,
     validation: summarizeValidation(v, closeTimeErrors),
-    normalized: { path: `.bnf-data/${exchange}/${SYMBOL}-15m.csv`, columns: 't(open_time ms UTC),o,h,l,c,v', sha256: sha256(csv), rows: span.length },
+    normalized: { path: `.bnf-data/${ID}/${SYMBOL}-15m.csv`, columns: 't(open_time ms UTC),o,h,l,c,v', sha256: sha256(csv), rows: span.length },
     notIncluded: { openInterest: '미포함 — 전략에 쓰지 않고 추정값도 만들지 않음', liquidations: '미포함 — 같은 이유' },
     ...extra,
   };
-  const outDir = join(ROOT, 'data', 'bnf', exchange);
+  const outDir = join(ROOT, 'data', 'bnf', ID);
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-  console.log(`${exchange}: ${span.length}봉 ${isoUtc(span[0].t)} ~ ${isoUtc(last.t)} (마지막 봉 시작) · 결측 ${gaps.length}곳 · 연속 구간 뒤 제외 ${manifest.excludedAfterFirstGap}봉`);
+  console.log(`${ID}: ${span.length}봉 ${isoUtc(span[0].t)} ~ ${isoUtc(last.t)} (마지막 봉 시작) · 결측 ${gaps.length}곳 · 연속 구간 뒤 제외 ${manifest.excludedAfterFirstGap}봉`);
   for (const g of gaps) console.log(`  결측: ${g.afterUtc} 다음 ${g.nextUtc} (${g.missing}봉 없음)`);
 }
 
 async function binance() {
   const now = Date.now();
-  const dir = join(ROOT, '.bnf-data', 'binance', 'raw');
+  const dir = join(ROOT, '.bnf-data', ID, 'raw');
   mkdirSync(dir, { recursive: true });
   const BASE = 'https://data.binance.vision/data/futures/um';
   const files: unknown[] = [];
@@ -142,17 +155,17 @@ async function binance() {
 
   const fsorted = funding.sort((a, b) => a.t - b.t);
   const fcsv = 'calc_time,funding_interval_hours,last_funding_rate\n' + fsorted.map((e) => `${e.t},${e.intervalH},${e.rate}`).join('\n') + '\n';
-  writeFileSync(join(ROOT, '.bnf-data', 'binance', `${SYMBOL}-funding.csv`), fcsv);
+  writeFileSync(join(ROOT, '.bnf-data', ID, `${SYMBOL}-funding.csv`), fcsv);
   const fg = fundingGaps(fsorted);
   finish('binance', raw, closeTimeErrors, now, {
-    contract: 'Binance USDⓈ-M ETHUSDT perpetual',
+    contract: `Binance USDⓈ-M ${SYMBOL} perpetual`,
     source: `${BASE}/monthly/klines/${SYMBOL}/15m/`,
     files, supplement,
     funding: {
       source: `${BASE}/monthly/fundingRate/${SYMBOL}/`, files: fundingFiles, events: fsorted.length,
       firstUtc: fsorted.length ? isoUtc(fsorted[0].t) : null, lastUtc: fsorted.length ? isoUtc(fsorted[fsorted.length - 1].t) : null,
       gaps: fg.map((g) => ({ fromUtc: isoUtc(g.fromT), toUtc: isoUtc(g.toT) })),
-      normalized: { path: `.bnf-data/binance/${SYMBOL}-funding.csv`, sha256: sha256(fcsv) },
+      normalized: { path: `.bnf-data/${ID}/${SYMBOL}-funding.csv`, sha256: sha256(fcsv) },
       note: '보조 지표로만 사용. 명목가는 공식 mark price 가 아니라 해당 시각 15분봉 시가로 근사',
     },
   });
@@ -162,7 +175,7 @@ async function binance() {
 const BITGET_END_EXCL = Date.UTC(2026, 9, 28);
 async function bitget() {
   const now = Date.now();
-  mkdirSync(join(ROOT, '.bnf-data', 'bitget'), { recursive: true });
+  mkdirSync(join(ROOT, '.bnf-data', ID), { recursive: true });
   const seen = new Map<number, Bar>();
   let endTime = Math.min(BITGET_END_EXCL, Math.floor(now / MIN15) * MIN15);
   let calls = 0;
@@ -185,7 +198,7 @@ async function bitget() {
     await sleep(130);
   }
   finish('bitget', [...seen.values()], [], now, {
-    contract: 'Bitget USDT-FUTURES ETHUSDT perpetual',
+    contract: `Bitget USDT-FUTURES ${SYMBOL} perpetual`,
     source: 'https://api.bitget.com/api/v2/mix/market/history-candles (granularity=15m, 공개 API · 원본 파일 해시 없음 → 정규화 CSV SHA256 기록)',
     apiCalls: calls, endCapUtc: isoUtc(BITGET_END_EXCL), endCapReason: 'Binance 실험과 같은 기간 비교 — Binance 가 2026-10-28 결측으로 2026-10-27 23:45 봉에서 멈춤',
     funding: { status: '미포함', reason: 'Bitget 공개 history-fund-rate 는 최근 약 100일(약 300건)만 제공 — 2021-11 부터의 이력 없음' },

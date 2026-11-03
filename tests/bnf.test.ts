@@ -7,7 +7,8 @@ import { deflateRawSync } from 'node:zlib';
 import { parseBinanceKlines, validateBars, continuousSpan, resample, fundingGaps, MIN15, HOUR, H4, DAY, type Bar } from '../lib/bnf/data';
 import { dailyContext, quantileSorted, wilderAtr, atrAsOf, type DailyContext } from '../lib/bnf/indicators';
 import { findSignals, simulate, DEFAULT_PARAMS, type Signal, type RunInput } from '../lib/bnf/engine';
-import { summarize, maxDrawdownPct, maxConsecutiveLosses, monthlyReturns, verdict, MIN_TRADES, type Summary } from '../lib/bnf/metrics';
+import { summarize, maxDrawdownPct, maxConsecutiveLosses, monthlyReturns, verdict, diagnose, mfeR, MIN_TRADES, type Summary } from '../lib/bnf/metrics';
+import { fundingExtremeSignals } from '../lib/bnf/hypotheses';
 import { unzipFirst } from '../lib/bnf/zip';
 
 let passed = 0;
@@ -339,6 +340,57 @@ ok('통합 — 데이터를 미래에서 자르면 그 이전 신호·거래가 
   const done = (tr: typeof full.res.trades) => JSON.stringify(tr.filter((t) => t.exitT < cut - DAY).map((t) => [t.entryT, t.exitT, t.net]));
   assert.equal(done(part.res.trades), done(full.res.trades));
   for (const t of full.res.trades) assert.ok(t.entryT > t.signalT, '신호 봉 시가 체결 금지');
+});
+
+
+// ── 추가 실험(docs/bnf/EXPERIMENTS.md) ─────────────────────
+ok('E5 비용 — 목표 청산만 지정가 비용, 손절·진입은 시장가 비용', () => {
+  const P = { ...DEFAULT_PARAMS, feeRate: 0.0006, slip: 0.0005, targetFeeRate: 0.0002, targetSlip: 0 };
+  const s = setup();
+  s.bars15[K + 8] = { ...s.bars15[K + 8], h: 110 };
+  const t = run(s, [sigAt(K)], { params: P }).trades[0];
+  near(t.entry, 100 * 1.0005); near(t.exit, t.target);
+  near(t.fees, t.qty * t.entry * 0.0006 + t.qty * t.exit * 0.0002);
+  const l = setup(); l.bars15[K + 8] = { ...l.bars15[K + 8], l: 90 };
+  const ts = run(l, [sigAt(K)], { params: P }).trades[0];
+  near(ts.exit, ts.stop * (1 - 0.0005)); near(ts.fees, ts.qty * ts.entry * 0.0006 + ts.qty * ts.exit * 0.0006);
+  // 옵션이 없으면 기본 비용 그대로(1차 결과 불변)
+  const d = run(s, [sigAt(K)]).trades[0];
+  near(d.exit, d.target * (1 - 0.0002));
+});
+
+ok('E4 펀딩 극단 — 음수이면서 직전 365일 Q10 이하, 1,000건 미만이면 없음, 다음 15분봉에 확정', () => {
+  const H8 = 8 * HOUR;
+  const ev = Array.from({ length: 1200 }, (_, i) => ({ t: T0 + i * H8 + 7, rate: i % 10 === 0 ? -0.0001 : 0.0001, intervalH: 8 }));
+  ev.push({ t: T0 + 1200 * H8 + 7, rate: -0.0003, intervalH: 8 });       // 극단 음수
+  ev.push({ t: T0 + 1201 * H8 + 7, rate: 0.00005, intervalH: 8 });       // 양수 — 신호 아님
+  const days = Math.ceil((1202 * H8) / DAY) + 1;
+  const ctx = fakeCtx(days, { bear: false });
+  const sig = fundingExtremeSignals(ev, ctx, 'all');
+  // 1,095건(365일)이 차기 전(i<1000 근처)엔 신호 없음 — 창이 찬 뒤 −0.0001(≤Q10)·−0.0003 만
+  assert.ok(sig.every((x) => x.dev < 0 && x.dev <= x.q10));
+  assert.ok(sig.every((x) => x.t >= T0 + 1000 * H8));
+  const last = sig[sig.length - 1];
+  assert.equal(last.dev, -0.0003);
+  assert.equal(last.decideT, Math.floor(last.t / MIN15) * MIN15 + MIN15);      // 정산 봉의 다음 봉
+  assert.ok(last.decideT > last.t);
+  assert.equal(fundingExtremeSignals(ev, ctx, 'bear').length, 0);
+  // 미래 정산값을 바꿔도 과거 임계값 불변(직전 창만 사용)
+  const fut = ev.map((e, i) => (i >= 1201 ? { ...e, rate: -1 } : e));
+  assert.equal(fundingExtremeSignals(fut, ctx, 'all').find((x) => x.t === last.t)!.q10, last.q10);
+});
+
+ok('E3 진단 — 사유별 평균R·MFE 구간·+1R 뒤 손실', () => {
+  const s = setup();
+  s.bars15[K + 4] = { ...s.bars15[K + 4], h: 101.7 };                 // +1R 이상 상승(R≈1.5)
+  s.bars15[K + 8] = { ...s.bars15[K + 8], l: 90 };                    // 이후 손절
+  const tr = run(s, [sigAt(K)]).trades;
+  const d = diagnose(tr);
+  assert.equal(d.byReason.stop.n, 1); near(d.byReason.stop.avgR!, tr[0].r);
+  assert.ok(mfeR(tr[0]) >= 1 && mfeR(tr[0]) < 1.8);
+  assert.deepEqual(d.mfeBuckets.map((b) => b[1]), [0, 0, 1, 0]);
+  assert.equal(d.reached1RThenLost, 1);
+  assert.equal(d.timeExitAvgR, null);
 });
 
 console.log(`bnf: ${passed} passed`);

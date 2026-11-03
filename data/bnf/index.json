@@ -1,0 +1,65 @@
+[
+  {
+    "id": "binance",
+    "name": "ETH · Binance (1차)",
+    "desc": "1차 규격 — Binance ETHUSDT, 2021-11 ~ 2026-10",
+    "conclusion": {
+      "code": "unfit",
+      "label": "사용 부적합 — 미리 정한 기준을 통과한 구성이 없음"
+    }
+  },
+  {
+    "id": "bitget",
+    "name": "ETH · Bitget (별도)",
+    "desc": "같은 규칙, Bitget ETHUSDT 별도 실험(펀딩 미포함)",
+    "conclusion": {
+      "code": "unfit",
+      "label": "사용 부적합 — 미리 정한 기준을 통과한 구성이 없음"
+    }
+  },
+  {
+    "id": "binance-pre",
+    "name": "ETH · 과거 구간 (E1)",
+    "desc": "1차에서 쓰지 않은 2021-01 ~ 2021-10 진입 구간으로 2차 검증",
+    "conclusion": {
+      "code": "insufficient",
+      "label": "판단 불가 — 모든 구성이 평가 구간 거래 30회 미만"
+    }
+  },
+  {
+    "id": "binance-btc",
+    "name": "BTC · Binance (E2)",
+    "desc": "같은 규칙을 BTCUSDT 에 적용",
+    "conclusion": {
+      "code": "unfit",
+      "label": "사용 부적합 — 미리 정한 기준을 통과한 구성이 없음"
+    }
+  },
+  {
+    "id": "binance-funding",
+    "name": "ETH · 펀딩 음수 극단 (E4)",
+    "desc": "별개 가설 — 정산 펀딩비가 음수이면서 직전 365일 하위 10% 이하일 때 롱",
+    "conclusion": {
+      "code": "unfit",
+      "label": "사용 부적합 — 미리 정한 기준을 통과한 구성이 없음"
+    }
+  },
+  {
+    "id": "binance-cost",
+    "name": "ETH · 실사용 비용 (E5, Binance)",
+    "desc": "시장가 테이커 0.06%+슬리피지 0.05%, 목표는 지정가 메이커 0.02%",
+    "conclusion": {
+      "code": "unfit",
+      "label": "사용 부적합 — 미리 정한 기준을 통과한 구성이 없음"
+    }
+  },
+  {
+    "id": "bitget-cost",
+    "name": "ETH · 실사용 비용 (E5, Bitget)",
+    "desc": "같은 비용 가정, Bitget 데이터",
+    "conclusion": {
+      "code": "unfit",
+      "label": "사용 부적합 — 미리 정한 기준을 통과한 구성이 없음"
+    }
+  }
+]

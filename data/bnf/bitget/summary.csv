@@ -1,4 +1,4 @@
-exchange,tf,regime,leverage,period,trades,win_rate_pct,pf,avg_r,avg_hold_h,max_loss_usdt,max_loss_r,mtm_mdd_pct,total_return_pct,max_consec_loss,fees_usdt,slippage_usdt,funding_usdt,return_with_funding_pct,avg_r_with_funding,sample_ok,skipped_wide_stop
+experiment,tf,regime,leverage,period,trades,win_rate_pct,pf,avg_r,avg_hold_h,max_loss_usdt,max_loss_r,mtm_mdd_pct,total_return_pct,max_consec_loss,fees_usdt,slippage_usdt,funding_usdt,return_with_funding_pct,avg_r_with_funding,sample_ok,skipped_wide_stop
 bitget,15m,all,5,dev,42,47.62,1.253,0.1218,38.81,-5.56,-1.068,4.133,2.517,6,7.23,2.89,,,,Y,4
 bitget,15m,all,5,oos,52,30.77,0.508,-0.3273,33.81,-5.2,-1.033,9.693,-8.228,6,5.62,2.25,,,,Y,0
 bitget,15m,all,5,full,94,38.3,0.782,-0.1266,36.05,-5.56,-1.068,10.5,-5.918,6,12.99,5.2,,,,Y,4

@@ -1,4 +1,4 @@
-exchange,tf,regime,leverage,period,trades,win_rate_pct,pf,avg_r,avg_hold_h,max_loss_usdt,max_loss_r,mtm_mdd_pct,total_return_pct,max_consec_loss,fees_usdt,slippage_usdt,funding_usdt,return_with_funding_pct,avg_r_with_funding,sample_ok,skipped_wide_stop
+experiment,tf,regime,leverage,period,trades,win_rate_pct,pf,avg_r,avg_hold_h,max_loss_usdt,max_loss_r,mtm_mdd_pct,total_return_pct,max_consec_loss,fees_usdt,slippage_usdt,funding_usdt,return_with_funding_pct,avg_r_with_funding,sample_ok,skipped_wide_stop
 binance,15m,all,5,dev,42,47.62,1.251,0.121,38.83,-5.55,-1.066,4.131,2.499,6,7.12,2.85,-2.23,2.273,0.1104,Y,4
 binance,15m,all,5,oos,52,36.54,0.604,-0.255,35,-5.3,-1.033,9.717,-6.491,6,5.76,2.31,-1.01,-6.585,-0.2589,Y,0
 binance,15m,all,5,full,94,41.49,0.845,-0.087,36.71,-5.55,-1.066,9.717,-4.154,6,13.03,5.21,-3.26,-4.462,-0.0939,Y,4

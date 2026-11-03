@@ -101,7 +101,7 @@ export function sampleCurve(points: [number, number][], initial: number, fromT: 
 
 export type VerdictCode = 'insufficient' | 'negative' | 'drawdown' | 'weak' | 'inconsistent' | 'funding_negative' | 'candidate';
 export const VERDICT_LABEL: Record<VerdictCode, string> = {
-  insufficient: '판단 불가 (OOS 거래 30회 미만)',
+  insufficient: '판단 불가 (평가 구간 거래 30회 미만)',
   negative: '사용 부적합 (기대수익 음수)',
   drawdown: '사용 부적합 (낙폭 과다)',
   weak: '사용 부적합 (우위 미약)',
@@ -132,3 +132,36 @@ export function tradeRow(t: Trade): (string | number)[] {
 export const TRADE_COLUMNS = ['signal_bar_open_utc', 'entry_utc', 'exit_utc', 'exit_reason', 'entry_bar_open', 'entry_fill', 'stop', 'target',
   'stop_dist_pct', 'atr4h14', 'qty_eth', 'notional_usdt', 'margin_usdt', 'margin_capped', 'exit_fill', 'fees_usdt', 'slippage_usdt',
   'funding_usdt', 'net_usdt', 'net_r', 'hold_h', 'mae_pct', 'mfe_pct', 'equity_before', 'equity_after'];
+
+/** E3 실패 원인 진단(docs/bnf/EXPERIMENTS.md) — 수익률이 아니라 청산 사유·MFE·MAE 분포를 본다 */
+export interface Diagnosis {
+  byReason: Record<ExitReason, { n: number; avgR: number | null }>;
+  mfeBuckets: [string, number][];   // MFE(R) 구간별 거래 수
+  maeBuckets: [string, number][];
+  avgMfeR: number | null; avgMaeR: number | null;
+  reached1RThenLost: number;         // MFE ≥ 1R 이었는데 순손익 ≤ 0
+  timeExitAvgR: number | null;
+}
+/** 진입가 대비 손절 거리를 1R 로 본 MFE·MAE */
+export const mfeR = (t: Trade) => t.mfePct / 100 / t.stopDist;
+export const maeR = (t: Trade) => t.maePct / 100 / t.stopDist;
+
+export function diagnose(trades: Trade[]): Diagnosis {
+  const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  const reasons: ExitReason[] = ['target', 'stop', 'stop_gap', 'time', 'data_end'];
+  const byReason = Object.fromEntries(reasons.map((k) => {
+    const rs = trades.filter((t) => t.reason === k).map((t) => t.r);
+    return [k, { n: rs.length, avgR: avg(rs) }];
+  })) as Diagnosis['byReason'];
+  const bucket = (xs: number[], edges: number[], labels: string[]): [string, number][] =>
+    labels.map((l, i) => [l, xs.filter((x) => (i === 0 || x >= edges[i - 1]) && (i === labels.length - 1 || x < edges[i])).length]);
+  const mfe = trades.map(mfeR), mae = trades.map(maeR);
+  return {
+    byReason,
+    mfeBuckets: bucket(mfe, [0.5, 1, 1.8], ['<0.5R', '0.5–1R', '1–1.8R', '≥1.8R']),
+    maeBuckets: bucket(mae.map((x) => -x), [0.25, 0.5, 1], ['<0.25R', '0.25–0.5R', '0.5–1R', '≥1R']),
+    avgMfeR: avg(mfe), avgMaeR: avg(mae),
+    reached1RThenLost: trades.filter((t) => mfeR(t) >= 1 && t.net <= 0).length,
+    timeExitAvgR: byReason.time.avgR,
+  };
+}
