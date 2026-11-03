@@ -442,12 +442,15 @@ export default function JournalPage() {
         );
       })()}
 
+      {/* 첫 조회 전 — 위 요약 카드 자리를 잡아 둔다(늦게 끼어들며 아래 성적 패널을 밀어내던 화면 밀림 방지) */}
+      {!loaded && <div className="skeleton rounded-xl mb-3 h-[116px] sm:h-[66px]" aria-hidden />}
+
       <Suspense fallback={null}><UrlTabWatch onTab={onUrlTab} /></Suspense>
       {/* 하위 탭 전환은 공통 내비(components/NavTabs — 폰 밑줄 탭 · 태블릿 칩 · PC 2차 탭, lib/menu '매매 복기' 그룹)가 맡는다 */}
       <p className="text-[11px] text-[var(--faint)] mb-3 px-1 leading-relaxed">{TABS.find((t) => t.key === tab)?.hint}</p>
 
       {show('perf') && (
-        <div role="tabpanel" id="journal-panel-perf" aria-label="성적" hidden={tab !== 'perf'}>
+        <div role="tabpanel" id="journal-panel-perf" aria-label="성적" hidden={tab !== 'perf'} className={loaded ? undefined : 'min-h-[70vh]'}>
           {/* 현재 포지션 (미청산) — 진입 당시 기분을 바로 기록 */}
           {open.length > 0 && (
             <section className="mb-5">

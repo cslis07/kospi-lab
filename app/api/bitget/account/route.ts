@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { bitgetKeysConfigured, bitgetSignedGet, fetchBitgetTickers } from '@/lib/bitget';
+import { PRIVATE } from '@/lib/cdn';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,8 @@ export async function GET() {
       .filter((a): a is NonNullable<typeof a> => a !== null)
       .sort((a, b) => b.usdtValue - a.usdtValue);
 
-    return NextResponse.json({ configured: true, totalUsdt, assets });
+    // 브라우저만 25초 보관(30초 폴링·탭 이동 재요청 흡수) — 게이트 뒤라 CDN 공유 캐시 금지
+    return NextResponse.json({ configured: true, totalUsdt, assets }, { headers: { 'Cache-Control': PRIVATE(25) } });
   } catch (e) {
     return NextResponse.json(
       { configured: true, error: String(e) },

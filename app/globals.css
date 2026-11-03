@@ -1263,6 +1263,11 @@ html.side-min .side-nav .sn-item { justify-content: center; padding: 0; }
 .ds .ds-at { font-weight: 500; color: var(--faint); }
 
 /* ── Bento 카드 크기(기획서 §4.4) — 12열 그리드 안에서 span ── */
+/* 홈 '지금 내 상태' 자리(MyStatusLine) — 비어 있으면 없는 것과 같고, 지난번에 보였던 기기(html.kl-st)는 응답 전에도 그 높이를 잡아 둔다 */
+/* 폰: 본문이 최소 한 화면 — 데이터가 늦게 차오를 때 화면 맨 아래 보이던 푸터가 밀려 내려가던 화면 밀림 방지(푸터는 스크롤 끝에 그대로) */
+@media (max-width: 767px) { .app-main { min-height: 100svh; } }
+.status-slot:empty { display: none; }
+.kl-st .status-slot:empty { display: block; min-height: 58px; }
 .bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
 .bento > * { grid-column: span 12; min-width: 0; }
 @media (min-width: 1024px) {

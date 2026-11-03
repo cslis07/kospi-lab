@@ -32,16 +32,6 @@ function NavIcon({ name, className = 'w-4 h-4' }: { name: string; className?: st
 function NavTabsInner() {
   const pathname     = usePathname();
   const searchParams = useSearchParams();
-  // 데스크탑: 사용자가 알약을 눌러 미리 펼친 섹션(라우트 변경 시 초기화)
-  const [shownGroup, setShownGroup] = useState<string | null>(null);
-  const [moreOpen, setMoreOpen] = useState(false);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShownGroup(null); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, []);
-  useEffect(() => { setShownGroup(null); setMoreOpen(false); }, [pathname, searchParams]);
 
   // 방문 빈도 기록(자주 쓰는 기능 자동화)
   useEffect(() => {
@@ -55,6 +45,21 @@ function NavTabsInner() {
       localStorage.setItem('kl:visits', JSON.stringify(map));
     } catch { /* localStorage 불가 환경 무시 */ }
   }, [pathname, searchParams]);
+
+  return <NavTabsBody pathname={pathname} searchParams={searchParams} />;
+}
+
+function NavTabsBody({ pathname, searchParams }: { pathname: string; searchParams: URLSearchParams }) {
+  // 데스크탑: 사용자가 알약을 눌러 미리 펼친 섹션(라우트 변경 시 초기화)
+  const [shownGroup, setShownGroup] = useState<string | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShownGroup(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+  useEffect(() => { setShownGroup(null); setMoreOpen(false); }, [pathname, searchParams]);
 
   const hit = activeItem(pathname, searchParams);
   const tabGroup = MENU.find((g) => g.matchFn(pathname, searchParams)) ?? null;
@@ -189,9 +194,17 @@ function NavTabsInner() {
   );
 }
 
+const NO_QUERY = new URLSearchParams();
+
+/** 하이드레이션 전(useSearchParams 대기) 자리 — 경로만으로 같은 탭을 미리 그려 둔다.
+ *  예전 '메뉴 로딩…' 자리(모바일 0px)는 하이드레이션 뒤 탭(45px)·PC 페이지 머리가 끼어들며 본문을 밀어냈다(CLS). */
+function NavTabsFallback() {
+  return <NavTabsBody pathname={usePathname()} searchParams={NO_QUERY} />;
+}
+
 export default function NavTabs() {
   return (
-    <Suspense fallback={<nav className="hidden md:block border-b border-[var(--border)] mb-6"><div className="px-4 py-3 text-sm text-[var(--text-muted)]">메뉴 로딩…</div></nav>}>
+    <Suspense fallback={<NavTabsFallback />}>
       <NavTabsInner />
     </Suspense>
   );
