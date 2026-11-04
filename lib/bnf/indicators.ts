@@ -30,20 +30,26 @@ function priorMean(closes: number[], d: number, n: number): number | null {
 }
 
 /** daily 는 하루도 빠짐없이 연속이어야 한다(아니면 오류) */
-export function dailyContext(daily: Bar[], opts: { smaN?: number; qWindow?: number; q?: number; regimeN?: number } = {}): DailyContext {
-  const { smaN = 25, qWindow = 365, q = 0.1, regimeN = 200 } = opts;
+/**
+ * daily 는 하루도 빠짐없이 연속이어야 한다(아니면 오류).
+ * extendNextDay: 마지막 완료 일봉 다음 날(진행 중인 오늘) 칸을 하나 더 만든다 — 그 날의 기준값은 전날까지만 쓰므로
+ * 완료 후 계산과 같다(선행 테스트에서 당일 신호를 날짜가 바뀌기 전에 잡기 위함). 그 날의 devDaily 는 null.
+ */
+export function dailyContext(daily: Bar[], opts: { smaN?: number; qWindow?: number; q?: number; regimeN?: number; extendNextDay?: boolean } = {}): DailyContext {
+  const { smaN = 25, qWindow = 365, q = 0.1, regimeN = 200, extendNextDay = false } = opts;
   for (let i = 1; i < daily.length; i++) if (daily[i].t - daily[i - 1].t !== DAY) throw new Error('일봉이 연속이 아닙니다');
   const closes = daily.map((b) => b.c);
-  const n = daily.length;
-  const sma25 = closes.map((_, d) => priorMean(closes, d, smaN));
-  const devDaily = closes.map((c, d) => (sma25[d] == null ? null : c / sma25[d]! - 1));
+  const n = daily.length + (extendNextDay && daily.length ? 1 : 0);
+  const idx = Array.from({ length: n }, (_, d) => d);
+  const sma25 = idx.map((d) => priorMean(closes, d, smaN));
+  const devDaily = idx.map((d) => (d >= closes.length || sma25[d] == null ? null : closes[d] / sma25[d]! - 1));
   const q10: (number | null)[] = new Array(n).fill(null);
   for (let d = qWindow; d < n; d++) {
     const win = devDaily.slice(d - qWindow, d);
     if (win.some((x) => x == null)) continue;
     q10[d] = quantileSorted((win as number[]).sort((a, b) => a - b), q);
   }
-  const sma200 = closes.map((_, d) => priorMean(closes, d, regimeN));
+  const sma200 = idx.map((d) => priorMean(closes, d, regimeN));
   const bear = sma200.map((s, d) => (s == null || d < 1 ? null : closes[d - 1] < s));
   return { day0: daily.length ? daily[0].t : 0, sma25, devDaily, q10, sma200, bear };
 }

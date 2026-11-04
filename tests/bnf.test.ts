@@ -470,4 +470,31 @@ ok('선행 봇 — 30회 미만은 판정 없이 진행 상황만', () => {
   assert.equal(empty.status, 'waiting'); assert.equal(empty.candidates.length, 0);
 });
 
+ok('일봉 기준 — 진행 중인 오늘 칸(extendNextDay)은 날짜가 바뀐 뒤 계산과 같음', () => {
+  let s0 = 3; const rnd = () => (s0 = (s0 * 16807) % 2147483647) / 2147483647;
+  const closes = Array.from({ length: 25 + 365 + 5 }, () => 100 * (0.8 + 0.4 * rnd()));
+  const full = dailyContext(dailyFrom(closes));
+  const ext = dailyContext(dailyFrom(closes.slice(0, -1)), { extendNextDay: true });
+  const d = closes.length - 1;
+  assert.equal(ext.sma25.length, closes.length);
+  near(ext.sma25[d]!, full.sma25[d]!); near(ext.q10[d]!, full.q10[d]!); near(ext.sma200[d] ?? 0, full.sma200[d] ?? 0); assert.equal(ext.bear[d], full.bear[d]);
+  assert.equal(ext.devDaily[d], null);
+  assert.equal(dailyContext(dailyFrom(closes)).sma25.length, closes.length);   // 기본값은 기존과 같음
+});
+
+ok('선행 봇 — 오늘(미완성 일봉) 1시간봉 신호도 바로 잡음(날짜가 바뀐 뒤와 같은 결과)', () => {
+  const b1h = resample(SYN, HOUR);
+  const endFull = SYN[SYN.length - 1].t + MIN15;
+  const all = runForward({ bars1h: b1h, bars15: SYN.filter((b) => b.t >= FSTART), nowT: endFull, start: FSTART });
+  // 하루 중간에서 자른 실행 — 그 시점까지 청산된 거래는 전체 실행과 같아야 한다
+  const cut = endFull - 13 * HOUR;
+  const mid = runForward({ bars1h: b1h, bars15: SYN.filter((b) => b.t >= FSTART), nowT: cut, start: FSTART });
+  assert.ok(mid.now && mid.now.sma25 != null && mid.now.q10 != null, '오늘 칸 기준값이 있어야 함');
+  for (const c of mid.candidates) {
+    const ref = all.candidates.find((x) => x.id === c.id)!.closed.filter((t) => Date.parse(t.exitT) <= cut - 72 * HOUR);
+    const got = c.closed.filter((t) => Date.parse(t.exitT) <= cut - 72 * HOUR);
+    assert.deepEqual(got.map((t) => [t.entryT, t.reason, t.net]), ref.map((t) => [t.entryT, t.reason, t.net]));
+  }
+});
+
 console.log(`bnf: ${passed} passed`);

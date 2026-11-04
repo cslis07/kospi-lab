@@ -82,7 +82,8 @@ export function runForward(inp: ForwardInput): ForwardResult {
   const bars15 = c15.bars.filter((b) => b.t + MIN15 <= through);
 
   let ctx;
-  try { ctx = dailyContext(resample(bars1h, DAY, HOUR)); } catch { return { ...base, status: 'data_gap', statusNote: `일봉 기준을 만들 수 없음(시작 전 결측) ${gapNotes.join(', ')}`, now: null, dataThroughUtc: null, candidates: [] }; }
+  // 진행 중인 오늘 칸까지 — 오늘의 기준값은 전날까지의 일봉만 쓰므로 날짜가 바뀐 뒤 계산과 같다
+  try { ctx = dailyContext(resample(bars1h, DAY, HOUR), { extendNextDay: true }); } catch { return { ...base, status: 'data_gap', statusNote: `일봉 기준을 만들 수 없음(시작 전 결측) ${gapNotes.join(', ')}`, now: null, dataThroughUtc: null, candidates: [] }; }
   const bars4h = resample(bars1h, H4, HOUR);
   const atr4h = wilderAtr(bars4h, 14);
   const lastH = bars1h[bars1h.length - 1];
