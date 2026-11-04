@@ -37,6 +37,8 @@ interface Position {
 }
 interface PositionsResp { configured?: boolean; account?: { equity: number; available: number; unrealizedPL: number; marginCoin: string } | null; positions?: Position[]; error?: string }
 interface HistResp { configured?: boolean; positions?: { netProfit: number; closeTs: number }[]; slRecovered?: number; error?: string }
+/** 입출금 대비 누적 손익(/api/bitget/cumulative, lib/cumulativePnl) */
+interface CumResp { configured?: boolean; error?: string; firstDepositTs?: number | null; deposits?: number; withdrawals?: number; withdrawFees?: number; netIn?: number; balance?: number; pnl?: number; pnlPct?: number | null; unvalued?: string[] }
 
 type Period = 7 | 30 | 90;
 
@@ -90,6 +92,7 @@ export default function AssetsPage() {
   const configured = !!acc?.configured;
   const { data: pos } = useSWR<PositionsResp>(configured ? '/api/bitget/positions' : null, fetcher, { refreshInterval: 15000, revalidateOnFocus: false });
   const { data: hist } = useSWR<HistResp>(configured ? `/api/bitget/history?days=${period}` : null, fetcher, { revalidateOnFocus: false });
+  const { data: cum } = useSWR<CumResp>(configured ? '/api/bitget/cumulative' : null, fetcher, { revalidateOnFocus: false });
   // 원화 환산 — USDT/KRW(업비트) 우선, 없으면 USD/KRW
   const { data: market } = useSWR<{ usdkrw?: { value: number }; usdtkrw?: { value: number } }>('/api/market', fetcher, { refreshInterval: 30000, revalidateOnFocus: false });
   const krwRate = market?.usdtkrw?.value ?? market?.usdkrw?.value ?? null;
@@ -301,6 +304,23 @@ export default function AssetsPage() {
               )}
             </>
           )}
+          {/* 누적 손익 — 7·30·90일 칸은 거래소 포지션 이력(최대 90일)이라 그 전 손익·현물 손익이 빠진다. 넣은 돈 대비 지금 잔고로 전체를 본다 */}
+          {configured && cum?.pnl != null && (
+            <div className="mt-3 pt-3 border-t border-[var(--line)]">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-[11px] text-[var(--text-muted)] whitespace-nowrap">누적 손익 <span className="opacity-70">· 입출금 대비</span></p>
+                <p className={`text-base font-bold tabular-nums whitespace-nowrap ${cum.pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {fmtPnl(cum.pnl)}{cum.pnlPct != null && <span className="text-[11px] font-semibold"> ({cum.pnlPct >= 0 ? '+' : ''}{cum.pnlPct.toFixed(1)}%)</span>}
+                </p>
+              </div>
+              {toKrw(cum.pnl) != null && <p className="text-right text-[11px] text-[var(--text-muted)] tabular-nums">≈ {toKrw(cum.pnl)!.toLocaleString('ko-KR')}원</p>}
+              <p className="text-[10px] text-[var(--text-muted)] mt-1 opacity-80 tabular-nums">
+                {cum.firstDepositTs ? `첫 입금 ${new Date(cum.firstDepositTs).toLocaleDateString('ko-KR')} 이후 · ` : ''}입금 {fmtUsd(cum.deposits ?? 0)} − 출금 {fmtUsd(cum.withdrawals ?? 0)} − 출금 수수료 {fmtUsd(cum.withdrawFees ?? 0)} → 지금 전체 잔고 {fmtUsd(cum.balance ?? 0)} (수수료·펀딩·강제청산·현물 손익 포함)
+              </p>
+              {!!cum.unvalued?.length && <p className="text-[10px] text-amber-600 mt-1">USDT 외 입출금({cum.unvalued.join(', ')})은 금액에 넣지 않았습니다.</p>}
+            </div>
+          )}
+          {configured && cum?.error && <p className="mt-3 text-[10px] text-amber-600">누적 손익 조회 실패 — 입출금 조회 권한(지갑 읽기)이 필요합니다.</p>}
         </div>
       </section>
 
