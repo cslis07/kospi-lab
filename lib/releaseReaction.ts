@@ -65,3 +65,12 @@ export function computeReaction(releases: ReleaseLite[], series: PricePoint[], o
   }
   return { up: stat(up), down: stat(down), flat: stat(flat), control: stat(ctrl) };
 }
+
+/**
+ * 발표 이력 스냅샷에서 결과가 빈 행의 상태 — 수집 시점 기준이라 '지금도 미발표'로 단정하지 않는다(/releases).
+ * collected = 스냅샷 수집일(YYYY-MM-DD). 그 뒤 날짜는 '예정(수집 시점)', 그 전·당일은 '수집 당시 미발표'.
+ */
+export function pendingLabel(date: string, collected?: string | null): string {
+  if (!collected) return '발표 전';
+  return date > collected ? '예정(수집 시점)' : '수집 당시 미발표';
+}

@@ -37,7 +37,7 @@ export default function TruflationPage() {
         같은 기간을 겹쳐 흐름을 비교합니다. <b className="text-[var(--text)]">예측·매매 신호가 아닙니다.</b>
       </p>
 
-      {locked && <div className="mb-4"><UnlockGate /></div>}
+      {locked && <div className="mb-4"><UnlockGate reason="이 페이지는 접근 권한이 필요한 분석 페이지입니다." /></div>}
 
       {!locked && cd && (
         <>

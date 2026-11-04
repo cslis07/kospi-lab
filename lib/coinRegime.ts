@@ -2,8 +2,8 @@
  * ETH 체제 종합 (Phase 2) — 4레이어를 "방향 신호"가 아니라 "지금 어떤 체제인가"로 묶는다.
  *
  * 설계 원칙(이 앱의 측정된 결론 = 방향 예측 우위 없음):
- *  - confluence(정렬도)는 '맞힐 확신'이 아니라 **사이징·레버리지 조절**에 쓴다.
- *    배경(공급·수요·거시)이 한 방향으로 정렬될수록 그쪽 리스크를 '조금 더' 질 수 있다는 뜻일 뿐,
+ *  - confluence(정렬도)는 '맞힐 확신'이 아니라 여러 지표가 같은 방향을 가리키는 정도다. 정렬돼도 레버리지를 높일 근거는 아니며
+ *    (실측 방향 우위 없음), 엇갈리면 레버리지·사이징을 줄이는 참고로만 쓴다.
  *    방향을 보장하지 않는다. 정렬이 약하면 레버리지를 낮춘다.
  *  - 포지셔닝(펀딩·OI·롱숏)은 배경과 섞지 않고 **쏠림/취약성 오버레이**로 따로 본다(스퀴즈 위험).
  *  - 청산가·사이징 계산은 계산기(/simulate, lib/positionSizing) 한 곳에서만 한다(2026-10-29 체제 보드의 레버리지 가드 삭제).
@@ -141,7 +141,12 @@ export function synthesizeRegime(input: RegimeInput): RegimeRead {
     mixed: '엇갈림 — 뚜렷한 체제 아님',
   };
   const headline = tags.map((t) => TAG_TEXT[t]).join(' · ');
-  const note = `정렬도(confluence) ${confluence.strength} — 방향 예측이 아니라 사이징·레버리지 조절용. 배경이 정렬될수록 '조금 더', 엇갈리면 레버리지 축소.`;
+  // 초보자용 한 줄 — 정렬도는 '여러 지표가 같은 방향을 가리키는 정도'일 뿐 예측 확신도가 아니다(실측 방향 우위 없음).
+  // 예전 문구('정렬될수록 조금 더')는 레버리지 증가 권유로 읽혀 바꿨다(2026-11-04).
+  const lead = confluence.strength === '혼조' || confluence.strength === '약'
+    ? '상승에 유리한 지표와 불리한 지표가 엇갈립니다. 이 자료만으로 어느 방향이 유리하다고 판단하기 어렵습니다.'
+    : `여러 배경 지표가 ${confluence.net > 0 ? '순풍' : '맞바람'} 쪽으로 모였지만, 과거 실측에서 방향 예측 우위는 확인되지 않았습니다.`;
+  const note = `${lead} 정렬도 ${confluence.strength}·net ${confluence.net > 0 ? '+' : ''}${confluence.net}(공급·수요·거시 각 순풍 +1·중립 0·맞바람 −1 합). 일치해도 레버리지를 높일 근거는 아닙니다.`;
 
   return { tilts, confluence, crowding, crowdingNote, tags, headline, note };
 }

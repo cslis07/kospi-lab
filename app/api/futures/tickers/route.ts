@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { fetchBitgetFuturesTickers } from '@/lib/bitget';
+import { fetchBitgetFuturesTickers, fetchFundingIntervals } from '@/lib/bitget';
 import { withCdn } from '@/lib/cdn';
 
 async function handler() {
   try {
-    const { list } = await fetchBitgetFuturesTickers();
+    const [{ list }, intervals] = await Promise.all([fetchBitgetFuturesTickers(), fetchFundingIntervals()]);
     const rows = list.map((t) => ({
       symbol:        t.symbol,
       price:         Number(t.lastPr),
@@ -13,6 +13,7 @@ async function handler() {
       low24h:        Number(t.low24h),
       quoteVolume:   Number(t.quoteVolume),
       fundingRate:   t.fundingRate ? Number(t.fundingRate) * 100 : null,
+      fundingIntervalH: intervals.get(t.symbol) ?? null,   // 정산 주기(시간) — 계약마다 다름
       holdingAmount: t.holdingAmount ? Number(t.holdingAmount) : null,
       indexPrice:    t.indexPrice ? Number(t.indexPrice) : null,
       markPrice:     t.markPrice ? Number(t.markPrice) : null,

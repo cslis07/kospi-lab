@@ -58,9 +58,11 @@ function Dlt({ v, dec = 2, unit = '%p', label = '어제比' }: { v: number | nul
 
 const KIND_LABEL: Record<CatalystKind, string> = { regulation: '규제', institution: '기관', politics: '정치' };
 const KIND_CLS: Record<CatalystKind, string> = { regulation: 'text-sky-400', institution: 'text-emerald-400', politics: 'text-amber-400' };
+// 지난 일정은 '지남' — 'N일 전'은 'D-N(앞으로 N일)'로 읽히기 쉬워서 바꿨다
 function ddayLabel(d: number) {
-  return d > 0 ? `D-${d}` : d === 0 ? 'D-DAY' : `${-d}일 전`;
+  return d > 0 ? `D-${d}` : d === 0 ? 'D-DAY' : `${-d}일 지남`;
 }
+const DAY = 86_400_000;
 
 const TILT_STYLE: Record<number, { cls: string; badge: string }> = {
   1: { cls: 'text-emerald-400', badge: '순풍' },
@@ -85,18 +87,25 @@ function TiltCard({ t, children }: { t: LayerTilt; children?: React.ReactNode })
 export default function EthRegimePage() {
   const { data, isLoading } = useSWR<RegimePayload>('/api/coin/regime', fetcher, { refreshInterval: 60000 });
   const price = data?.positioning?.priceUsd ?? data?.edge?.priceUsd ?? data?.demand?.ethUsd ?? null;
-  const catalysts = useMemo(() => upcomingCatalysts(CRYPTO_CATALYSTS, Date.now()), []);
+  // D-day 는 한국 날짜 기준(UTC 로 자르면 오전 9시 전 하루 어긋남)
+  const { catalysts, curationAgeDays } = useMemo(() => {
+    const now = Date.now();
+    return {
+      catalysts: upcomingCatalysts(CRYPTO_CATALYSTS, now + 9 * 3600_000),
+      curationAgeDays: Math.floor((now - Date.parse(`${CATALYSTS_ASOF}T00:00:00+09:00`)) / DAY),
+    };
+  }, []);
 
   const r = data?.regime;
   const STRENGTH_CLS: Record<string, string> = { '강': 'text-emerald-400', '보통': 'text-[var(--accent)]', '약': 'text-amber-400', '혼조': 'text-[var(--text-muted)]' };
 
   return (
     <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
-      <PageHeader title="ETH 체제" sub={<>공급·수요·포지셔닝·거시 4개 층을 모아 <b className="text-[var(--text)]">“지금 어떤 체제인가”</b>를 읽습니다. 1분마다 갱신.</>} />
+      <PageHeader title="ETH 체제" sub={<>공급(자금 유입·구조 위험)·수요(실제 매수세)·포지셔닝(선물 쏠림)·거시(달러·금리 환경) 4개 층을 모아 <b className="text-[var(--text)]">“지금 어떤 체제인가”</b>를 읽습니다. 1분마다 화면 재조회(원천마다 갱신 주기 다름).</>} />
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 mb-5">
         <p className="text-[11px] text-amber-300/90 leading-snug">
-          ⚠ <b>방향 예측·매매 신호가 아닙니다.</b> 이 앱 실측 결론은 “방향 우위 없음”. 여기 정렬도(confluence)는 맞힐 확신이 아니라
-          <b className="text-amber-200"> 레버리지·사이징을 조절</b>하는 참고입니다(계산은 계산기에서). 배경(공급·수요·거시)은 상승의 <b>증폭 조건</b>일 뿐 트리거가 아닙니다.
+          ⚠ <b>방향 예측·매매 신호가 아닙니다.</b> 이 앱 실측 결론은 “방향 우위 없음”. 정렬도(confluence)는 여러 지표가 같은 방향을 가리키는 정도일 뿐 맞힐 확신이 아니며,
+          <b className="text-amber-200"> 신호가 일치해도 레버리지를 높일 근거는 아닙니다</b> — 리스크 한도를 먼저 확인하세요(계산은 계산기에서). 배경(공급·수요·거시)은 상승의 <b>증폭 조건</b>일 뿐 트리거가 아닙니다.
         </p>
       </div>
 
@@ -146,9 +155,9 @@ export default function EthRegimePage() {
               <p className="text-[11px] text-[var(--text-muted)] mt-1 leading-snug">{r.crowdingNote}</p>
               {data!.positioning && (
                 <div className="mt-2 text-[10.5px] text-[var(--text-muted)] space-y-0.5 tabular-nums">
-                  <p>펀딩(연율) {signed(data!.positioning.fundingPctAnnual, 1)}<Dlt v={data!.positioning.fundingDeltaAnnual} dec={1} /></p>
+                  <p title="연율 환산 = 정산 1회 펀딩비 × 하루 3회(ETH 8시간 정산) × 365일. 선물 시세 화면의 펀딩비는 정산 1회분이라 단위가 다릅니다">펀딩(연율 환산) {signed(data!.positioning.fundingPctAnnual, 1)}<Dlt v={data!.positioning.fundingDeltaAnnual} dec={1} /></p>
                   <p>롱숏비율 {fmt(data!.positioning.longShortRatio, 2)}<Dlt v={data!.positioning.lsDelta} dec={2} unit="" /></p>
-                  <p>OI {data!.positioning.oiEth != null && price ? `$${((data!.positioning.oiEth * price) / 1e9).toFixed(2)}B` : '—'}<span className="opacity-50"> Bitget</span><Dlt v={data!.positioning.oi24hChgPct} dec={1} unit="%" label="24h" /></p>
+                  <p title="미결제약정(OI) = 아직 종료되지 않은 선물 계약 규모. 달러 값은 가격이 움직이면 계약 수가 같아도 변하므로 ETH 수량을 함께 봅니다. 증가만으로 롱·숏 우세를 판단할 수 없습니다">OI {data!.positioning.oiEth != null ? `${(data!.positioning.oiEth / 1e3).toFixed(0)}K ETH` : '—'}{data!.positioning.oiEth != null && price ? <span className="opacity-60"> (${((data!.positioning.oiEth * price) / 1e9).toFixed(2)}B)</span> : null}<span className="opacity-50"> Bitget</span><Dlt v={data!.positioning.oi24hChgPct} dec={1} unit="%" label="24h" /></p>
                 </div>
               )}
             </div>
@@ -160,7 +169,7 @@ export default function EthRegimePage() {
           {/* 옵션 만기·맥스페인 */}
           {data!.options && data!.options.expiries.length > 0 && (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 mb-2">
-              <p className="text-[12px] font-bold text-[var(--text)] mb-1.5">옵션 만기·맥스페인 <span className="text-[10px] font-normal text-[var(--text-muted)]">(변동성 트리거 일정 · 방향 아님)</span></p>
+              <p className="text-[12px] font-bold text-[var(--text)] mb-1.5">옵션 만기·맥스페인 <span className="text-[10px] font-normal text-[var(--text-muted)]">(변동성 트리거 일정 · 맥스페인 = 만기 옵션 구조상 참고 가격, 목표가·지지/저항 아님)</span></p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                 {data!.options.expiries.map((e) => (
                   <div key={e.expiry} className="rounded-lg bg-[var(--surface-2)] px-2 py-1.5">
@@ -175,7 +184,7 @@ export default function EthRegimePage() {
           {/* 정책·규제 이벤트 워치 (큐레이션·변동성 일정, 방향 아님) */}
           {catalysts.length > 0 && (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 mb-2">
-              <p className="text-[12px] font-bold text-[var(--text)] mb-1.5">정책·규제 이벤트 워치 <span className="text-[10px] font-normal text-[var(--text-muted)]">(큐레이션 {CATALYSTS_ASOF} 기준 · 변동성 주의 · 매수 신호 아님)</span></p>
+              <p className="text-[12px] font-bold text-[var(--text)] mb-1.5">정책·규제 이벤트 워치 <span className="text-[10px] font-normal text-[var(--text-muted)]">(큐레이션 {CATALYSTS_ASOF} 기준{curationAgeDays > 14 ? ` · ${curationAgeDays}일 지나 날짜·상태가 바뀌었을 수 있음` : ''} · 변동성 주의 · 매수 신호 아님)</span></p>
               <ul className="space-y-1.5">
                 {catalysts.map((c) => (
                   <li key={c.date + c.title} className="rounded-lg bg-[var(--surface-2)] px-2.5 py-1.5">
@@ -195,14 +204,14 @@ export default function EthRegimePage() {
 
           {/* 과거 base rate */}
           <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 mb-2">
-            <p className="text-[12px] font-bold text-[var(--text)] mb-1.5">과거 통계 — {data!.edge.stateLabel} 체제의 다음 {data!.edge.horizonDays}일 <span className="text-[10px] font-normal text-[var(--text-muted)]">(예측 아님)</span></p>
+            <p className="text-[12px] font-bold text-[var(--text)] mb-1.5">과거 통계 — {data!.edge.stateLabel} 체제의 다음 {data!.edge.horizonDays}일 <span className="text-[10px] font-normal text-[var(--text-muted)]">(과거 관측값 · 상승비율은 미래 상승 확률 아님)</span></p>
             {data!.edge.matched ? (
               <>
                 <table className="w-full text-[11px] tabular-nums">
                   <thead><tr className="text-[var(--text-muted)] text-left"><th className="font-normal py-0.5">구분</th><th className="font-normal">표본</th><th className="font-normal">상승비율</th><th className="font-normal">중앙 변동폭</th></tr></thead>
                   <tbody className="text-[var(--text)]">
-                    <tr><td className="py-0.5">현재 체제</td><td>{data!.edge.matched.n}</td><td>{(data!.edge.matched.upRatio * 100).toFixed(0)}%</td><td>±{data!.edge.matched.medianAbsMovePct.toFixed(1)}%</td></tr>
-                    {data!.edge.control && <tr className="text-[var(--text-muted)]"><td className="py-0.5">전체(대조군)</td><td>{data!.edge.control.n}</td><td>{(data!.edge.control.upRatio * 100).toFixed(0)}%</td><td>±{data!.edge.control.medianAbsMovePct.toFixed(1)}%</td></tr>}
+                    <tr><td className="py-0.5">현재 체제</td><td>{data!.edge.matched.n}</td><td>{(data!.edge.matched.upRatio * 100).toFixed(1)}%</td><td>±{data!.edge.matched.medianAbsMovePct.toFixed(1)}%</td></tr>
+                    {data!.edge.control && <tr className="text-[var(--text-muted)]"><td className="py-0.5">전체(대조군)</td><td>{data!.edge.control.n}</td><td>{(data!.edge.control.upRatio * 100).toFixed(1)}%</td><td>±{data!.edge.control.medianAbsMovePct.toFixed(1)}%</td></tr>}
                   </tbody>
                 </table>
                 <p className="text-[10.5px] text-[var(--text-muted)] mt-1.5 leading-snug">{data!.edge.note}</p>

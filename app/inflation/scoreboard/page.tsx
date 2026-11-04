@@ -25,7 +25,7 @@ export default function ScoreboardPage() {
         <b className="text-[var(--text)]"> 과거 성적이며 미래 예측·매매 신호가 아닙니다.</b>
       </p>
 
-      {locked && <div className="mb-4"><UnlockGate /></div>}
+      {locked && <div className="mb-4"><UnlockGate reason="이 페이지는 접근 권한이 필요한 분석 페이지입니다." /></div>}
 
       {!locked && s && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">

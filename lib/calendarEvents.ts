@@ -1,15 +1,21 @@
 import type { CalendarEvent } from '@/lib/types';
 
+/**
+ * 정적 일정(오프라인·서버 분석 공용). 미국 FOMC·고용·CPI 날짜는 공식 일정으로 맞춤(2026-11-04 확인):
+ * FOMC = 연준 fomccalendars(결정 = 회의 둘째 날), 고용·CPI = BLS 일정(FRED release calendar 10·50 로 대조).
+ * 경제 캘린더 화면은 여기에 /api/risk/events(공식 일정)를 덮어 쓴다(lib/calendarOfficial) — 날짜가 어긋나면 공식이 우선.
+ */
+
 export const CALENDAR_EVENTS: CalendarEvent[] = [
   // ── FOMC 2025 ──────────────────────────────────
-  { date: '2025-10-28', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high', desc: '10월 연방공개시장위원회 기준금리 발표' },
-  { date: '2025-12-17', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high', desc: '12월 연방공개시장위원회 기준금리 발표' },
+  { date: '2025-10-29', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high', desc: '10월 연방공개시장위원회 기준금리 발표' },
+  { date: '2025-12-10', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high', desc: '12월 연방공개시장위원회 기준금리 발표' },
 
   // ── FOMC 2026 ──────────────────────────────────
   { date: '2026-01-28', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high', desc: '1월 연방공개시장위원회 기준금리 발표' },
   { date: '2026-03-18', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high', desc: '3월 FOMC + 점도표 (SEP) 발표' },
   { date: '2026-04-29', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high' },
-  { date: '2026-06-10', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high', desc: '6월 FOMC + 점도표 발표' },
+  { date: '2026-06-17', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high', desc: '6월 FOMC + 점도표 발표' },
   { date: '2026-07-29', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high' },
   { date: '2026-09-16', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high', desc: '9월 FOMC + 점도표 발표' },
   { date: '2026-10-28', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high' },
@@ -30,27 +36,27 @@ export const CALENDAR_EVENTS: CalendarEvent[] = [
 
   // ── 미국 주요 경제지표 (월별 반복) ────────────
   { date: '2026-01-09', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high', desc: '비농업 신규고용·실업률 발표' },
-  { date: '2026-01-15', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
-  { date: '2026-02-06', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high' },
-  { date: '2026-02-12', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
+  { date: '2026-01-13', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
+  { date: '2026-02-11', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high' },
+  { date: '2026-02-13', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-03-06', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high' },
-  { date: '2026-03-12', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
+  { date: '2026-03-11', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-04-03', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-04-10', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-05-08', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high' },
-  { date: '2026-05-13', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
+  { date: '2026-05-12', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-06-05', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high' },
-  { date: '2026-06-11', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
+  { date: '2026-06-10', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-07-02', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-07-14', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-08-07', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high' },
-  { date: '2026-08-13', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
+  { date: '2026-08-12', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-09-04', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high' },
-  { date: '2026-09-10', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
+  { date: '2026-09-11', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-10-02', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high' },
-  { date: '2026-10-13', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
+  { date: '2026-10-14', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-11-06', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high' },
-  { date: '2026-11-12', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
+  { date: '2026-11-10', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-12-04', title: '미국 고용보고서 (NFP)', category: 'indicator', country: 'US', importance: 'high' },
   { date: '2026-12-10', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' },
 

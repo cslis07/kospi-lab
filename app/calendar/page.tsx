@@ -11,7 +11,9 @@ import type { CalendarEvent } from '@/lib/types';
 import EventRow, { kstToday } from '@/components/EventRow';
 import BottomSheet from '@/components/ui/BottomSheet';
 import EconCalendarMonth, { type CalEvt } from '@/components/EconCalendarMonth';
-import { dedupeForCalendar, type MacroEvt, type MacroRelease } from '@/lib/macroEvents';
+import { dedupeForCalendar, classify, type MacroEvt, type MacroRelease } from '@/lib/macroEvents';
+import { officialToCalendar, mergeOfficial, snapToOfficial } from '@/lib/calendarOfficial';
+import type { MacroEvent } from '@/lib/macroSchedule';
 import NextReleases from '@/components/NextReleases';
 import PastReleases from '@/components/PastReleases';
 import type { ReleaseCalendar, EconCalWindow } from '@/lib/inflation';
@@ -69,9 +71,13 @@ export default function CalendarPage() {
   // 지난 날짜로 들어오면 '지난 일정 포함'을 켜서 보이게 한다
   useEffect(() => { if (target && today && target < today) setShowPast(true); }, [target, today]);
 
+  // 공식 일정(FRED 발표 캘린더·연준 FOMC, 시각은 미 동부→KST 서머타임 반영) — 달력·표·목록의 미국 지표 날짜 기준
+  const { data: official } = useSWR<{ events: MacroEvent[] }>('/api/risk/events', fetcher, { revalidateOnFocus: false });
+  const allEvents = useMemo(() => mergeOfficial(CALENDAR_EVENTS, officialToCalendar(official?.events ?? [])), [official]);
+
   const grouped = useMemo(() => {
     if (!today) return [];
-    const list = CALENDAR_EVENTS
+    const list = allEvents
       .filter((e) => {
         if (!showPast && e.date < today) return false;
         if (cat !== 'all' && e.category !== cat) return false;
@@ -85,7 +91,7 @@ export default function CalendarPage() {
     const map = new Map<string, CalendarEvent[]>();
     for (const e of list) map.set(e.date, [...(map.get(e.date) ?? []), e]);
     return [...map.entries()];
-  }, [today, cat, country, imp, showPast]);
+  }, [today, cat, country, imp, showPast, allEvents]);
 
   const nFilters = (country !== 'all' ? 1 : 0) + (imp !== 'all' ? 1 : 0) + (showPast ? 1 : 0);
 
@@ -94,15 +100,17 @@ export default function CalendarPage() {
   const { data: econWin } = useSWR<EconCalWindow>('/api/nf/econcal_window.json', fetcher, { revalidateOnFocus: false });
   const { data: soso } = useSWR<{ events: MacroEvt[]; upcoming: MacroRelease[] }>('/api/macro/events', fetcher, { revalidateOnFocus: false });
   const calEvents = useMemo<CalEvt[]>(() => {
-    const out: CalEvt[] = CALENDAR_EVENTS.map((e) => ({ date: e.date, label: e.title, tone: CAT_TONE[e.category] ?? 'ind' }));
+    const out: CalEvt[] = allEvents.map((e) => ({ date: e.date, label: e.title, tone: CAT_TONE[e.category] ?? 'ind' }));
     for (const e of relCal?.events ?? []) {
       if (!e.date) continue;
       out.push({ date: e.date.slice(0, 10), label: `${KIND_KO[e.kind] ?? e.kind.toUpperCase()}${e.data_month ? ` ${e.data_month}` : ''}`, tone: 'ind' });
     }
-    // SoSoValue 거시 이벤트 — 같은 날 같은 지표가 이미 있으면 생략
-    for (const e of dedupeForCalendar(soso?.events ?? [], out)) out.push({ date: e.date, label: e.ko, tone: e.key === 'fomc' || e.key === 'minutes' ? 'fomc' : 'ind' });
+    // SoSoValue 거시 이벤트 — 날짜를 공식 일정에 맞춘 뒤, 같은 날 같은 지표가 이미 있으면 생략
+    for (const e of dedupeForCalendar(snapToOfficial(soso?.events ?? [], official?.events ?? []), out)) out.push({ date: e.date, label: e.ko, tone: e.key === 'fomc' || e.key === 'minutes' ? 'fomc' : 'ind' });
     return out;
-  }, [relCal, soso]);
+  }, [relCal, soso, official, allEvents]);
+  // 이번 주 표도 같은 날짜 기준(공식 일정) — 제공업체 날짜와 다르면 공식으로
+  const upcoming = useMemo(() => snapToOfficial((soso?.upcoming ?? []).map((u) => ({ ...u, key: classify(u.name).key })), official?.events ?? []), [soso, official]);
 
   // 대상 날짜 섹션으로 스크롤 + 2.6초 후 강조 해제
   useEffect(() => {
@@ -136,7 +144,7 @@ export default function CalendarPage() {
       ) : null}
 
       {/* 앞으로 7일 거시 지표 — SoSoValue 컨센서스(예측·매매 신호 아님) */}
-      {soso?.upcoming?.length ? (
+      {upcoming.length ? (
         <div className="mb-4">
           <div className="fin-sec"><h3 className="!text-[15px]">이번 주 지표 · 예상/이전/실제</h3><span className="text-[11px] text-[var(--text-muted)]">출처 SoSoValue · 예상 = 시장 컨센서스</span></div>
           <div className="fin-card overflow-x-auto">
@@ -151,22 +159,22 @@ export default function CalendarPage() {
                 </tr>
               </thead>
               <tbody>
-                {soso.upcoming.map((u) => (
+                {upcoming.map((u) => (
                   <tr key={`${u.date}-${u.name}`} className="border-t border-[var(--border)] text-right">
                     <td className="text-left px-3 py-2">
                       <span className="text-[var(--text)] font-medium">{u.ko}</span>
-                      <span className="block text-[10px] text-[var(--text-muted)]">{u.date.slice(5)} · {u.name}</span>
+                      <span className="block text-[10px] text-[var(--text-muted)]">{u.date.slice(5)}{u.providerDate ? ' (공식 일정)' : ''} · {u.name}</span>
                     </td>
                     <td className="px-2 text-[var(--text)]">{u.forecast || '—'}</td>
                     <td className="px-2 text-[var(--text-muted)]">{u.previous || '—'}</td>
                     <td className="px-2 text-[var(--text)] font-semibold">{u.actual || <span className="text-[var(--text-muted)] font-normal">—</span>}</td>
-                    <td className="px-3 text-center">{u.actual ? <span className="ds live"><i aria-hidden />발표됨</span> : <span className="ds closed"><i aria-hidden />발표 전</span>}</td>
+                    <td className="px-3 text-center">{u.actual ? <span className="ds live"><i aria-hidden />발표 완료</span> : today && u.date < today ? <span className="ds closed"><i aria-hidden />결과 확인 중</span> : <span className="ds closed"><i aria-hidden />발표 전</span>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="text-[11px] text-[var(--text-muted)] mt-1.5">컨센서스는 시장 예상치일 뿐 결과가 아닙니다. 발표 직후엔 변동성이 커질 수 있어요.</p>
+          <p className="text-[11px] text-[var(--text-muted)] mt-1.5">예상 = 발표 전 시장 예상(확정값 아님) · 이전 = 직전 발표값(수정될 수 있음) · 실제 = 발표 기관 공개값. 날짜는 공식 일정 기준이며, 발표 직후엔 변동성이 커질 수 있지만 결과만으로 방향이 정해지지는 않습니다.</p>
         </div>
       ) : null}
 
@@ -181,7 +189,7 @@ export default function CalendarPage() {
           </button>
         ))}
       </div>
-      <p className="text-[11px] text-[var(--text-muted)] mb-4 px-1">중요도 막대 3칸 = 높음 · 날짜·시각은 한국시간(KST) 기준 대략치(서머타임 반영) · 휴장/실적시즌은 종일·기간 · 일정은 변경될 수 있습니다</p>
+      <p className="text-[11px] text-[var(--text-muted)] mb-4 px-1">경제지표 발표 시각과 시장 예상치를 확인하는 곳입니다 · 중요도 막대 3칸 = 높음(시장 관심도, 상승·하락 강도 아님) · 미국 지표·FOMC 날짜는 공식 일정(FRED·연준), 시각은 미 동부시간을 서머타임 반영해 한국시간(KST)으로 변환 · 휴장/실적시즌은 종일·기간 · 일정은 변경될 수 있습니다</p>
 
       {!today ? (
         <div className="space-y-3"><div className="skeleton h-28" /><div className="skeleton h-28" /></div>

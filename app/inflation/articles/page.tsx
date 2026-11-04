@@ -22,7 +22,7 @@ export default function ArticlesPage() {
         <b className="text-[var(--text)]"> 매매 신호가 아닙니다.</b>
       </p>
 
-      {ai?.locked && <div className="mb-4"><UnlockGate /></div>}
+      {ai?.locked && <div className="mb-4"><UnlockGate reason="이 페이지는 접근 권한이 필요한 분석 페이지입니다." /></div>}
 
       {!ai?.locked && author?.name && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)]/30 p-3 mb-3">

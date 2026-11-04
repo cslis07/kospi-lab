@@ -74,6 +74,28 @@ export async function fetchBitgetFuturesTickers(): Promise<{ list: BitgetFutures
   return { list, map };
 }
 
+/* ── 공개 USDT-Futures 계약별 펀딩 정산 주기(시간) ─────────────
+ * 계약마다 1·4·8시간으로 다르다(2026-11-04 확인: 8h 511개·4h 386개·1h 1개). 화면에서 일괄 8시간으로 단정하지 않게 쓴다.
+ * 주기는 거의 안 바뀌므로 10분 메모리 캐시. 실패하면 빈 맵(주기 미상으로 표시). */
+let _fIntervals: { map: Map<string, number>; ts: number } | null = null;
+export async function fetchFundingIntervals(): Promise<Map<string, number>> {
+  if (_fIntervals && Date.now() - _fIntervals.ts < 10 * 60_000) return _fIntervals.map;
+  try {
+    const res = await fetch(`${BITGET_BASE}/api/v2/mix/market/current-fund-rate?productType=USDT-FUTURES`, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    const json = await res.json();
+    if (json.code !== '00000') throw new Error(json.msg);
+    const map = new Map<string, number>();
+    for (const r of json.data as { symbol: string; fundingRateInterval?: string }[]) {
+      const h = Number(r.fundingRateInterval);
+      if (Number.isFinite(h) && h > 0) map.set(r.symbol, h);
+    }
+    _fIntervals = { map, ts: Date.now() };
+    return map;
+  } catch {
+    return _fIntervals?.map ?? new Map();
+  }
+}
+
 /* ── 개인 계좌 (HMAC 서명) ─────────────────────────────────── */
 function sign(timestamp: string, method: string, path: string, body: string, secret: string) {
   const prehash = timestamp + method.toUpperCase() + path + body;

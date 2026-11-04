@@ -164,10 +164,10 @@ export function baseRates(candles: Candle[], horizonDays: number): BaseRates {
     const volRatio = control.medianAbsMovePct ? matched.medianAbsMovePct / control.medianAbsMovePct : 1;
     if (Math.abs(volRatio - 1) >= 0.25) {
       verdict = 'vol-differs';
-      note = `방향 상승비율은 대조군과 비슷(${(matched.upRatio * 100).toFixed(0)}% vs ${(control.upRatio * 100).toFixed(0)}%) — 매매 우위 아님. 단 변동폭은 대조군의 ${volRatio.toFixed(2)}배 → 이 체제는 레버리지·손절폭을 그만큼 조정.`;
+      note = `방향 상승비율은 대조군과 비슷(${(matched.upRatio * 100).toFixed(1)}% vs ${(control.upRatio * 100).toFixed(1)}%) — 매매 우위 아님. 단 변동폭은 대조군의 ${volRatio.toFixed(2)}배 → 이 체제는 레버리지·손절폭을 그만큼 조정.`;
     } else {
       verdict = 'edge-unclear';
-      note = `상승비율 ${(matched.upRatio * 100).toFixed(0)}% vs 대조군 ${(control.upRatio * 100).toFixed(0)}%(차 ${dirDiff.toFixed(0)}%p) — 우연 범위, 방향 우위 없음.`;
+      note = `상승비율 ${(matched.upRatio * 100).toFixed(1)}% vs 대조군 ${(control.upRatio * 100).toFixed(1)}%(차 ${dirDiff.toFixed(1)}%p) — 우연 범위, 방향 우위 없음.`;
     }
   }
 

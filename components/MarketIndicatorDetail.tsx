@@ -59,6 +59,8 @@ export default function MarketIndicatorDetail({ q }: { q: LiveQuote }) {
             </p>
             <p className={`text-xs font-semibold tabular-nums ${chgClass(q.changeRate)}`}>
               {q.changeRate > 0 ? '▲' : q.changeRate < 0 ? '▼' : ''} {fmtNum(Math.abs(q.change), dec)} ({fmtPct(q.changeRate)})
+              {/* 금리는 변화폭이 %p — 1bp = 0.01%p 로 풀이(괄호 안 %는 금리 수준 대비 상대 변화율이라 bp 와 다르다) */}
+              {isPct && q.change ? <span className="block font-normal text-[var(--text-muted)]">금리 약 {Math.abs(q.change * 100).toFixed(2)}bp {q.change > 0 ? '상승' : '하락'} (1bp = 0.01%p)</span> : null}
             </p>
           </div>
         </div>

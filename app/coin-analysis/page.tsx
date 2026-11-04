@@ -558,7 +558,7 @@ function TimeframeTable({ tfs }: { tfs: { k: string; tf: TF | null | undefined }
   );
 }
 
-/** 🎯 진입 판단 — 흩어진 verdict/zones/timeframes를 간결한 실행 계획으로 통합. 매수 신호가 아니라 조건 충족도·리스크 계획. */
+/** 🎯 진입 전 점검 — 흩어진 verdict/zones/timeframes를 간결한 실행 계획으로 통합. 매수 신호가 아니라 조건 충족도·리스크 계획. */
 /** 익절·손절 가격선을 가격 알림으로 원클릭 등록 — PriceAlertWatcher(앱 열렸을 때 확인)가 발동. */
 function AlertRegisterButton({ symbol, dir, levels }: { symbol: string; dir: 'long' | 'short'; levels: LevelSpec[] }) {
   const { alerts, addMany, removeBySymbol } = useCoinPriceAlerts();
@@ -615,7 +615,7 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
   // 추천 진입가 — 엔진이 산출한 진입 계획(entryPlan)이 "가장 좋은 가격대". now=지금 시장가, pullback=되돌림 대기, wait=관망
   const ep = v.entryPlan;
   const sideP = v.direction !== 'wait' ? v.plans[v.direction] : null;
-  const bestEntryText = v.direction === 'wait' ? '관망 — 지금 추천 진입가 없음'
+  const bestEntryText = v.direction === 'wait' ? '관망 — 지금 조건을 채운 진입가 없음'
     : ep.type === 'pullback' ? `되돌림 대기 $${fmtP(ep.zoneLow, digits)} ~ $${fmtP(ep.zoneHigh, digits)}`
     : `지금 시장가 ($${fmtP(price, digits)})`;
   const gradeC = v.confidence.grade === '견고' ? 'text-emerald-400' : v.confidence.grade === '약함' ? 'text-red-400' : 'text-amber-400';
@@ -629,7 +629,7 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
   return (
     <div className="rounded-2xl border border-sky-500/30 bg-[var(--bg-card)] p-5 space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-base font-extrabold text-[var(--text)]">🎯 진입 판단</h3>
+        <h3 className="text-base font-extrabold text-[var(--text)]">🎯 진입 전 점검</h3>
         <span className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border ${dirBadge.c}`}>{dirBadge.t}</span>
         <DirectionBadge direction={v.direction} />
         <span className="ml-auto text-[10px] text-[var(--text-muted)]">조건 충족도·리스크 계획 · 매수 신호 아님(엔진 백테스트 49.7%)</span>
@@ -638,7 +638,7 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
       {/* 추천 진입가 — 중요 가격대 종합해 가장 좋은 진입가 1개 + 엔진추천 요약(방향·진입·손절·목표·R:R) */}
       <div className={`rounded-xl border p-3.5 ${v.direction === 'long' ? 'border-emerald-500/40 bg-emerald-500/[0.06]' : v.direction === 'short' ? 'border-red-500/40 bg-red-500/[0.06]' : 'border-amber-500/30 bg-amber-500/[0.05]'}`}>
         <div className="flex items-center gap-2 flex-wrap mb-1.5">
-          <span className="text-[11px] font-bold text-[var(--text-muted)]">🏆 추천 진입</span>
+          <span className="text-[11px] font-bold text-[var(--text-muted)]">🏆 엔진 계산 진입가</span>
           <span className={`text-[14px] font-extrabold ${recDirCls}`}>{v.direction === 'long' ? '▲ 롱' : v.direction === 'short' ? '▼ 숏' : '⏸ 관망'}</span>
           <span className="text-[13px] font-bold text-[var(--text)]">{bestEntryText}</span>
           {v.direction !== 'wait' && <span className={`ml-auto text-[10px] font-bold ${gradeC}`}>신뢰 {v.confidence.grade} {v.confidence.pct}%</span>}
@@ -789,7 +789,7 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
           <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
             <p className="text-[11px] font-bold text-[var(--text-muted)]">③ 롱·숏 양쪽 <span className="font-normal">(현재가 ${fmtP(price, digits)} 진입 가정)</span></p>
             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${v.direction === 'long' ? 'bg-emerald-500/15 text-emerald-400' : v.direction === 'short' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'}`}>
-              엔진 추천: {v.direction === 'long' ? '롱' : v.direction === 'short' ? '숏' : '관망(양쪽 미충족)'}
+              엔진 계산: {v.direction === 'long' ? '롱' : v.direction === 'short' ? '숏' : '관망(양쪽 미충족)'}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -799,7 +799,7 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
                 <div key={side} className={`rounded-lg border p-2.5 ${side === 'long' ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : 'border-red-500/30 bg-red-500/[0.06]'} ${isRec ? 'ring-1 ring-sky-500/50' : ''}`}>
                   <div className="flex items-center justify-between mb-1.5">
                     <span className={`text-[13px] font-extrabold ${side === 'long' ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>{side === 'long' ? '▲ 롱' : '▼ 숏'}</span>
-                    {isRec && <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 font-bold">엔진 추천</span>}
+                    {isRec && <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 font-bold">엔진 계산</span>}
                   </div>
                   <div className="space-y-0.5 text-[11px] tabular-nums">
                     <p className="flex justify-between gap-1"><span className="text-[var(--text-muted)]">진입(현재가)</span><span className="text-[var(--text)] font-semibold">${fmtP(price, digits)}</span></p>
@@ -1315,7 +1315,8 @@ export default function CoinAnalysisPage() {
         <div className="fin-card p-4 lg:p-5">
           <p className="text-[14px] font-semibold text-[var(--text)]">{COINS.find((c) => c.symbol === symbol)?.short} 심층 분석은 아직 실행하지 않았습니다.</p>
           <p className="text-[12.5px] text-[var(--text-muted)] mt-1 leading-relaxed">
-            진입 판단·중요 가격대·체크리스트·시간대별 지표·캔들 차트·오더북·뉴스·파생 수급·AI 브리핑·백테스트 성적표를 한 번에 계산합니다.
+            분석을 실행하면 가격 흐름·거래량·미결제약정(OI: 아직 종료되지 않은 선물 계약 규모)·뉴스를 함께 점검합니다. 결과는 점검 목록이며 매수·매도 추천이 아닙니다.
+            진입 전 점검·중요 가격대·체크리스트·시간대별 지표·캔들 차트·오더북·뉴스·파생 수급·AI 브리핑·백테스트 성적표를 한 번에 계산합니다.
             캔들 수집과 AI 호출을 아끼려고 <b className="text-[var(--text)]">심층 분석 실행</b>을 눌렀을 때만 돌고, 결과에는 분석 시각이 함께 표시됩니다.
           </p>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-3" aria-hidden>
@@ -1560,7 +1561,7 @@ export default function CoinAnalysisPage() {
           <div className="space-y-3">
             {/* 자주 쓰는 3개만 크게 + 나머지는 '더보기' 시트(2026-10-26 단순화 — 예전엔 버튼 8개가 한 줄에 몰려 있었다) */}
             <div className="grid grid-cols-4 gap-1.5">
-              <button type="button" onClick={() => setModal('entry')} className="btn-3d min-h-[42px] text-[12.5px]">진입 판단</button>
+              <button type="button" onClick={() => setModal('entry')} className="btn-3d min-h-[42px] text-[12.5px]">진입 전 점검</button>
               <button type="button" onClick={() => setModal('position')} className="btn-2nd min-h-[42px] text-[12.5px]">내 포지션</button>
               <button type="button" onClick={saveToJournal} className="btn-2nd min-h-[42px] text-[12.5px]">＋ 일지 기록</button>
               <button type="button" onClick={() => setModal('more')} aria-label="분석 도구 더보기" className="btn-2nd min-h-[42px] text-[12.5px]">분석 도구</button>
@@ -1596,7 +1597,7 @@ export default function CoinAnalysisPage() {
             <section className="fin-card p-5" aria-label="백테스트 성적표">
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <h3 className="text-sm font-bold text-[var(--text)]">백테스트 성적표</h3><span className="text-[10.5px] text-[var(--text-muted)]">최근 신호 5건(최신순)</span>
-                <span className="text-[10.5px] text-[var(--text-muted)] tabular-nums">최근 {Math.round(data.backtest.spanHours)}시간 · 룰 엔진 신호 재생</span>
+                <span className="text-[10.5px] text-[var(--text-muted)] tabular-nums">최근 {Math.round(data.backtest.spanHours)}시간 · 룰 엔진 신호 재생 · 수수료 미반영·짧은 표본이라 승률은 예측 신호 아님</span>
               </div>
               {data.backtest.signals > 0 ? (
                 <>
@@ -1653,8 +1654,8 @@ export default function CoinAnalysisPage() {
             </div>
           </BottomSheet>
 
-          {/* 🎯 진입 판단 — 상단 버튼 → 팝업 */}
-          <BottomSheet open={modal === 'entry'} onClose={() => setModal(null)} title="진입 판단" full>
+          {/* 🎯 진입 전 점검 — 상단 버튼 → 팝업 */}
+          <BottomSheet open={modal === 'entry'} onClose={() => setModal(null)} title="진입 전 점검" full>
             <EntryDecision data={data} v={v} digits={priceDigits} />
           </BottomSheet>
 

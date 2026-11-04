@@ -681,7 +681,7 @@ export async function GET(req: NextRequest) {
     }
     if (oiChange1hPct !== null && Math.abs(oiChange1hPct) >= 0.3 && Math.abs(pChg12) >= 0.15) {
       const oiUp = oiChange1hPct > 0, pUp = pChg12 > 0;
-      const label = pUp && oiUp ? '신규 롱 자금 유입' : pUp && !oiUp ? '숏커버(청산성 상승) — 연료 부족 주의' : !pUp && oiUp ? '신규 숏 자금 유입' : '롱 포지션 정리(청산성 하락)';
+      const label = pUp && oiUp ? '새 포지션 증가 속 상승(신규 롱 우세로 흔히 해석)' : pUp && !oiUp ? '포지션 감소 속 상승(숏 정리 가능성) — 연료 부족 주의' : !pUp && oiUp ? '새 포지션 증가 속 하락(신규 숏 우세로 흔히 해석)' : '포지션 감소 속 하락(롱 정리 가능성)';
       movement.drivers.push({
         text: `1시간 OI ${oiChange1hPct > 0 ? '+' : ''}${oiChange1hPct.toFixed(2)}% × 가격 ${pChg12 >= 0 ? '+' : ''}${pChg12.toFixed(2)}% — ${label}`,
         tone: (pUp && oiUp) ? 'up' : (!pUp && oiUp) ? 'down' : 'warn',

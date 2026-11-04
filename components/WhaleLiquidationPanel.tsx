@@ -122,7 +122,7 @@ export default function WhaleLiquidationPanel({ symbol }: { symbol?: string }) {
         {fWhale.slice(0, 30).map((it, i) => <li key={i} className="py-1 border-b border-[var(--border)] text-[12px]">{whaleLine(it)}</li>)}
         {!fWhale.length && <li className="text-[11px] text-[var(--text-muted)] py-1">{short ? `${short} 고래 데이터 대기 중…` : '고래 데이터 로딩 중…'}</li>}
       </ul>
-      {whale?.note && <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-70">{whale.note}</p>}
+      <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-70">대량 체결·온체인 이동은 실제 청산이나 신규 숏 진입과 다른 현상입니다. 거래소 입출금·내부 지갑 이동이 구분되지 않으면 매도 압력으로 단정할 수 없습니다.{whale?.note ? ` ${whale.note}` : ''}</p>
     </RotatingTicker>
   );
 }

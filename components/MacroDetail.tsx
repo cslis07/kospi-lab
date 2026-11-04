@@ -6,7 +6,7 @@
  */
 import Link from 'next/link';
 import MacroChartLazy from '@/components/MacroChartLazy';
-import type { MacroIndicator } from '@/lib/macroData';
+import { shiftMonth, type MacroIndicator } from '@/lib/macroData';
 
 export const FLAG: Record<string, string> = { US: '🇺🇸', KR: '🇰🇷' };
 // FRED 지표 → 인베스팅 발표 이력(결과·예측) 연결
@@ -68,7 +68,7 @@ export default function MacroDetail({ cur }: { cur: MacroIndicator }) {
             <p className={`text-sm font-bold tabular-nums mt-0.5 ${chgClass(cur.changePct)}`}>{fmtPct(cur.changePct)}</p>
           </div>
           <div className="rounded-xl border border-[var(--border)] bg-white/3 p-2.5">
-            <p className="text-[10px] text-[var(--text-muted)]">{cur.periodicity === 'monthly' ? '전년동월대비(YoY)' : '추세'}</p>
+            <p className="text-[10px] text-[var(--text-muted)]" title={cur.yoyBasis === 'nsa' ? '1년 전 같은 달 대비. BLS 헤드라인과 같은 계절조정 전 지수로 계산(위 지수 레벨은 계절조정 값)' : cur.yoyBasis === 'same' ? '1년 전 같은 달 대비(위 지수와 같은 계열)' : undefined}>{cur.periodicity === 'monthly' ? `전년동월대비(YoY${cur.yoyBasis === 'nsa' ? '·계절조정 전' : ''})` : '추세'}</p>
             <p className={`text-sm font-bold tabular-nums mt-0.5 ${cur.periodicity === 'monthly' ? chgClass(cur.yoyPct) : 'text-[var(--text-muted)]'}`}>
               {cur.periodicity === 'monthly' ? fmtPct(cur.yoyPct) : '아래 차트'}
             </p>
@@ -97,7 +97,9 @@ export default function MacroDetail({ cur }: { cur: MacroIndicator }) {
             <tbody>
               {[...cur.history].reverse().slice(0, 12).map((p, i, arr) => {
                 const next = arr[i + 1];
-                const ch = next && next.value !== 0 ? ((p.value - next.value) / next.value) * 100 : null;
+                // 월간은 바로 앞 달과만 비교 — 발표가 빠진 달(예: 2025-10 CPI 셧다운 미발표)을 건너뛰어 2개월 변화를 '전월대비'로 쓰지 않는다
+                const adjacent = cur.periodicity !== 'monthly' || (next != null && next.date.slice(0, 7) === shiftMonth(p.date.slice(0, 7), -1));
+                const ch = adjacent && next && next.value !== 0 ? ((p.value - next.value) / next.value) * 100 : null;
                 return (
                   <tr key={p.date} className={i % 2 === 1 ? 'bg-[var(--bg)]/30' : ''}>
                     <td className="px-3 py-2 text-[var(--text-muted)]">{fmtPeriod(p.date, cur.periodicity === 'monthly')}</td>

@@ -128,7 +128,7 @@ export const MENU: MenuGroup[] = [
     { href: '/calendar',   icon: 'calendar', label: '경제 캘린더',    desc: 'FOMC·CPI·실적 등 주요 일정' },
     { href: '/indicators', icon: 'signal',   label: '시장지표',       desc: '환율·금리·원자재 + 미국 CPI·PPI 등 경제지표', sub: '거시' },
     { href: '/releases',   icon: 'calendar', label: '지표 발표 이력', desc: '인베스팅 결과·예측·이전(2021~)' },
-    { href: '/inflation',  icon: 'signal',   label: '실시간 물가',    desc: '나우캐스트 인플레이션·공식 CPI 대비' },
+    { href: '/inflation',  icon: 'signal',   label: '실시간 물가',    desc: '공식 CPI 발표 전 물가 추정(나우캐스트)' },
     { href: '/seasonality', icon: 'calendar', label: '계절성',        desc: '코스피·S&P·비트코인 월별 수익률(최대 20년)' },
   ]),
   G('trading', '트레이딩', 'c-amber', 'qc-amber', 'futures', [
@@ -175,19 +175,19 @@ export const EXTRAS: MenuItem[] = [
  *  허브 루트(/inflation)는 EXTRAS 의 '실시간 물가' 항목이 담당하고, 여기는 그 하위 페이지들. */
 export const INFLATION_SECTIONS: MenuItem[] = [
   { href: '/inflation/why',         icon: 'signal', label: '오늘 왜',       desc: '게이지가 움직인 이유' },
-  { href: '/inflation/gap',         icon: 'signal', label: 'CPI 격차',      desc: '공식 BLS 전지표 대비' },
-  { href: '/inflation/truflation',  icon: 'signal', label: 'vs Truflation', desc: '민간 실시간 추정 비교' },
-  { href: '/inflation/lead',        icon: 'signal', label: '리드 테스트',    desc: '발표 전 적중 통계' },
-  { href: '/inflation/scoreboard',  icon: 'report', label: '예측 스코어보드', desc: '예측자 적중·백테스트' },
+  { href: '/inflation/gap',         icon: 'signal', label: 'CPI 격차',      desc: '추정치와 공식 BLS 발표의 차이' },
+  { href: '/inflation/truflation',  icon: 'signal', label: 'vs Truflation', desc: '다른 민간 실시간 물가 추정과 비교' },
+  { href: '/inflation/lead',        icon: 'signal', label: '리드 테스트',    desc: '추정치가 발표를 미리 맞혔는지(과거)' },
+  { href: '/inflation/scoreboard',  icon: 'report', label: '예측 스코어보드', desc: '예측자별 과거 적중 기록' },
   { href: '/inflation/calendar',    icon: 'calendar', label: '발표 일정',     desc: '미국 주요 지표·예측' },
-  { href: '/inflation/markets',     icon: 'invest', label: '예측시장',       desc: 'Polymarket·Kalshi 확률' },
-  { href: '/inflation/fed',         icon: 'target', label: 'Fed watch',     desc: '다음 FOMC 시장 확률' },
+  { href: '/inflation/markets',     icon: 'invest', label: '예측시장',       desc: 'Polymarket·Kalshi 참가자 가격(시장 기대)' },
+  { href: '/inflation/fed',         icon: 'target', label: 'Fed watch',     desc: '다음 FOMC 금리에 대한 시장 기대' },
   { href: '/inflation/brief',       icon: 'sunrise', label: '데일리 브리핑',  desc: '하루치 인플레 요약' },
   { href: '/inflation/analysis',    icon: 'report', label: '발표일 분석',    desc: '예측 대 실제' },
   { href: '/inflation/articles',    icon: 'news',   label: '경제 기사',      desc: 'Nowflation 해설' },
-  { href: '/inflation/jobs',        icon: 'growth', label: '고용',          desc: 'NFP·실업·임금' },
+  { href: '/inflation/jobs',        icon: 'growth', label: '고용',          desc: '비농업 고용(NFP)·실업률·임금' },
   { href: '/inflation/heatcheck',   icon: 'risk',   label: '경기 열지수',    desc: '침체 신호 점검', hidden: true },
-  { href: '/inflation/quilt',       icon: 'analysis', label: '인플레 히트맵', desc: '품목×월 YoY' },
+  { href: '/inflation/quilt',       icon: 'analysis', label: '인플레 히트맵', desc: '품목×월 전년동월대비(YoY)' },
 ];
 
 /** 종목·코인 상세 — 섹션 항목 하위 경로여도 드릴다운(뒤로가기)으로 취급 */

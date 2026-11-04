@@ -40,7 +40,7 @@ export default function LeadPage() {
         평균오차·상관·방향 적중, 그리고 "직전값 그대로 쓰기(나이브)"보다 나았던 비율까지. <b className="text-[var(--text)]">과거 성적이며 미래 예측·매매 신호가 아닙니다.</b>
       </p>
 
-      {lt?.locked && <div className="mb-4"><UnlockGate /></div>}
+      {lt?.locked && <div className="mb-4"><UnlockGate reason="이 페이지는 접근 권한이 필요한 분석 페이지입니다." /></div>}
 
       {lt && !lt.locked && w && (
         <>

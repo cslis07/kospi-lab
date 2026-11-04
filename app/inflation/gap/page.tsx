@@ -21,7 +21,7 @@ export default function GapPage() {
         격차가 <span className="text-red-400 font-semibold">+</span>면 게이지가 공식보다 높다는 뜻(발표 전 선반영일 수 있음). <b className="text-[var(--text)]">매매 신호가 아닙니다.</b>
       </p>
 
-      {g?.locked && <div className="mb-4"><UnlockGate /></div>}
+      {g?.locked && <div className="mb-4"><UnlockGate reason="이 페이지는 접근 권한이 필요한 분석 페이지입니다." /></div>}
 
       {rows.length > 0 && !g?.locked && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden mb-3">

@@ -3,6 +3,7 @@
  * 홈 '주요 이벤트'와 경제 캘린더 화면이 같이 쓴다. 날짜 기준은 KST(UTC 로 자르면 오전 9시 전 '어제'가 된다).
  */
 import type { CalendarEvent } from '@/lib/types';
+import { tzOffsetMin } from '@/lib/macroSchedule';
 
 export const CATEGORY_LABEL: Record<CalendarEvent['category'], string> = {
   fomc: 'FOMC', bok: '한국은행', earnings: '실적시즌', indicator: '경제지표', holiday: '휴장',
@@ -16,12 +17,9 @@ export function kstToday(): string {
   return new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10);
 }
 
-/** 미국 동부 서머타임 여부(대략: 3월 둘째주~11월 첫주). 발표시각의 KST 환산에 쓴다. */
-function isUsDst(dateStr: string): boolean {
-  const [, m, d] = dateStr.split('-').map(Number);
-  if (m > 3 && m < 11) return true;   // 4~10월
-  if (m === 3) return d >= 8;          // 3월 둘째 일요일 무렵부터
-  return false;                        // 11~2월(11월 첫주 이후 EST)
+/** 그 날 미 동부(America/New_York)가 서머타임인지 — 정오 기준 시간대 오프셋(EDT −240분)으로 판정(근사 날짜 규칙 없음) */
+export function isUsDst(dateStr: string): boolean {
+  return tzOffsetMin(Date.parse(`${dateStr}T16:00:00Z`)) === -240;
 }
 
 /**

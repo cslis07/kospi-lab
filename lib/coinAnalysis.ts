@@ -680,9 +680,9 @@ export function buildVerdict(
       extras.priceChange1hPct !== null && extras.priceChange1hPct !== undefined &&
       Math.abs(extras.oiChange1hPct) >= 0.3 && Math.abs(extras.priceChange1hPct) >= 0.15) {
     const oiUp = extras.oiChange1hPct > 0, pUp = extras.priceChange1hPct > 0;
-    if (pUp && oiUp)        { score += 6; reasons.push(`가격↑ + OI ${extras.oiChange1hPct.toFixed(1)}%↑ — 신규 롱 유입, 상승 신뢰도 높음`); }
+    if (pUp && oiUp)        { score += 6; reasons.push(`가격↑ + OI ${extras.oiChange1hPct.toFixed(1)}%↑ — 새 포지션이 늘며 상승(흔히 신규 롱 우세로 해석, 단정 불가)`); }
     else if (pUp && !oiUp)  { score -= 4; warnings.push(`가격↑ + OI ${extras.oiChange1hPct.toFixed(1)}%↓ — 숏커버 랠리, 연료 부족 주의`); }
-    else if (!pUp && oiUp)  { score -= 6; reasons.push(`가격↓ + OI ${Math.abs(extras.oiChange1hPct).toFixed(1)}%↑ — 신규 숏 유입, 하락 신뢰도 높음`); }
+    else if (!pUp && oiUp)  { score -= 6; reasons.push(`가격↓ + OI ${Math.abs(extras.oiChange1hPct).toFixed(1)}%↑ — 새 포지션이 늘며 하락(흔히 신규 숏 우세로 해석, 단정 불가)`); }
     else                    { score += 4; warnings.push(`가격↓ + OI ${Math.abs(extras.oiChange1hPct).toFixed(1)}%↓ — 롱 청산성 하락, 소진 후 반등 여지`); }
   }
 

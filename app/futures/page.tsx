@@ -16,6 +16,7 @@ interface FuturesRow {
   low24h: number;
   quoteVolume: number;
   fundingRate: number | null;
+  fundingIntervalH?: number | null;
   holdingAmount: number | null;
 }
 
@@ -91,7 +92,7 @@ export default function FuturesPage() {
   return (
     <div className="max-w-4xl xl:max-w-none mx-auto pb-12">
       <h1 className="text-xl font-bold text-[var(--text)] mb-1">선물 시세 (USDT 무기한)</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-5">Bitget USDT-Margined Perpetual Futures · 10초마다 갱신</p>
+      <p className="text-sm text-[var(--text-muted)] mb-5">최근 24시간 많이 오르거나 내린 선물 계약을 보여줍니다. 상승 순위는 앞으로 오를 종목의 추천 순위가 아닙니다. · Bitget USDT 무기한 · 10초마다 화면 재조회</p>
 
       {/* ── 한눈에 보기: 막대그래프 ── */}
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-5">
@@ -112,7 +113,7 @@ export default function FuturesPage() {
             posText="text-emerald-400" negText="text-red-400" />
         )}
         <p className="text-[11px] text-[var(--text-muted)] mt-3 opacity-60">
-          {chartView === 'volume' ? '24시간 거래대금 상위 12종목' : `24시간 ${chartView === 'gainers' ? '상승률' : '하락률'} 상위 12종목`} · 참고용
+          {chartView === 'volume' ? '24시간 거래대금 상위 12종목' : `24시간 ${chartView === 'gainers' ? '상승률' : '하락률'} 상위 12종목`} · 지난 24시간 기록이며 추천 순위 아님
         </p>
       </div>
 
@@ -187,7 +188,7 @@ export default function FuturesPage() {
                       r.fundingRate == null ? 'text-[var(--text-muted)]' :
                       r.fundingRate > 0     ? 'text-[var(--up)]' : 'text-[var(--down)]'
                     }`}>
-                      {r.fundingRate != null ? `${r.fundingRate > 0 ? '+' : ''}${r.fundingRate.toFixed(4)}%` : '-'}
+                      {r.fundingRate != null ? `${r.fundingRate > 0 ? '+' : ''}${r.fundingRate.toFixed(4)}%${r.fundingIntervalH ? `/${r.fundingIntervalH}h` : ''}` : '-'}
                     </td>
                   </tr>
                 );
@@ -201,7 +202,7 @@ export default function FuturesPage() {
       )}
 
       <p className="text-center text-[11px] text-[var(--text-muted)] mt-4 opacity-60">
-        * 펀딩비는 8시간마다 정산 · 최대 100개 표시
+        * 24h% = 최근 24시간 가격 변화 · 거래대금 = 24시간 거래 규모(USDT) · 펀딩비 = 정산 1회 요율(양수면 롱이 숏에게, 음수면 숏이 롱에게 지불), 정산 주기는 계약마다 다름(/8h·/4h 표시) · 주식·ETF 이름의 계약은 그 주식 자체가 아니라 가격을 따라가는 무기한 선물 · 최대 100개 표시
       </p>
     </div>
   );

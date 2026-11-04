@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
-import { computeReaction, type PricePoint, type ReactionStat, type ReactionResult } from '@/lib/releaseReaction';
+import { computeReaction, pendingLabel, type PricePoint, type ReactionStat, type ReactionResult } from '@/lib/releaseReaction';
 import ReleaseChartLazy from '@/components/ReleaseChartLazy';
 import Link from 'next/link';
 
@@ -50,7 +50,8 @@ export default function ReleasesPage() {
   useEffect(() => {
     try { const q = new URLSearchParams(window.location.search).get('id'); if (q) setSel(q); } catch {}
   }, []);
-  const curId = sel || items[0]?.id || '';
+  // 첫 진입은 초보자가 가장 많이 찾는 CPI(전년 대비) — 딥링크(?id=)가 있으면 그것 우선
+  const curId = sel || items.find((x) => x.id === 'cpi-733')?.id || items[0]?.id || '';
   const { data: file } = useSWR<DataFile>(curId ? `/data/investing/${curId}.json` : null, fetcher);
   const meta = items.find((x) => x.id === curId);
 
@@ -95,8 +96,8 @@ export default function ReleasesPage() {
     <div className="max-w-3xl lg:max-w-5xl mx-auto pb-12">
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">경제지표 발표 이력</h1>
       <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">
-        인베스팅닷컴의 지표별 발표 내역(<b className="text-[var(--text)]">결과·예측·이전</b>)을 2021년 1월부터 모았습니다.
-        예측(컨센서스)까지 포함한 스냅샷이며, 자동 갱신되지 않습니다(필요 시 재수집).
+        경제지표가 예상보다 높거나 낮게 나왔을 때, 과거 시장이 어떻게 움직였는지 살펴봅니다. 과거 결과가 반복된다는 뜻은 아닙니다.
+        인베스팅닷컴 발표 내역(<b className="text-[var(--text)]">결과·예측·이전</b>, 2021년 1월~)을 모은 <b className="text-[var(--text)]">수집 스냅샷</b>이라 자동 갱신되지 않습니다{idx ? `(수집 ${idx.updatedAt})` : ''}.
       </p>
 
       {/* 지표 선택 */}
@@ -169,7 +170,7 @@ export default function ReleasesPage() {
                     <tr key={r.date + i} className={`border-b border-[var(--border)]/50 ${!r.actual ? 'bg-[var(--surface-2)]/40' : ''}`}>
                       <td className="px-3 py-2 font-semibold text-[var(--text)] whitespace-nowrap">{r.date}{r.ref ? <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1">({r.ref})</span> : ''}</td>
                       <td className="px-2 py-2 text-[var(--text-muted)] whitespace-nowrap">{r.time ?? '-'}</td>
-                      <td className={`px-2 py-2 text-right font-bold tabular-nums ${actualClass(r.actual, r.forecast)}`}>{r.actual || (r.actual === '' ? '-' : '발표 전')}</td>
+                      <td className={`px-2 py-2 text-right font-bold tabular-nums ${actualClass(r.actual, r.forecast)}`}>{r.actual || (r.actual === '' ? '-' : pendingLabel(r.date, idx?.updatedAt))}</td>
                       <td className="px-2 py-2 text-right tabular-nums text-[var(--text-muted)]">{r.forecast || '-'}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">{r.previous || '-'}</td>
                     </tr>
@@ -178,12 +179,12 @@ export default function ReleasesPage() {
               </table>
             </div>
           </div>
-          <p className="text-[11px] text-[var(--text-muted)] mt-2">결과 색: <span className="text-blue-400 font-semibold">예측 상회</span> · <span className="text-red-400 font-semibold">예측 하회</span> (인베스팅 표기와 동일). 표시행 {rows.length}건.</p>
+          <p className="text-[11px] text-[var(--text-muted)] mt-2">결과 색: <span className="text-blue-400 font-semibold">예측 상회</span> · <span className="text-red-400 font-semibold">예측 하회</span> (인베스팅 표기와 동일). 결과 = 발표값 · 예측 = 시장 예상(컨센서스, 확정값 아님) · 이전 = 직전 발표(수정될 수 있음). 표시행 {rows.length}건.</p>
 
           {/* 서프라이즈 → 다음 거래일 시장 반응 */}
           <div className="fin-card p-5 mt-4">
             <h2 className="text-sm font-semibold text-[var(--text)]">서프라이즈 → 다음 거래일 반응</h2>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-3">결과가 <b className="text-[var(--text)]">예측을 벗어난 날</b>, 그 다음 시장이 어떻게 움직였나(과거 평균). 美 지표라 S&P·BTC는 발표 당일, 코스피는 다음 거래일 기준.</p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-3">결과가 <b className="text-[var(--text)]">예측을 벗어난 날</b>, 그 다음 시장이 어떻게 움직였나(과거 평균). 측정 = 하루 종가 변동: S&P·BTC는 발표일 종가 ÷ 전날 종가(BTC는 24시간 시장이라 UTC 일봉), 코스피는 발표 다음 거래일 종가 ÷ 그 전 거래일 종가.</p>
             {reaction && 'tooFew' in reaction ? (
               <p className="text-[12px] text-[var(--text-muted)]">이 지표는 예측(컨센서스) 있는 발표가 {reaction.tooFew}건뿐이라 반응 분석을 생략합니다(국채 입찰·ADP 등은 컨센서스가 없음).</p>
             ) : reaction && 'loading' in reaction ? (
@@ -216,7 +217,7 @@ export default function ReleasesPage() {
                   </table>
                 </div>
                 <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
-                  각 칸 = 평균 변동% · 상승 비율(표본 수). <b>상회/하회는 좋고 나쁨이 아니라 결과가 예측보다 높았나 낮았나</b>일 뿐입니다(지표마다 의미 다름).
+                  각 칸 = 평균 변동% · 상승 비율(표본 수) — 상승 비율은 과거 표본 중 오른 날의 비율이지 미래 상승 확률이 아닙니다. <b>상회/하회는 좋고 나쁨이 아니라 결과가 예측보다 높았나 낮았나</b>일 뿐입니다(지표마다 의미 다름).
                   변동폭이 대조군과 비슷하거나 표본(괄호)이 적으면(주황) <b className="text-amber-400">우연</b>입니다 — 이 앱의 측정에서 지표 서프라이즈로 다음날을 맞히는 우위는 거의 없었습니다. 상관이지 인과 아님.
                 </p>
               </>

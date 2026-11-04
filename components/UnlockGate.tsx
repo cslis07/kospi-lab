@@ -6,7 +6,8 @@ import { useState } from 'react';
  * 잠긴 페이지에서 토큰을 붙여넣어 브라우저를 인증하는 폼.
  * POST /api/unlock 으로 쿠키를 설정하고, 성공 시 페이지를 새로고침한다.
  */
-export default function UnlockGate() {
+/** reason: 잠긴 이유 한 문장(기본 = 계좌 화면 문구). 물가 등 분석 페이지는 그 페이지에 맞는 안내를 넘긴다 */
+export default function UnlockGate({ reason = '계좌 잔고는 본인만 볼 수 있습니다.' }: { reason?: string } = {}) {
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -41,7 +42,7 @@ export default function UnlockGate() {
     <div className="rounded-2xl border border-sky-500/30 bg-sky-500/5 p-5">
       <p className="text-sm font-semibold text-sky-400 mb-2">🔒 잠긴 페이지입니다</p>
       <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
-        계좌 잔고는 본인만 볼 수 있습니다. 접근 토큰을 입력해 이 브라우저를 인증하세요.
+        {reason} 접근 토큰을 입력해 이 브라우저를 인증하세요.
         한 번 인증하면 이 기기에서 1년간 유지됩니다.
       </p>
       <form onSubmit={submit} className="flex flex-wrap items-center gap-2">

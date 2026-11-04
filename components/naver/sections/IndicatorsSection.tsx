@@ -121,7 +121,7 @@ export default function IndicatorsSection({ home = false }: { home?: boolean }) 
 
   return (
     <div>
-      <SectionTitle big={home} title="환율 · 시장지표" live={data?.asOf ?? ''} every={10} sub={home ? undefined : '10초마다 갱신 · 미니차트 최근 30거래일'} right={home ? <MoreLink href="/indicators" /> : undefined} />
+      <SectionTitle big={home} title="환율 · 시장지표" live={data?.asOf ?? ''} every={10} sub={home ? undefined : '10초마다 화면 재조회(원천 시점은 카드의 실시간·지연 표시) · 미니차트 최근 30거래일'} right={home ? <MoreLink href="/indicators" /> : undefined} />
       {error ? <div className="fin-card"><Empty /></div> : data && !data.items.length ? <div className="fin-card"><Empty text={EMPTY_SOURCE} /></div> : home ? (
         <div className="nv-ind-home">{HOME_ORDER.map(slot)}</div>
       ) : GROUPS.map(([g, codes]) => (
@@ -134,13 +134,13 @@ export default function IndicatorsSection({ home = false }: { home?: boolean }) 
       {/* 🆕 경제지표(FRED) — 페이지에서만. 눌러서 상세(차트·발표내역·영향) */}
       {!home && (
         <section style={{ marginBottom: 18 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', margin: '14px 2px 4px' }}>경제지표 <span style={{ fontWeight: 400, color: 'var(--faint)', fontSize: 11.5 }}>· 미국 물가·나스닥·달러·유가와 원/달러(FRED 공식 발표치) — 카드를 누르면 상세</span></div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', margin: '14px 2px 4px' }}>경제지표 <span style={{ fontWeight: 400, color: 'var(--faint)', fontSize: 11.5 }}>· 미국 물가·나스닥·달러·유가와 원/달러(FRED 공식 발표치, 기준일 값이라 위 실시간 시세와 시점이 다름) — 카드를 누르면 상세</span></div>
           <div className="nv-ind-grid">{MACRO_ORDER.map(macroSlot)}</div>
         </section>
       )}
 
       {/* 출처·신호 아님 고지는 홈에서도 노출(완성도 축 9) */}
-      <SourceNote>출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물){home ? '' : ' · 경제지표는 FRED(세인트루이스 연은) 공식 발표치'}. 국내 금은 g당 원화 가격, 엔화는 100엔 기준입니다. ‘N분 지연’ 표시 지표는 실시간이 아닙니다.{home ? '' : ' 지표를 누르면 히스토리·설명을 봅니다.'}</SourceNote>
+      <SourceNote>출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물){home ? '' : ' · 경제지표는 FRED(세인트루이스 연은) 공식 발표치'}. 국내 금은 g당 원화 가격, 엔화는 100엔 기준입니다. ‘N분 지연’ 표시 지표는 실시간이 아닙니다.{home ? '' : ' 각각 코인에 영향을 줄 수 있지만, 한 숫자만으로 매매 방향을 결정할 수는 없습니다. 지표를 누르면 히스토리·설명을 봅니다.'}</SourceNote>
 
       {/* 상세 바텀시트 — live 시장지표 또는 경제지표(FRED) */}
       {!home && (

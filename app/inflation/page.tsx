@@ -85,11 +85,12 @@ export default function InflationPage() {
     <>
       <h1 className="text-xl font-extrabold text-[var(--text)] mb-1">실시간 물가 (나우캐스트)</h1>
       <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">
-        미국 소비자물가(CPI)는 한 달에 한 번, 2주 지나 발표됩니다. <b className="text-[var(--text)]">Nowflation</b>은 매일 갱신되는 실시간 추정치(나우캐스트)로
-        "공식 CPI가 지금 어디쯤인지"를 먼저 보여줍니다. <b className="text-[var(--text)]">예측·매매 신호가 아니라</b> 물가 흐름을 읽는 맥락 도구입니다.
+        공식 CPI가 발표되기 전, 최신 자료로 물가 흐름을 가늠하는 <b className="text-[var(--text)]">추정치(나우캐스트)</b>입니다. 실제 발표 수치와 다를 수 있습니다.
+        미국 CPI는 한 달에 한 번, 2주 지나 발표되고 <b className="text-[var(--text)]">Nowflation</b>은 매일 갱신됩니다. 추정치(Nowflation·Truflation)·시장 예상(컨센서스)·예측시장 가격·공식 CPI는 출처와 성격이 서로 다릅니다.
+        <b className="text-[var(--text)]"> 예측·매매 신호가 아니라</b> 물가 흐름을 읽는 맥락 도구입니다.
       </p>
 
-      {locked && <div className="mb-4"><UnlockGate /></div>}
+      {locked && <div className="mb-4"><UnlockGate reason="이 페이지는 접근 권한이 필요한 분석 페이지입니다." /></div>}
 
       {!locked && pulse && (
         <>
