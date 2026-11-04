@@ -5,10 +5,11 @@
  * 위: 월별 평균·중앙값·상승 확률 막대(이번 달 강조) · 아래: 연도 × 월 히트맵 표.
  * 참고: TradingView Seasonals · 인베스팅 월별 수익률. 과거 통계일 뿐 다음 달 예측이 아니다(표본 연수 함께 표시).
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import Segmented from '@/components/ui/Segmented';
 import type { Seasonality } from '@/lib/seasonality';
+import { buildSeasonalityInsight } from '@/lib/seasonInsight';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 type Asset = 'kospi' | 'kosdaq' | 'sp500' | 'nasdaq' | 'btc';
@@ -28,7 +29,7 @@ function cell(v: number | null, cap: number) {
 export default function SeasonalityPage() {
   const [asset, setAsset] = useState<Asset>('kospi');
   const [stat, setStat] = useState<Stat>('avg');
-  const { data, error } = useSWR<Seasonality & { name: string; error?: string }>(`/api/seasonality?asset=${asset}`, fetcher, { revalidateOnFocus: false, keepPreviousData: true });
+  const { data, error } = useSWR<Seasonality & { name: string; asset?: string; error?: string }>(`/api/seasonality?asset=${asset}`, fetcher, { revalidateOnFocus: false, keepPreviousData: true });
   const [nowM] = useState(() => new Date().getMonth() + 1);
   const cap = asset === 'btc' ? 25 : 8;
   const stats = data?.stats ?? [];
@@ -36,6 +37,10 @@ export default function SeasonalityPage() {
   const max = Math.max(1, ...vals.map((v) => Math.abs(v ?? 0)));
   const yrs = data?.years ?? [];
   const nYears = Math.max(0, ...stats.map((s) => s.n));
+  // 쉬운 해석(통계 해석 지원, 매매 신호 아님) — 이번 달(강조된 달)은 아래 안내 문구에, 각 달 상세는 막대 툴팁(title)에
+  const insights = useMemo(() => (data?.stats ?? []).map((s) => buildSeasonalityInsight(data?.name ?? '', s, { btc: data?.asset === 'btc' })), [data]);
+  const nowInsight = insights.find((_, i) => stats[i].month === nowM) ?? null;
+  const cur = data?.current ?? null;
 
   return (
     <div className="max-w-6xl mx-auto pb-6">
@@ -55,7 +60,8 @@ export default function SeasonalityPage() {
               const h = v == null ? 0 : (Math.abs(v) / max) * 100;
               const on = s.month === nowM;
               return (
-                <div key={s.month} className={`flex-1 min-w-0 flex flex-col items-center rounded-lg py-1 ${on ? 'bg-[var(--accent-soft)]' : ''}`}>
+                <div key={s.month} title={`${insights[i]?.shortText ?? ''}${insights[i]?.riskDetail ? `
+${insights[i].riskDetail}` : ''}`} className={`flex-1 min-w-0 flex flex-col items-center rounded-lg py-1 ${on ? 'bg-[var(--accent-soft)]' : ''}`}>
                   {/* 폰은 12칸이 좁아 % 기호를 빼고 작게(단위는 위 설명줄에) */}
                   <span className="text-[8.5px] sm:text-[11px] tabular-nums font-semibold whitespace-nowrap tracking-tighter sm:tracking-normal" style={{ color: v == null ? 'var(--faint)' : v >= 0 ? 'var(--up)' : 'var(--down)' }}>
                     {v == null ? '—' : stat === 'upPct' ? <>{s.upPct}<span className="hidden sm:inline">%</span></> : <>{sp(v).replace('%', '')}<span className="hidden sm:inline">%</span></>}
@@ -71,7 +77,7 @@ export default function SeasonalityPage() {
             })}
           </div>
         )}
-        <p className="text-[10.5px] text-[var(--faint)] mt-3">과거 월별 통계이며 다음 달 방향 예측이나 매매 신호가 아닙니다. 연수가 적으면(특히 비트코인) 우연의 폭이 큽니다. 출처: Yahoo Finance 월봉(배당 조정 종가).</p>
+        <p className="text-[10.5px] text-[var(--faint)] mt-3">{data && !data.error && nowInsight ? `${nowInsight.shortText} ` : ''}과거 월별 통계이며 다음 달 방향 예측이나 매매 신호가 아닙니다. 연수가 적으면(특히 비트코인) 우연의 폭이 큽니다. 출처: Yahoo Finance 월봉(배당 조정 종가).</p>
       </div>
 
       {yrs.length > 0 && (
@@ -85,7 +91,7 @@ export default function SeasonalityPage() {
                   <tr key={y.year}>
                     <td className="px-1 text-[var(--text-muted)]">{y.year}</td>
                     {y.months.map((v, i) => (
-                      <td key={i} className="text-center rounded-[4px] py-1 text-[var(--ink)]" style={{ background: cell(v, cap) }}>{v == null ? '' : v.toFixed(1)}</td>
+                      <td key={i} title={cur && y.year === cur.year && i + 1 === cur.month ? '진행 중인 달의 잠정 수익률이며 과거 통계에서 제외' : undefined} className="text-center rounded-[4px] py-1 text-[var(--ink)]" style={{ background: cell(v, cap) }}>{v == null ? '' : v.toFixed(1)}</td>
                     ))}
                     <td className="text-center font-semibold rounded-[4px]" style={{ background: cell(y.total, cap * 3), color: 'var(--ink)' }}>{y.total == null ? '' : sp(y.total)}</td>
                   </tr>

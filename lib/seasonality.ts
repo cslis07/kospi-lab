@@ -4,7 +4,12 @@
  * 입력: Yahoo 월봉 timestamp(초)·종가·거래소 gmtoffset. 같은 달에 점이 둘이면(진행 중인 달) 마지막 값을 쓴다.
  */
 export interface SeasonYear { year: number; months: (number | null)[]; total: number | null }
-export interface SeasonStat { month: number; avg: number | null; median: number | null; upPct: number | null; n: number }
+export interface SeasonStat {
+  month: number; avg: number | null; median: number | null; upPct: number | null; n: number;
+  /** 해석 문구용(lib/seasonInsight) — 반올림 전 원값으로 센 상승(>0)·하락(<0)·보합(=0) 횟수와 최저·최고 월 수익률(연도). 기존 값은 그대로 */
+  up?: number; down?: number; flat?: number;
+  worst?: { pct: number; year: number } | null; best?: { pct: number; year: number } | null;
+}
 export interface Seasonality { years: SeasonYear[]; stats: SeasonStat[]; current: { year: number; month: number } | null }
 
 /** 'YYYY-MM' → 종가(그 달의 마지막 값) */
@@ -41,8 +46,17 @@ export function seasonality(closes: Map<string, number>, now: Date): Seasonality
     return { year, months, total };
   });
   const stats: SeasonStat[] = Array.from({ length: 12 }, (_, i) => {
-    const xs = [...ret.entries()].filter(([k]) => Number(k.slice(5)) === i + 1 && k !== curKey).map(([, v]) => v);
-    return { month: i + 1, n: xs.length, avg: xs.length ? r2(xs.reduce((a, v) => a + v, 0) / xs.length) : null, median: xs.length ? r2(med(xs)) : null, upPct: xs.length ? Math.round((xs.filter((v) => v > 0).length / xs.length) * 100) : null };
+    const es = [...ret.entries()].filter(([k]) => Number(k.slice(5)) === i + 1 && k !== curKey);
+    const xs = es.map(([, v]) => v);
+    const ext = (pick: (a: number, b: number) => boolean) => es.length
+      ? es.reduce((m, [k, v]) => (pick(v, m.raw) ? { pct: r2(v), year: Number(k.slice(0, 4)), raw: v } : m), { pct: r2(es[0][1]), year: Number(es[0][0].slice(0, 4)), raw: es[0][1] })
+      : null;
+    const lo = ext((v, m) => v < m), hi = ext((v, m) => v > m);
+    return {
+      month: i + 1, n: xs.length, avg: xs.length ? r2(xs.reduce((a, v) => a + v, 0) / xs.length) : null, median: xs.length ? r2(med(xs)) : null, upPct: xs.length ? Math.round((xs.filter((v) => v > 0).length / xs.length) * 100) : null,
+      up: xs.filter((v) => v > 0).length, down: xs.filter((v) => v < 0).length, flat: xs.filter((v) => v === 0).length,
+      worst: lo && { pct: lo.pct, year: lo.year }, best: hi && { pct: hi.pct, year: hi.year },
+    };
   });
   return { years, stats, current: ret.has(curKey) ? { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 } : null };
 }
