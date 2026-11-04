@@ -1,0 +1,52 @@
+# BNF 모의 검증 봇(선행 테스트) — 사전등록: docs/bnf/FORWARD.md
+# Bitget 공개 캔들로 2026-11-05 00:00 UTC 이후 신호만 결정적으로 재계산해 bnf-forward 브랜치에 기록한다.
+# 실거래 주문·API 키 없음. Vercel 함수 미사용(Hobby CPU 예산). 예약 실행이 늦어져도 결과는 같다(확정 봉 재계산).
+# 보관은 bnf-forward 브랜치(data/bnf-forward.json). data·etf-data 브랜치와 섞지 않는다.
+name: BNF 모의 검증 봇
+on:
+  schedule:
+    - cron: '23 */3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: bnf-forward
+  cancel-in-progress: false
+jobs:
+  forward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 이전 기록 복원 (bnf-forward 브랜치)
+        run: |
+          git fetch origin bnf-forward 2>/dev/null || true
+          mkdir -p data
+          if git cat-file -e origin/bnf-forward:data/bnf-forward.json 2>/dev/null; then
+            git show origin/bnf-forward:data/bnf-forward.json > data/bnf-forward.json
+          fi
+      - name: 모의 검증 실행
+        run: npx --yes tsx scripts/bnf-forward.ts
+      # plumbing(commit-tree)으로 bnf-forward 브랜치에 직접 커밋 — main 무접촉, vercel.json으로 배포 안 만듦
+      - name: bnf-forward 브랜치에 커밋
+        run: |
+          set -e
+          git config user.name "kospi-lab-bot"
+          git config user.email "bot@users.noreply.github.com"
+          BLOB=$(git hash-object -w data/bnf-forward.json)
+          if OLD=$(git rev-parse -q --verify origin/bnf-forward:data/bnf-forward.json); then
+            if [ "$OLD" = "$BLOB" ]; then echo "변경 없음"; exit 0; fi
+          fi
+          INNER=$(printf '100644 blob %s\tbnf-forward.json\n' "$BLOB" | git mktree)
+          VJ=$(printf '{"git":{"deploymentEnabled":false}}\n' | git hash-object -w --stdin)
+          TREE=$(printf '040000 tree %s\tdata\n100644 blob %s\tvercel.json\n' "$INNER" "$VJ" | git mktree)
+          PARENT=$(git rev-parse -q --verify origin/bnf-forward || true)
+          if [ -n "$PARENT" ]; then
+            COMMIT=$(git commit-tree "$TREE" -p "$PARENT" -m "[TRACK] BNF 모의 검증 기록")
+          else
+            COMMIT=$(git commit-tree "$TREE" -m "[TRACK] BNF 모의 검증 기록")
+          fi
+          git push origin "$COMMIT":refs/heads/bnf-forward

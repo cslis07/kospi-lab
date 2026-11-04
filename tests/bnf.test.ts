@@ -9,6 +9,7 @@ import { dailyContext, quantileSorted, wilderAtr, atrAsOf, type DailyContext } f
 import { findSignals, simulate, DEFAULT_PARAMS, type Signal, type RunInput } from '../lib/bnf/engine';
 import { summarize, maxDrawdownPct, maxConsecutiveLosses, monthlyReturns, verdict, diagnose, mfeR, MIN_TRADES, type Summary } from '../lib/bnf/metrics';
 import { fundingExtremeSignals } from '../lib/bnf/hypotheses';
+import { runForward, CANDIDATES } from '../lib/bnf/forward';
 import { unzipFirst } from '../lib/bnf/zip';
 
 let passed = 0;
@@ -391,6 +392,82 @@ ok('E3 진단 — 사유별 평균R·MFE 구간·+1R 뒤 손실', () => {
   assert.deepEqual(d.mfeBuckets.map((b) => b[1]), [0, 0, 1, 0]);
   assert.equal(d.reached1RThenLost, 1);
   assert.equal(d.timeExitAvgR, null);
+});
+
+// ── 모의 검증 봇(선행 테스트, docs/bnf/FORWARD.md) ──────────────
+function synth(days: number, seed0 = 42): Bar[] {
+  let seed = seed0;
+  const rnd = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
+  const out: Bar[] = [];
+  let px = 2000;
+  for (let i = 0; i < 96 * days; i++) {
+    const o = px, c = o * Math.exp((rnd() - 0.5) * 0.012 - 0.00002);
+    out.push({ t: T0 + i * MIN15, o, h: Math.max(o, c) * (1 + rnd() * 0.003), l: Math.min(o, c) * (1 - rnd() * 0.003), c, v: 1 });
+    px = c;
+  }
+  return out;
+}
+const SYN = synth(640);
+const FSTART = T0 + 400 * DAY;
+
+ok('선행 봇 — 백테스트 엔진과 같은 결과(1시간봉→일봉·4시간봉 리샘플, 시작 이후만)', () => {
+  const b1h = resample(SYN, HOUR);
+  const now = SYN[SYN.length - 1].t + MIN15;
+  const fw = runForward({ bars1h: b1h, bars15: SYN.filter((b) => b.t >= FSTART), nowT: now, start: FSTART });
+  assert.equal(fw.status, 'ok');
+  // 기준: 전체 15분봉에서 만든 백테스트(같은 시작 창)
+  const ctx = dailyContext(resample(SYN, DAY)); const b4 = resample(SYN, H4);
+  const sig = findSignals(b1h, HOUR, ctx, 'all');
+  for (const cand of CANDIDATES) {
+    const bt = simulate({ bars15: SYN.filter((b) => b.t >= FSTART), signals: sig, bars4h: b4, atr4h: wilderAtr(b4, 14), params: cand.params, leverage: 5, entryFrom: FSTART, entryTo: Infinity, startT: FSTART });
+    const closedBt = bt.trades.filter((t) => t.reason !== 'data_end');
+    const c = fw.candidates.find((x) => x.id === cand.id)!;
+    assert.ok(closedBt.length > 0, '합성 경로에서 청산 거래가 있어야 의미가 있음');
+    assert.equal(c.closed.length, closedBt.length);
+    c.closed.forEach((t, i) => { assert.equal(Date.parse(t.entryT), closedBt[i].entryT); assert.equal(t.reason, closedBt[i].reason); near(t.net, closedBt[i].net, 1e-4); });
+    assert.equal(c.open != null, bt.trades.at(-1)?.reason === 'data_end');
+  }
+  assert.equal(CANDIDATES[1].params.targetR, 1.0); assert.equal(CANDIDATES[0].params.targetR, 1.8);
+});
+
+ok('선행 봇 — 미완성 봉 제외, 시작 이후 결측이면 그 직전까지만(data_gap)', () => {
+  const b1h = resample(SYN, HOUR);
+  const now = SYN[SYN.length - 1].t + MIN15;
+  const partial = runForward({ bars1h: b1h, bars15: SYN.filter((b) => b.t >= FSTART), nowT: now - 1, start: FSTART });
+  // 마지막 1시간봉이 미완성이면 15분봉도 그 시각까지만(두 계열 중 먼저 끝난 곳)
+  assert.equal(Date.parse(partial.dataThroughUtc!), now - HOUR);
+  const gapAt = FSTART + 20 * DAY;
+  const holed = SYN.filter((b) => b.t >= FSTART && (b.t < gapAt || b.t >= gapAt + HOUR));
+  const g = runForward({ bars1h: b1h, bars15: holed, nowT: now, start: FSTART });
+  assert.equal(g.status, 'data_gap');
+  assert.equal(Date.parse(g.dataThroughUtc!), gapAt);
+  for (const c of g.candidates) for (const t of c.closed) assert.ok(Date.parse(t.exitT) <= gapAt);
+});
+
+ok('선행 봇 — 청산 기록 고정: 처음 기록 시각 유지, 달라지면 덮지 않고 변경 경고', () => {
+  const b1h = resample(SYN, HOUR);
+  const now = SYN[SYN.length - 1].t + MIN15;
+  const first = runForward({ bars1h: b1h, bars15: SYN.filter((b) => b.t >= FSTART), nowT: now, start: FSTART });
+  const prev = JSON.parse(JSON.stringify(first));
+  prev.candidates[0].closed[0].firstSeenAt = '2026-01-01T00:00:00Z';
+  prev.candidates[0].closed[1].net = 999;
+  const again = runForward({ bars1h: b1h, bars15: SYN.filter((b) => b.t >= FSTART), nowT: now + DAY, start: FSTART, previous: prev });
+  assert.equal(again.candidates[0].closed[0].firstSeenAt, '2026-01-01T00:00:00Z');
+  assert.equal(again.revisions.length, 1);
+  assert.equal(again.revisions[0].entryT, first.candidates[0].closed[1].entryT);
+  // 한 번 기록된 변경 경고는 다음 실행에도 남고 중복되지 않음
+  const third = runForward({ bars1h: b1h, bars15: SYN.filter((b) => b.t >= FSTART), nowT: now + 2 * DAY, start: FSTART, previous: { ...again, candidates: prev.candidates } });
+  assert.equal(third.revisions.length, 1);
+});
+
+ok('선행 봇 — 30회 미만은 판정 없이 진행 상황만', () => {
+  const b1h = resample(SYN, HOUR);
+  const fw = runForward({ bars1h: b1h, bars15: SYN.filter((b) => b.t >= FSTART), nowT: SYN[SYN.length - 1].t + MIN15, start: FSTART });
+  for (const c of fw.candidates) {
+    if (c.summary.trades < 30) { assert.equal(c.verdict, null); assert.equal(c.progress, `${c.summary.trades}/30`); }
+  }
+  const empty = runForward({ bars1h: b1h, bars15: [], nowT: FSTART, start: FSTART });
+  assert.equal(empty.status, 'waiting'); assert.equal(empty.candidates.length, 0);
 });
 
 console.log(`bnf: ${passed} passed`);

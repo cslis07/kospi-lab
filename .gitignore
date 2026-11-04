@@ -55,3 +55,5 @@ project-state.json
 
 # BNF 연구 원본 데이터 캐시(scripts/bnf-fetch.ts) — 재현 가능·용량 큼, 저장소엔 manifest 만
 /.bnf-data/
+# BNF 모의 검증 기록 — bnf-forward 브랜치에 산다(.github/workflows/bnf-forward.yml)
+data/bnf-forward.json

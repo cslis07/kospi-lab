@@ -335,3 +335,18 @@ npx tsx scripts/bnf-backtest.ts binance --hypothesis funding --out binance-fundi
 npx tsx scripts/bnf-backtest.ts binance --costs app --out binance-cost
 npx tsx scripts/bnf-backtest.ts bitget --costs app --out bitget-cost
 ```
+
+---
+
+## 12. 모의 검증 봇(선행 테스트) — 2026-11-04 등록
+
+- 규칙·판정은 [FORWARD.md](FORWARD.md)에 고정했습니다.
+  - 후보 A(1시간 BNF형, 목표 1.8R)와 B(목표 1.0R) 두 개입니다.
+  - Bitget ETHUSDT 데이터로, 2026-11-05 00:00 UTC 이후 신호만 봅니다.
+- 계산은 `lib/bnf/forward.ts`, 실행은 `scripts/bnf-forward.ts` 가 맡습니다.
+  - GitHub Actions `bnf-forward.yml` 이 3시간마다 실행해 `bnf-forward` 브랜치에 기록합니다.
+  - `/bnf-lab` 맨 위 칸이 그 기록을 GitHub 에서 직접 읽습니다. Vercel 함수는 쓰지 않습니다.
+- 검증 결과는 다음과 같습니다.
+  - 테스트 38개가 통과했습니다. 백테스트 엔진과 같은 결과인지, 미완성 봉 제외·결측 정지, 기록 고정·변경 경고, 30회 전 판정 보류를 확인합니다.
+  - 실데이터 일치 점검도 했습니다. 시작을 2025-06-01 로 바꿔 Bitget 공개 API 로 돌린 결과가 저장된 15분봉 백테스트와 거래 단위로 같았습니다(A 20건, B 24건).
+  - 이 점검 실행은 등록 기록이 아니며 판정에 쓰지 않습니다. 참고로 B 는 이 구간에서 평균 −0.11R 이었습니다.

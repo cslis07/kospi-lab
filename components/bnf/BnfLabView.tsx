@@ -8,6 +8,7 @@
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { jsonFetcher } from '@/lib/fetcher';
+import BnfForwardCard from './BnfForwardCard';
 import type { ExperimentView, ExperimentIndexItem, ConfigView, SummarySlim, FundingSlim, DiagSlim } from '@/lib/bnf/view';
 
 const TF_LABEL: Record<string, string> = { '15m': '15분', '1h': '1시간', '4h': '4시간', '1d': '일봉', event: '펀딩 정산' };
@@ -343,6 +344,8 @@ export default function BnfLabView({ index }: { index: ExperimentIndexItem[] }) 
           <span className="fin-chip flat">BNF 본인의 매매 알고리즘 아님</span>
         </div>
       </div>
+
+      <BnfForwardCard />
 
       <section aria-label="실험 목록" className="fin-card p-4 mb-4">
         <label htmlFor="bnf-exp" className="block text-[12px] font-bold text-[var(--text-muted)] mb-1.5">실험</label>
