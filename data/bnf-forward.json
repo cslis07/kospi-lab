@@ -2,7 +2,7 @@
  "version": 1,
  "registeredAt": "2026-11-04",
  "startUtc": "2026-11-05T00:00:00Z",
- "updatedAt": "2026-11-04T05:13:03.812Z",
+ "updatedAt": "2026-11-04T05:15:52.891Z",
  "symbol": "ETHUSDT",
  "exchange": "bitget",
  "revisions": [],
@@ -11,9 +11,9 @@
  "now": {
   "barUtc": "2026-11-04T04:00:00Z",
   "close": 2279.02,
-  "sma25": null,
-  "deviation": null,
-  "q10": null,
+  "sma25": 2378.0487999999996,
+  "deviation": -0.04164,
+  "q10": -0.14612,
   "oversoldRecent": false
  },
  "dataThroughUtc": null,
