@@ -2,20 +2,129 @@
  "version": 1,
  "registeredAt": "2026-11-04",
  "startUtc": "2026-11-05T00:00:00Z",
- "updatedAt": "2026-11-04T21:22:07.624Z",
+ "updatedAt": "2026-11-05T01:36:27.580Z",
  "symbol": "ETHUSDT",
  "exchange": "bitget",
  "revisions": [],
- "status": "waiting",
- "statusNote": "시작 시각 이후 확정 15분봉 없음",
+ "status": "ok",
+ "statusNote": null,
  "now": {
-  "barUtc": "2026-11-04T20:00:00Z",
-  "close": 2420.04,
-  "sma25": 2378.0487999999996,
-  "deviation": 0.01766,
-  "q10": -0.14612,
+  "barUtc": "2026-11-05T00:00:00Z",
+  "close": 2419.96,
+  "sma25": 2374.778,
+  "deviation": 0.01903,
+  "q10": -0.141,
   "oversoldRecent": false
  },
- "dataThroughUtc": null,
- "candidates": []
+ "dataThroughUtc": "2026-11-05T01:00:00Z",
+ "candidates": [
+  {
+   "id": "A",
+   "name": "A · 1시간 BNF형 (목표 1.8R)",
+   "desc": "1차 규격 그대로",
+   "targetR": 1.8,
+   "closed": [],
+   "open": null,
+   "pending": null,
+   "summary": {
+    "trades": 0,
+    "wins": 0,
+    "winRate": null,
+    "pf": null,
+    "avgR": null,
+    "avgHoldH": null,
+    "maxLossUsdt": null,
+    "maxLossR": null,
+    "mddPct": 0,
+    "totalReturnPct": 0,
+    "finalEquity": 1000,
+    "maxConsecLoss": 0,
+    "feesTotal": 0,
+    "slipTotal": 0,
+    "fundingTotal": 0,
+    "exitReasons": {
+     "target": 0,
+     "stop": 0,
+     "stop_gap": 0,
+     "time": 0,
+     "data_end": 0
+    },
+    "worstMaePct": null,
+    "cappedTrades": 0,
+    "skipped": {
+     "wideStop": 0,
+     "busy": 0,
+     "cooldown": 0,
+     "noAtr": 0,
+     "noBar": 0
+    },
+    "signalsInWindow": 0,
+    "sufficient": false
+   },
+   "progress": "0/30",
+   "verdict": null,
+   "verdictLabel": null,
+   "monthly": [
+    [
+     "2026-11",
+     0
+    ]
+   ],
+   "equity": 1000
+  },
+  {
+   "id": "B",
+   "name": "B · 1시간 BNF형 (목표 1.0R)",
+   "desc": "진단(E3)에서 나온 변형 — 선행 테스트로만 판정",
+   "targetR": 1,
+   "closed": [],
+   "open": null,
+   "pending": null,
+   "summary": {
+    "trades": 0,
+    "wins": 0,
+    "winRate": null,
+    "pf": null,
+    "avgR": null,
+    "avgHoldH": null,
+    "maxLossUsdt": null,
+    "maxLossR": null,
+    "mddPct": 0,
+    "totalReturnPct": 0,
+    "finalEquity": 1000,
+    "maxConsecLoss": 0,
+    "feesTotal": 0,
+    "slipTotal": 0,
+    "fundingTotal": 0,
+    "exitReasons": {
+     "target": 0,
+     "stop": 0,
+     "stop_gap": 0,
+     "time": 0,
+     "data_end": 0
+    },
+    "worstMaePct": null,
+    "cappedTrades": 0,
+    "skipped": {
+     "wideStop": 0,
+     "busy": 0,
+     "cooldown": 0,
+     "noAtr": 0,
+     "noBar": 0
+    },
+    "signalsInWindow": 0,
+    "sufficient": false
+   },
+   "progress": "0/30",
+   "verdict": null,
+   "verdictLabel": null,
+   "monthly": [
+    [
+     "2026-11",
+     0
+    ]
+   ],
+   "equity": 1000
+  }
+ ]
 }
