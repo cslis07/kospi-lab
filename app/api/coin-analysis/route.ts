@@ -7,7 +7,9 @@ import {
 import { backtestEngine, BacktestResult } from '@/lib/coinBacktest';
 import { buildModes } from '@/lib/coinSignalModes';
 import { getEtfFlows, etfBiasFor } from '@/lib/etfFlow';
-import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
+import { calendarWithOfficial } from '@/lib/officialSchedule';
+import { releaseTs } from '@/lib/calendarOfficial';
+import type { CalendarEvent } from '@/lib/types';
 import { BITGET_BASE, fetchBitgetFuturesTickers } from '@/lib/bitget';
 import { claudeBriefing, resolveBriefingModel, BriefingResult } from '@/lib/anthropic';
 import { coinMacroRates } from '@/lib/brief';
@@ -304,16 +306,14 @@ async function fetchDominance(): Promise<{ btc: number; eth: number; mcapChange2
   } catch { return null; }
 }
 
-/* ── 임박 경제 이벤트 (앱 내 캘린더 재활용) ──────────── */
-function upcomingEvent(): { title: string; hoursUntil: number; date: string } | null {
-  const now = Date.now();
+/* ── 임박 경제 이벤트 (경제 캘린더와 같은 일정 — 공식 일정 병합, lib/officialSchedule) ──────────── */
+function upcomingEvent(events: (CalendarEvent & { ts?: number })[], now = Date.now()): { title: string; hoursUntil: number; date: string } | null {
   let best: { title: string; hoursUntil: number; date: string } | null = null;
-  for (const e of CALENDAR_EVENTS) {
+  for (const e of events) {
     if (e.importance !== 'high') continue;
     if (e.category !== 'fomc' && e.category !== 'indicator') continue; // 코인에 영향 큰 미국 이벤트
-    // 발표 시각 근사: 지표(CPI·NFP)=당일 21:30 KST, FOMC=다음날 03:00 KST
-    const base = new Date(`${e.date}T00:00:00+09:00`).getTime();
-    const eventTs = e.category === 'fomc' ? base + 27 * 3600_000 : base + 21.5 * 3600_000;
+    // 발표 시각: 공식 일정은 실제 시각(서머타임 반영 — 겨울 지표 22:30·FOMC 04:00 KST), 수동 일정은 기관 표준 시각 환산
+    const eventTs = releaseTs(e);
     const hoursUntil = (eventTs - now) / 3600_000;
     if (hoursUntil < -2 || hoursUntil > 48) continue; // 발표 후 2시간까지 경계 유지
     if (!best || hoursUntil < best.hoursUntil) best = { title: e.title, hoursUntil, date: e.date };
@@ -512,6 +512,7 @@ ${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(
 /* ── 메인 핸들러 ─────────────────────────────────────── */
 export async function GET(req: NextRequest) {
   const symbol = (req.nextUrl.searchParams.get('symbol') ?? 'BTCUSDT').toUpperCase();
+  const calendarP = calendarWithOfficial(); // 시세 수집과 동시에(실패해도 throw 없음)
   const coin = COINS[symbol];
   if (!coin) {
     return NextResponse.json({ error: `지원하지 않는 심볼: ${symbol}` }, { status: 400 });
@@ -587,7 +588,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 임박 이벤트
-    const event = upcomingEvent();
+    const event = upcomingEvent(await calendarP);
 
     const extras: VerdictExtras = {
       takerRatio, takerDivergence,

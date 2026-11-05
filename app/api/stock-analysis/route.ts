@@ -15,7 +15,9 @@ import { claudeBriefing, resolveBriefingModel } from '@/lib/anthropic';
 import { cioViewFor, MUST_WATCH, MERRILL_CIO } from '@/lib/marketReference';
 import { fetchMacroIndicators } from '@/lib/macroIndicators';
 const MERRILL_SRC = `${MERRILL_CIO.source} ${MERRILL_CIO.date}`;
-import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
+import { calendarWithOfficial } from '@/lib/officialSchedule';
+import { releaseTs } from '@/lib/calendarOfficial';
+import type { CalendarEvent } from '@/lib/types';
 import { TtlCache } from '@/lib/cache';
 
 export const maxDuration = 30;
@@ -169,12 +171,11 @@ async function fetchMacro(origin: string): Promise<{ market: MarketContext; usdk
   } catch { return { market: { kospiChange: null, kospiTrend: null }, usdkrw: null, jpykrw: null }; }
 }
 
-/* 다음 미국 CPI 발표일 (캘린더) */
-function nextCpi(): { date: string; daysUntil: number } | null {
-  const now = Date.now();
-  const upcoming = CALENDAR_EVENTS
-    .filter((e) => e.category === 'indicator' && e.title.includes('CPI'))
-    .map((e) => ({ date: e.date, ts: new Date(`${e.date}T21:30:00+09:00`).getTime() }))
+/* 다음 미국 CPI 발표일 (경제 캘린더와 같은 일정 — 공식 일정 병합, 시각은 실제 발표 시각) */
+function nextCpi(events: (CalendarEvent & { ts?: number })[], now = Date.now()): { date: string; daysUntil: number } | null {
+  const upcoming = events
+    .filter((e) => e.category === 'indicator' && e.country === 'US' && e.title.includes('CPI'))
+    .map((e) => ({ date: e.date, ts: releaseTs(e) }))
     .filter((e) => e.ts >= now - 6 * 3600_000)
     .sort((a, b) => a.ts - b.ts)[0];
   return upcoming ? { date: upcoming.date, daysUntil: Math.max(0, Math.round((upcoming.ts - now) / 86400_000)) } : null;
@@ -332,6 +333,7 @@ ${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(
 export async function GET(req: NextRequest) {
   const ticker = (req.nextUrl.searchParams.get('ticker') ?? '').trim();
   if (!/^\d{6}$/.test(ticker)) return NextResponse.json({ error: '6자리 종목코드가 필요합니다.' }, { status: 400 });
+  const calendarP = calendarWithOfficial(); // 시세 수집과 동시에(실패해도 throw 없음)
   const origin = req.nextUrl.origin;
   // 화이트리스트 밖의 값은 기본 모델로 수렴한다
   const briefingModel = resolveBriefingModel(req.nextUrl.searchParams.get('model')).id;
@@ -384,7 +386,7 @@ export async function GET(req: NextRequest) {
     verdict.stopPct = Math.round(verdict.stopPct * 100) / 100;
 
     // 필수 경제 지표 (라이브 환율 + CPI 일정 + 실측 매크로)
-    const cpi = nextCpi();
+    const cpi = nextCpi(await calendarP);
     const macroByKey: Record<string, { value: number; unit: string; label: string; change: number | null; changeLabel: string; source: string } | null> = {
       us_cpi: macroInd.usCpi, semicon: macroInd.semiconExport, debt: macroInd.householdDebt,
     };

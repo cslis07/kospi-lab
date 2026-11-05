@@ -5,13 +5,14 @@
  */
 import assert from 'node:assert/strict';
 import { buildSchedule, FOMC_DECISION_DATES, type MacroEvent } from '../lib/macroSchedule';
-import { officialToCalendar, mergeOfficial, snapToOfficial, kindOfTitle } from '../lib/calendarOfficial';
+import { officialToCalendar, mergeOfficial, snapToOfficial, kindOfTitle, releaseTs } from '../lib/calendarOfficial';
 import { CALENDAR_EVENTS } from '../lib/calendarEvents';
 import { SEED_EVENTS as MARKET_EVENTS_SEED } from '../lib/marketEvents';
 import { buildIndicator, shiftMonth, pointAtMonth, MACRO_CFG } from '../lib/macroData';
 import { pendingLabel } from '../lib/releaseReaction';
 import { synthesizeRegime, confluenceOf } from '../lib/coinRegime';
 import { classify } from '../lib/macroEvents';
+import { calendarWithOfficial, fetchOfficialSchedule } from '../lib/officialSchedule';
 
 let passed = 0;
 function ok(name: string, fn: () => void) {
@@ -126,4 +127,23 @@ ok('ETH 체제 문구 — 엇갈리면 판단 어려움, 정렬돼도 레버리�
   assert.equal(confluenceOf([t(1, 'supply'), t(1, 'demand'), t(1, 'macro')]).strength, '강');
 });
 
+// ── 분석 API(브리핑·코인·종목)용 발표 시각 — 공식 행은 실제 시각, 수동 행은 기관 표준 시각을 미 동부 기준으로 환산 ──
+ok('releaseTs — 공식 CPI 11/10 = 22:30 KST(겨울), 수동 FOMC 12/09 = 익일 04:00 KST, 여름 수동 CPI = 21:30 KST', () => {
+  assert.equal(releaseTs(at('cpi', '2026-11-10')), Date.parse('2026-11-10T22:30:00+09:00'));
+  assert.equal(releaseTs({ date: '2026-12-09', title: 'FOMC 금리 결정', category: 'fomc', country: 'US', importance: 'high' }), Date.parse('2026-12-10T04:00:00+09:00'));
+  assert.equal(releaseTs({ date: '2026-07-14', title: '미국 CPI (소비자물가)', category: 'indicator', country: 'US', importance: 'high' }), Date.parse('2026-07-14T21:30:00+09:00'));
+  assert.equal(releaseTs({ date: '2026-11-27', title: '한국은행 기준금리 결정', category: 'bok', country: 'KR', importance: 'high' }), Date.parse('2026-11-27T00:00:00+09:00'));
+});
+
 console.log(`calendarOfficial: ${passed} passed`);
+
+// 서버 공용 일정(lib/officialSchedule) — FRED 키가 없으면 공식 일정 없이 정적 일정 그대로(없는 일시를 만들지 않음)
+void (async () => {
+  delete process.env.FRED_API_KEY;
+  const s = await fetchOfficialSchedule();
+  assert.equal(s.missing.length, 6);
+  assert.ok(s.events.every((e) => e.kind === 'fomc' || e.kind === 'powell'));
+  const cal = await calendarWithOfficial(500);
+  assert.deepEqual(cal, CALENDAR_EVENTS);
+  console.log('  ✓ officialSchedule — 키 없음 → 정적 일정 그대로');
+})().catch((e) => { console.error('  ✗ officialSchedule', e); process.exit(1); });

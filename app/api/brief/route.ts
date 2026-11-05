@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchNews, fetchNaverMainNews } from '@/lib/newsFeeds';
-import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
+import { calendarWithOfficial } from '@/lib/officialSchedule';
 import { geminiBrief } from '@/lib/llmBriefing';
 import {
   marketMacro, rankNews, warNews, todayEvents, buildBriefPrompt, fetchCryptoNews, verifyAi,
@@ -55,13 +55,14 @@ function withStale(market: BriefMarket, ai: BriefAi): BriefAi {
 
 async function generate(market: BriefMarket): Promise<BriefData> {
   const deadline = Date.now() + 50_000;
-  const [macro, allNews] = await Promise.all([
+  const [macro, allNews, calendar] = await Promise.all([
     marketMacro(market).catch(() => []),
     collectNews(market),
+    calendarWithOfficial(), // 경제 캘린더와 같은 공식 일정(실패·지연 시 정적 일정)
   ]);
   const news = rankNews(allNews, market, 8);
   const war = warNews(allNews, 4);
-  const events = todayEvents(CALENDAR_EVENTS, market, 3);
+  const events = todayEvents(calendar, market, 3);
 
   const prompt = buildBriefPrompt(market, macro, news, war, events);
   const r = await geminiBrief(prompt, deadline);

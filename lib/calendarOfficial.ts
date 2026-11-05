@@ -9,7 +9,7 @@
  *  - 공식 일정을 못 받으면(오프라인·API 실패) 기존 정적 일정을 그대로 쓴다 — 없는 확정 일시를 만들지 않는다.
  */
 import type { CalendarEvent } from './types';
-import { MACRO_DEFS, type MacroEvent, type MacroKind } from './macroSchedule';
+import { MACRO_DEFS, etToUtc, type MacroEvent, type MacroKind } from './macroSchedule';
 
 export const CAL_KINDS: MacroKind[] = ['cpi', 'ppi', 'jobs', 'pce', 'gdp', 'retail', 'fomc'];
 
@@ -94,4 +94,17 @@ export function snapToOfficial<T extends { date: string; key: string | null }>(e
     }
     return best && best.date !== e.date ? { ...e, date: best.date, providerDate: e.date } : e;
   });
+}
+
+/**
+ * 발표 시각(UTC ms). 공식 일정 행이면 그 실제 시각(서머타임 반영), 수동 일정이면 기관 표준 시각(지표 08:30 ET·FOMC 14:00 ET)을
+ * 미 동부 벽시계로 환산한다(미국 일정만). 그 밖의 일정은 KST 당일 00:00(시각 미상) — 시각을 지어내지 않는다.
+ */
+export function releaseTs(e: CalendarEvent & { ts?: number }): number {
+  if (typeof e.ts === 'number') return e.ts;
+  if (e.country === 'US') {
+    const k = e.category === 'fomc' ? 'fomc' : kindOfTitle(e.title);
+    return etToUtc(e.date, k ? MACRO_DEFS[k].etTime : '08:30');
+  }
+  return Date.parse(`${e.date}T00:00:00+09:00`);
 }

@@ -8,7 +8,7 @@
  * ⚠ 업비트·바이낸스는 미국 데이터센터 IP를 차단하므로 이 데이터를 쓰는 라우트는
  *   preferredRegion='icn1' 이어야 한다(김치프리미엄 계산이 두 거래소를 함께 씀).
  */
-import { CALENDAR_EVENTS } from './calendarEvents';
+import { FOMC_DECISION_DATES } from './macroSchedule';
 
 export type Tone = 'up' | 'down' | 'warn' | 'neutral';
 
@@ -78,8 +78,8 @@ async function fearGreed(): Promise<{ value: number; label: string } | null> {
 
 function nextFomc(now: number): string | null {
   const today = new Date(now).toISOString().slice(0, 10);
-  const f = CALENDAR_EVENTS.filter((e) => e.category === 'fomc' && e.date >= today).sort((a, b) => (a.date < b.date ? -1 : 1));
-  return f[0]?.date ?? null;
+  // 연준 공식 결정일 목록(lib/macroSchedule — 경제 캘린더 공식 일정과 같은 출처, 2027년까지)
+  return FOMC_DECISION_DATES.filter((d) => d >= today).sort()[0] ?? null;
 }
 
 /* ── 조립 ─────────────────────────────────────────────── */
