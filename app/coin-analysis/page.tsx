@@ -26,6 +26,7 @@ import Range52Bar from '@/components/Range52Bar';
 import { type SourceStat } from '@/components/SourceStatus';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '@/lib/positionSizing';
+import { scenarioLevels } from '@/lib/coinScenario';
 import { jsonFetcher, ApiError } from '@/lib/fetcher';
 import TradeGate from '@/components/TradeGate';
 import CircuitBreakerBar from '@/components/CircuitBreakerBar';
@@ -606,10 +607,10 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
     { k: 'OI(미결제)', val: oiChg == null ? '—' : `${oiChg >= 0 ? '+' : ''}${oiChg.toFixed(2)}% (1h)`, j: 'neu' },
   ];
   // 시나리오
-  const resAbove = [...data.zones.filter((z) => z.kind === 'resistance' && z.price > price).map((z) => z.price), ...(data.high24h && data.high24h > price ? [data.high24h] : [])].sort((a, b) => a - b);
-  const supBelow = [...data.zones.filter((z) => z.kind === 'support' && z.price < price).map((z) => z.price), ...(data.low24h && data.low24h < price ? [data.low24h] : [])].sort((a, b) => b - a);
-  const up1 = resAbove[0]; const up2 = v.direction !== 'wait' ? v.target1 : resAbove[1];
-  const dn1 = supBelow[0]; const dn2 = v.direction !== 'wait' ? v.stop : supBelow[1];
+  const { up1, up2, dn1, dn2 } = scenarioLevels(price,
+    [...data.zones.filter((z) => z.kind === 'resistance').map((z) => z.price), ...(data.high24h ? [data.high24h] : [])],
+    [...data.zones.filter((z) => z.kind === 'support').map((z) => z.price), ...(data.low24h ? [data.low24h] : [])],
+    v.direction, v);
   const pass = v.checklist.filter((c) => c.pass).length;
 
   // 추천 진입가 — 엔진이 산출한 진입 계획(entryPlan)이 "가장 좋은 가격대". now=지금 시장가, pullback=되돌림 대기, wait=관망
