@@ -69,7 +69,14 @@ export default function CalendarPage() {
     if (p && /^\d{4}-\d{2}-\d{2}$/.test(p)) setTarget(p);
   }, []);
   // 지난 날짜로 들어오면 '지난 일정 포함'을 켜서 보이게 한다
-  useEffect(() => { if (target && today && target < today) setShowPast(true); }, [target, today]);
+  // 지난 일정은 최근 60일만(공식 일정이 2024-01 부터라 전부 붙이면 목록이 2024년으로 가득 찼다). ?date= 가 더 과거면 그날부터
+  const [pastFrom, setPastFrom] = useState<string | null>(null);
+  useEffect(() => {
+    if (!today) return;
+    const d60 = new Date(Date.parse(`${today}T00:00:00Z`) - 60 * 86_400_000).toISOString().slice(0, 10);
+    if (target && target < today) { setShowPast(true); setPastFrom(target < d60 ? target : d60); }
+    else setPastFrom((v) => v ?? d60);
+  }, [target, today]);
 
   // 공식 일정(FRED 발표 캘린더·연준 FOMC, 시각은 미 동부→KST 서머타임 반영) — 달력·표·목록의 미국 지표 날짜 기준
   const { data: official } = useSWR<{ events: MacroEvent[] }>('/api/risk/events', fetcher, { revalidateOnFocus: false });
@@ -79,19 +86,21 @@ export default function CalendarPage() {
     if (!today) return [];
     const list = allEvents
       .filter((e) => {
-        if (!showPast && e.date < today) return false;
+        if (e.date < today && (!showPast || (pastFrom != null && e.date < pastFrom))) return false;
         if (cat !== 'all' && e.category !== cat) return false;
         if (country !== 'all' && !(e.country === country || e.country === 'global')) return false;
         if (imp === 'high' && e.importance !== 'high') return false;
         if (imp === 'mid' && e.importance === 'low') return false;
         return true;
       })
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(0, 80);
+      .sort((a, b) => a.date.localeCompare(b.date));
+    // 앞으로의 일정은 80건까지, 지난 일정(최근 60일)은 그 앞에 — 예전 slice(0, 80)은 과거를 켜면 오늘 이후를 통째로 잘랐다
+    const firstFuture = list.findIndex((e) => e.date >= today);
+    const cut = firstFuture < 0 ? list : [...list.slice(0, firstFuture), ...list.slice(firstFuture, firstFuture + 80)];
     const map = new Map<string, CalendarEvent[]>();
-    for (const e of list) map.set(e.date, [...(map.get(e.date) ?? []), e]);
+    for (const e of cut) map.set(e.date, [...(map.get(e.date) ?? []), e]);
     return [...map.entries()];
-  }, [today, cat, country, imp, showPast, allEvents]);
+  }, [today, cat, country, imp, showPast, pastFrom, allEvents]);
 
   const nFilters = (country !== 'all' ? 1 : 0) + (imp !== 'all' ? 1 : 0) + (showPast ? 1 : 0);
 

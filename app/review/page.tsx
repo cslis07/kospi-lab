@@ -125,7 +125,7 @@ export default function ReviewPage() {
   const costs = useMemo(() => costBreakdown(positions), [positions]);
   const holdCosts = useMemo(() => costByHoldBand(positions), [positions]);
   const cash = useMemo(() => (moves ? cashFlow(moves.withdrawals, moves.deposits, costs.net) : null), [moves, costs.net]);
-  const months = useMemo(() => monthlyStats(positions), [positions]);
+  const months = useMemo(() => monthlyStats(positions, now - days * DAY), [positions, now, days]);
   const scalp = useMemo(() => scalpImpact(positions), [positions]);
   const rules = useMemo(() => weekRules(all, now), [all, now]);
   const gauge = useMemo(() => lossGauge(all, now, limits, equity), [all, now, limits, equity]);
@@ -259,7 +259,7 @@ export default function ReviewPage() {
                     <li key={m.month}>
                       <details className="rounded-xl bg-[var(--surface-2)] group">
                         <summary className="cursor-pointer select-none list-none px-3 min-h-[48px] flex items-center gap-2 tabular-nums">
-                          <span className="text-[13.5px] font-bold text-[var(--text)]">{Number(m.month.slice(5))}월</span>
+                          <span className="text-[13.5px] font-bold text-[var(--text)]">{Number(m.month.slice(5))}월{m.partialFrom && <span className="text-[10.5px] font-normal text-[var(--text-muted)]"> ({m.partialFrom}~ 일부)</span>}</span>
                           <span className="text-[11px] text-[var(--text-muted)]">{m.count}건 · 승률 {m.winRate != null ? `${m.winRate.toFixed(0)}%` : '—'}</span>
                           <span className="ml-auto text-right leading-tight">
                             <span className="block text-[13.5px] font-extrabold" style={{ color: tone(m.netSum) }}>{signed(m.netSum)}</span>

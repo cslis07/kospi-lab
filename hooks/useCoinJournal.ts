@@ -109,13 +109,15 @@ export function useCoinJournal() {
   const closed = entries.filter((e) => e.result !== 'open');
   const wins = closed.filter((e) => e.result === 'win');
   const withUsdt = closed.filter((e) => e.realizedUsdt !== null && e.realizedUsdt !== undefined);
+  // 승률·평균 R 은 /journal 성적 탭(lib/journalStats.scoreboard)과 같은 정의 — 승률 분모=승+패(본전 제외),
+  // 평균 R=R 이 기록된 건만. 예전엔 본전을 분모에 넣고 R 없는 기록을 0R 로 세어 화면마다 값이 달랐다.
+  const decided = closed.filter((e) => e.result === 'win' || e.result === 'loss').length;
+  const rVals = closed.map((e) => e.resultR).filter((x): x is number => x != null && Number.isFinite(x));
   const stats = {
     total: entries.length,
     closed: closed.length,
-    winRate: closed.length ? (wins.length / closed.length) * 100 : null,
-    avgR: closed.length
-      ? closed.reduce((a, e) => a + (e.resultR ?? 0), 0) / closed.length
-      : null,
+    winRate: decided ? (wins.length / decided) * 100 : null,
+    avgR: rVals.length ? rVals.reduce((a, v) => a + v, 0) / rVals.length : null,
     // 실제 실현손익 합계 (입력된 건만) — "엔진 승률 vs 내 실제 성적" 비교의 기준
     totalUsdt: withUsdt.length ? withUsdt.reduce((a, e) => a + (e.realizedUsdt ?? 0), 0) : null,
     usdtCount: withUsdt.length,

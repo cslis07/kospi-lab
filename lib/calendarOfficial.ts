@@ -78,6 +78,39 @@ export function mergeOfficial(manual: CalendarEvent[], official: OfficialCalEven
 const PROVIDER_KIND: Record<string, MacroKind> = { cpi: 'cpi', ppi: 'ppi', jobs: 'jobs', pce: 'pce', gdp: 'gdp', retail: 'retail', fomc: 'fomc' };
 
 /**
+ * 제공업체(SoSoValue) 일정 전체가 공식 일정보다 며칠 밀려 있는지 — 공식 일정과 겹치는 종류(CPI·고용·PPI…)의
+ * '가장 가까운 공식 날짜와의 차'의 최빈값. 2026-11 실측: 고용 11-05 vs 공식 11-06, CPI 11-09 vs 11-10 처럼 일관되게 −1일
+ * (아시아 시간대 자정 기준으로 잘린 것으로 추정) → +1. 표본 2개 미만이거나 과반이 아니면 0(보정 안 함).
+ * 공식 일정이 없는 종류(실업수당 청구·주택판매 등)도 같은 만큼 옮겨야 하루 앞 칸에 찍히지 않는다.
+ */
+export function providerDayOffset<T extends { date: string; key: string | null }>(evts: T[], official: MacroEvent[], maxDays = 2): number {
+  const day = (d: string) => Math.round(Date.parse(`${d.slice(0, 10)}T00:00:00Z`) / 86_400_000);
+  const diffs: number[] = [];
+  for (const e of evts) {
+    const k = e.key ? PROVIDER_KIND[e.key] : undefined;
+    if (!k) continue;
+    let best: number | null = null;
+    for (const o of official) {
+      if (o.kind !== k) continue;
+      const g = day(o.date) - day(e.date);
+      if (Math.abs(g) <= maxDays && (best == null || Math.abs(g) < Math.abs(best))) best = g;
+    }
+    if (best != null) diffs.push(best);
+  }
+  if (diffs.length < 2) return 0;
+  const cnt = new Map<number, number>();
+  for (const g of diffs) cnt.set(g, (cnt.get(g) ?? 0) + 1);
+  const [mode, n] = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0];
+  return n * 2 > diffs.length ? mode : 0;
+}
+
+/** YYYY-MM-DD 를 n일 옮긴다 */
+export function shiftYmd(d: string, n: number): string {
+  if (!n) return d.slice(0, 10);
+  return new Date(Date.parse(`${d.slice(0, 10)}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
  * 외부 제공업체 일정의 날짜를 공식 일정에 맞춘다 — 같은 종류의 공식 발표가 ±maxDays 안에 있으면 그 날짜로.
  * 원래 날짜는 providerDate 로 남긴다(화면에서 '공식 일정 기준' 표기용).
  */

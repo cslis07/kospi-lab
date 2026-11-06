@@ -44,7 +44,7 @@ let _cache: { at: number; events: MacroEvent[] } | null = null;
 let _inflight: Promise<MacroEvent[]> | null = null;
 
 /** 공식 이벤트(모듈 캐시). FRED 가 하나도 안 오면(전부 missing) 캐시하지 않고 [] — 정적 일정으로 대체된다 */
-async function officialEvents(): Promise<MacroEvent[]> {
+export async function officialEvents(): Promise<MacroEvent[]> {
   if (_cache && Date.now() - _cache.at < TTL) return _cache.events;
   _inflight ??= fetchOfficialSchedule()
     .then(({ events, missing }) => {
@@ -60,9 +60,14 @@ async function officialEvents(): Promise<MacroEvent[]> {
  * 앱 캘린더 일정(정적) + 공식 일정 병합 — 공식 일정이 다루는 미국 지표·FOMC 는 공식 날짜·시각으로 바뀐다(행에 ts 포함).
  * waitMs 안에 공식 일정이 안 오면 정적 일정만(응답을 늦추지 않음). 실패해도 throw 하지 않는다.
  */
-export async function calendarWithOfficial(waitMs = 3000): Promise<(CalendarEvent & { ts?: number })[]> {
+/** 공식 이벤트를 waitMs 안에만 기다린다(넘으면 [] — 응답을 늦추지 않음, throw 없음) */
+export async function officialEventsWithin(waitMs = 3000): Promise<MacroEvent[]> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<MacroEvent[]>((res) => { timer = setTimeout(() => res([]), waitMs); });
-  const evts = await Promise.race([officialEvents(), timeout]).finally(() => clearTimeout(timer));
+  return Promise.race([officialEvents(), timeout]).finally(() => clearTimeout(timer));
+}
+
+export async function calendarWithOfficial(waitMs = 3000): Promise<(CalendarEvent & { ts?: number })[]> {
+  const evts = await officialEventsWithin(waitMs);
   return mergeOfficial(CALENDAR_EVENTS, officialToCalendar(evts));
 }

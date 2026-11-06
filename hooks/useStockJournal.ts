@@ -74,11 +74,14 @@ export function useStockJournal() {
 
   const closed = entries.filter((e) => e.result !== 'open');
   const wins = closed.filter((e) => e.result === 'win');
+  // /journal 성적 탭(lib/journalStats.scoreboard)과 같은 정의 — 승률 분모=승+패(본전 제외), 평균 R=R 기록된 건만
+  const decided = closed.filter((e) => e.result === 'win' || e.result === 'loss').length;
+  const rVals = closed.map((e) => e.resultR).filter((x): x is number => x != null && Number.isFinite(x));
   const stats = {
     total: entries.length,
     closed: closed.length,
-    winRate: closed.length ? (wins.length / closed.length) * 100 : null,
-    avgR: closed.length ? closed.reduce((a, e) => a + (e.resultR ?? 0), 0) / closed.length : null,
+    winRate: decided ? (wins.length / decided) * 100 : null,
+    avgR: rVals.length ? rVals.reduce((a, v) => a + v, 0) / rVals.length : null,
   };
 
   return { entries, mounted, add, update, remove, clear, stats };

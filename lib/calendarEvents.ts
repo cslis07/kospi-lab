@@ -74,16 +74,19 @@ export const CALENDAR_EVENTS: CalendarEvent[] = [
 
   // ── 공휴일·휴장 ──────────────────────────────
   { date: '2026-01-01', title: '신정 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
-  { date: '2026-01-27', title: '설 연휴 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
-  { date: '2026-01-28', title: '설날 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
-  { date: '2026-01-29', title: '설 연휴 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
+  { date: '2026-02-16', title: '설 연휴 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
+  { date: '2026-02-17', title: '설날 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
+  { date: '2026-02-18', title: '설 연휴 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
+  { date: '2026-06-03', title: '지방선거일 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
+  { date: '2026-07-17', title: '제헌절 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low', desc: '2026년 공휴일 재지정' },
+  { date: '2026-06-19', title: 'Juneteenth (미국 휴장)', category: 'holiday', country: 'US', importance: 'low' },
+  { date: '2026-07-03', title: '독립기념일 대체 (미국 휴장)', category: 'holiday', country: 'US', importance: 'low', desc: '7/4(토) → 7/3(금) 휴장' },
   { date: '2026-01-19', title: 'MLK Day (미국 휴장)', category: 'holiday', country: 'US', importance: 'low' },
   { date: '2026-02-16', title: "Presidents' Day (미국 휴장)", category: 'holiday', country: 'US', importance: 'low' },
   { date: '2026-04-03', title: '성금요일 (미국 휴장)', category: 'holiday', country: 'US', importance: 'low' },
   { date: '2026-05-05', title: '어린이날 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
   { date: '2026-05-25', title: 'Memorial Day (미국 휴장)', category: 'holiday', country: 'US', importance: 'low' },
   { date: '2026-06-04', title: '현충일 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
-  { date: '2026-07-04', title: '독립기념일 (미국 휴장)', category: 'holiday', country: 'US', importance: 'low' },
   { date: '2026-08-17', title: '광복절 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
   { date: '2026-09-07', title: 'Labor Day (미국 휴장)', category: 'holiday', country: 'US', importance: 'low' },
   { date: '2026-09-24', title: '추석 연휴 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
@@ -93,4 +96,27 @@ export const CALENDAR_EVENTS: CalendarEvent[] = [
   { date: '2026-11-26', title: 'Thanksgiving (미국 휴장)', category: 'holiday', country: 'US', importance: 'low' },
   { date: '2026-12-25', title: '크리스마스 (한국·미국 휴장)', category: 'holiday', country: 'global', importance: 'low' },
   { date: '2026-12-31', title: '연말 (한국 휴장)', category: 'holiday', country: 'KR', importance: 'low' },
+
+  // ── 2027 (2026-11-06 확인) ─────────────────────
+  // 한국은행 통화정책방향 결정회의 8회 — 2026-10-29 금통위 의결(SBS Biz 보도, 한은 홈페이지 최종 확인 권장)
+  ...['2027-01-14', '2027-02-25', '2027-04-09', '2027-05-27', '2027-07-15', '2027-08-26', '2027-10-15', '2027-11-25']
+    .map((date): CalendarEvent => ({ date, title: '한국은행 기준금리 결정', category: 'bok', country: 'KR', importance: 'high' })),
+  // 한국 휴장(평일만) — 한국천문연구원 2027 공휴일(대체공휴일 포함) + 연말 휴장. 임시공휴일은 지정되면 추가
+  ...([
+    ['2027-01-01', '신정'], ['2027-02-08', '설 연휴'], ['2027-02-09', '설 대체공휴일'], ['2027-03-01', '삼일절'],
+    ['2027-05-03', '노동절 대체공휴일'], ['2027-05-05', '어린이날'], ['2027-05-13', '부처님오신날'], ['2027-07-19', '제헌절 대체공휴일'],
+    ['2027-08-16', '광복절 대체공휴일'], ['2027-09-14', '추석 연휴'], ['2027-09-15', '추석'], ['2027-09-16', '추석 연휴'],
+    ['2027-10-04', '개천절 대체공휴일'], ['2027-10-11', '한글날 대체공휴일'], ['2027-12-27', '성탄절 대체공휴일'], ['2027-12-31', '연말'],
+  ] as const).map(([date, t]): CalendarEvent => ({ date, title: `${t} (한국 휴장)`, category: 'holiday', country: 'KR', importance: 'low' })),
+  // 미국 휴장 — NYSE 2027 휴장 일정(2025-12 발표). 11/26 13:00 ET 조기 폐장
+  ...([
+    ['2027-01-01', '신정'], ['2027-01-18', 'MLK Day'], ['2027-02-15', "Presidents' Day"], ['2027-03-26', '성금요일'],
+    ['2027-05-31', 'Memorial Day'], ['2027-06-18', 'Juneteenth 대체'], ['2027-07-05', '독립기념일 대체'], ['2027-09-06', 'Labor Day'],
+    ['2027-11-25', 'Thanksgiving'], ['2027-12-24', '크리스마스 대체'],
+  ] as const).map(([date, t]): CalendarEvent => ({ date, title: `${t} (미국 휴장)`, category: 'holiday', country: 'US', importance: 'low' })),
+  // 실적시즌 — 대략적인 시작 무렵(분기 종료 후 3주 전후, 2026년과 같은 관행)
+  ...([['2027-01-20', '4Q26'], ['2027-04-20', '1Q27'], ['2027-07-20', '2Q27'], ['2027-10-20', '3Q27']] as const)
+    .map(([date, q]): CalendarEvent => ({ date, title: `${q} 실적시즌 시작 (국내)`, category: 'earnings', country: 'KR', importance: 'medium', desc: '대략적 시작 무렵' })),
+  ...([['2027-01-12', '4Q26'], ['2027-04-13', '1Q27'], ['2027-07-13', '2Q27'], ['2027-10-12', '3Q27']] as const)
+    .map(([date, q]): CalendarEvent => ({ date, title: `${q} 실적시즌 시작 (미국)`, category: 'earnings', country: 'US', importance: 'medium', desc: '대략적 시작 무렵(빅뱅크 실적)' })),
 ];

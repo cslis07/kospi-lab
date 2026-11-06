@@ -5,6 +5,8 @@
  */
 import { NextResponse } from 'next/server';
 import { flattenEvents, classify, pickRelease, type SosoDay, type MacroRelease } from '@/lib/macroEvents';
+import { providerDayOffset, shiftYmd } from '@/lib/calendarOfficial';
+import { officialEventsWithin } from '@/lib/officialSchedule';
 
 export const maxDuration = 20;
 export const revalidate = 0;
@@ -25,7 +27,11 @@ export async function GET() {
   const key = process.env.SOSOVALUE_API_KEY?.trim();
   if (!key) return NextResponse.json({ events: [], upcoming: [], note: 'SOSOVALUE_API_KEY 없음' }, { headers: { 'Cache-Control': 's-maxage=300' } });
   const days = (await soso('/macro/events', key).catch(() => null)) as SosoDay[] | null;
-  const events = flattenEvents(days ?? []);
+  const raw = flattenEvents(days ?? []);
+  // SoSoValue 날짜가 공식 일정보다 일관되게 하루 이르다(2026-11 실측) — 공식 일정과 겹치는 종류로 오프셋을 재서 전체를 옮긴다.
+  // 7일 창 필터도 옮긴 날짜로(예전엔 보정 전 날짜로 걸러 '오늘 발표'가 어제로 보여 표에서 빠졌다).
+  const offset = providerDayOffset(raw, await officialEventsWithin(3000));
+  const events = raw.map((e) => (offset ? { ...e, date: shiftYmd(e.date, offset), providerDate: e.date } : e));
   const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
   const week = new Date(Date.now() + (9 + 24 * 7) * 3600e3).toISOString().slice(0, 10);
   const soon = [...new Map(events.filter((e) => e.date >= today && e.date <= week).map((e) => [e.name, e])).values()].slice(0, 8);
@@ -34,10 +40,11 @@ export async function GET() {
     const hist = (await soso(`/macro/events/${encodeURIComponent(e.name)}/history?limit=3`, key).catch(() => null)) as
       { date: string; actual: string; forecast: string; previous: string }[] | null;
     if (!hist) return;
-    upcoming.push({ date: e.date, name: e.name, ko: classify(e.name).ko, ...pickRelease(hist, e.date) });
+    // 이력(history) 날짜는 제공업체 기준이라 원래 날짜로 짝짓고, 내보내는 날짜는 보정값
+    upcoming.push({ date: e.date, name: e.name, ko: classify(e.name).ko, ...pickRelease(hist, 'providerDate' in e && e.providerDate ? e.providerDate : e.date) });
   }));
   upcoming.sort((a, b) => (a.date < b.date ? -1 : 1));
-  return NextResponse.json({ events, upcoming, source: 'SoSoValue' }, {
+  return NextResponse.json({ events, upcoming, source: 'SoSoValue', dayOffset: offset }, {
     headers: { 'Cache-Control': days ? 's-maxage=21600, stale-while-revalidate=86400' : 's-maxage=120' },
   });
 }

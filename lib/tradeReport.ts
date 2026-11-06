@@ -43,12 +43,20 @@ export interface MonthStat {
   avgHoldMs: number | null;
   best: TradePosition | null;   // 순손익 최대
   worst: TradePosition | null;  // 순손익 최소
+  /** 조회 기간이 이 달 중간부터라 일부만 합산된 경우 시작일 'MM/DD'(월 전체처럼 보이지 않게 표시용). 아니면 null */
+  partialFrom: string | null;
 }
 
 const sumBy = (list: TradePosition[], f: (p: TradePosition) => number) => list.reduce((a, p) => a + f(p), 0);
 
 /** 월별 집계(최신 월 먼저). closeTs 기준 KST 월로 버킷팅. */
-export function monthlyStats(positions: TradePosition[]): MonthStat[] {
+/**
+ * 월별 집계. fromTs(조회 기간 시작)를 주면 그 시각이 걸친 달은 partialFrom='MM/DD' — 30일 조회의 맨 아래 달은
+ * 그 달 전체가 아니라 일부라서(예: 10/07~10/31) 월 전체 손익·승률로 읽히지 않게 화면에 표시한다.
+ */
+export function monthlyStats(positions: TradePosition[], fromTs?: number): MonthStat[] {
+  const fromMonth = fromTs != null ? kstMonth(fromTs) : null;
+  const fromDay = fromTs != null ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit' }).format(new Date(fromTs)) : null; // 'MM-DD'
   const byMonth = new Map<string, TradePosition[]>();
   for (const p of positions) {
     const k = kstMonth(p.closeTs);
@@ -75,6 +83,7 @@ export function monthlyStats(positions: TradePosition[]): MonthStat[] {
       avgHoldMs: holds.length ? holds.reduce((a, b) => a + b, 0) / holds.length : null,
       best,
       worst,
+      partialFrom: month === fromMonth && fromDay && !fromDay.endsWith('-01') ? fromDay.replace('-', '/') : null,
     });
   }
   return out.sort((a, b) => (a.month < b.month ? 1 : -1));

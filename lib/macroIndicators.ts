@@ -18,12 +18,14 @@ export interface MacroValue {
 }
 
 const CACHE_TTL = 6 * 60 * 60 * 1000;
+const FAIL_TTL = 5 * 60 * 1000;
 const _cache = new Map<string, { v: MacroValue | null; ts: number }>();
 async function cached(key: string, fn: () => Promise<MacroValue | null>): Promise<MacroValue | null> {
   const hit = _cache.get(key);
   if (hit && Date.now() - hit.ts < CACHE_TTL) return hit.v;
   const v = await fn().catch(() => null);
-  _cache.set(key, { v, ts: Date.now() });
+  // 실패(null)는 5분만 기억 — 예전엔 FRED·ECOS 가 한 번 타임아웃 나면 6시간 동안 '체크필요'로 남았다
+  _cache.set(key, { v, ts: v == null ? Date.now() - CACHE_TTL + FAIL_TTL : Date.now() });
   return v;
 }
 

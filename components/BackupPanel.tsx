@@ -6,22 +6,36 @@
  * 파일 형식(v2·v1 하위호환)은 그대로 — 예전에 받은 백업 파일도 복원된다.
  */
 import { useRef, useState } from 'react';
+import { readMeta, writeMeta } from '@/lib/cloudSync';
 
 /** 모든 앱 데이터의 공통 접두사 — 새 훅이 생겨도 백업에서 자동으로 누락되지 않도록 접두사로 훑는다. */
 const LS_PREFIX = 'kospi-lab-';
 /** v1 백업 파일(관심종목·가상투자·코인관심 3개만 담음) 하위호환 키 */
 const V1_KEYS = { watchlist: 'kospi-lab-watchlist', virtual: 'kospi-lab-virtual', cryptoWatchlist: 'kospi-lab-crypto-watchlist' };
 
+/**
+ * 기기 고유·동기화 장부 키는 백업에서 뺀다 — 동기화 메타(해시·수정 시각)까지 복원하면 '로컬 변경 없음'으로 판정돼
+ * 서버의 더 새 값이 복원 데이터를 다시 덮어썼고(복원이 조용히 무효), 다른 기기에 복원하면 기기 ID 까지 복제됐다.
+ */
+const DEVICE_ONLY_KEYS = new Set(['kospi-lab-sync-meta', 'kospi-lab-device-id']);
+
 function collectAll(): Record<string, string> {
   const out: Record<string, string> = {};
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (k && k.startsWith(LS_PREFIX)) {
+    if (k && k.startsWith(LS_PREFIX) && !DEVICE_ONLY_KEYS.has(k)) {
       const val = localStorage.getItem(k);
       if (val !== null) out[k] = val;
     }
   }
   return out;
+}
+
+/** 복원한 키의 동기화 기록을 지운다 → 다음 동기화가 '이 기기에서 방금 바뀐 값'으로 보고 서버에 올린다(서버 값이 되돌리지 않게) */
+function forgetSyncMeta(keys: string[]) {
+  const meta = readMeta();
+  for (const k of keys) delete meta[k];
+  writeMeta(meta);
 }
 
 function exportData() {
@@ -44,13 +58,16 @@ function importData(file: File): Promise<string> {
         const data = JSON.parse(e.target?.result as string);
         if (!data.version) throw new Error('올바른 백업 파일이 아닙니다');
         if (data.version >= 2 && data.keys && typeof data.keys === 'object') {
+          const restored: string[] = [];
           for (const [k, v] of Object.entries(data.keys as Record<string, string>)) {
-            if (k.startsWith(LS_PREFIX) && typeof v === 'string') localStorage.setItem(k, v);
+            if (k.startsWith(LS_PREFIX) && !DEVICE_ONLY_KEYS.has(k) && typeof v === 'string') { localStorage.setItem(k, v); restored.push(k); }
           }
+          forgetSyncMeta(restored);
         } else {
           if (data.watchlist) localStorage.setItem(V1_KEYS.watchlist, JSON.stringify(data.watchlist));
           if (data.virtual) localStorage.setItem(V1_KEYS.virtual, JSON.stringify(data.virtual));
           if (data.cryptoWatchlist) localStorage.setItem(V1_KEYS.cryptoWatchlist, JSON.stringify(data.cryptoWatchlist));
+          forgetSyncMeta(Object.values(V1_KEYS));
         }
         resolve(data.exportedAt ?? '');
       } catch (err) {

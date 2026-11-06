@@ -192,6 +192,7 @@ export default function JournalPage() {
   const snaps = useSnapshots();
   const { limits } = useRiskLimits(); // 서킷브레이커 연패 기준(사용자 설정) — 연패 분석 마지막 줄을 같은 선으로
   const [days, setDays] = useState(30);
+  const [fetchedFrom, setFetchedFrom] = useState<number | null>(null); // 조회 기간 시작(첫 달 '일부' 표시용)
   const [positions, setPositions] = useState<ClosedPosition[]>([]);
   const [open, setOpen] = useState<OpenPosition[]>([]);
   const [equity, setEquity] = useState<number | null>(null); // 선물 계좌 현재 자본(/api/bitget/positions account.equity) — 매매당 손실 % 기준
@@ -260,6 +261,7 @@ export default function JournalPage() {
       if (j.error) { setErr(`거래소 조회 실패 — ${j.error.includes('40014') ? '키에 선물 읽기 권한이 없습니다(Bitget API 관리에서 Futures/Position Read 추가).' : j.error}`); setPositions([]); return; }
       const list = j.positions ?? [];
       setPositions(list);
+      setFetchedFrom(Date.now() - d * 86_400_000);
       if (!list.length && !openList.length) setMsg(`최근 ${d}일 청산된 선물 포지션이 없고, 열린 포지션도 없습니다.`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -269,7 +271,8 @@ export default function JournalPage() {
   // 진입 시 자동 1회 + 기간 변경 시 재조회
   useEffect(() => { load(days); }, [days, load]);
 
-  const months = useMemo(() => monthlyStats(positions), [positions]);
+  // 조회 기간 시작(일부만 담긴 첫 달 표시용) — 조회할 때마다 기준 시각을 다시 잡는다
+  const months = useMemo(() => monthlyStats(positions, fetchedFrom ?? undefined), [positions, fetchedFrom]);
   // 월별 거래내역(상세 펼침용)
   const monthGroups = useMemo(() => {
     const map = new Map<string, ClosedPosition[]>();
@@ -526,7 +529,7 @@ export default function JournalPage() {
                         className="w-full flex items-center justify-between gap-3 px-4 py-3 active:bg-[var(--surface-2)] transition-colors">
                         <span className="flex items-center gap-2 min-w-0">
                           <Chevron open={isOpen} />
-                          <b className="text-[15px] text-[var(--text)]">{kstMonthLabel(m.month)}</b>
+                          <b className="text-[15px] text-[var(--text)]">{kstMonthLabel(m.month)}{m.partialFrom && <span className="text-[11px] font-normal text-[var(--text-muted)]"> ({m.partialFrom}~ 일부)</span>}</b>
                           <span className="text-[11px] text-[var(--text-muted)]">{m.count}건 · 승 {m.winRate != null ? `${m.winRate.toFixed(0)}%` : '—'}</span>
                         </span>
                         <span className="text-[15px] font-extrabold tabular-nums shrink-0" style={{ color: pnlColor(m.netSum) }}>{fmtPnl(m.netSum)} USDT</span>

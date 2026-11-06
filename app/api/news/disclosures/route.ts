@@ -11,12 +11,9 @@ export interface DisclosureItem {
   source:  'DART' | 'KIND';
 }
 
+/** 오늘(KST) YYYYMMDD — 서버(Vercel)는 UTC 라 로컬 시각을 쓰면 00~09시 KST 에 전날 공시를 '오늘'로 조회했다 */
 function todayStr(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${y}${m}${dd}`;
+  return new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10).replace(/-/g, '');
 }
 
 // ── DART 공시 목록 ────────────────────────────────────────────────────────────
