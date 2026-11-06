@@ -111,7 +111,8 @@ export async function industryTrend(market: 'kr' | 'us', category: 'industries' 
         code: market === 'us' ? ((p as { symbol?: string } | undefined)?.symbol ?? s.code) : s.code,
         name: s.name, logo: s.itemLogoUrl,
         price: p?.price ?? 0, change: p?.change ?? 0,
-        changeRate: p ? p.changeRate : r2(n(s.value)), // 주·월간이면 value 는 기간 등락률 — 현재가 없으면 그 값을 쓴다
+        // 순위가 기간(주·월) 등락률 기준이면 옆 숫자도 기간 등락률(value) — 예전엔 그날 하루 등락이 붙어 '월간 TOP3 −2.5%'처럼 보였다
+        changeRate: period !== 'daily' ? r2(n(s.value)) : p ? p.changeRate : r2(n(s.value)),
       };
     }),
   }));

@@ -14,6 +14,7 @@ import { useAlerts } from '@/hooks/useAlerts';
 import { checkAlert, isAlertOn } from '@/lib/priceAlert';
 import { useCoinPriceAlerts } from '@/hooks/useCoinPriceAlerts';
 import { checkCoinPriceAlert } from '@/lib/coinPriceAlert';
+import { batchFetcher } from '@/lib/stockBatch';
 
 const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); });
 interface Hit { id: string; ticker: string; name: string; side: 'above' | 'below'; price: number; target: number; coin?: boolean }
@@ -27,9 +28,9 @@ export default function PriceAlertWatcher() {
   const { alerts: coinAlerts, patch: patchCoin } = useCoinPriceAlerts();
   const [hits, setHits] = useState<Hit[]>([]);
 
-  const tickers = useMemo(() => Object.entries(alerts).filter(([, a]) => isAlertOn(a)).map(([t]) => t).sort().slice(0, 20), [alerts]);
+  const tickers = useMemo(() => Object.entries(alerts).filter(([, a]) => isAlertOn(a)).map(([t]) => t).sort(), [alerts]);
   const { data } = useSWR<Record<string, { price?: number; name?: string }>>(
-    tickers.length ? `/api/stock/batch?tickers=${tickers.join(',')}` : null, fetcher,
+    tickers.length ? `/api/stock/batch?tickers=${tickers.join(',')}` : null, batchFetcher<{ price?: number; name?: string }>,
     { refreshInterval: 30000, revalidateOnFocus: true, dedupingInterval: 10000, isPaused: noPause },
   );
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { KR_CODE_RE } from '@/lib/krCode';
 import { useState, useMemo, useEffect } from 'react';
 import AnalysisSwitch from '@/components/AnalysisSwitch';
 import useSWR from 'swr';
@@ -117,7 +118,7 @@ export default function StockAnalysisPage() {
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const q = p.get('ticker');
-    if (q && /^\d{6}$/.test(q)) {
+    if (q && KR_CODE_RE.test(q.toUpperCase())) {
       setTicker(q);
       if (p.get('run') === '1') setAutoRunTicker(q);
     }
@@ -186,7 +187,7 @@ export default function StockAnalysisPage() {
   const [query, setQuery] = useState('');
   const [showDrop, setShowDrop] = useState(false);
   const { data: hits } = useSWR<{ code: string; name: string; market: string }[]>(
-    query.trim().length >= 1 && !/^\d{6}$/.test(query.trim()) ? `/api/stock-search?q=${encodeURIComponent(query.trim())}` : null,
+    query.trim().length >= 1 && !KR_CODE_RE.test(query.trim().toUpperCase()) ? `/api/stock-search?q=${encodeURIComponent(query.trim())}` : null,
     fetcher,
   );
   // 우선주 뒤로, 보통주/대표주 우선 정렬
@@ -207,7 +208,7 @@ export default function StockAnalysisPage() {
     const t = query.trim();
     let code = ticker;
     if (t) {
-      if (/^\d{6}$/.test(t)) code = t;
+      if (KR_CODE_RE.test(t.toUpperCase())) code = t.toUpperCase();
       else if (suggestions.length) code = suggestions[0].code;
       else return;
       pick(code);

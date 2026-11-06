@@ -16,8 +16,8 @@ import { useCoinPriceAlerts } from '@/hooks/useCoinPriceAlerts';
 import type { CoinPriceAlert } from '@/lib/coinPriceAlert';
 import { alertDistancePct, isAlertOn } from '@/lib/priceAlert';
 import { kstDateTime } from '@/lib/csv';
+import { batchFetcher } from '@/lib/stockBatch';
 
-const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); });
 const won = (n?: number) => (n == null ? '—' : `${n.toLocaleString()}원`);
 /** USDT 가격 표기(PriceAlertWatcher 와 같은 자릿수 규칙) */
 const usd = (n?: number) => (n == null || !(n > 0) ? '—' : `$${n.toLocaleString('en-US', { maximumFractionDigits: n >= 1000 ? 1 : n >= 1 ? 3 : 5 })}`);
@@ -52,7 +52,7 @@ export default function AlertsPage() {
 
   const tickers = useMemo(() => Object.keys(alerts).sort(), [alerts]);
   const { data: px } = useSWR<Record<string, { price?: number; name?: string; changeRate?: number }>>(
-    tickers.length ? `/api/stock/batch?tickers=${tickers.slice(0, 20).join(',')}` : null, fetcher, { refreshInterval: 15000 },
+    tickers.length ? `/api/stock/batch?tickers=${tickers.join(',')}` : null, batchFetcher<{ price?: number; name?: string; changeRate?: number }>, { refreshInterval: 15000 },
   );
 
   // 켜진 것 먼저, 그다음 기준에 가까운 순
@@ -75,7 +75,7 @@ export default function AlertsPage() {
   }, [cpa.alerts]);
   const coinSyms = useMemo(() => coinGroups.map((g) => g.symbol).slice(0, 8), [coinGroups]);
   const { data: cpx } = useSWR<Record<string, { price?: number }>>(
-    coinSyms.length ? `/api/crypto/batch?symbols=${coinSyms.join(',')}` : null, fetcher, { refreshInterval: 20000 },
+    coinSyms.length ? `/api/crypto/batch?symbols=${coinSyms.join(',')}` : null, batchFetcher, { refreshInterval: 20000 },
   );
 
   const onCount = rows.filter((r) => r.on).length + coinRules.filter((r) => r.enabled !== false).length

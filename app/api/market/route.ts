@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchMarketIndex } from '@/lib/naver';
+import { usdKrwLive } from '@/lib/naverIndex';
 import type { MarketIndex, FxRate } from '@/lib/types';
 
 /** 표시 일관성: 변동률·변동폭은 소수 2자리로 통일(지수는 소스가 반올림, 계산값은 full-float이던 불일치 해소) */
@@ -61,7 +62,7 @@ async function fetchFxRates(): Promise<{ usdkrw: FxRate | null; jpykrw: FxRate |
 async function fetchYahooIndex(symbol: string, name: string): Promise<MarketIndex | null> {
   try {
     const res = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`, // 1d → chartPreviousClose = 직전 거래일 종가
       { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store', signal: AbortSignal.timeout(6000) },
     );
     if (!res.ok) return null;
@@ -98,23 +99,29 @@ async function fetchUsdtKrw(): Promise<FxRate | null> {
 
 export async function GET() {
   try {
-    const [kospi, kosdaq, kpi200, nasdaq, fx, usdt] = await Promise.allSettled([
+    const [kospi, kosdaq, kpi200, nasdaq, fx, usdt, usdLive] = await Promise.allSettled([
       fetchMarketIndex('KOSPI'),
       fetchMarketIndex('KOSDAQ'),
       fetchMarketIndex('KPI200'),
       fetchYahooIndex('^IXIC', 'NASDAQ'),
       fetchFxRates(),
       fetchUsdtKrw(),
+      usdKrwLive(),
     ]);
 
     const fxData = fx.status === 'fulfilled' ? fx.value : { usdkrw: null, jpykrw: null };
+    // 원/달러는 홈 카드와 같은 네이버 실시간(하나은행 고시) 우선 — ECB 전일 고시가와 같은 화면에서 값이 달랐다. 실패 시 ECB.
+    const live = usdLive.status === 'fulfilled' ? usdLive.value : null;
+    const usdkrw: FxRate | null = live && live.value > 0
+      ? { value: r2(live.value), change: r2(live.change), changeRate: r2(live.changeRate) }
+      : fxData.usdkrw;
 
     return NextResponse.json({
       kospi:  kospi.status  === 'fulfilled' ? parseIndex(kospi.value,  'KOSPI')  : null,
       kosdaq: kosdaq.status === 'fulfilled' ? parseIndex(kosdaq.value, 'KOSDAQ') : null,
       kpi200: kpi200.status === 'fulfilled' ? parseIndex(kpi200.value, 'KPI200') : null,
       nasdaq: nasdaq.status === 'fulfilled' ? nasdaq.value : null,
-      usdkrw: fxData.usdkrw,
+      usdkrw,
       jpykrw: fxData.jpykrw,
       usdtkrw: usdt.status === 'fulfilled' ? usdt.value : null,
     }, { headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=600' } });

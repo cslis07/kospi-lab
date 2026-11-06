@@ -13,6 +13,7 @@ import { useWatchlist } from '@/hooks/useWatchlist';
 import { STOCK_LIST, type StockItem } from '@/lib/stockList';
 import type { StockData } from '@/lib/types';
 import Mini52 from '@/components/Mini52';
+import { batchFetcher } from '@/lib/stockBatch';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -23,13 +24,10 @@ const ALL_STOCKS: StockItem[] = Array.from(
   ).values()
 );
 
-// 20개씩 청크 (배치 API 최대 20)
-const C0 = ALL_STOCKS.slice(  0,  20).map((s) => s.ticker).join(',');
-const C1 = ALL_STOCKS.slice( 20,  40).map((s) => s.ticker).join(',');
-const C2 = ALL_STOCKS.slice( 40,  60).map((s) => s.ticker).join(',');
-const C3 = ALL_STOCKS.slice( 60,  80).map((s) => s.ticker).join(',');
-const C4 = ALL_STOCKS.slice( 80, 100).map((s) => s.ticker).join(',');
-const C5 = ALL_STOCKS.slice(100).map((s) => s.ticker).join(',');
+// 20개씩 청크 (배치 API 최대 20) — 목록 길이에 맞춰 자동 분할(예전 고정 6청크는 101번째부터 20개만 받아 나머지가 '로딩…'에 머물렀다)
+const CHUNKS: string[] = Array.from({ length: Math.ceil(ALL_STOCKS.length / 20) }, (_, i) =>
+  ALL_STOCKS.slice(i * 20, i * 20 + 20).map((s) => s.ticker).join(','));
+const REST_KEY = CHUNKS.length > 1 ? `/api/stock/batch?tickers=${CHUNKS.slice(1).join(',')}` : null;
 
 // ── 브랜드 로고 ───────────────────────────────────────────────
 const BRAND: Record<string, { bg: string; color: string; label: string }> = {
@@ -93,20 +91,16 @@ export default function DomesticPage() {
     const t = window.setTimeout(() => void loadModal(), 2500);
     return () => clearTimeout(t);
   }, []);
-  // 6청크 × 20종목을 5초마다 갱신하면 5초당 최대 240건이 네이버로 나간다.
+  // 청크 × 20종목을 5초마다 갱신하면 네이버 호출이 과하다 → 15초. 첫 청크는 먼저 그리고 나머지는 한 번에 받는다.
   const OPT = { refreshInterval: 15000, dedupingInterval: 5000, revalidateOnFocus: false };
-  const { data: d0 } = useSWR<Record<string, StockData>>(C0 ? `/api/stock/batch?tickers=${C0}` : null, fetcher, OPT);
-  const { data: d1 } = useSWR<Record<string, StockData>>(C1 ? `/api/stock/batch?tickers=${C1}` : null, fetcher, OPT);
-  const { data: d2 } = useSWR<Record<string, StockData>>(C2 ? `/api/stock/batch?tickers=${C2}` : null, fetcher, OPT);
-  const { data: d3 } = useSWR<Record<string, StockData>>(C3 ? `/api/stock/batch?tickers=${C3}` : null, fetcher, OPT);
-  const { data: d4 } = useSWR<Record<string, StockData>>(C4 ? `/api/stock/batch?tickers=${C4}` : null, fetcher, OPT);
-  const { data: d5 } = useSWR<Record<string, StockData>>(C5 ? `/api/stock/batch?tickers=${C5}` : null, fetcher, OPT);
+  const { data: d0 } = useSWR<Record<string, StockData>>(CHUNKS[0] ? `/api/stock/batch?tickers=${CHUNKS[0]}` : null, fetcher, OPT);
+  const { data: dRest } = useSWR<Record<string, StockData>>(REST_KEY, batchFetcher<StockData>, OPT);
 
   const allData = useMemo<Record<string, StockData>>(
-    () => Object.assign({}, d0, d1, d2, d3, d4, d5),
-    [d0, d1, d2, d3, d4, d5]
+    () => Object.assign({}, d0, dRest),
+    [d0, dRest]
   );
-  const isLoading = !d0 && !d1 && !d2;
+  const isLoading = !d0 && !dRest;
 
   const { watchlist, add, remove, mounted } = useWatchlist();
 
@@ -304,7 +298,7 @@ export default function DomesticPage() {
           </div>
         )}
       </div>
-      <p className="text-[10px] text-[var(--text-muted)] text-center mt-3 opacity-50">Naver 금융 · 5초 갱신 · 투자 참고용</p>
+      <p className="text-[10px] text-[var(--text-muted)] text-center mt-3 opacity-50">Naver 금융 · 15초 갱신 · 투자 참고용</p>
 
       {selected && (
         <StockDetailModal code={selected.ticker} name={selected.name} market={selected.market} onClose={() => setSelected(null)} />

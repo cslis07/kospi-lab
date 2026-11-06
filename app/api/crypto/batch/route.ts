@@ -42,7 +42,7 @@ function fromBitget(symbol: string, t: BitgetTicker): CryptoData {
 // ── Yahoo Finance 폴백 (Bitget에 없는 심볼) ───────────────────────────────────
 async function fetchYahoo(symbol: string): Promise<CryptoData> {
   const yahooSym = toYahooSymbol(symbol);
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?interval=1d&range=2d&includePrePost=false`;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?interval=1d&range=1d&includePrePost=false`; // range=1d → chartPreviousClose = 직전 거래일 종가(2d 면 이틀 전 종가)
   let res = await fetch(url, { headers: HEADERS, cache: 'no-store' });
   if (!res.ok) {
     res = await fetch(url.replace('query1', 'query2'), { headers: HEADERS, cache: 'no-store' });

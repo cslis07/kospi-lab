@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { StockData } from '@/lib/types';
+import { KR_CODE_RE } from '@/lib/naver';
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -13,12 +14,16 @@ function parseNum(s: unknown) {
 
 async function fetchOne(ticker: string): Promise<[string, StockData]> {
   const [basicRes, integRes] = await Promise.all([
-    fetch(`https://m.stock.naver.com/api/stock/${ticker}/basic`, { headers: HEADERS, next: { revalidate: 0 } }),
-    fetch(`https://m.stock.naver.com/api/stock/${ticker}/integration`, { headers: HEADERS, next: { revalidate: 0 } }),
+    fetch(`https://m.stock.naver.com/api/stock/${ticker}/basic`, { headers: HEADERS, next: { revalidate: 0 }, signal: AbortSignal.timeout(6000) }),
+    fetch(`https://m.stock.naver.com/api/stock/${ticker}/integration`, { headers: HEADERS, next: { revalidate: 0 }, signal: AbortSignal.timeout(6000) })
+      .catch(() => null),
   ]);
 
+  // 상장폐지·무효 코드는 네이버가 409 등을 준다 — 예전엔 확인 없이 '0원 +0.00%'·코드 숫자 이름으로 내보냈다
+  if (!basicRes.ok) throw new Error(`Naver basic ${ticker}: ${basicRes.status}`);
   const basic = await basicRes.json();
-  const integ = integRes.ok ? await integRes.json() : {};
+  if (basic?.closePrice == null) throw new Error(`Naver basic ${ticker}: no price`);
+  const integ = integRes?.ok ? await integRes.json().catch(() => ({})) : {};
   const infos: { key: string; value: string }[] = integ.totalInfos ?? [];
   const get = (k: string) => infos.find((i) => i.key === k)?.value ?? '-';
 
@@ -43,7 +48,7 @@ async function fetchOne(ticker: string): Promise<[string, StockData]> {
 
 export async function GET(req: NextRequest) {
   const tickers = (req.nextUrl.searchParams.get('tickers') ?? '')
-    .split(',').map((t) => t.trim()).filter(Boolean).slice(0, 20);
+    .split(',').map((t) => t.trim().toUpperCase()).filter((t) => KR_CODE_RE.test(t)).slice(0, 20);
 
   if (!tickers.length) return NextResponse.json({});
 

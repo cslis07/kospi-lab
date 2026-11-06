@@ -11,6 +11,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { concentration, STOCK_LIMIT, SECTOR_LIMIT, type Slice } from '@/lib/concentration';
+import { batchFetcher } from '@/lib/stockBatch';
 
 const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); });
 // 슬라이스 색 — 테마 토큰(빨강은 경고 전용으로 비워 둔다), 7번째부터는 '기타'로 묶음
@@ -70,8 +71,8 @@ export default function HoldingsConcentration() {
   const { portfolio } = usePortfolio();
   const [view, setView] = useState<'stock' | 'sector'>('stock');
   const codes = useMemo(() => Object.keys(portfolio).filter((t) => portfolio[t]?.quantity > 0).sort(), [portfolio]);
-  const q = codes.slice(0, 20).join(',');
-  const { data: px } = useSWR<Record<string, { price?: number; name?: string }>>(codes.length ? `/api/stock/batch?tickers=${q}` : null, fetcher, { refreshInterval: 30000, revalidateOnFocus: false });
+  const q = codes.join(',');
+  const { data: px } = useSWR<Record<string, { price?: number; name?: string }>>(codes.length ? `/api/stock/batch?tickers=${q}` : null, batchFetcher<{ price?: number; name?: string }>, { refreshInterval: 30000, revalidateOnFocus: false });
   const { data: sec } = useSWR<Record<string, string>>(codes.length ? `/api/stock/sectors?codes=${q}` : null, fetcher, { revalidateOnFocus: false });
 
   const c = useMemo(() => concentration(codes.map((t) => ({

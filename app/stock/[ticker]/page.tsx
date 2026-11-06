@@ -1,5 +1,6 @@
 'use client';
 
+import { KR_CODE_RE } from '@/lib/krCode';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import useSWR from 'swr';
@@ -304,7 +305,7 @@ export default function StockDetailPage() {
   const handleCompareInput = (val: string) => {
     setCompareInput(val);
     const t = val.trim();
-    if (!t || /^\d{6}$/.test(t)) {
+    if (!t || KR_CODE_RE.test(t.toUpperCase())) {
       setCompareHits([]); setShowCompareDrop(false);
       if (compareDebounce.current) clearTimeout(compareDebounce.current);
       return;
@@ -337,7 +338,7 @@ export default function StockDetailPage() {
   const submitCompare = () => {
     if (compareHits.length) { pickCompare(compareHits[0]); return; }
     const t = compareInput.trim().replace(/\.(KS|KQ)$/, '');
-    if (/^\d{6}$/.test(t)) { setCompare(t); setCompareName(t); setShowCompareDrop(false); }
+    if (KR_CODE_RE.test(t.toUpperCase())) { setCompare(t.toUpperCase()); setCompareName(t.toUpperCase()); setShowCompareDrop(false); }
   };
 
   const clearCompare = () => {
@@ -370,15 +371,18 @@ export default function StockDetailPage() {
   const [avg, setAvg]           = useState('');
   const [alertAbove, setAlertAbove] = useState('');
   const [alertBelow, setAlertBelow] = useState('');
-  const [initDone, setInitDone] = useState(false);
+  // 보유·알림 입력칸 초기값 — 플래그를 따로 둔다(하나로 쓰면 보유가 먼저 채워질 때 알림칸이 빈 채로 남고,
+  // 그 상태에서 '알림 설정'을 누르면 기존 알림이 지워졌다)
+  const [pfInit, setPfInit] = useState(false);
+  const [alInit, setAlInit] = useState(false);
 
-  if (!initDone && myPortfolio) {
+  if (!pfInit && myPortfolio) {
     setQty(String(myPortfolio.quantity)); setAvg(String(myPortfolio.avgPrice));
-    setInitDone(true);
+    setPfInit(true);
   }
-  if (!initDone && myAlert) {
+  if (!alInit && myAlert) {
     setAlertAbove(String(myAlert.above ?? '')); setAlertBelow(String(myAlert.below ?? ''));
-    setInitDone(true);
+    setAlInit(true);
   }
 
   const isPos = (stock?.change ?? 0) >= 0;
@@ -421,8 +425,10 @@ export default function StockDetailPage() {
   const chartMin = prices.length ? Math.min(...prices) * 0.995 : 0;
   const chartMax = prices.length ? Math.max(...prices) * 1.005 : 0;
 
-  const pnl     = myPortfolio ? (stock!.price - myPortfolio.avgPrice) * myPortfolio.quantity : null;
-  const pnlRate = myPortfolio ? ((stock!.price - myPortfolio.avgPrice) / myPortfolio.avgPrice) * 100 : null;
+  // 보유 등록 종목은 시세가 오기 전(또는 {error})에 계산하면 화면 전체가 오류로 넘어갔다 — 시세가 있을 때만
+  const livePrice = stock && !('error' in stock) && typeof stock.price === 'number' ? stock.price : null;
+  const pnl     = myPortfolio && livePrice != null ? (livePrice - myPortfolio.avgPrice) * myPortfolio.quantity : null;
+  const pnlRate = myPortfolio && livePrice != null && myPortfolio.avgPrice ? ((livePrice - myPortfolio.avgPrice) / myPortfolio.avgPrice) * 100 : null;
 
   const savePortfolio = () => {
     const q = parseFloat(qty), a = parseFloat(avg);
@@ -622,7 +628,7 @@ export default function StockDetailPage() {
       </BottomSheet>
 
       {/* ── 투자 지표·목표주가 · 수급(20일·외국인 보유율) · 동종업계 · DART · 리포트 (KR 주식만) ── */}
-      {/^\d{6}(\.(KS|KQ))?$/.test(ticker) && (() => {
+      {/^\d[0-9A-Z]{5}(\.(KS|KQ))?$/.test(ticker) && (() => {
         const code = ticker.replace(/\.(KS|KQ)$/, '');
         return (
           <>

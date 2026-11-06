@@ -100,9 +100,11 @@ function buildFromYahoo(d: any, ticker: string, roeMin: number) {
     totLiab != null && totEq != null && totEq > 0
       ? Math.round((totLiab / totEq) * 1000) / 10
       : null;
-  const debtRatio = debtRatioFD != null
-    ? Math.round(debtRatioFD * 10) / 10
-    : debtRatioBs;
+  // 부채비율 = 부채총계/자본총계(네이버·DART 와 같은 정의, 화면 기준 '< 100%') 우선.
+  // Yahoo debtToEquity 는 차입금/자본이라 훨씬 작게 나온다(삼성전자 2.8%) — 재무상태표가 없을 때만 대체로 쓴다.
+  const debtRatio = debtRatioBs != null
+    ? debtRatioBs
+    : debtRatioFD != null ? Math.round(debtRatioFD * 10) / 10 : null;
 
   const perRaw =
     raw(ks, 'trailingPE', 'raw') ??

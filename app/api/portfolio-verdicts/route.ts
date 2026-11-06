@@ -1,3 +1,4 @@
+import { KR_CODE_RE } from '@/lib/krCode';
 import { NextRequest, NextResponse } from 'next/server';
 import { Candle, analyzeTimeframe, srZones, fibonacci, atr } from '@/lib/coinAnalysis';
 import { analyzeSupply, buildStockVerdict, InvestorDay } from '@/lib/stockAnalysis';
@@ -98,7 +99,7 @@ async function verdictOf(ticker: string): Promise<HoldingVerdict | null> {
 
 export async function GET(req: NextRequest) {
   const tickers = (req.nextUrl.searchParams.get('tickers') ?? '')
-    .split(',').map((t) => t.trim()).filter((t) => /^\d{6}$/.test(t)).slice(0, 15);
+    .split(',').map((t) => t.trim()).map((t) => t.toUpperCase()).filter((t) => KR_CODE_RE.test(t)).slice(0, 15);
   if (!tickers.length) return NextResponse.json({});
 
   const results = await Promise.all(tickers.map(verdictOf));

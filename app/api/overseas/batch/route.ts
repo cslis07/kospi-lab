@@ -29,7 +29,7 @@ function normalizeExchange(s: string): string {
 }
 
 async function fetchOne(symbol: string): Promise<OverseasStockData> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d&includePrePost=false`;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d&includePrePost=false`; // range=1d → chartPreviousClose = 직전 거래일 종가(2d 면 이틀 전 종가)
 
   let res = await fetch(url, { headers: HEADERS, next: { revalidate: 0 } });
   if (!res.ok) {

@@ -15,6 +15,7 @@ import { useWatchlist } from '@/hooks/useWatchlist';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 import { strongPairs, avgCorr, corrLabel, type CorrMatrix } from '@/lib/correlation';
+import { batchFetcher } from '@/lib/stockBatch';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 type Scope = 'hold' | 'watch';
@@ -58,7 +59,7 @@ export default function CorrelationMatrix() {
 
   // 관심종목에 없는 보유 종목은 이름을 시세 일괄 API로(코드만 보인다)
   const unnamed = picks.filter((p) => p.id.startsWith('kr:') && p.label === p.id.slice(3)).map((p) => p.id.slice(3));
-  const { data: names } = useSWR<Record<string, { name?: string }>>(unnamed.length ? `/api/stock/batch?tickers=${unnamed.join(',')}` : null, fetcher, { revalidateOnFocus: false });
+  const { data: names } = useSWR<Record<string, { name?: string }>>(unnamed.length ? `/api/stock/batch?tickers=${unnamed.join(',')}` : null, batchFetcher<{ name?: string }>, { revalidateOnFocus: false });
   const key = picks.length >= 2 ? `/api/correlation?ids=${encodeURIComponent(picks.map((p) => p.id).join(','))}&days=${days}` : null;
   const { data, error } = useSWR<Resp>(key, fetcher, { revalidateOnFocus: false, keepPreviousData: true });
   const label = (id: string) => (id.startsWith('kr:') ? names?.[id.slice(3)]?.name : undefined) ?? picks.find((p) => p.id === id)?.label ?? data?.assets.find((a) => a.id === id)?.label ?? id;

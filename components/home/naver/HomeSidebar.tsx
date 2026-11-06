@@ -10,6 +10,7 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { Flash, LiveStamp } from '@/components/naver/ui';
+import { batchFetcher } from '@/lib/stockBatch';
 
 interface PopularItem { code: string; name: string; price: number; changeRate: number }
 interface StatusResp { popular: PopularItem[]; date?: string; source?: 'naver' | 'krx'; asOf?: string }
@@ -50,7 +51,7 @@ export function StockTabs({ initial = 'popular', limit }: { initial?: 'popular' 
   const { watchlist, mounted } = useWatchlist();
   const tickers = watchlist.map((w) => w.ticker).join(',');
   const { data: batch } = useSWR<BatchItem[] | Record<string, BatchItem>>(
-    tab === 'watch' && tickers ? `/api/stock/batch?tickers=${tickers}` : null, fetcher, { refreshInterval: 30000, revalidateOnFocus: false },
+    tab === 'watch' && tickers ? `/api/stock/batch?tickers=${tickers}` : null, batchFetcher<BatchItem>, { refreshInterval: 30000, revalidateOnFocus: false },
   );
   const priceOf = (t: string): BatchItem | undefined => {
     if (!batch) return undefined;

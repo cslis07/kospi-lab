@@ -106,9 +106,12 @@ export default function StockDetailModal({ code, name, market, onClose }: Props)
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const { data: stock } = useSWR<StockData>(
+  const { data: rawStock } = useSWR<StockData | { error: string }>(
     `/api/stock/${code}`, fetcher, { refreshInterval: 5000 }
   );
+  // 502 {error}(상장폐지·조회 실패)면 시세 칸을 그리지 않는다 — 예전엔 stock.changeRate.toFixed 에서 화면 전체가 오류로 넘어갔다
+  const stockFailed = !!rawStock && ('error' in rawStock || typeof (rawStock as StockData).price !== 'number');
+  const stock: StockData | undefined = rawStock && !stockFailed ? (rawStock as StockData) : undefined;
   const { data: chart } = useSWR<ChartPoint[]>(
     `/api/stock/${code}/chart?months=${tf.months}`, fetcher, { refreshInterval: 60000 }
   );
@@ -175,6 +178,8 @@ export default function StockDetailModal({ code, name, market, onClose }: Props)
                 {' '}({isPos ? '+' : ''}{stock.changeRate.toFixed(2)}%)
               </p>
             </>
+          ) : stockFailed ? (
+            <p className="text-sm text-[var(--text-muted)] py-4">시세를 불러오지 못했습니다(상장폐지·거래정지 또는 일시 오류).</p>
           ) : (
             <div className="h-16 animate-pulse rounded-lg bg-white/10" />
           )}

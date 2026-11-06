@@ -1,5 +1,6 @@
 'use client';
 
+import { KR_CODE_RE } from '@/lib/krCode';
 import { useState, useMemo, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
@@ -212,7 +213,7 @@ function StockCard({
               <p className="text-sm font-bold tabular-nums text-[var(--text)]">
                 {krxDaily.close.toLocaleString()}원
               </p>
-              <p className={`text-[11px] font-semibold tabular-nums ${krxDaily.changeRate >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              <p className={`text-[11px] font-semibold tabular-nums ${krxDaily.changeRate >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>
                 {krxDaily.changeRate >= 0 ? '▲' : '▼'} {Math.abs(krxDaily.changeRate).toFixed(2)}%
               </p>
             </>
@@ -307,7 +308,7 @@ function ScreenerInner() {
     const list = t.split(',')
       .map((s) => {
         const u = s.trim().toUpperCase();
-        return mkt === 'KR' && /^\d{6}$/.test(u) ? `${u}.KS` : u;
+        return mkt === 'KR' && KR_CODE_RE.test(u) ? `${u}.KS` : u;
       })
       .filter(Boolean);
     if (!list.length) return;
@@ -384,14 +385,14 @@ function ScreenerInner() {
   // 코드 직접 입력 추가 (한국 6자리 숫자만, 미국 알파벳 티커)
   const normalizeTicker = (t: string): string => {
     const u = t.toUpperCase().trim();
-    if (market === 'KR' && /^\d{6}$/.test(u)) return `${u}.KS`;
+    if (market === 'KR' && KR_CODE_RE.test(u)) return `${u}.KS`;
     return u;
   };
 
   const addByCode = () => {
     const raw = customInput.trim();
     // KR 시장: 6자리 숫자 코드만 직접 추가 허용 (이름 입력은 드롭다운으로만)
-    if (market === 'KR' && !/^\d{6}$/.test(raw)) return;
+    if (market === 'KR' && !KR_CODE_RE.test(raw.toUpperCase())) return;
     const t = normalizeTicker(raw);
     if (!t || customTickers.includes(t)) return;
     setCustomTickers((prev) => [...prev, t]);

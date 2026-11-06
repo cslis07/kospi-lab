@@ -20,6 +20,7 @@ import { usePortfolio } from '@/hooks/usePortfolio';
 import { useAlerts } from '@/hooks/useAlerts';
 import { COINS, fmtCoinPrice } from '@/lib/coins';
 import type { StockData, OverseasStockData, CryptoData } from '@/lib/types';
+import { batchFetcher } from '@/lib/stockBatch';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 type MarketTab = 'domestic' | 'overseas' | 'crypto';
@@ -77,11 +78,11 @@ function MyStocksInner() {
   const { alerts } = useAlerts();
 
   const { data: krData } = useSWR<Record<string, StockData>>(
-    tab === 'domestic' && kr.watchlist.length ? `/api/stock/batch?tickers=${kr.watchlist.map((w) => w.ticker).join(',')}` : null, fetcher, { refreshInterval: 5000 });
+    tab === 'domestic' && kr.watchlist.length ? `/api/stock/batch?tickers=${kr.watchlist.map((w) => w.ticker).join(',')}` : null, batchFetcher<StockData>, { refreshInterval: 5000 });
   const { data: ovData } = useSWR<Record<string, OverseasStockData>>(
-    tab === 'overseas' && ov.watchlist.length ? `/api/overseas/batch?symbols=${ov.watchlist.map((w) => w.symbol).join(',')}` : null, fetcher, { refreshInterval: 15000 });
+    tab === 'overseas' && ov.watchlist.length ? `/api/overseas/batch?symbols=${ov.watchlist.map((w) => w.symbol).join(',')}` : null, batchFetcher<OverseasStockData>, { refreshInterval: 15000 });
   const { data: crData } = useSWR<Record<string, CryptoData>>(
-    tab === 'crypto' && cr.watchlist.length ? `/api/crypto/batch?symbols=${cr.watchlist.map((w) => w.symbol).join(',')}` : null, fetcher, { refreshInterval: 5000 });
+    tab === 'crypto' && cr.watchlist.length ? `/api/crypto/batch?symbols=${cr.watchlist.map((w) => w.symbol).join(',')}` : null, batchFetcher<CryptoData>, { refreshInterval: 5000 });
   // 주요 코인 52주(주봉) — 느리게 변해 길게 캐시
   const crMajors = cr.watchlist.filter((w) => MAJOR_CRYPTO.includes(w.base)).map((w) => w.symbol).join(',');
   const { data: w52c } = useSWR<Record<string, { high52w: number; low52w: number }>>(

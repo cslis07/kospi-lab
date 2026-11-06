@@ -1,3 +1,4 @@
+import { KR_CODE_RE } from '@/lib/krCode';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   Candle, analyzeTimeframe, srZones, fibonacci, atr, emaSeries,
@@ -332,7 +333,7 @@ ${newsTitles.length ? newsTitles.map((t, i) => `${i + 1}. ${t}`).join('\n') : '(
 /* ── 메인 ────────────────────────────────────────────── */
 export async function GET(req: NextRequest) {
   const ticker = (req.nextUrl.searchParams.get('ticker') ?? '').trim();
-  if (!/^\d{6}$/.test(ticker)) return NextResponse.json({ error: '6자리 종목코드가 필요합니다.' }, { status: 400 });
+  if (!KR_CODE_RE.test(ticker)) return NextResponse.json({ error: '6자리 종목코드가 필요합니다.' }, { status: 400 });
   const calendarP = calendarWithOfficial(); // 시세 수집과 동시에(실패해도 throw 없음)
   const origin = req.nextUrl.origin;
   // 화이트리스트 밖의 값은 기본 모델로 수렴한다

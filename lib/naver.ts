@@ -1,3 +1,6 @@
+import { KR_CODE_RE } from './krCode';
+export { KR_CODE_RE };
+
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
   'Referer': 'https://finance.naver.com',
@@ -31,11 +34,30 @@ export async function fetchMarketIndex(market: string) {
   return res.json();
 }
 
-export async function searchStocks(query: string) {
-  const url = `https://ac.finance.naver.com/ac?q=${encodeURIComponent(query)}&q_enc=UTF-8&st=0&r_format=json&t_period=D&r_count=10&v=2`;
-  const res = await fetch(url, { headers: HEADERS, next: { revalidate: 0 } });
-  if (!res.ok) throw new Error('Search failed');
-  return res.json();
+
+export interface NaverAcStock { code: string; name: string; market: 'KOSPI' | 'KOSDAQ' }
+
+/**
+ * 네이버 증권 자동완성(국내 상장 종목·ETF, 키 불필요).
+ * 예전 ac.finance.naver.com 은 2026-11 기준 DNS 소멸 → ac.stock.naver.com(2026-11-06 실측 200).
+ * 응답 items[].{code,name,typeCode(KOSPI/KOSDAQ/NASDAQ…),nationCode}. 국내(KOR)·코스피/코스닥만 돌려준다. 실패 시 null.
+ */
+export async function naverAutocomplete(q: string, limit = 10): Promise<NaverAcStock[] | null> {
+  const res = await fetch(`https://ac.stock.naver.com/ac?q=${encodeURIComponent(q)}&target=stock`, {
+    headers: { 'User-Agent': HEADERS['User-Agent'], Accept: 'application/json', Referer: 'https://stock.naver.com/' },
+    signal: AbortSignal.timeout(5000),
+    cache: 'no-store',
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { items?: { code?: string; name?: string; typeCode?: string; nationCode?: string }[] };
+  const out: NaverAcStock[] = [];
+  for (const it of json.items ?? []) {
+    if (it.nationCode !== 'KOR' || !it.code || !it.name || !KR_CODE_RE.test(it.code)) continue;
+    if (it.typeCode !== 'KOSPI' && it.typeCode !== 'KOSDAQ') continue;
+    out.push({ code: it.code, name: it.name, market: it.typeCode });
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 /**
