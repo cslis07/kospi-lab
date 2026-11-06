@@ -169,13 +169,20 @@ export function useCloudSync(): CloudSyncState {
 
   useEffect(() => {
     setDevice(deviceId());
-    void sync();
+    // 첫 동기화는 화면 데이터 요청이 먼저 나가도록 브라우저가 한가할 때(최대 3초 뒤) — 예전엔 모든 페이지 첫 순간에
+    // /api/sync GET·POST 가 화면 API 와 경쟁했다(실측 0.9초).
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (h: number) => void };
+    const idle = w.requestIdleCallback ? w.requestIdleCallback(() => void sync(), { timeout: 3000 }) : null;
+    const first = idle == null ? window.setTimeout(() => void sync(), 1500) : null;
 
     // 로컬 변경 감지 → 디바운스 push
     const watch = setInterval(() => {
       // 충돌 대기 중에는 메타를 건드리지 않는다 — 여기서 메타를 채우면 수동 새로고침 시
       // 충돌 방어가 우회돼(메타가 차 있으면 LWW 로 넘어감) 데이터가 밀릴 수 있다.
       if (blocked.current) return;
+      // 첫 동기화(충돌 확인 포함)가 끝나기 전에는 메타를 채우지 않는다 — 첫 동기화를 한가할 때로 미뤘으므로
+      // 그 사이 여기서 메타를 채우면 새 기기의 첫 동기화 충돌 방어가 우회된다.
+      if (firstRun.current) return;
       const { changed, meta } = detectLocalChanges();
       if (!changed.length) return;
       writeMeta(meta);
@@ -191,6 +198,8 @@ export function useCloudSync(): CloudSyncState {
     document.addEventListener('visibilitychange', onVis);
 
     return () => {
+      if (idle != null) w.cancelIdleCallback?.(idle);
+      if (first != null) clearTimeout(first);
       clearInterval(watch); clearInterval(pull);
       document.removeEventListener('visibilitychange', onVis);
       if (pushTimer.current) clearTimeout(pushTimer.current);

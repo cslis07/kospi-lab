@@ -33,6 +33,7 @@ const INFLATION_TOOLS: { href: string; label: string }[] = [
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const SWR_OPT = { revalidateOnFocus: false };
+const NF_FILES = ['pulse.json', 'compare_daily.json', 'forecast.json', 'forecastCurrent.json', 'grocery_basket.json', 'fuel.json', 'compare.json', 'geo.json', 'fedwatch.json', 'labor.json', 'release_calendar.json', 'predmarkets_summary.json'];
 
 // 상승=빨강 하락=파랑(앱 관행). 물가는 높을수록 빨강.
 const sign = (v: number | null | undefined) => (v == null ? 'text-[var(--text-muted)]' : v > 0 ? 'text-red-400' : v < 0 ? 'text-blue-400' : 'text-[var(--text)]');
@@ -64,19 +65,22 @@ function Card({ title, children, aside }: { title: string; children: React.React
 }
 
 export default function InflationPage() {
-  const { data: pulse } = useSWR<Pulse>('/api/nf/pulse.json', fetcher, SWR_OPT);
-  const { data: cmp } = useSWR<CompareDaily>('/api/nf/compare_daily.json', fetcher, SWR_OPT);
-  const { data: fc } = useSWR<Forecast>('/api/nf/forecast.json', fetcher, SWR_OPT);
-  const { data: fcc } = useSWR<FcCurrent>('/api/nf/forecastCurrent.json', fetcher, SWR_OPT);
-  const { data: groc } = useSWR<Grocery>('/api/nf/grocery_basket.json', fetcher, SWR_OPT);
-  const { data: fuel } = useSWR<Fuel>('/api/nf/fuel.json', fetcher, SWR_OPT);
-  const { data: citems } = useSWR<Compare>('/api/nf/compare.json', fetcher, SWR_OPT);
-  const { data: geo } = useSWR<GeoData>('/api/nf/geo.json', fetcher, SWR_OPT);
+  // 12개 파일을 한 번에(/api/nf/bundle) — 예전엔 파일마다 따로 불러 함수가 12번 돌았다(콜드 1.4~1.5초씩, 모바일 데이터 완료 7.3초)
+  const { data: nf } = useSWR<Record<string, unknown> & { locked?: boolean }>(`/api/nf/bundle?n=${NF_FILES.join(',')}`, fetcher, SWR_OPT);
+  const pick = <T,>(file: string): T | undefined => (nf?.locked ? ({ locked: true } as T) : ((nf?.[file] ?? undefined) as T | undefined));
+  const pulse = pick<Pulse>('pulse.json');
+  const cmp = pick<CompareDaily>('compare_daily.json');
+  const fc = pick<Forecast>('forecast.json');
+  const fcc = pick<FcCurrent>('forecastCurrent.json');
+  const groc = pick<Grocery>('grocery_basket.json');
+  const fuel = pick<Fuel>('fuel.json');
+  const citems = pick<Compare>('compare.json');
+  const geo = pick<GeoData>('geo.json');
   // 하위 섹션 요약 — 흩어진 물가 도구를 이 한 대시보드로 합침
-  const { data: fw } = useSWR<FedWatch>('/api/nf/fedwatch.json', fetcher, SWR_OPT);
-  const { data: lb } = useSWR<Labor>('/api/nf/labor.json', fetcher, SWR_OPT);
-  const { data: rc } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, SWR_OPT);
-  const { data: pm } = useSWR<PredMarkets>('/api/nf/predmarkets_summary.json', fetcher, SWR_OPT);
+  const fw = pick<FedWatch>('fedwatch.json');
+  const lb = pick<Labor>('labor.json');
+  const rc = pick<ReleaseCalendar>('release_calendar.json');
+  const pm = pick<PredMarkets>('predmarkets_summary.json');
   const [selComp, setSelComp] = useState<string | null>(null);
 
   const locked = pulse?.locked || cmp?.locked;

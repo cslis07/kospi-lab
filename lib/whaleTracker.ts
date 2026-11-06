@@ -3,9 +3,10 @@
 //  ⑤ Whale Alert(WHALE_ALERT_API_KEY 있을 때만)
 const THRESHOLD_USD: Record<string, number> = { BTCUSDT: 1_000_000, ETHUSDT: 500_000, XRPUSDT: 200_000, SOLUSDT: 200_000 };
 const ETH_MIN = 100, XRP_MIN = 100_000, BTC_MIN = 25;
+const XRP_SCAN_MAX = 16;         // 한 번에 훑는 최근 XRP 원장 수(병렬, 약 1분 분량 — 예전 콜드 21개와 비슷한 범위)
+const XRP_BUDGET_MS = 7000;      // XRP 조회 상한 — 넘으면 누적 캐시로 응답(함수 한도 20초 안에서 전체 응답 보장)
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT'];
 const shortAddr = (a: string | undefined) => a ? a.slice(0, 6) + '…' + a.slice(-4) : '?';
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export interface WhaleItem {
   type: 'exchange' | 'onchain' | 'whale-alert'; symbol: string; ts: number;
@@ -101,17 +102,21 @@ const XRPL_HOSTS = ['https://xrplcluster.com', 'https://s1.ripple.com:51234', 'h
 async function bigXrpOnchain(xrpPrice?: number): Promise<WhaleItem[]> {
   const hit = cget<WhaleItem[]>('xrp'); if (hit) return hit;
   try {
-    const names = await xrpNames();
-    const first = await jpost(XRPL_HOSTS[0], { method: 'ledger', params: [{ ledger_index: 'validated', transactions: false }] });
+    // 속도(2026-11-06 실측): 원장 1개 조회 1.3~3초 × 예전 최대 21개를 3개씩 순차+200ms 대기 = 콜드 18초(함수 한도 20초 근접).
+    // → 이름표는 원장 조회와 동시에, 원장은 최근 최대 16개를 한 번에 병렬로(누적 캐시가 24시간을 이어 붙인다).
+    const namesP = xrpNames();
+    const first = await jpost(XRPL_HOSTS[0], { method: 'ledger', params: [{ ledger_index: 'validated', transactions: false }] }, 5000);
     const latestIdx = +(first.result?.ledger_index || first.result?.ledger?.ledger_index);
     if (!latestIdx) throw new Error('no ledger index');
-    const lastScanned = cget<number>('xrp:last') || (latestIdx - 15);
-    const fromIdx = Math.max(lastScanned + 1, latestIdx - 20);
+    const lastScanned = cget<number>('xrp:last') || 0;
+    const fromIdx = Math.max(lastScanned + 1, latestIdx - XRP_SCAN_MAX + 1);
     const idxs: number[] = []; for (let i = fromIdx; i <= latestIdx; i++) idxs.push(i);
     const out: WhaleItem[] = [];
-    for (let i = 0; i < idxs.length; i += 3) {
-      const results = await Promise.all(idxs.slice(i, i + 3).map((idx, j) =>
-        jpost(XRPL_HOSTS[j % XRPL_HOSTS.length], { method: 'ledger', params: [{ ledger_index: idx, transactions: true, expand: true }] }).catch(() => null)));
+    const ledgers = await Promise.all(idxs.map((idx, j) =>
+      jpost(XRPL_HOSTS[j % XRPL_HOSTS.length], { method: 'ledger', params: [{ ledger_index: idx, transactions: true, expand: true }] }, 4000).catch(() => null)));
+    const names = await namesP;
+    {
+      const results = ledgers;
       for (const r of results) {
         const lg = r?.result?.ledger; if (!lg) continue;
         const ts = (+lg.close_time + 946684800) * 1000;
@@ -125,7 +130,6 @@ async function bigXrpOnchain(xrpPrice?: number): Promise<WhaleItem[]> {
           out.push({ type: 'onchain', symbol: 'XRPUSDT', ts, side: 'MOVE', qty: Math.round(xrp), usd: xrpPrice ? Math.round(xrp * xrpPrice) : null, label: `XRP 대형 전송 ${xrp >= 1e6 ? (xrp / 1e6).toFixed(2) + 'M' : Math.round(xrp / 1e3) + 'K'} XRP`, from: names[t.Account] || shortAddr(t.Account), to: names[t.Destination] || shortAddr(t.Destination), hash: tx.hash || t.hash });
         }
       }
-      if (i + 3 < idxs.length) await sleep(200);
     }
     cset('xrp:last', latestIdx, 3600_000);
     const prev = cget<WhaleItem[]>('xrp:acc') || [];
@@ -154,10 +158,15 @@ async function whaleAlert(): Promise<{ items: WhaleItem[]; enabled: boolean }> {
 
 export async function getWhaleFeed() {
   const hit = cget<any>('all'); if (hit) return hit;
-  const px = await getPrices();
+  // 시세는 거래소 체결 조회와 동시에(예전엔 시세를 먼저 기다린 뒤 나머지를 시작)
+  const pxP = getPrices();
+  const xrpCapped = pxP.then((px) => Promise.race([
+    bigXrpOnchain(px.XRP),
+    new Promise<WhaleItem[]>((res) => setTimeout(() => res(cget<WhaleItem[]>('xrp:acc') || []), XRP_BUDGET_MS)),
+  ]));
   const [trades, btc, eth, xrp, wa] = await Promise.all([
     Promise.allSettled(SYMBOLS.map(largeTrades)).then((rs) => rs.flatMap((r) => r.status === 'fulfilled' ? r.value : [])),
-    bigBtcOnchain(px.BTC), bigEthOnchain(px.ETH), bigXrpOnchain(px.XRP), whaleAlert(),
+    pxP.then((px) => bigBtcOnchain(px.BTC)), pxP.then((px) => bigEthOnchain(px.ETH)), xrpCapped, whaleAlert(),
   ]);
   const items = [...trades, ...btc, ...eth, ...xrp, ...wa.items].sort((a, b) => b.ts - a.ts).slice(0, 60);
   const payload = {

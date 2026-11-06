@@ -105,7 +105,7 @@ export default function CalendarPage() {
   const nFilters = (country !== 'all' ? 1 : 0) + (imp !== 'all' ? 1 : 0) + (showPast ? 1 : 0);
 
   // 달력(월간 그리드)용 — 정적 일정 + 나우캐스트 미국 지표 발표일을 모두 표시(필터는 아래 목록에만 적용)
-  const { data: relCal } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, { revalidateOnFocus: false });
+  const { data: relCal, error: relCalErr } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, { revalidateOnFocus: false });
   const { data: econWin } = useSWR<EconCalWindow>('/api/nf/econcal_window.json', fetcher, { revalidateOnFocus: false });
   const { data: soso } = useSWR<{ events: MacroEvt[]; upcoming: MacroRelease[] }>('/api/macro/events', fetcher, { revalidateOnFocus: false });
   const calEvents = useMemo<CalEvt[]>(() => {
@@ -139,6 +139,9 @@ export default function CalendarPage() {
           <div className="fin-sec"><h3 className="!text-[15px]">다음 주요 발표</h3><span className="text-[11px] text-[var(--text-muted)]">컨센서스·나우캐스트</span></div>
           <NextReleases rc={relCal} detailHref="/inflation/calendar" />
         </div>
+      ) : relCal === undefined && !relCalErr ? (
+        // 불러오는 동안 자리를 잡아 둔다 — 늦게 끼어들면 아래 달력·목록이 통째로 밀렸다(CLS 0.44, 실측 높이 모바일 395·태블릿 이상 232~243px)
+        <div className="mb-4 min-h-[395px] sm:min-h-[236px]" aria-hidden />
       ) : null}
 
       {/* 월간 달력 — 모든 지표 발표일·FOMC·한은·실적·휴장 */}

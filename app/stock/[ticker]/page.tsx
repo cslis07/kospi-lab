@@ -25,6 +25,13 @@ import { ValuationSection, FlowSection, PeersSection, ReportsSection, Shareholde
 import FinanceSection from '@/components/stock/FinanceSection';
 import StockNews from '@/components/stock/StockNews';
 
+/** 국내 정규장 중인가(KST 평일 09:00~15:40, 공휴일 무시 — 갱신 주기용 근사) */
+function krSessionOpen(now = Date.now()): boolean {
+  const k = new Date(now + 9 * 3600_000);
+  const d = k.getUTCDay(), m = k.getUTCHours() * 60 + k.getUTCMinutes();
+  return d >= 1 && d <= 5 && m >= 540 && m <= 940;
+}
+
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 // 한국 관행: 상승=빨강, 하락=파랑 (앱 전체와 통일 — 이 화면만 초록/빨강이던 불일치 수정)
 const UP = '#ff4433';
@@ -347,11 +354,14 @@ export default function StockDetailPage() {
 
   const tf = TIMEFRAMES[tfIdx];
 
+  // 시세 갱신: 장중(KST 평일 09:00~15:40) 15초, 장외 60초 — 예전 5초 고정은 장이 닫혀도 계속 함수를 불렀다
   const { data: stock, isLoading, error: stockError } = useSWR<StockData>(
-    ticker ? `/api/stock/${ticker}` : null, fetcher, { refreshInterval: 5000 }
+    ticker ? `/api/stock/${ticker}` : null, fetcher, { refreshInterval: () => (krSessionOpen() ? 15_000 : 60_000) }
   );
+  // 차트는 시세(market)를 기다리지 않고 바로 — 예전엔 market='' 로 한 번, 시세 도착 후 market=KOSPI 로 또 한 번(2.98초+3.49초) 받았다.
+  // 라우트가 market 없으면 .KS → .KQ 순으로 알아서 찾는다.
   const { data: chart } = useSWR<ChartPoint[]>(
-    ticker ? `/api/stock/${ticker}/chart?months=${tf.months}&market=${stock?.market ?? ''}` : null,
+    ticker ? `/api/stock/${ticker}/chart?months=${tf.months}` : null,
     fetcher, { refreshInterval: 60000 }
   );
   const { data: compareChart } = useSWR<ChartPoint[]>(

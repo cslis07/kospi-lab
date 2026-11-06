@@ -100,11 +100,11 @@ export default function OverseasPage() {
   const chunk4 = allSymbols.slice(60, 80).join(',');
   const chunk5 = allSymbols.slice(80).join(',');
 
-  const { data: d1 } = useSWR<Record<string, OverseasStockData>>(chunk1 ? `/api/overseas/batch?symbols=${chunk1}` : null, fetcher, { refreshInterval: 15000 });
-  const { data: d2 } = useSWR<Record<string, OverseasStockData>>(chunk2 ? `/api/overseas/batch?symbols=${chunk2}` : null, fetcher, { refreshInterval: 15000 });
-  const { data: d3 } = useSWR<Record<string, OverseasStockData>>(chunk3 ? `/api/overseas/batch?symbols=${chunk3}` : null, fetcher, { refreshInterval: 15000 });
-  const { data: d4 } = useSWR<Record<string, OverseasStockData>>(chunk4 ? `/api/overseas/batch?symbols=${chunk4}` : null, fetcher, { refreshInterval: 15000 });
-  const { data: d5 } = useSWR<Record<string, OverseasStockData>>(chunk5 ? `/api/overseas/batch?symbols=${chunk5}` : null, fetcher, { refreshInterval: 15000 });
+  const { data: d1, error: e1 } = useSWR<Record<string, OverseasStockData>>(chunk1 ? `/api/overseas/batch?symbols=${chunk1}` : null, fetcher, { refreshInterval: 15000 });
+  const { data: d2, error: e2 } = useSWR<Record<string, OverseasStockData>>(chunk2 ? `/api/overseas/batch?symbols=${chunk2}` : null, fetcher, { refreshInterval: 15000 });
+  const { data: d3, error: e3 } = useSWR<Record<string, OverseasStockData>>(chunk3 ? `/api/overseas/batch?symbols=${chunk3}` : null, fetcher, { refreshInterval: 15000 });
+  const { data: d4, error: e4 } = useSWR<Record<string, OverseasStockData>>(chunk4 ? `/api/overseas/batch?symbols=${chunk4}` : null, fetcher, { refreshInterval: 15000 });
+  const { data: d5, error: e5 } = useSWR<Record<string, OverseasStockData>>(chunk5 ? `/api/overseas/batch?symbols=${chunk5}` : null, fetcher, { refreshInterval: 15000 });
 
   const { data: market } = useSWR('/api/market', fetcher, { refreshInterval: 10000 });
   const usdRate = market?.usdkrw?.value as number | undefined;
@@ -180,6 +180,9 @@ export default function OverseasPage() {
   );
 
   const isLoading = Object.keys(allData).length === 0;
+  // 등락 TOP 은 모든 묶음이 도착(또는 실패)한 뒤에 그린다 — 묶음이 하나씩 올 때마다 순위가 바뀌어 행이 88px씩 밀렸다(CLS)
+  const topLoading = ([[chunk1, d1, e1], [chunk2, d2, e2], [chunk3, d3, e3], [chunk4, d4, e4], [chunk5, d5, e5]] as const)
+    .some(([c, d, e]) => !!c && d === undefined && e === undefined);
 
   // 등락 TOP — 수록 종목(OVERSEAS_LIST) 중 실시간 등락률 정렬(국내 RankList와 동일한 카드 구성)
   const ranked = useMemo(() => {
@@ -235,9 +238,10 @@ export default function OverseasPage() {
                 <h3>{up ? '상승률 TOP' : '하락률 TOP'} <span className="ml-2 text-[11px] font-semibold text-[var(--faint)] align-middle">수록 종목 중</span></h3>
               </div>
               <div className="fin-card overflow-hidden">
-                {isLoading ? (
+                {isLoading || topLoading ? (
                   [0, 1, 2, 3].map((i) => (
-                    <div key={i} className="fin-row">
+                    // 실제 행 높이(52주 미니 바 포함, 실측 87~88px)만큼 — 예전 자리는 22px 짧아 데이터 도착 시 아래가 밀렸다(CLS 0.25)
+                    <div key={i} className="fin-row min-h-[88px]">
                       <div className="flex-1 space-y-1.5"><span className="skeleton h-3.5 w-24" /><span className="skeleton h-2.5 w-16" /></div>
                       {/* 실제 행과 같은 3줄(달러가·원화 환산·등락률) — 줄 수가 다르면 데이터 도착 시 아래가 밀린다 */}
                       <div className="shrink-0 flex flex-col items-end gap-1"><span className="skeleton h-4 w-16" /><span className="skeleton h-3.5 w-20" /><span className="skeleton h-4 w-12" /></div>

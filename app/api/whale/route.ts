@@ -9,7 +9,8 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const feed = await getWhaleFeed();
-    return NextResponse.json(feed, { headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=120' } });
+    // swr 120 → 3600: 3분 방문이 없으면 콜드(11~14초)였다 — 만료 후 1시간은 직전 값을 즉시 주고 뒤에서 갱신
+    return NextResponse.json(feed, { headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=3600' } });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 502 });
   }
