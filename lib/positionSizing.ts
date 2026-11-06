@@ -14,6 +14,32 @@ export function notionForRisk(seedUsdt: number, riskPct: number, stopPct: number
   return budget > 0 ? budget / (stopPct / 100) : 0;
 }
 
+/**
+ * 손절 시 비용 모델(전부 비율, 0.0006 = 0.06%) — 진입·손절 체결 수수료, 시장가 슬리피지, 보유 중 낼 펀딩(명목가 대비).
+ * 표준값은 Bitget VIP0 테이커 0.06%·메이커 0.02%·시장가 슬리피지 0.05%(= /risk-control 기본 설정).
+ */
+export interface StopCostModel { entryFee: number; exitFee: number; entrySlip?: number; exitSlip?: number; fund?: number }
+export const STD_TAKER = 0.0006;
+export const STD_MAKER = 0.0002;
+export const STD_SLIPPAGE = 0.0005;
+/** 시장가 진입 + 시장가 손절(가장 흔한 경우) 표준 비용 */
+export const STD_MARKET_COSTS: StopCostModel = { entryFee: STD_TAKER, exitFee: STD_TAKER, entrySlip: STD_SLIPPAGE, exitSlip: STD_SLIPPAGE };
+
+/** 코인 1개당 손절 시 순손실 = 가격거리 + 진입수수료 + 손절수수료 + 슬리피지(진입·손절) + 낼 펀딩 — /risk-control·계산기·코인 분석 공통 */
+export function perUnitStopLoss(entry: number, stop: number, c: StopCostModel): number {
+  return Math.abs(entry - stop) + entry * c.entryFee + stop * c.exitFee
+    + entry * (c.entrySlip ?? 0) + stop * (c.exitSlip ?? 0) + entry * Math.max(0, c.fund ?? 0);
+}
+
+/**
+ * 손절에 걸렸을 때 '수수료·슬리피지·펀딩까지 포함한 순손실'이 riskUsdt 가 되는 포지션 명목가(USDT).
+ * 예전 코인 분석은 가격거리만으로 노션을 잡아(notionForRisk) 화면의 '손절 시 손실 −10'이 실제로는 −11~−12였다.
+ */
+export function notionalForNetRisk(riskUsdt: number, entry: number, stop: number, c: StopCostModel): number {
+  if (!(riskUsdt > 0) || !(entry > 0) || !(stop > 0) || entry === stop) return 0;
+  return (riskUsdt / perUnitStopLoss(entry, stop, c)) * entry;
+}
+
 /** 왕복 수수료가 1R(손절 시 손실)의 이 비율 이상이면 경고 — 가드 💸 알림과 같은 기준 */
 export const FEE_RISK_WARN = 0.25;
 export interface FeeVsRisk { ratio: number; breakEvenWinPct: number; minStopPct: number }

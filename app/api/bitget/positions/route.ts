@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { bitgetKeysConfigured, bitgetSignedGet } from '@/lib/bitget';
 import { PRIVATE } from '@/lib/cdn';
+import { slOrders, normSym } from '@/lib/guard';
 
 /**
  * Bitget USDT 선물 — 열린 포지션 + 선물 계좌.
@@ -20,9 +21,10 @@ export async function GET() {
   if (!bitgetKeysConfigured()) return NextResponse.json({ configured: false });
 
   try {
-    const [posJson, accJson] = await Promise.all([
+    const [posJson, accJson, sl] = await Promise.all([
       bitgetSignedGet('/api/v2/mix/position/all-position?productType=USDT-FUTURES&marginCoin=USDT'),
       bitgetSignedGet('/api/v2/mix/account/accounts?productType=USDT-FUTURES').catch(() => null),
+      slOrders(),   // 거래소에 걸린 손절(TP/SL 플랜) — 위험관리가 매매일지에 손절이 없어도 위험을 계산하게(가드와 같은 조회)
     ]);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,6 +49,7 @@ export async function GET() {
           unrealizedPL: num(r.unrealizedPL),
           liquidationPrice: liq,
           liqDistPct,
+          slStop: sl?.stops[`${normSym(String(r.symbol ?? ''))}:${side}`] ?? null,   // 걸린 손절 트리거가(없으면 null)
         };
       })
       .sort((a, b) => Math.abs(b.unrealizedPL) - Math.abs(a.unrealizedPL));

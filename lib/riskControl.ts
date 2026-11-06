@@ -13,7 +13,7 @@
  *  - 거래소 청산가는 마크가격·유지증거금 티어·마진 모드에 따라 달라 여기 값은 '단순 근사'로만 쓴다.
  */
 import { evaluateBreaker, type BreakerEntry } from './circuitBreaker';
-import { isolatedLiqPrice } from './positionSizing';
+import { isolatedLiqPrice, perUnitStopLoss } from './positionSizing';
 import { eventWindow, coReleases, humanMin, fmtKst, type MacroEvent, type EventWindowState } from './macroSchedule';
 
 /* ── 설정 ─────────────────────────────────────────────── */
@@ -171,7 +171,7 @@ export function sizePosition(p: PlanInput, s: RiskSettings): Sizing {
   const fund = fundFrac ?? 0;
 
   // 코인 1개당 손절 시 순손실 = 가격거리 + 진입수수료 + 손절(시장가)수수료 + 슬리피지(진입·손절) + 낼 펀딩
-  const perUnitLoss = Math.abs(p.entry - p.stop) + p.entry * inFee + p.stop * taker + p.entry * inSlip + p.stop * slip + p.entry * fund;
+  const perUnitLoss = perUnitStopLoss(p.entry, p.stop, { entryFee: inFee, exitFee: taker, entrySlip: inSlip, exitSlip: slip, fund });
   if (!(budget > 0)) return fail(capped ? '남은 손실 한도가 없습니다.' : '허용 손실이 0입니다.', base);
   const qty = budget / perUnitLoss;
   const notional = qty * p.entry;

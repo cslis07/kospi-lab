@@ -116,7 +116,7 @@ export async function fetchCoinEnv(now = Date.now()): Promise<CoinEnv> {
   if (brent) { const c3 = pct3(brent.v, brent.ago3); cards.push({ key: 'brent', label: 'Brent 유가', value: `$${brent.v.toFixed(2)}`,
     sub: c3 != null ? `${c3 >= 0 ? '+' : ''}${c3.toFixed(2)} %, 3일` : null, subTone: c3 != null && c3 > 0 ? 'warn' : 'neutral',
     comment: '급등 시 인플레→금리 경로로 코인 부담' }); }
-  if (dxy) { const c3 = pct3(dxy.v, dxy.ago3); cards.push({ key: 'dxy', label: '달러인덱스 (DXY)', value: dxy.v.toFixed(2),
+  if (dxy) { const c3 = pct3(dxy.v, dxy.ago3); cards.push({ key: 'dxy', label: '달러지수 (광의, Fed)', value: dxy.v.toFixed(2),
     sub: c3 != null ? `${c3 >= 0 ? '+' : ''}${c3.toFixed(2)} %, 3일` : null, subTone: c3 != null && c3 >= 0 ? 'down' : 'up',
     comment: '달러 강세 = 위험자산 하방 압력' }); }
 

@@ -35,6 +35,9 @@ const fmtVol = (n: number) => {
 };
 // 심볼에서 USDT 꼬리를 떼어 막대 라벨을 짧게(예: BTCUSDT → BTC)
 const baseOf = (s: string) => s.replace(/USDT$/, '');
+/** 펀딩 8시간 환산(%) — 4h 계약 0.01% = 8h 0.02%. 정렬용(표시는 원래 회당 요율·주기 그대로) */
+const fund8h = (r: { fundingRate?: number | null; fundingIntervalH?: number | null }) =>
+  r.fundingRate == null ? -Infinity : r.fundingRate * (8 / (r.fundingIntervalH && r.fundingIntervalH > 0 ? r.fundingIntervalH : 8));
 
 type SortKey = 'volume' | 'change' | 'funding';
 type Filter  = 'all' | 'up' | 'down';
@@ -81,7 +84,8 @@ export default function FuturesPage() {
     filtered.sort((a, b) => {
       if (sortBy === 'volume')  return b.quoteVolume - a.quoteVolume;
       if (sortBy === 'change')  return b.changeRate  - a.changeRate;
-      if (sortBy === 'funding') return (b.fundingRate ?? -Infinity) - (a.fundingRate ?? -Infinity);
+      // 정산 주기(1h·4h·8h)가 계약마다 달라 회당 요율을 그대로 비교하면 안 된다 → 8시간 환산으로 정렬(주기 모르면 8h 가정)
+      if (sortBy === 'funding') return fund8h(b) - fund8h(a);
       return 0;
     });
     return filtered.slice(0, 100);

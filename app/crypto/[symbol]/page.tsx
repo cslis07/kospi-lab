@@ -58,7 +58,7 @@ export default function CryptoDetailPage() {
   };
   const actions: SheetAction[] = [
     { label: watched ? '관심 코인에서 삭제' : '관심 코인에 추가', icon: 'star', onClick: toggleWatch, danger: watched },
-    ...(ANALYZABLE.includes(base) ? [{ label: '코인선물 분석', sub: '손절·사이징 체크리스트', icon: 'signal', href: '/coin-analysis' }] : []),
+    ...(ANALYZABLE.includes(base) ? [{ label: '코인선물 분석', sub: '손절·사이징 체크리스트', icon: 'signal', href: `/coin-analysis?symbol=${symbol}` }] : []),
     { label: '공유 · 링크 복사', icon: 'report', onClick: share },
   ];
   const nav = wl.watchlist.map((w) => ({ key: w.symbol, href: `/crypto/${w.symbol}`, label: COINS.find((x) => x.symbol === w.symbol)?.ko ?? w.name }));

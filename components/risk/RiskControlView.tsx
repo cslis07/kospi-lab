@@ -19,7 +19,7 @@ import { useCoinJournal } from '@/hooks/useCoinJournal';
 import { useRiskSettings, useRiskDecisions } from '@/hooks/useRiskControl';
 
 type Sym = 'BTCUSDT' | 'ETHUSDT';
-interface PosRow { symbol: string; side: Direction; size: number; openAvg: number; markPrice: number; leverage: number }
+interface PosRow { symbol: string; side: Direction; size: number; openAvg: number; markPrice: number; leverage: number; slStop?: number | null }
 interface PosResp { configured?: boolean; positions?: PosRow[]; account?: { equity: number } | null; error?: string }
 interface HistResp { configured?: boolean; positions?: ClosedLite[]; error?: string }
 interface EventsResp { events: MacroEvent[]; missing: string[]; note: string }
@@ -129,12 +129,15 @@ export default function RiskControlView() {
       closedSource = 'journal';
     }
     let open: OpenRisk[] | null = null;
-    if (pos.data?.configured && Array.isArray(pos.data.positions)) {
+    // 거래소 연결은 됐는데 조회가 실패(권한·타임아웃 — 라우트가 200 + error 로 준다)하면 '열린 포지션 0'이 아니라 '모름'(null → WAIT)
+    const posFailed = !!pos.data?.configured && !!pos.data.error;
+    if (pos.data?.configured && !pos.data.error && Array.isArray(pos.data.positions)) {
       open = pos.data.positions.map((p) => {
         const plan = openJournal.find((e) => e.symbol.toUpperCase().replace(/_.*$/, '') === p.symbol.toUpperCase() && e.direction === p.side && e.stop > 0);
-        return { symbol: p.symbol, side: p.side, riskUsdt: openRiskUsdt(p.side, p.size, p.openAvg, plan?.stop ?? null) };
+        // 손절가: 거래소에 걸린 손절 주문 우선(가드와 같은 기준) → 없으면 매매일지 계획
+        return { symbol: p.symbol, side: p.side, riskUsdt: openRiskUsdt(p.side, p.size, p.openAvg, p.slStop ?? plan?.stop ?? null) };
       });
-    } else if (journal.mounted && (pos.data || pos.error)) {
+    } else if (!posFailed && journal.mounted && (pos.data || pos.error)) {
       open = openJournal.map((e) => {
         const dist = e.entry > 0 && e.stop > 0 ? Math.abs(e.entry - e.stop) / e.entry : null;
         const risk = e.notionUsdt && dist ? e.notionUsdt * dist : e.seedUsdt && e.riskPct ? (e.seedUsdt * e.riskPct) / 100 : null;
@@ -157,11 +160,17 @@ export default function RiskControlView() {
   const nx = evs && now ? nextEvent(evs, now) : null;
   const usedEntry = num(entry) ?? market.data?.price ?? null;
 
-  /* 판정 기록 → 거래소 청산 포지션과 짝지어 결과 채우기(저장은 하지 않고 화면 계산만) */
+  /* 판정 기록 → 거래소 청산 포지션과 짝지어 결과 채우기.
+     청산 기록은 최근 8일만 받으므로, 짝이 맞으면 판정 기록에 결과를 저장해 고정한다
+     (예전엔 화면 계산만 해서 8일이 지나면 결과가 사라지고 복기 통계에서 빠졌다). */
   const matched = useMemo(
-    () => matchClosed(decisions.items, hist.data?.configured && Array.isArray(hist.data.positions) ? hist.data.positions : []),
+    () => matchClosed(decisions.items, hist.data?.configured && !hist.data.error && Array.isArray(hist.data.positions) ? hist.data.positions : []),
     [decisions.items, hist.data],
   );
+  const { patch: patchDecision } = decisions;
+  useEffect(() => {
+    for (const [id, outcome] of matched) patchDecision(id, { outcome });
+  }, [matched, patchDecision]);
   const decisionsWithOutcome = useMemo(() => decisions.items.map((d) => (d.outcome || !matched.has(d.id) ? d : { ...d, outcome: matched.get(d.id)! })), [decisions.items, matched]);
   const review = useMemo(() => {
     const rows = reviewSrc === 'decisions'

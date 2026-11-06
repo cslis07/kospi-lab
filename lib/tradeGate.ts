@@ -28,6 +28,8 @@ export interface TradePlan {
   notion: number;
   /** 필요 증거금(USDT) */
   margin: number;
+  /** 손절 시 순손실(수수료·슬리피지·펀딩 포함, USDT) — 주면 손실 계산에 이 값을 쓴다(없으면 가격거리만: notion × 손절거리) */
+  netLossAtStop?: number;
   /** 청산여유 ÷ 손절거리 (lib/positionSizing.liqSafety) */
   liqSafety: number;
   /** 중대 이벤트까지 남은 시간(h). 없으면 null */
@@ -79,6 +81,7 @@ export const LIMITS = {
   minRR: 1,                   // 손익비 1 미만이면 산수가 불리하다
   maxSameSidePct: 70,         // 한 방향 쏠림 상한(기존+이번)
   eventBlockHours: 12,        // 중대 이벤트 12시간 내 진입 차단
+  eventPostHours: 2,          // 발표 후 2시간까지도 차단(판정 엔진과 같은 창)
 };
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -96,7 +99,7 @@ export function evaluateTradeGate(p: TradePlan): GateResult {
 
   const dirOk = p.direction === 'long' ? p.stop < p.entry : p.stop > p.entry;
   const stopDist = p.entry > 0 ? Math.abs(p.entry - p.stop) / p.entry : 0;
-  const lossAtStop = p.notion * stopDist;
+  const lossAtStop = p.netLossAtStop != null && p.netLossAtStop > 0 ? p.netLossAtStop : p.notion * stopDist;
   const lossPctOfSeed = p.seed > 0 ? (lossAtStop / p.seed) * 100 : 0;
 
   /* 1) 손절이 정의됐는가 — 이게 없으면 나머지 계산이 전부 무의미하다 */
@@ -114,7 +117,8 @@ export function evaluateTradeGate(p: TradePlan): GateResult {
   /* 2) 손절 시 손실이 계좌가 견딜 크기인가 */
   if (p.seed > 0 && p.notion > 0 && dirOk) {
     const over = lossPctOfSeed > LIMITS.maxRiskPctPerTrade;
-    if (over) suggest.maxNotion = Math.floor((p.seed * LIMITS.maxRiskPctPerTrade / 100) / (stopDist || 1));
+    // 손실이 노션에 비례하므로 한도/현재손실 비율만큼 줄인다(비용 포함 손실을 받았으면 비용까지 반영)
+    if (over) suggest.maxNotion = lossAtStop > 0 ? Math.floor(p.notion * (p.seed * LIMITS.maxRiskPctPerTrade / 100) / lossAtStop) : 0;
     checks.push({
       id: 'risk', label: '계좌 대비 손실', state: over ? 'fail' : 'pass',
       detail: `손절 시 -${lossAtStop.toFixed(1)} USDT (시드의 ${lossPctOfSeed.toFixed(2)}%)`,
@@ -179,10 +183,14 @@ export function evaluateTradeGate(p: TradePlan): GateResult {
 
   /* 7) 이벤트 — 방향 예측이 불가능한 구간은 피한다 */
   if (p.eventHoursUntil != null) {
-    const near = p.eventHoursUntil >= 0 && p.eventHoursUntil < LIMITS.eventBlockHours;
+    // 판정 엔진(lib/coinAnalysis 'event' 차단)과 같은 창: 발표 2시간 후 ~ 12시간 전. 예전엔 발표 직후를 '통과'로 봐 카드와 판정이 엇갈렸다
+    const near = p.eventHoursUntil >= -LIMITS.eventPostHours && p.eventHoursUntil < LIMITS.eventBlockHours;
+    const after = p.eventHoursUntil < 0;
     checks.push({
       id: 'event', label: '이벤트 회피', state: near ? 'fail' : 'pass',
-      detail: near ? `${p.eventTitle ?? '중대 이벤트'} ${p.eventHoursUntil.toFixed(1)}시간 전` : '임박한 이벤트 없음',
+      detail: near
+        ? `${p.eventTitle ?? '중대 이벤트'} ${after ? `발표 ${Math.abs(p.eventHoursUntil).toFixed(1)}시간 후` : `${p.eventHoursUntil.toFixed(1)}시간 전`}`
+        : '임박한 이벤트 없음',
       fix: near ? '지표 발표 전후는 방향과 무관하게 변동성이 튑니다. 발표 후로 미루세요.' : undefined,
     });
   }

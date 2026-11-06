@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import dynamic from 'next/dynamic';
 import PageHeader from '@/components/ui/PageHeader';
 import Segmented from '@/components/ui/Segmented';
-import { isolatedLiqPrice, liqSafety, notionForRisk, feeVsRisk, FEE_RISK_WARN } from '@/lib/positionSizing';
+import { isolatedLiqPrice, liqSafety, notionalForNetRisk, feeVsRisk, FEE_RISK_WARN, STD_SLIPPAGE } from '@/lib/positionSizing';
 import { useRiskLimits } from '@/hooks/useRiskLimits';
 import { simulateRules, statsFromRecords, type RuleStat } from '@/lib/exitSim';
 import { useCoinJournal } from '@/hooks/useCoinJournal';
@@ -237,7 +237,8 @@ function LeverageCalc() {
   const { data: futures } = useSWR<{ symbol: string; fundingRate: number | null }[]>(
     '/api/futures/tickers', fetcher, { refreshInterval: 60000 },
   );
-  const fundingPct = futures?.find((f) => f.symbol === symbol)?.fundingRate ?? null; // 8h당 %
+  // 실패 시 라우트가 502 {error} 객체를 준다 — 배열일 때만 찾는다(예전엔 .find TypeError 로 화면 전체가 오류로 넘어감)
+  const fundingPct = (Array.isArray(futures) ? futures.find((f) => f.symbol === symbol)?.fundingRate : null) ?? null; // 8h당 %
   const { limits: riskLimits } = useRiskLimits();      // 1회 손실 한도(서킷브레이커 설정 공유)
 
   const coin = COINS.find((c) => c.symbol === symbol)!;
@@ -288,10 +289,13 @@ function LeverageCalc() {
     && (isShort ? stopNum > entry : stopNum < entry);   // 손절은 손실 방향이어야 유효
   const stopPct = hasStop ? Math.abs(stopNum - entry) / entry * 100 : 0;
   const riskLoss  = seed * (riskPct / 100);             // 손절 시 손실(계좌 대비)
-  // 비용 차감 사이징: 수량=(최대허용손실−예상비용)÷손절거리. 예상비용은 1차 노션으로 추정(진입+청산 테이커)
-  const notion0   = hasStop ? notionForRisk(seed, riskPct, stopPct) : 0;
-  const estCost   = notion0 * TAKER_FEE * 2;            // 진입+청산 테이커 추정
-  const recNotion = hasStop ? notionForRisk(seed, riskPct, stopPct, estCost) : 0;  // 권장 포지션 명목가(비용 차감)
+  // 비용 포함 사이징(lib/positionSizing.notionalForNetRisk — /risk-control·코인 분석과 같은 공식):
+  //  손절에 걸렸을 때 가격손실+진입 수수료(고른 주문유형)+손절 수수료(시장가)+시장가 슬리피지+낼 펀딩(보유 시간분)=허용손실
+  const payFund   = fundingPct != null && fundingPct * dirSign > 0 ? Math.abs(fundingPct) / 100 * (holdH / 8) : 0;
+  const recNotion = hasStop ? notionalForNetRisk(riskLoss, entry, stopNum, {
+    entryFee: openRate, exitFee: TAKER_FEE, entrySlip: openMaker ? 0 : STD_SLIPPAGE, exitSlip: STD_SLIPPAGE, fund: payFund,
+  }) : 0;  // 권장 포지션 명목가(비용 포함)
+  const estCost   = hasStop ? Math.max(0, riskLoss - recNotion * (stopPct / 100)) : 0; // 허용손실 중 비용 몫
   const recMargin = recNotion / lev;                    // 권장 증거금
   const safety    = hasStop ? liqSafety(entry, stopPct, lev, isShort, coin.mmr, TAKER_FEE) : 0; // 청산여유÷손절거리
   const safeMaxLev = hasStop && safety > 0 && safety < 2 ? Math.max(1, Math.floor(lev * (safety / 2))) : lev;
@@ -519,7 +523,7 @@ function LeverageCalc() {
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { label: '권장 증거금', value: fmtUsdt(recMargin, 0), sub: `${lev}배 기준` },
-                { label: '권장 포지션', value: fmtUsdt(recNotion, 0), sub: entry ? `${(recNotion / entry).toLocaleString('en-US', { maximumFractionDigits: 4 })} ${coin.short} · 비용 ~${fmtUsdt(estCost, 1)} 차감` : '' },
+                { label: '권장 포지션', value: fmtUsdt(recNotion, 0), sub: entry ? `${(recNotion / entry).toLocaleString('en-US', { maximumFractionDigits: 4 })} ${coin.short} · 비용 ~${fmtUsdt(estCost, 1)} 포함(수수료·슬리피지·펀딩)` : '' },
                 { label: '손절 시 손실', value: `-${fmtUsdt(riskLoss, 0)}`, sub: perTradeExceeded ? `⚠ 1회 한도(-${perTradeLimit}) 초과` : `계좌의 ${riskPct}% · 손절거리 ${stopPct.toFixed(2)}%`, danger: true },
                 { label: '청산 여유', value: `${safety.toFixed(1)}배`, sub: safety < 2 ? '⚠ 손절 전 청산 위험' : '손절선의 여유 거리', danger: safety < 2 },
               ].map((c) => (

@@ -41,7 +41,9 @@ const STATUS: Record<Status, { label: string; chip: string }> = {
 async function loadHourly(coin: string, from: number): Promise<Candle[]> {
   const byTs = new Map<number, Candle>();
   let end = Date.now();
-  for (let page = 0; page < 20; page++) {
+  // 필요한 페이지 수를 기간으로 계산(200봉=200시간/페이지) — 예전 고정 20페이지(약 167일)는 2027-04 무렵 첫 기록에 못 닿아 전체 판정 불가가 됐다
+  const maxPages = Math.max(1, Math.ceil((end - from) / (200 * H))) + 2;
+  for (let page = 0; page < maxPages; page++) {
     // 여러 코인을 동시에 받으면 거래소가 가끔 빈 응답을 준다 — 같은 페이지를 두 번까지 다시 받는다(재시도는 캐시를 피하려 a= 붙임)
     let j: { candles?: Candle[]; error?: string } = {};
     for (let a = 0; a < 3; a++) {

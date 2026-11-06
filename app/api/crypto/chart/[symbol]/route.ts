@@ -32,14 +32,26 @@ function toYahooSymbol(sym: string): string {
 const RANGE_MAP: Record<number, string> = { 1: '1mo', 3: '3mo', 6: '6mo', 12: '1y' };
 
 // ── Bitget 일봉 캔들 ──────────────────────────────────────────────────────────
+const BITGET_MAX_BARS = 300; // 현물 일봉은 limit 을 더 줘도 300봉까지만 준다(2026-11-06 실측) — 넘으면 endTime 으로 이어 받는다
 async function fromBitget(symbol: string, days: number): Promise<CryptoChartPoint[]> {
-  const url = `${BITGET_BASE}/api/v2/spot/market/candles?symbol=${symbol}&granularity=1day&limit=${days}`;
-  const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error(`Bitget candles ${res.status}`);
-  const json = await res.json();
-  if (json.code !== '00000') throw new Error(`Bitget ${json.code}`);
+  const rows = new Map<number, string[]>();
+  let endTime: number | null = null;
+  for (let page = 0; page < 3 && rows.size < days; page++) {
+    const limit = Math.min(BITGET_MAX_BARS, days - rows.size);
+    const url = `${BITGET_BASE}/api/v2/spot/market/candles?symbol=${symbol}&granularity=1day&limit=${limit}${endTime ? `&endTime=${endTime}` : ''}`;
+    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    if (!res.ok) { if (page === 0) throw new Error(`Bitget candles ${res.status}`); break; }
+    const json = await res.json();
+    if (json.code !== '00000') { if (page === 0) throw new Error(`Bitget ${json.code}`); break; }
+    const data = (json.data as string[][]) ?? [];
+    if (!data.length) break;
+    for (const c of data) rows.set(Number(c[0]), c);
+    const oldest = Math.min(...data.map((c) => Number(c[0])));
+    if (data.length < limit || (endTime != null && oldest >= endTime)) break;
+    endTime = oldest; // endTime 봉은 빼고 그 이전을 준다
+  }
   // data: [ts, open, high, low, close, baseVol, quoteVol, usdtVol]
-  return (json.data as string[][])
+  return [...rows.values()].sort((x, y) => Number(x[0]) - Number(y[0]))
     .map((c) => ({
       date:   ymd(Number(c[0])),
       price:  Number(c[4]),

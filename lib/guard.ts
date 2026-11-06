@@ -318,7 +318,7 @@ async function atr1hNow(symbol: string): Promise<number | null> {
 }
 
 /** 걸린 TP/SL 플랜 주문 — 심볼 집합(손절 없음 경고) + 손절 트리거가(왕복 수수료 경고, 롱은 가장 높은 것·숏은 가장 낮은 것 = 먼저 닿는 것) */
-async function slOrders(): Promise<{ symbols: Set<string>; stops: Record<string, number> } | null> {
+export async function slOrders(): Promise<{ symbols: Set<string>; stops: Record<string, number> } | null> {
   try {
     const j = await bitgetSignedGet('/api/v2/mix/order/orders-plan-pending?productType=USDT-FUTURES&planType=profit_loss');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

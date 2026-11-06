@@ -25,7 +25,7 @@ import LivePriceTag from '@/components/LivePriceTag';
 import Range52Bar from '@/components/Range52Bar';
 import { type SourceStat } from '@/components/SourceStatus';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
-import { notionForRisk, isolatedLiqPrice, liqSafety, tranches3 } from '@/lib/positionSizing';
+import { notionalForNetRisk, perUnitStopLoss, isolatedLiqPrice, liqSafety, tranches3, STD_MAKER, STD_TAKER, STD_SLIPPAGE, type StopCostModel } from '@/lib/positionSizing';
 import { scenarioLevels } from '@/lib/coinScenario';
 import { jsonFetcher, ApiError } from '@/lib/fetcher';
 import TradeGate from '@/components/TradeGate';
@@ -344,7 +344,16 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
   const sliderMax = Math.max(1, Math.min(25, levMax));
   const lev = Math.max(1, Math.min(levInput ?? levAggr, sliderMax));
 
-  const notion = notionForRisk(s, r, stopPct);
+  // 손절 시 '수수료·슬리피지·펀딩 포함' 순손실이 시드×허용% 가 되도록(= /risk-control·계산기와 같은 공식, lib/positionSizing).
+  // 진입: 즉시=시장가(테이커+슬리피지)·되돌림 대기=지정가(메이커) / 손절: 시장가 / 펀딩: 낼 쪽이면 1회(8h)분.
+  const pullbackEntry = entryPlan.type === 'pullback';
+  const paysFund = direction === 'long' ? fundingRatePct > 0 : direction === 'short' ? fundingRatePct < 0 : false;
+  const stopCosts: StopCostModel = {
+    entryFee: pullbackEntry ? STD_MAKER : STD_TAKER, exitFee: STD_TAKER,
+    entrySlip: pullbackEntry ? 0 : STD_SLIPPAGE, exitSlip: STD_SLIPPAGE,
+    fund: paysFund ? Math.abs(fundingRatePct) / 100 : 0,
+  };
+  const notion = stopPct > 0 ? notionalForNetRisk(s * r / 100, entry, stop, stopCosts) : 0;
   const margin = lev > 0 ? notion / lev : 0;
   const lossAtStop = s * r / 100;
   // 현재 설정을 부모로 보고 — 부모는 ref 에 담아두었다가 매매일지에 실제값으로 기록한다
@@ -419,7 +428,7 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
         )}
         <div className="flex justify-between"><span className="text-[var(--text-muted)]">예상 청산가 (격리 근사)</span><span className={`font-semibold tabular-nums ${safety < 2 ? 'text-red-400' : 'text-[var(--text)]'}`}>${fmtP(liq, priceDigits)} ({isShort ? '+' : '-'}{liqDistPct.toFixed(2)}%)</span></div>
         <div className="flex justify-between"><span className="text-[var(--text-muted)]">청산여유 ÷ 손절거리</span><span className={`font-semibold tabular-nums ${safety < 2 ? 'text-red-400' : safety < 3 ? 'text-amber-400' : 'text-emerald-400'}`}>{safety.toFixed(1)}배</span></div>
-        <div className="flex justify-between"><span className="text-[var(--text-muted)]">손절 시 손실{split ? ' (일괄 진입 기준)' : ''}</span><span className="font-semibold text-red-400 tabular-nums">-{usd(lossAtStop)} USDT</span></div>
+        <div className="flex justify-between"><span className="text-[var(--text-muted)]">손절 시 손실{split ? ' (일괄 진입 기준)' : ''} <span className="text-[10px]">수수료·슬리피지 포함</span></span><span className="font-semibold text-red-400 tabular-nums">-{usd(lossAtStop)} USDT</span></div>
         {split && Math.abs(lossAtStopSplit - lossAtStop) > 0.01 && (
           <div className="flex justify-between">
             <span className="text-[var(--text-muted)]">└ 3분할 평단 기준 실제</span>
@@ -447,6 +456,7 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
           <TradeGate plan={{
             direction, entry, stop, target1,
             seed: s, riskPct: r, leverage: lev, notion, margin,
+            netLossAtStop: entry > 0 ? (notion / entry) * perUnitStopLoss(entry, stop, stopCosts) : undefined,
             liqSafety: safety,
             eventHoursUntil: eventHoursUntil ?? null, eventTitle: eventTitle ?? null,
             account: account ?? null,
@@ -1175,11 +1185,13 @@ export default function CoinAnalysisPage() {
 
   // 실행 가능 판정의 '방향 쏠림' 검사용 계좌 맥락. 게이트 뒤라 잠겨 있으면 조용히 null
   // → 판정에서 통과가 아니라 '확인 불가'로 표시된다(모르는 걸 통과로 위장하지 않는다).
-  const { data: posData } = useSWR<{ positions?: { symbol: string; side: 'long' | 'short'; size: number; markPrice: number }[] }>(
+  const { data: posData } = useSWR<{ configured?: boolean; error?: string; positions?: { symbol: string; side: 'long' | 'short'; size: number; markPrice: number }[] }>(
     '/api/bitget/positions', fetcher, { refreshInterval: 60000, shouldRetryOnError: false },
   );
   const accountCtx = useMemo(() => {
-    const ps = posData?.positions;
+    // 조회 실패(200 + error)는 '포지션 없음'이 아니라 '확인 불가'(null) — 예전엔 '첫 포지션'으로 통과시켰다
+    if (!posData || posData.error || posData.configured === false) return null;
+    const ps = posData.positions;
     if (!ps || !v) return null;
     let same = 0, total = 0;
     for (const p of ps) {
