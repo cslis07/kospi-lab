@@ -2,21 +2,21 @@
  "version": 1,
  "registeredAt": "2026-11-04",
  "startUtc": "2026-11-05T00:00:00Z",
- "updatedAt": "2026-11-07T00:59:23.922Z",
+ "updatedAt": "2026-11-07T10:29:09.337Z",
  "symbol": "ETHUSDT",
  "exchange": "bitget",
  "revisions": [],
  "status": "ok",
  "statusNote": null,
  "now": {
-  "barUtc": "2026-11-06T23:00:00Z",
-  "close": 2237.62,
-  "sma25": 2362.834,
-  "deviation": -0.05299,
-  "q10": -0.141,
+  "barUtc": "2026-11-07T09:00:00Z",
+  "close": 2244.8,
+  "sma25": 2354.5056,
+  "deviation": -0.04659,
+  "q10": -0.13672,
   "oversoldRecent": false
  },
- "dataThroughUtc": "2026-11-07T00:00:00Z",
+ "dataThroughUtc": "2026-11-07T10:00:00Z",
  "candidates": [
   {
    "id": "A",
