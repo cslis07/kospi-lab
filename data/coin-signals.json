@@ -1,6 +1,7 @@
 {
-  "updated": "2026-11-08T18:39:17.395Z",
-  "open": [
+  "updated": "2026-11-08T22:29:37.424Z",
+  "open": [],
+  "closed": [
     {
       "id": "SOLUSDT-scalp-1794163154527",
       "sym": "SOLUSDT",
@@ -14,10 +15,12 @@
       "price0": 89.644,
       "ultra": false,
       "conf": 96,
-      "eq": 70
-    }
-  ],
-  "closed": [
+      "eq": 70,
+      "closeTs": 1794176975350,
+      "closePrice": 86.197,
+      "outcome": "LOSS",
+      "r": -1
+    },
     {
       "id": "ETHUSDT-scalp-1794120193866",
       "sym": "ETHUSDT",
@@ -838,9 +841,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 39,
-      "winRate": 46,
-      "avgR": 0.12
+      "n": 40,
+      "winRate": 45,
+      "avgR": 0.1
     },
     "swing": {
       "n": 4,
@@ -848,9 +851,9 @@
       "avgR": 2.21
     },
     "all": {
-      "n": 43,
-      "winRate": 51,
-      "avgR": 0.32
+      "n": 44,
+      "winRate": 50,
+      "avgR": 0.29
     }
   },
   "watch": {
