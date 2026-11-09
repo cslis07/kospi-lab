@@ -11,6 +11,8 @@ export interface StockData {
   high52w?: number;
   low52w?: number;
   prevClose?: number;
+  /** 이 가격의 체결 시각(네이버 localTradedAt, ISO+09:00) — 캐시된 첫 화면 시세가 언제 값인지 표시용 */
+  tradedAt?: string;
 }
 
 export interface ChartPoint {

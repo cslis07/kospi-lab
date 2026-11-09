@@ -1,308 +1,43 @@
-'use client';
-
-import RankList from '@/components/fin/RankList';
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import useSWR from 'swr';
-import dynamic from 'next/dynamic';
-import { useProgressiveList } from '@/hooks/useProgressiveList';
-// 상세 창은 행을 눌렀을 때만 필요 — Recharts 포함 ~115KB 를 첫 로딩에서 빼고, 화면이 뜬 뒤 한가할 때 미리 받아 둔다
-const loadModal = () => import('@/components/StockDetailModal');
-const StockDetailModal = dynamic(loadModal, { ssr: false });
-import { useWatchlist } from '@/hooks/useWatchlist';
-import { STOCK_LIST, type StockItem } from '@/lib/stockList';
+import SwrFallback from '@/components/SwrFallback';
+import DomesticClient from './DomesticClient';
+import { ALL_STOCKS, CHUNKS, FIRST_KEY, REST_KEY } from '@/lib/domesticKeys';
+import { fetchKrQuotesChunked } from '@/lib/krQuote';
 import type { StockData } from '@/lib/types';
-import Mini52 from '@/components/Mini52';
-import { batchFetcher } from '@/lib/stockBatch';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+/**
+ * 국내 시장 — 첫 시세를 서버에서 넣어 HTML 에 바로 숫자가 보이게(속도 2단계 시범, 2026-11-09).
+ * 예전: HTML → JS 실행(모바일 약 0.6~1초) → 그때서야 /api/stock/batch 요청 → 데이터 보임 2.4초(4G·CPU 4배 실측).
+ * ISR 60초: 페이지는 그대로 CDN 에서 나가고, 누가 볼 때 최대 60초에 한 번만 백그라운드로 다시 만든다(Hobby CPU 거의 그대로).
+ * 화면은 DomesticClient 그대로 — 뜬 직후 SWR 이 새로 받아 바꾼다. 서버 조회가 실패하면 fallback 없이 예전처럼 화면에서 받는다.
+ */
+export const revalidate = 60;
 
-// ── 중복 제거된 종목 리스트 (모듈 레벨) ──────────────────────
-const ALL_STOCKS: StockItem[] = Array.from(
-  new Map(
-    (STOCK_LIST as StockItem[]).map((s) => [s.ticker, s])
-  ).values()
-);
-
-// 20개씩 청크 (배치 API 최대 20) — 목록 길이에 맞춰 자동 분할(예전 고정 6청크는 101번째부터 20개만 받아 나머지가 '로딩…'에 머물렀다)
-const CHUNKS: string[] = Array.from({ length: Math.ceil(ALL_STOCKS.length / 20) }, (_, i) =>
-  ALL_STOCKS.slice(i * 20, i * 20 + 20).map((s) => s.ticker).join(','));
-const REST_KEY = CHUNKS.length > 1 ? `/api/stock/batch?tickers=${CHUNKS.slice(1).join(',')}` : null;
-
-// ── 브랜드 로고 ───────────────────────────────────────────────
-const BRAND: Record<string, { bg: string; color: string; label: string }> = {
-  '005930': { bg: '#1428A0', color: '#fff',    label: '삼성' },
-  '000660': { bg: '#E2001A', color: '#fff',    label: 'SK'  },
-  '005380': { bg: '#002C5F', color: '#fff',    label: '현대' },
-  '373220': { bg: '#A50034', color: '#fff',    label: 'LG'  },
-  '000270': { bg: '#05141F', color: '#fff',    label: '기아' },
-  '005490': { bg: '#00388D', color: '#fff',    label: 'PS'  },
-  '035420': { bg: '#00C73C', color: '#fff',    label: 'N'   },
-  '035720': { bg: '#3A1D6E', color: '#FFCD00', label: 'K'   },
-  '051910': { bg: '#A50034', color: '#fff',    label: 'LG'  },
-  '068270': { bg: '#0051A2', color: '#fff',    label: 'CT'  },
-  '066570': { bg: '#A50034', color: '#fff',    label: 'LG'  },
-  '012330': { bg: '#002C5F', color: '#fff',    label: 'HM'  },
-};
-
-function CompanyLogo({ ticker, name }: { ticker: string; name: string }) {
-  const b = BRAND[ticker];
-  return (
-    <div
-      className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-      style={{ backgroundColor: b?.bg ?? '#00215e', color: b?.color ?? '#fff' }}
-    >
-      {b?.label ?? name.slice(0, 2)}
-    </div>
-  );
+async function snapshot(): Promise<{ fallback: Record<string, unknown>; at?: number }> {
+  try {
+    const all = await fetchKrQuotesChunked(ALL_STOCKS.map((s) => s.ticker), { revalidate: 60 });
+    const pick = (csv: string) => {
+      const m: Record<string, StockData> = {};
+      for (const t of csv.split(',')) if (all[t]) m[t] = all[t];
+      return m;
+    };
+    const fallback: Record<string, unknown> = {};
+    const first = CHUNKS[0] ? pick(CHUNKS[0]) : {};
+    const rest = pick(CHUNKS.slice(1).join(','));
+    if (FIRST_KEY && Object.keys(first).length) fallback[FIRST_KEY] = first;
+    if (REST_KEY && Object.keys(rest).length) fallback[REST_KEY] = rest;
+    // 표시 시각 = 받은 시세의 가장 늦은 체결 시각(데이터 캐시 때문에 렌더 시각보다 이전일 수 있음)
+    const ts = Object.values(all).map((d) => (d.tradedAt ? Date.parse(d.tradedAt) : NaN)).filter(Number.isFinite);
+    return { fallback, at: ts.length ? Math.max(...ts) : undefined };
+  } catch {
+    return { fallback: {} };
+  }
 }
 
-function fmtPrice(n: number) { return new Intl.NumberFormat('ko-KR').format(Math.round(n)); }
-
-function marketStatus(): string {
-  const kst = new Date(Date.now() + 9 * 3_600_000);
-  const day = kst.getUTCDay();
-  if (day === 0 || day === 6) return '주말 휴장';
-  const t = kst.getUTCHours() * 60 + kst.getUTCMinutes();
-  if (t < 9 * 60)        return '장 시작 전';
-  if (t <= 15 * 60 + 30) return '정규장';
-  if (t <= 18 * 60)      return '시간외';
-  return '장마감';
-}
-
-type SortKey = 'default' | 'changeRateDesc' | 'changeRateAsc' | 'priceDesc' | 'pos52Asc' | 'pos52Desc';
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'default',        label: '기본순'       },
-  { key: 'changeRateDesc', label: '등락률 높은순' },
-  { key: 'changeRateAsc',  label: '등락률 낮은순' },
-  { key: 'priceDesc',      label: '시가 높은순'   },
-  { key: 'pos52Asc',       label: '52주 저점 근접' },
-  { key: 'pos52Desc',      label: '52주 고점 근접' },
-];
-
-type MarketFilter = 'all' | 'KOSPI' | 'KOSDAQ';
-
-export default function DomesticPage() {
-  const router = useRouter();
-  // 첫 화면이 뜬 뒤 한가할 때 상세 창 코드를 미리 받아, 행을 눌렀을 때 지연이 없게
-  useEffect(() => {
-    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number; cancelIdleCallback?: (h: number) => void };
-    if (w.requestIdleCallback) { const h = w.requestIdleCallback(() => void loadModal()); return () => w.cancelIdleCallback?.(h); }
-    const t = window.setTimeout(() => void loadModal(), 2500);
-    return () => clearTimeout(t);
-  }, []);
-  // 청크 × 20종목을 5초마다 갱신하면 네이버 호출이 과하다 → 15초. 첫 청크는 먼저 그리고 나머지는 한 번에 받는다.
-  const OPT = { refreshInterval: 15000, dedupingInterval: 5000, revalidateOnFocus: false };
-  const { data: d0 } = useSWR<Record<string, StockData>>(CHUNKS[0] ? `/api/stock/batch?tickers=${CHUNKS[0]}` : null, fetcher, OPT);
-  const { data: dRest } = useSWR<Record<string, StockData>>(REST_KEY, batchFetcher<StockData>, OPT);
-
-  const allData = useMemo<Record<string, StockData>>(
-    () => Object.assign({}, d0, dRest),
-    [d0, dRest]
-  );
-  const isLoading = !d0 && !dRest;
-
-  const { watchlist, add, remove, mounted } = useWatchlist();
-
-  const [query,       setQuery]       = useState('');
-  const [sort,        setSort]        = useState<SortKey>('default');
-  const [mktFilter,   setMktFilter]   = useState<MarketFilter>('all');
-  const [watchOnly,   setWatchOnly]   = useState(false);
-  const [selected,    setSelected]    = useState<StockItem | null>(null);
-  const [updatedAt,   setUpdatedAt]   = useState('');
-  const [statusLabel, setStatusLabel] = useState('');
-
-  useEffect(() => {
-    if (d0) {
-      const kst = new Date(Date.now() + 9 * 3_600_000);
-      const pad = (n: number) => String(n).padStart(2, '0');
-      setUpdatedAt(`${pad(kst.getUTCHours())}:${pad(kst.getUTCMinutes())}:${pad(kst.getUTCSeconds())}`);
-      setStatusLabel(marketStatus());
-    }
-  }, [d0]);
-
-  const watchSet = useMemo(() => new Set(watchlist.map((w) => w.ticker)), [watchlist]);
-
-  const toggleWatch = useCallback(
-    (e: React.MouseEvent, s: StockItem) => {
-      e.stopPropagation();
-      if (watchSet.has(s.ticker)) remove(s.ticker);
-      else add({ ticker: s.ticker, name: s.name, market: s.market });
-    },
-    [watchSet, add, remove]
-  );
-
-  const filtered = useMemo(() => {
-    let list = ALL_STOCKS;
-    if (mktFilter !== 'all')  list = list.filter((s) => s.market === mktFilter);
-    if (watchOnly && mounted) list = list.filter((s) => watchSet.has(s.ticker));
-    if (query.trim()) {
-      const q = query.trim().toLowerCase();
-      list = list.filter((s) => s.name.toLowerCase().includes(q) || s.ticker.includes(q));
-    }
-    if (sort === 'changeRateDesc') return [...list].sort((a, b) => (allData[b.ticker]?.changeRate ?? 0) - (allData[a.ticker]?.changeRate ?? 0));
-    if (sort === 'changeRateAsc')  return [...list].sort((a, b) => (allData[a.ticker]?.changeRate ?? 0) - (allData[b.ticker]?.changeRate ?? 0));
-    if (sort === 'priceDesc')      return [...list].sort((a, b) => (allData[b.ticker]?.price      ?? 0) - (allData[a.ticker]?.price      ?? 0));
-    if (sort === 'pos52Asc' || sort === 'pos52Desc') {
-      const pos = (t: string) => { const d = allData[t]; return d?.high52w && d?.low52w && d.high52w > d.low52w ? (d.price - d.low52w) / (d.high52w - d.low52w) : null; };
-      return [...list].sort((a, b) => { const pa = pos(a.ticker), pb = pos(b.ticker); if (pa == null) return 1; if (pb == null) return -1; return sort === 'pos52Asc' ? pa - pb : pb - pa; });
-    }
-    return list;
-  }, [query, sort, mktFilter, watchOnly, watchSet, mounted, allData]);
-  // 긴 목록은 40행씩 점진 렌더(검색·정렬·필터가 바뀌면 처음부터)
-  const prog = useProgressiveList(filtered.length, `${query}|${sort}|${mktFilter}|${watchOnly}`);
-
+export default async function DomesticPage() {
+  const { fallback, at } = await snapshot();
   return (
-    <div className="pb-12">
-      {/* 등락 랭킹 — KRX 공식 일별(기준일 표기) */}
-      <div className="grid gap-6 md:grid-cols-2 mb-7">
-        <RankList kind="gainers" />
-        <RankList kind="losers" />
-      </div>
-
-      {/* 섹션 헤더 — 홈 대시보드 스타일(fin-sec) */}
-      <div className="fin-sec">
-        <h3>국내 종목</h3>
-        <span className="text-xs font-medium text-[var(--faint)] tabular-nums shrink-0">
-          {statusLabel || '—'} · {updatedAt ? `${updatedAt} 갱신` : '로딩 중…'}
-        </span>
-      </div>
-
-      {/* 안내 배너 */}
-      <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] mb-3 px-1">
-        <span className="text-red-400">ℹ</span>
-        <span>
-          <span className="text-red-400">♥</span>를 누르면{' '}
-          <span className="text-sky-400 font-medium">내 주식</span> 탭에서 보유 수량·평단가·평가손익을 관리할 수 있습니다.
-        </span>
-      </div>
-
-      {/* 필터 바 */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <div className="flex gap-1">
-          {(['all', 'KOSPI', 'KOSDAQ'] as MarketFilter[]).map((m) => (
-            <button key={m} onClick={() => setMktFilter(m)}
-              className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                mktFilter === m
-                  ? 'bg-[var(--accent-soft)] text-[var(--accent-ink)] border-transparent'
-                  : 'text-[var(--text-muted)] border-[var(--line)] hover:text-[var(--text)]'
-              }`}>
-              {m === 'all' ? '전체' : m}
-            </button>
-          ))}
-        </div>
-        <div className="relative ml-auto">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]"
-            fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text" value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="종목명 또는 종목코드로 검색"
-            className="w-44 sm:w-64 pl-8 pr-3 py-1.5 text-xs bg-[var(--surface)] border border-[var(--line)] rounded-full text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent)]"
-          />
-        </div>
-        <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)}
-          className="px-3 py-1.5 text-xs bg-[var(--surface)] border border-[var(--line)] rounded-full text-[var(--text)] outline-none">
-          {SORT_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-        </select>
-        <button onClick={() => setWatchOnly((v) => !v)}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs transition-colors ${
-            watchOnly ? 'bg-red-500/15 border-red-500/40 text-red-400' : 'border-[var(--line)] text-[var(--text-muted)] hover:text-[var(--text)]'
-          }`}>
-          {watchOnly ? '♥' : '♡'} 관심
-        </button>
-      </div>
-
-      {/* 테이블 — 홈 대시보드 스타일(fin-card) */}
-      <div className="fin-card overflow-hidden">
-        <div className="hidden sm:grid grid-cols-[40px_48px_1fr_120px_90px_140px] gap-2 px-5 py-2.5 border-b border-[var(--line-2)] text-[10px] text-[var(--faint)] font-medium">
-          <span /><span className="text-center">순위</span><span>종목</span>
-          <span className="text-right">현재가</span><span className="text-right">등락률</span>
-          <span className="text-right pr-2">거래대금</span>
-        </div>
-
-        {isLoading ? (
-          <div className="divide-y divide-[var(--line-2)]">
-            {[...Array(15)].map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-5 py-3.5 animate-pulse">
-                <div className="w-6 h-4 rounded bg-white/10 shrink-0" />
-                <div className="w-9 h-9 rounded-full bg-white/10 shrink-0" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3 w-28 bg-white/10 rounded" />
-                  <div className="h-2.5 w-14 bg-white/10 rounded" />
-                </div>
-                <div className="h-4 w-20 bg-white/10 rounded ml-auto" />
-                <div className="h-5 w-14 bg-white/10 rounded" />
-              </div>
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="py-20 text-center text-[var(--text-muted)] text-sm">해당 조건의 종목이 없습니다</div>
-        ) : (
-          <div>
-            {filtered.slice(0, prog.shown).map((stock, idx) => {
-              const d     = allData[stock.ticker];
-              const isPos = (d?.changeRate ?? 0) >= 0;
-              const flat  = d?.changeRate === 0;
-              const inW   = watchSet.has(stock.ticker);
-              return (
-                <div key={stock.ticker} onClick={() => setSelected(stock)}
-                  className={`fin-row ${d ? (flat ? '' : isPos ? 'up' : 'down') : ''} cursor-pointer hover:bg-[var(--surface-2)] transition-colors sm:grid sm:grid-cols-[40px_48px_1fr_120px_90px_140px] sm:gap-2`}>
-                  <button onClick={(e) => toggleWatch(e, stock)}
-                    aria-label={`${stock.name} 관심종목 ${inW ? '해제' : '추가'}`}
-                    className={`hit hit-icon text-base shrink-0 transition-colors ${inW ? 'text-red-400' : 'text-[var(--text-dim)] hover:text-red-400'}`}>
-                    {inW ? '♥' : '♡'}
-                  </button>
-                  <span className="text-xs text-[var(--text-muted)] shrink-0 sm:text-center tabular-nums w-4 sm:w-auto">{idx + 1}</span>
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1 sm:flex-none">
-                    <CompanyLogo ticker={stock.ticker} name={stock.name} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[var(--text)] truncate">{d?.name ?? stock.name}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${stock.market === 'KOSDAQ' ? 'text-purple-400' : 'text-blue-400'}`}>{stock.market}</span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); router.push(`/stock-analysis?ticker=${stock.ticker}&run=1`); }}
-                          className="hit hit-pill inline-flex items-center gap-0.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md text-[var(--accent)] bg-[var(--accent-soft)] border border-[var(--accent)]/25 hover:brightness-105"
-                          aria-label={`${stock.name} 분석`}>
-                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5" /></svg>
-                          분석
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); router.push(`/screener?tickers=${stock.ticker}&market=KR&run=1`); }}
-                          className="hit hit-pill inline-flex items-center gap-0.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md text-[var(--text-muted)] bg-[var(--surface-2)] border border-[var(--border)] hover:text-[var(--text)]"
-                          aria-label={`${stock.name} 간단 재무`}>
-                          간단
-                        </button>
-                      </div>
-                      {d?.price ? <Mini52 price={d.price} high={d.high52w} low={d.low52w} /> : null}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0 sm:contents">
-                    <p className="text-sm font-bold text-[var(--text)] text-right tabular-nums whitespace-nowrap">
-                      {d ? `${fmtPrice(d.price)}원` : <span className="text-[var(--text-dim)] text-xs">로딩…</span>}
-                    </p>
-                    <div className="flex justify-end">
-                      {d ? (
-                        <span className={`fin-chip ${flat ? 'flat' : isPos ? 'up' : 'down'} tabular-nums`}>{isPos ? '+' : ''}{d.changeRate.toFixed(2)}%</span>
-                      ) : <span className="text-xs text-[var(--text-dim)]">—</span>}
-                    </div>
-                  </div>
-                  <p className="text-xs text-[var(--text-muted)] text-right tabular-nums pr-2 hidden sm:block">{d?.tradingValue ?? '—'}</p>
-                </div>
-              );
-            })}
-            {prog.hasMore && <div ref={prog.sentinelRef} className="py-4 text-center text-xs text-[var(--text-dim)]">{filtered.length - prog.shown}개 더 불러오는 중…</div>}
-          </div>
-        )}
-      </div>
-      <p className="text-[10px] text-[var(--text-muted)] text-center mt-3 opacity-50">Naver 금융 · 15초 갱신 · 투자 참고용</p>
-
-      {selected && (
-        <StockDetailModal code={selected.ticker} name={selected.name} market={selected.market} onClose={() => setSelected(null)} />
-      )}
-    </div>
+    <SwrFallback fallback={fallback}>
+      <DomesticClient snapshotAt={at} />
+    </SwrFallback>
   );
 }
