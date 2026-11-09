@@ -1031,7 +1031,8 @@
       "price": 76016.6,
       "at": "2026-11-09T00:37+09:00",
       "engine": "wait",
-      "reason": "상위추세 미정렬(4H·1D 하락이나 aligned=false, 필터 ①)·SMC 2/4 bear·테이커 0.55 매도·엔진 관망 0(방향 탐색·혼조)"
+      "reason": "상위추세 미정렬(4H·1D 하락이나 aligned=false, 필터 ①)·SMC 2/4 bear·테이커 0.55 매도·엔진 관망 0(방향 탐색·혼조)",
+      "until": "2026-11-09T12:37+09:00"
     },
     {
       "round": 29,
@@ -1039,7 +1040,40 @@
       "price": 89.653,
       "at": "2026-11-09T00:37+09:00",
       "engine": "wait",
-      "reason": "상위추세 미정렬(4H·1D 하락이나 aligned=false, 필터 ①)·SMC 4/4 bear·테이커 0.79 매도·엔진 관망 −8(박스권, OI −0.8% 숏커버)"
+      "reason": "상위추세 미정렬(4H·1D 하락이나 aligned=false, 필터 ①)·SMC 4/4 bear·테이커 0.79 매도·엔진 관망 −8(박스권, OI −0.8% 숏커버)",
+      "until": "2026-11-09T12:37+09:00"
+    },
+    {
+      "round": 30,
+      "coin": "BTC",
+      "price": 75021.6,
+      "at": "2026-11-09T12:37+09:00",
+      "engine": "short",
+      "reason": "SMC 2/4 bear(BOS 없음, 필터 ②)·테이커 1.36 매수가 숏 반박(필터 ③)·상위추세 정렬(4H·1D 하락)·엔진 숏 −49(entryOk=false, 견고 72%)"
+    },
+    {
+      "round": 30,
+      "coin": "ETH",
+      "price": 2143.92,
+      "at": "2026-11-09T12:37+09:00",
+      "engine": "short",
+      "reason": "SMC 2/4 bear(BOS 없음, 필터 ②)·상위추세 정렬(4H·1D 하락)·테이커 0.92 중립·엔진 숏 −27(약, entryOk=false)·1H RSI 25.8"
+    },
+    {
+      "round": 30,
+      "coin": "XRP",
+      "price": 1.1123,
+      "at": "2026-11-09T12:37+09:00",
+      "engine": "short",
+      "reason": "테이커 1.49 매수가 숏 반박(필터 ③)·상위추세 정렬(4H·1D 하락)·SMC 3/4 bear(FVG 안)·엔진 숏 −55(entryOk=false, 약함 40%)·4H RSI 22.3·지지 1.1059 0.5R 방해물"
+    },
+    {
+      "round": 30,
+      "coin": "SOL",
+      "price": 87.767,
+      "at": "2026-11-09T12:37+09:00",
+      "engine": "wait",
+      "reason": "상위추세 미정렬(4H·1D 하락이나 aligned=false, 필터 ①)·SMC 3/4 bull(추세와 반대)·테이커 1.54 매수·엔진 관망 −10(방향 탐색·혼조)"
     }
   ]
 }
