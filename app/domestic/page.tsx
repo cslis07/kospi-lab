@@ -2,6 +2,7 @@ import SwrFallback from '@/components/SwrFallback';
 import DomesticClient from './DomesticClient';
 import { ALL_STOCKS, CHUNKS, FIRST_KEY, REST_KEY } from '@/lib/domesticKeys';
 import { fetchKrQuotesChunked } from '@/lib/krQuote';
+import { fetchKrxRankings, hasKrxKey } from '@/lib/krx';
 import type { StockData } from '@/lib/types';
 
 /**
@@ -33,8 +34,26 @@ async function snapshot(): Promise<{ fallback: Record<string, unknown>; at?: num
   }
 }
 
+/**
+ * 상승·하락 TOP 카드(RankList, 모바일 첫 화면) — KRX 전 거래일 확정치라 미리 넣어도 시각 왜곡 없음(카드에 기준일 표기).
+ * RankList 는 kind 별 4행만 그리므로 상승·하락 10개씩만 넣어 HTML 을 가볍게. 뜬 뒤 평소처럼 /api/krx/ranking 을 받아 바꾼다.
+ * 키 없음·실패·빈 데이터면 넣지 않음 → 예전처럼 화면에서 받는다.
+ */
+const RANK_KEY = '/api/krx/ranking';
+async function rankSnapshot(): Promise<Record<string, unknown>> {
+  if (!hasKrxKey()) return {};
+  try {
+    const r = await fetchKrxRankings(10);
+    if (!r.count) return {};
+    return { [RANK_KEY]: { configured: true, date: r.date, count: r.count, rankings: { gainers: r.rankings.gainers, losers: r.rankings.losers } } };
+  } catch {
+    return {};
+  }
+}
+
 export default async function DomesticPage() {
-  const { fallback, at } = await snapshot();
+  const [{ fallback: quotes, at }, rank] = await Promise.all([snapshot(), rankSnapshot()]);
+  const fallback = { ...quotes, ...rank };
   return (
     <SwrFallback fallback={fallback}>
       <DomesticClient snapshotAt={at} />
