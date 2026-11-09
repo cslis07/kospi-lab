@@ -65,8 +65,9 @@ export async function worldIndexLive(code: string): Promise<LiveQuote | null> {
 }
 
 /** 원/달러(하나은행 고시, 실시간) */
-export async function usdKrwLive(): Promise<LiveQuote | null> {
-  const j = await getJson<{ exchangeInfo?: Record<string, unknown> }>('https://api.stock.naver.com/marketindex/exchange/FX_USDKRW', 5);
+/** revalidate: 기본 5초. ISR 페이지(revalidate 60)에서 부를 땐 60 — 5 면 페이지 재생성 주기가 5초로 줄어든다. */
+export async function usdKrwLive(revalidate = 5): Promise<LiveQuote | null> {
+  const j = await getJson<{ exchangeInfo?: Record<string, unknown> }>('https://api.stock.naver.com/marketindex/exchange/FX_USDKRW', revalidate);
   const e = j?.exchangeInfo;
   if (!e) return null;
   const value = num(e.closePrice);

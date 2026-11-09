@@ -15,15 +15,9 @@ import type { StockData } from '@/lib/types';
 import Mini52 from '@/components/Mini52';
 import { batchFetcher } from '@/lib/stockBatch';
 import { ALL_STOCKS, FIRST_KEY, REST_KEY } from '@/lib/domesticKeys';
+import { kstClock, kstStamp } from '@/lib/kstClock';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
-
-/** 'HH:MM:SS' KST */
-function kstClock(ms: number) {
-  const kst = new Date(ms + 9 * 3_600_000);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(kst.getUTCHours())}:${pad(kst.getUTCMinutes())}:${pad(kst.getUTCSeconds())}`;
-}
 
 // ── 브랜드 로고 ───────────────────────────────────────────────
 const BRAND: Record<string, { bg: string; color: string; label: string }> = {
@@ -118,7 +112,7 @@ export default function DomesticClient({ snapshotAt }: { snapshotAt?: number }) 
 
   useEffect(() => {
     if (d0) {
-      setUpdatedAt(kstClock(fromSnapshot && snapshotAt ? snapshotAt : Date.now()));
+      setUpdatedAt(fromSnapshot && snapshotAt ? kstStamp(snapshotAt) : kstClock(Date.now()));
       setStatusLabel(marketStatus());
     }
   }, [d0, fromSnapshot, snapshotAt]);

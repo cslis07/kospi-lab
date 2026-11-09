@@ -95,6 +95,7 @@ export interface OverseasStockData {
   prevClose?: number;
   high52w?: number;
   low52w?: number;
+  tradedAt?: string;    // Yahoo regularMarketTime(ISO) — 서버가 미리 넣은 시세의 기준 시각 표시용
 }
 
 export interface OverseasWatchlistItem {
