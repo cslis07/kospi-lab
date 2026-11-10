@@ -44,9 +44,9 @@ export interface LiveQuote {
   tradedAt: string;       // ISO(현지 시각대 포함) — 마지막 체결 시각
 }
 
-/** 국내 지수(KOSPI/KOSDAQ) 실시간 */
-export async function krIndexLive(code: 'KOSPI' | 'KOSDAQ'): Promise<LiveQuote | null> {
-  const j = await getJson<Record<string, unknown>>(`https://m.stock.naver.com/api/index/${code}/basic`, 5);
+/** 국내 지수(KOSPI/KOSDAQ) 실시간 — revalidate 기본 5초(ISR 페이지에선 60, usdKrwLive 참고) */
+export async function krIndexLive(code: 'KOSPI' | 'KOSDAQ', revalidate = 5): Promise<LiveQuote | null> {
+  const j = await getJson<Record<string, unknown>>(`https://m.stock.naver.com/api/index/${code}/basic`, revalidate);
   if (!j) return null;
   return {
     value: num(j.closePrice), change: num(j.compareToPreviousClosePrice), changeRate: num(j.fluctuationsRatio),
@@ -54,9 +54,9 @@ export async function krIndexLive(code: 'KOSPI' | 'KOSDAQ'): Promise<LiveQuote |
   };
 }
 
-/** 해외 지수(.INX / .IXIC / .DJI) 실시간 */
-export async function worldIndexLive(code: string): Promise<LiveQuote | null> {
-  const j = await getJson<Record<string, unknown>>(`https://api.stock.naver.com/index/${encodeURIComponent(code)}/basic`, 5);
+/** 해외 지수(.INX / .IXIC / .DJI) 실시간 — revalidate 기본 5초(ISR 페이지에선 60) */
+export async function worldIndexLive(code: string, revalidate = 5): Promise<LiveQuote | null> {
+  const j = await getJson<Record<string, unknown>>(`https://api.stock.naver.com/index/${encodeURIComponent(code)}/basic`, revalidate);
   if (!j) return null;
   return {
     value: num(j.closePrice), change: num(j.compareToPreviousClosePrice), changeRate: num(j.fluctuationsRatio),
@@ -95,10 +95,10 @@ export async function indexDaily(market: 'domestic' | 'foreign', code: string, d
 
 export interface MinRow { t: string; o: number; h: number; l: number; c: number }
 
-/** 국내 지수 분봉(하루치). ymd=YYYYMMDD */
-export async function indexMinute(code: 'KOSPI' | 'KOSDAQ', ymd: string): Promise<MinRow[]> {
+/** 국내 지수 분봉(하루치). ymd=YYYYMMDD · revalidate 기본 20초(ISR 페이지에선 60) */
+export async function indexMinute(code: 'KOSPI' | 'KOSDAQ', ymd: string, revalidate = 20): Promise<MinRow[]> {
   const url = `https://api.stock.naver.com/chart/domestic/index/${code}/minute?startDateTime=${ymd}0900&endDateTime=${ymd}1530`;
-  const rows = await getJson<{ localDateTime: string; currentPrice: number; openPrice: number; highPrice: number; lowPrice: number }[]>(url, 20, 10000);
+  const rows = await getJson<{ localDateTime: string; currentPrice: number; openPrice: number; highPrice: number; lowPrice: number }[]>(url, revalidate, 10000);
   if (!Array.isArray(rows)) return [];
   return rows
     .filter((r) => typeof r.currentPrice === 'number' && r.currentPrice > 0)
