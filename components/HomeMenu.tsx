@@ -6,9 +6,9 @@
  * ① 검색 ② 자주 쓰는 기능(실제 방문 빈도) ③ 전체 메뉴(5섹션) ④ 더보기 도구.
  */
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { ICON, MENU, EXTRAS, TOOL_SECTIONS, FLAT, BY_HREF, DEFAULT_QUICK, itemIsActive, type MenuItem } from '@/lib/menu';
+import { useAppPathname } from '@/hooks/useAppPathname';
 
 function Icon({ name }: { name: string }) {
   return (
@@ -50,7 +50,7 @@ function GridItem({ t, color, active, onNavigate }: { t: MenuItem; color: string
 }
 
 export default function HomeMenu({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   // useSearchParams 를 쓰면 정적 HTML에 메뉴가 빠지고(160px 대체 화면) JS 후 740px 메뉴로 바뀌며 아래가 581px 밀렸다.
   // 쿼리는 강조 표시에만 필요하므로 마운트 후 주소에서 읽는다.
   const [searchParams, setSearchParams] = useState<URLSearchParams>(() => new URLSearchParams());

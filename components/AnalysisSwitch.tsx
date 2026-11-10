@@ -2,7 +2,7 @@
 
 /** 분석 › 종목 분석 안의 시장 전환(국내주식 | 코인선물) — 두 화면을 한 메뉴 항목으로 묶는다. */
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useAppPathname } from '@/hooks/useAppPathname';
 
 const ITEMS = [
   { href: '/stock-analysis', label: '국내주식' },
@@ -10,7 +10,7 @@ const ITEMS = [
 ];
 
 export default function AnalysisSwitch() {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   return (
     <div className="seg mb-4" role="tablist" aria-label="분석 대상 시장">
       {ITEMS.map((it) => {

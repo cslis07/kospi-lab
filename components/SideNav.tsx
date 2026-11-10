@@ -8,9 +8,10 @@
  */
 import Link from 'next/link';
 import useSWR from 'swr';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { MENU, EXTRAS, TOOL_SECTIONS, ICON, GUIDE, itemIsActive, type MenuItem } from '@/lib/menu';
+import { useAppPathname } from '@/hooks/useAppPathname';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const COLLAPSE_KEY = 'kl-side'; // 'min' = 접힘. kospi-lab- 접두어가 아니라 클라우드 동기화 대상 아님(기기별)
@@ -78,7 +79,7 @@ function Live() {
 }
 
 function SideNavInner() {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const q = useSearchParams();
   const activeKey = MENU.find((g) => g.items.some((it) => itemIsActive(it, pathname, q)))?.key
     ?? EXTRAS.find((it) => itemIsActive(it, pathname, q))?.section ?? null;

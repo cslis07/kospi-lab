@@ -7,10 +7,11 @@
  * - 데스크탑: 섹션 알약 + 하위 칩(기존 방식).
  */
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect } from 'react';
 import { MENU, ICON, GUIDE, activeItem, itemIsActive, pageOwnsH1, type MenuItem } from '@/lib/menu';
 import BottomSheet from '@/components/ui/BottomSheet';
+import { useAppPathname } from '@/hooks/useAppPathname';
 
 /** 모바일 밑줄 탭 최대 칸 수 — 넘으면 앞 (MAX−1)개 + '더보기' 시트(390px 폭에 4~5칸이 한 화면에 들어간다) */
 const U_TAB_MAX = 5;
@@ -30,7 +31,7 @@ function NavIcon({ name, className = 'w-4 h-4' }: { name: string; className?: st
 }
 
 function NavTabsInner() {
-  const pathname     = usePathname();
+  const pathname     = useAppPathname();
   const searchParams = useSearchParams();
 
   // 방문 빈도 기록(자주 쓰는 기능 자동화)
@@ -199,7 +200,7 @@ const NO_QUERY = new URLSearchParams();
 /** 하이드레이션 전(useSearchParams 대기) 자리 — 경로만으로 같은 탭을 미리 그려 둔다.
  *  예전 '메뉴 로딩…' 자리(모바일 0px)는 하이드레이션 뒤 탭(45px)·PC 페이지 머리가 끼어들며 본문을 밀어냈다(CLS). */
 function NavTabsFallback() {
-  return <NavTabsBody pathname={usePathname()} searchParams={NO_QUERY} />;
+  return <NavTabsBody pathname={useAppPathname()} searchParams={NO_QUERY} />;
 }
 
 export default function NavTabs() {

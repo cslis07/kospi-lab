@@ -5,7 +5,7 @@
  * 가로 스크롤 알약, 그룹 바뀌는 지점에 세로 구분선. 섹션이 늘면 SECTIONS 에만 추가한다(Stage A→F).
  */
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useAppPathname } from '@/hooks/useAppPathname';
 
 export interface InflationSection { href: string; label: string; group: string }
 
@@ -29,7 +29,7 @@ export const SECTIONS: InflationSection[] = [
 ];
 
 export default function InflationNav() {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   return (
     <nav aria-label="실시간 물가 섹션" className="-mx-1 mb-4 overflow-x-auto no-scrollbar">
       <ul className="flex items-center gap-1.5 px-1 w-max">

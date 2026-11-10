@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import SyncIndicator from './SyncIndicator';
 import GlobalSearch from './GlobalSearch';
@@ -13,6 +13,7 @@ const MenuSheet = dynamic(() => import('./MenuSheet'), { ssr: false });
 import ThemeToggle from './ThemeToggle';
 import { activeItem, drillTitle, pageOwnsH1 } from '@/lib/menu';
 import type { FxRate } from '@/lib/types';
+import { useAppPathname } from '@/hooks/useAppPathname';
 
 // 앱바는 쿼리 없는 메뉴 항목만 판정하므로 빈 파라미터로 충분(useSearchParams 를 쓰면 레이아웃 전체에 Suspense 가 필요해진다)
 const NO_QUERY = new URLSearchParams();
@@ -100,7 +101,7 @@ export default function Header() {
   // 앱바 환율·지수 틱커는 전 화면 상주 → 60초 폴링(Vercel 함수 호출 절약 — 숨긴 탭·무입력은 PollingGovernor 가 멈춤)
   const { data } = useSWR('/api/market', fetcher, { refreshInterval: 60_000 });
   const { isKrOpen, isUsOpen, krLabel, usLabel } = useMarketStatus();
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);

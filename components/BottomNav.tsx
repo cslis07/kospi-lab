@@ -6,12 +6,13 @@
  * 드릴다운(종목·코인 상세, 보조 도구)은 그룹의 tabExtra 로 어느 탭에서 왔는지 강조를 유지한다.
  */
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { MENU, BOTTOM_TABS, EXTRAS, ICON, hrefIsActive } from '@/lib/menu';
+import { useAppPathname } from '@/hooks/useAppPathname';
 
 function BottomNavInner() {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const q = useSearchParams();
   const groupKey = MENU.find((g) => g.matchFn(pathname, q))?.key ?? null;
   // 그룹 밖 화면(전체 메뉴·도구 허브 항목)은 '더보기' 강조
