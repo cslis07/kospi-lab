@@ -1,6 +1,23 @@
 {
-  "updated": "2026-11-09T19:48:27.909Z",
+  "updated": "2026-11-10T02:32:30.975Z",
   "open": [
+    {
+      "id": "ETHUSDT-scalp-1794277947319",
+      "sym": "ETHUSDT",
+      "mode": "scalp",
+      "dir": -1,
+      "dirLabel": "SHORT",
+      "entry": 2126.225,
+      "tp": 2116.34,
+      "sl": 2131.71,
+      "ts": 1794277947319,
+      "price0": 2119.89,
+      "ultra": false,
+      "conf": 100,
+      "eq": 64
+    }
+  ],
+  "closed": [
     {
       "id": "BTCUSDT-scalp-1794253705336",
       "sym": "BTCUSDT",
@@ -14,10 +31,12 @@
       "price0": 74948.5,
       "ultra": false,
       "conf": 93,
-      "eq": 63
-    }
-  ],
-  "closed": [
+      "eq": 63,
+      "closeTs": 1794277947319,
+      "closePrice": 74839.1,
+      "outcome": "EXPIRE",
+      "r": 0.49
+    },
     {
       "id": "SOLUSDT-scalp-1794163154527",
       "sym": "SOLUSDT",
@@ -857,9 +876,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 40,
-      "winRate": 45,
-      "avgR": 0.1
+      "n": 41,
+      "winRate": 44,
+      "avgR": 0.11
     },
     "swing": {
       "n": 4,
@@ -867,8 +886,8 @@
       "avgR": 2.21
     },
     "all": {
-      "n": 44,
-      "winRate": 50,
+      "n": 45,
+      "winRate": 49,
       "avgR": 0.29
     }
   },
