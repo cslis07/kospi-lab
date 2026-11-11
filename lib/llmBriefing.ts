@@ -44,6 +44,17 @@ const budget = (deadline: number, cap: number) => Math.max(2000, Math.min(cap, d
 
 export async function geminiBrief(prompt: string, deadline = Date.now() + 25000): Promise<ProviderResult> {
   const base: ProviderResult = { id: 'gemini', name: 'Gemini', ok: false };
+  const r = await geminiRaw(prompt, deadline);
+  if (r.text == null) return { ...base, model: r.model, error: r.error, ...(r.notConfigured ? { notConfigured: true } : {}) };
+  const brief = parseBrief(r.text);
+  if (!brief) return { ...base, model: r.model, error: '응답 형식 오류' };
+  return { ...base, ok: true, brief, model: r.model };
+}
+
+/** Gemini JSON 응답 원문 — 형식 해석은 호출부가 한다(홈 브리핑·CPI/PPI 기사 보정 공용). 모델 폴백·마감은 여기서 */
+export interface GeminiRaw { text?: string; model?: string; error?: string; notConfigured?: boolean }
+export async function geminiRaw(prompt: string, deadline = Date.now() + 25000): Promise<GeminiRaw> {
+  const base: GeminiRaw = {};
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) return { ...base, notConfigured: true, error: 'GEMINI_API_KEY 미설정' };
 
@@ -87,9 +98,8 @@ export async function geminiBrief(prompt: string, deadline = Date.now() + 25000)
       const text: string = j?.candidates?.[0]?.content?.parts
         ?.filter((p: { thought?: boolean }) => !p.thought)
         .map((p: { text?: string }) => p.text ?? '').join('') ?? '';
-      const brief = parseBrief(text);
-      if (!brief) return { ...base, model, error: '응답 형식 오류' };
-      return { ...base, ok: true, brief, model };
+      if (!text) return { ...base, model, error: '응답 형식 오류' };
+      return { text, model };
     } catch (e) {
       lastErr = (e as Error).name === 'TimeoutError' ? '응답 지연(시간 초과)' : '네트워크 오류';
     }

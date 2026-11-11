@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { claudeBriefing } from '@/lib/anthropic';
+import { geminiRaw } from '@/lib/llmBriefing';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { buildPayload, priceHeadlines, saveRun } from '@/lib/priceForecastData';
 import { AI_ADJ_MAX, parseAiAdjust, type ForecastRun } from '@/lib/priceForecast';
@@ -55,9 +56,14 @@ export async function POST(req: NextRequest) {
   // 점검용 — AI 를 부르지 않고 모은 기사와 지시문만 돌려준다(과금 없음)
   if (req.nextUrl.searchParams.get('dry') === '1') return NextResponse.json({ dry: true, newsCount: news.length, prompt });
 
-  const ai = await claudeBriefing(prompt, 1800, 'price-forecast');
-  if (!ai.text) return NextResponse.json({ error: ai.error ?? 'AI 응답 없음' }, { status: 502 });
-  const parsed = parseAiAdjust(ai.text);
+  // Claude 가 안 되면(크레딧 부족·시간 초과 등) 무료 Gemini 로 한 번 더 — 어느 쪽이 답했는지는 aiModel 로 남는다
+  let ai: { text?: string; model?: string; error?: string } = await claudeBriefing(prompt, 1800, 'price-forecast');
+  if (!ai.text) {
+    const g = await geminiRaw(prompt, Date.now() + 30000);
+    if (g.text) ai = g;
+    else return NextResponse.json({ error: `${ai.error ?? 'AI 응답 없음'} / Gemini: ${g.error ?? '실패'}` }, { status: 502 });
+  }
+  const parsed = parseAiAdjust(ai.text ?? '');
   if (!parsed) return NextResponse.json({ error: 'AI 응답을 읽지 못했습니다. 다시 실행해 주세요.' }, { status: 502 });
 
   const run: ForecastRun = {
