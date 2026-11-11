@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TRACKED, computeHeadline, formatAlert, isFresh, sendTelegram, type Obs, type EconCfg, type Headline } from '@/lib/econAlert';
+import { TRACKED, computeHeadline, formatAlert, isFresh, sendTelegram, withConsensus, type Obs, type EconCfg, type Headline, type CalEst } from '@/lib/econAlert';
+import { loadNf } from '@/lib/nfLoad';
 
 // 경제지표 발표 알림 — Vercel 크론(평일 07:00 KST)이 호출. FRED last_updated 가 최근이면 '방금 발표'로 보고
 // 'kospi lab' 그룹에 결과를 보낸다. 상태 저장 없음(1일 1회 + window 로 중복 방지).
@@ -60,6 +61,11 @@ export async function GET(req: NextRequest) {
   }
 
   // 발표일(refDate) 순 정렬 유지 — 표시 순서는 TRACKED 순서
+  // 시장 예상치(경제 캘린더) — 못 받으면 예상 대조 없이 그대로 보낸다
+  let cal: CalEst[] | undefined;
+  try { const t = await loadNf('econcal_window.json'); cal = t ? (JSON.parse(t) as { events?: CalEst[] }).events : undefined; } catch { /* 예상치 없이 */ }
+  for (const x of hits) x.h = withConsensus(x.h, x.cfg, cal);
+
   hits.sort((a, b) => TRACKED.findIndex((t) => t.id === a.cfg.id) - TRACKED.findIndex((t) => t.id === b.cfg.id));
   const text = formatAlert(hits, BASE);
   const res = await sendTelegram(
