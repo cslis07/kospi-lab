@@ -23,6 +23,7 @@ const INFLATION_TOOLS: { href: string; label: string }[] = [
   { href: '/inflation/gap', label: 'CPI 격차' },
   { href: '/inflation/truflation', label: 'vs Truflation' },
   { href: '/inflation/lead', label: '리드 테스트' },
+  { href: '/inflation/forecast', label: 'CPI·PPI 예상치 비교' },
   { href: '/inflation/scoreboard', label: '예측 스코어보드' },
   { href: '/inflation/quilt', label: '인플레 히트맵' },
   { href: '/inflation/brief', label: '데일리 브리핑' },

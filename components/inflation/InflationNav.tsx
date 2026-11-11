@@ -16,6 +16,7 @@ export const SECTIONS: InflationSection[] = [
   { href: '/inflation/gap', label: 'CPI 격차', group: 'gauge' },
   { href: '/inflation/truflation', label: 'vs Truflation', group: 'gauge' },
   { href: '/inflation/lead', label: '리드 테스트', group: 'gauge' },
+  { href: '/inflation/forecast', label: '예상치 비교', group: 'forecast' },
   { href: '/inflation/scoreboard', label: '스코어보드', group: 'forecast' },
   { href: '/inflation/calendar', label: '발표 일정', group: 'forecast' },
   { href: '/inflation/markets', label: '예측시장', group: 'forecast' },

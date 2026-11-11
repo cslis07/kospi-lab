@@ -178,6 +178,7 @@ export const INFLATION_SECTIONS: MenuItem[] = [
   { href: '/inflation/gap',         icon: 'signal', label: 'CPI 격차',      desc: '추정치와 공식 BLS 발표의 차이' },
   { href: '/inflation/truflation',  icon: 'signal', label: 'vs Truflation', desc: '다른 민간 실시간 물가 추정과 비교' },
   { href: '/inflation/lead',        icon: 'signal', label: '리드 테스트',    desc: '추정치가 발표를 미리 맞혔는지(과거)' },
+  { href: '/inflation/forecast',    icon: 'report', label: 'CPI·PPI 예상치 비교', desc: '시장 예상치와 우리 예상치(지표 모델 + 기사)' },
   { href: '/inflation/scoreboard',  icon: 'report', label: '예측 스코어보드', desc: '예측자별 과거 적중 기록' },
   { href: '/inflation/calendar',    icon: 'calendar', label: '발표 일정',     desc: '미국 주요 지표·예측' },
   { href: '/inflation/markets',     icon: 'invest', label: '예측시장',       desc: 'Polymarket·Kalshi 참가자 가격(시장 기대)' },

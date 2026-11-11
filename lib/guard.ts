@@ -266,7 +266,7 @@ function sbHeaders() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   return { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
 }
-async function sbGet<T>(id: string): Promise<T | null> {
+export async function sbGet<T>(id: string): Promise<T | null> {
   const url = process.env.SUPABASE_URL;
   if (!url || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
   try {
@@ -276,7 +276,7 @@ async function sbGet<T>(id: string): Promise<T | null> {
     return (typeof d === 'string' ? JSON.parse(d) : d) as T ?? null;
   } catch { return null; }
 }
-async function sbPut(id: string, data: unknown): Promise<boolean> {
+export async function sbPut(id: string, data: unknown): Promise<boolean> {
   const url = process.env.SUPABASE_URL;
   if (!url || !process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
   const r = await fetch(`${url}/rest/v1/kl_sync?on_conflict=id`, {
