@@ -76,13 +76,23 @@ export async function fetchClosedPositions(startTime: number, endTime: number): 
   // SL(스탑로스) 주문 트리거가 복구 — best-effort. 없거나 권한/필드 이슈면 조용히 skip.
   let sl: SlOrder[] = [];
   try {
-    const pj = await bitgetSignedGet(
-      `/api/v2/mix/order/orders-plan-history?productType=USDT-FUTURES&planType=profit_loss&startTime=${startTime}&endTime=${endTime}&limit=100`,
-    );
+    // 여기도 한 번에 최대 100건 — endId 로 페이지를 넘긴다(실측 2026-11-11: 90일 42건이라 아직 안 잘리지만, 주문이 늘면 오래된 손절가부터 빠진다)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const d = pj.data as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const list: any[] = d?.entrustedList ?? d?.list ?? (Array.isArray(d) ? d : []);
+    const list: any[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const pj = await bitgetSignedGet(
+        `/api/v2/mix/order/orders-plan-history?productType=USDT-FUTURES&planType=profit_loss&startTime=${startTime}&endTime=${endTime}&limit=100${cursor ? `&idLessThan=${cursor}` : ''}`,
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = pj.data as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const part: any[] = d?.entrustedList ?? d?.list ?? (Array.isArray(d) ? d : []);
+      list.push(...part);
+      const next = d?.endId ? String(d.endId) : undefined;
+      if (part.length < 100 || !next || next === cursor) break;
+      cursor = next;
+    }
     sl = list.map((o) => ({
       symbol: String(o.symbol ?? ''),
       triggerPrice: num(o.triggerPrice ?? o.stopLossTriggerPrice ?? o.presetStopLossPrice ?? o.executePrice),
