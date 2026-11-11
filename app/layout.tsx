@@ -44,7 +44,7 @@ export const viewport: Viewport = {
 
 // 페인트 전에 저장된 테마·사이드바 접힘을 html 클래스로 적용(FOUC 방지). 기본 = 다크(2.0 기획서).
 // 우선순위: ?theme=light|dark 쿼리(딥링크·공유·테스트, 지정 시 저장) → localStorage → 다크.
-const themeInit = `(function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='light'||q==='dark')?q:localStorage.getItem('kl-theme');t=(t==='light')?'light':'dark';if(q==='light'||q==='dark'){try{localStorage.setItem('kl-theme',t);}catch(_){}}var e=document.documentElement;e.classList.remove('light','dark');e.classList.add(t);if(localStorage.getItem('kl-side')==='min')e.classList.add('side-min');if(localStorage.getItem('kl-st')==='1')e.classList.add('kl-st');var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#f5f7fb':'#0b1120');}catch(_){document.documentElement.classList.add('dark');}})();`;
+const themeInit = `(function(){try{var q=new URLSearchParams(location.search).get('theme');var t=(q==='light'||q==='dark')?q:localStorage.getItem('kl-theme');t=(t==='light')?'light':'dark';if(q==='light'||q==='dark'){try{localStorage.setItem('kl-theme',t);}catch(_){}}var e=document.documentElement;e.classList.remove('light','dark');e.classList.add(t);if(localStorage.getItem('kl-side')==='min')e.classList.add('side-min');var st=localStorage.getItem('kl-st');if(st==='1'||st==='p')e.classList.add('kl-st');if(st==='p')e.classList.add('kl-stp');var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#f5f7fb':'#0b1120');}catch(_){document.documentElement.classList.add('dark');}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   // 기본 다크(className 에 dark) + 인라인 스크립트가 저장값이 light 면 교체. DOM 클래스가 진실원.

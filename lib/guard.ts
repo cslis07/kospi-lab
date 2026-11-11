@@ -501,7 +501,12 @@ export async function cooldownNow(now: number = Date.now()): Promise<Cooldown | 
 /* ── 홈 '지금 내 상태' 한 줄(/api/bitget/status) ─────────────────── */
 export interface MyStatus {
   heartbeatAt: number | null;            // 마지막 가드 실행(pg_cron 5분)
-  positions: { symbol: string; side: 'long' | 'short'; slSet: boolean | null; pnlPct: number | null }[];
+  positions: {
+    symbol: string; side: 'long' | 'short'; slSet: boolean | null; pnlPct: number | null;
+    // 상세(가격·마진 전부 USDT) — 비트겟 all-position 그대로. 값이 없으면 0/null
+    entry: number; mark: number; leverage: number; marginMode: 'isolated' | 'crossed' | null;
+    margin: number; pnlUsdt: number; liq: number; liqDistPct: number | null; slStop: number | null;
+  }[];
   cooldown: Cooldown | null;
 }
 export const HEARTBEAT_STALE_MS = 15 * 60_000;
@@ -510,7 +515,7 @@ export async function myStatus(now: number = Date.now()): Promise<MyStatus> {
   const [hb, posJson, sl, cd] = await Promise.all([
     sbGet<{ at: number }>(HEARTBEAT_ID),
     bitgetSignedGet('/api/v2/mix/position/all-position?productType=USDT-FUTURES&marginCoin=USDT').catch(() => null),
-    slOrders().then((o) => o?.symbols ?? null),
+    slOrders(),
     cooldownNow(now).catch(() => null),
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -519,10 +524,16 @@ export async function myStatus(now: number = Date.now()): Promise<MyStatus> {
     heartbeatAt: hb?.at ?? null,
     positions: raw.map((r) => {
       const entry = num(r.openPriceAvg ?? r.averageOpenPrice), mark = num(r.markPrice), side = r.holdSide === 'short' ? 'short' : 'long';
+      const liq = num(r.liquidationPrice), sym = normSym(String(r.symbol));
       return {
         symbol: String(r.symbol), side,
-        slSet: sl ? sl.has(normSym(String(r.symbol))) : null,
+        slSet: sl ? sl.symbols.has(sym) : null,
         pnlPct: entry > 0 && mark > 0 ? ((side === 'long' ? mark - entry : entry - mark) / entry) * 100 : null,
+        entry, mark, leverage: num(r.leverage),
+        marginMode: r.marginMode === 'isolated' ? 'isolated' : r.marginMode === 'crossed' ? 'crossed' : null,
+        margin: num(r.marginSize), pnlUsdt: num(r.unrealizedPL), liq,
+        liqDistPct: mark > 0 && liq > 0 ? (Math.abs(mark - liq) / mark) * 100 : null,
+        slStop: sl?.stops[`${sym}:${side}`] ?? null,
       };
     }),
     cooldown: cd,

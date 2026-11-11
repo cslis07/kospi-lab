@@ -1268,6 +1268,9 @@ html.side-min .side-nav .sn-item { justify-content: center; padding: 0; }
 @media (max-width: 767px) { .app-main { min-height: 100svh; } }
 .status-slot:empty { display: none; }
 .kl-st .status-slot:empty { display: block; min-height: 58px; }
+/* 포지션 상세 줄(진입·현재·청산·마진)이 있는 카드 — 폰은 상세가 두 줄로 접혀 더 높다(포지션 1개 기준) */
+.kl-stp .status-slot:empty { min-height: 94px; }
+@media (min-width: 640px) { .kl-stp .status-slot:empty { min-height: 76px; } }
 .bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
 .bento > * { grid-column: span 12; min-width: 0; }
 @media (min-width: 1024px) {
