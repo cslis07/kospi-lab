@@ -10,9 +10,9 @@ export interface IndexCard {
   week52High?: number | null; week52Low?: number | null;
   unit?: string; dec?: number; // 표기용(금리 % · 국내금 원 · 스테이블코인 시총 'B' 등) · 소수 자리
   tag?: string;      // 상태 표기 대체('일간'·'10분 지연' — 실시간/장마감이 맞지 않는 카드)
-  note?: string;     // 등락 아래 한 줄(김치프리미엄 코인별 · 공포탐욕 구간)
+  note?: string;     // 등락 아래 한 줄(공포탐욕 구간)
   diffUnit?: string; // 있으면 등락을 '▲ 0.12%p' 처럼 차이만 표시(변화율이 뜻 없는 지표)
-  signed?: boolean;  // 값 앞에 +/− 부호(김치프리미엄)
+  signed?: boolean;  // 값 앞에 +/− 부호(0 을 오가는 지표)
 }
 
 export const colorOf = (c: number) => (c > 0 ? 'var(--warn)' : c < 0 ? 'var(--accent)' : 'var(--faint)');

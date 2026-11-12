@@ -2,7 +2,7 @@
  * 코인 › 시장환경 — 홈 '오늘의 시장'과 같은 카드(현재값·전일 대비·1개월 추이·상세 시트)로 보여주는 실시간 집계.
  *
  *  - 미 국채 10Y·2Y·30Y · 브렌트유 · 달러인덱스: 네이버 시세(실시간 또는 10분 지연) — 시장지표 화면과 같은 소스
- *  - USDT/KRW: 업비트 실거래가 · 김치프리미엄: 업비트 원화가 ÷ (Bitget 달러가 × USDT/KRW) 4종 평균
+ *  - USDT/KRW: 업비트 실거래가
  *  - 공포·탐욕 지수(alternative.me)·스테이블코인 시총(DefiLlama): 하루 1회 집계
  *  - 다음 FOMC: 연준 공식 결정일(lib/macroSchedule)
  *
@@ -23,35 +23,13 @@ export interface EnvLiveCard extends IndexCard {
 export interface EnvLive { cards: EnvLiveCard[]; fomc: { date: string; dday: number } | null; asOf: string }
 export interface Pt { date: string; value: number }
 
-export const ENV_USDT = 'ENV_USDT', ENV_KIMCHI = 'ENV_KIMCHI', ENV_FNG = 'ENV_FNG';
+export const ENV_USDT = 'ENV_USDT', ENV_FNG = 'ENV_FNG';
 /** 시장환경에 쓰는 네이버 지표(표시 순서) */
 export const ENV_NAVER = ['US10YT=RR', 'US2YT=RR', 'US30YT=RR', 'LCOcv1', '.DXY'];
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
-const COINS: [string, string, string][] = [ // [표시, 업비트 마켓, Bitget 심볼]
-  ['BTC', 'KRW-BTC', 'BTCUSDT'], ['ETH', 'KRW-ETH', 'ETHUSDT'], ['XRP', 'KRW-XRP', 'XRPUSDT'], ['SOL', 'KRW-SOL', 'SOLUSDT'],
-];
 
 /* ── 순수 계산(테스트 대상) ───────────────────────────── */
-
-/** 김치프리미엄 % = 원화가 ÷ (달러가 × USDT/KRW) − 1 */
-export const kimchiPct = (krw: number, usd: number, usdtKrw: number) => (krw / (usd * usdtKrw) - 1) * 100;
-
-/** 날짜별 4종 평균 김치프리미엄 — 그날 USDT/KRW 와 원화·달러 종가가 모두 있는 코인만 평균 */
-export function kimchiSeries(usdt: Pt[], pairs: { krw: Pt[]; usd: Pt[] }[]): Pt[] {
-  const maps = pairs.map((p) => ({ krw: new Map(p.krw.map((x) => [x.date, x.value])), usd: new Map(p.usd.map((x) => [x.date, x.value])) }));
-  const out: Pt[] = [];
-  for (const u of usdt) {
-    if (!u.value) continue;
-    const vals: number[] = [];
-    for (const m of maps) {
-      const k = m.krw.get(u.date), d = m.usd.get(u.date);
-      if (k && d) vals.push(kimchiPct(k, d, u.value));
-    }
-    if (vals.length) out.push({ date: u.date, value: r2(vals.reduce((a, b) => a + b, 0) / vals.length) });
-  }
-  return out.sort((a, b) => a.date.localeCompare(b.date));
-}
 
 export function fngLabel(v: number): string {
   return v <= 24 ? '극단 공포' : v <= 44 ? '공포' : v <= 55 ? '중립' : v <= 74 ? '탐욕' : '극단 탐욕';
@@ -92,19 +70,10 @@ async function jget(url: string, revalidate: number, ms = 7000): Promise<unknown
 }
 
 interface UpTick { market: string; trade_price: number; prev_closing_price: number }
-async function upbitTicks(markets: string[]): Promise<Record<string, UpTick>> {
+async function upbitTick(market: string): Promise<UpTick | null> {
   try {
-    const arr = await jget(`https://api.upbit.com/v1/ticker?markets=${markets.join(',')}`, 0, 6000);
-    const out: Record<string, UpTick> = {};
-    if (Array.isArray(arr)) for (const t of arr as UpTick[]) out[t.market] = t;
-    return out;
-  } catch { return {}; }
-}
-async function bitgetLast(symbol: string): Promise<number | null> {
-  try {
-    const j = (await jget(`https://api.bitget.com/api/v2/spot/market/tickers?symbol=${symbol}`, 0, 6000)) as { data?: { lastPr?: string }[] };
-    const v = Number(j?.data?.[0]?.lastPr);
-    return Number.isFinite(v) && v > 0 ? v : null;
+    const arr = await jget(`https://api.upbit.com/v1/ticker?markets=${market}`, 0, 6000);
+    return Array.isArray(arr) && arr[0] ? (arr[0] as UpTick) : null;
   } catch { return null; }
 }
 /** 업비트 일봉 종가(UTC 0시 기준 하루) — 과거→최신 */
@@ -117,14 +86,6 @@ async function upbitDays(market: string, count = 200): Promise<Pt[]> {
       .filter((p) => p.date.length === 10 && p.value > 0).reverse();
   } catch { return []; }
 }
-/** Bitget 일봉 종가(UTC 0시 기준 하루) — 과거→최신 */
-async function bitgetDays(symbol: string, limit = 200): Promise<Pt[]> {
-  try {
-    const j = (await jget(`https://api.bitget.com/api/v2/spot/market/candles?symbol=${symbol}&granularity=1Dutc&limit=${limit}`, 600)) as { data?: string[][] };
-    return (j?.data ?? []).map((c) => ({ date: new Date(Number(c[0])).toISOString().slice(0, 10), value: Number(c[4]) }))
-      .filter((p) => p.value > 0).sort((a, b) => a.date.localeCompare(b.date));
-  } catch { return []; }
-}
 async function fngDays(): Promise<Pt[]> {
   try {
     const j = (await jget('https://api.alternative.me/fng/?limit=270', 600)) as { data?: { value: string; timestamp: string }[] };
@@ -133,40 +94,32 @@ async function fngDays(): Promise<Pt[]> {
   } catch { return []; }
 }
 
-interface Hist { usdt: Pt[]; kimchi: Pt[]; fng: Pt[] }
+interface Hist { usdt: Pt[]; fng: Pt[] }
 const TTL = 10 * 60_000;
 let memo: { at: number; h: Hist } | null = null;
 
-/** 일별 시계열(USDT/KRW·김치프리미엄·공포탐욕) — 10분 메모리 보관, 일부 실패는 직전 값으로 메운다 */
+/** 일별 시계열(USDT/KRW·공포탐욕) — 10분 메모리 보관, 일부 실패는 직전 값으로 메운다 */
 export async function envHistory(): Promise<Hist> {
   if (memo && Date.now() - memo.at < TTL) return memo.h;
-  const [usdt, fng, ...rest] = await Promise.all([
-    upbitDays('KRW-USDT'), fngDays(),
-    ...COINS.map((c) => upbitDays(c[1])), ...COINS.map((c) => bitgetDays(c[2])),
-  ]);
-  const pairs = COINS.map((_, i) => ({ krw: rest[i], usd: rest[COINS.length + i] }));
-  const kimchi = kimchiSeries(usdt, pairs);
+  const [usdt, fng] = await Promise.all([upbitDays('KRW-USDT'), fngDays()]);
   const h: Hist = {
     usdt: usdt.length ? usdt : memo?.h.usdt ?? [],
-    kimchi: kimchi.length ? kimchi : memo?.h.kimchi ?? [],
     fng: fng.length ? fng : memo?.h.fng ?? [],
   };
-  if (usdt.length && kimchi.length && fng.length) memo = { at: Date.now(), h };
+  if (usdt.length && fng.length) memo = { at: Date.now(), h };
   return h;
 }
 
 const UPBIT_SRC = '출처: 업비트(USDT/KRW 실거래가, 일별 종가는 UTC 0시 기준).';
-const KIMCHI_SRC = '출처: 업비트 원화가 ÷ (Bitget 달러가 × 업비트 USDT/KRW) − 1, BTC·ETH·XRP·SOL 평균. 일별 값은 UTC 0시 종가 기준입니다.';
 const FNG_SRC = '출처: alternative.me Crypto Fear & Greed Index(0 = 극단 공포, 100 = 극단 탐욕, 하루 1회 집계).';
 
 export async function fetchEnvLive(now = Date.now()): Promise<EnvLive> {
   const today = new Date(now).toISOString().slice(0, 10);
   const defs = [...INDICATORS, ...EXTRA_INDICATORS].filter((d) => ENV_NAVER.includes(d.code));
-  const [naver, ticks, usd, hist, stable] = await Promise.all([
+  const [naver, ut, hist, stable] = await Promise.all([
     marketIndicators(defs).catch(() => [] as IndicatorQuote[]),
-    upbitTicks(['KRW-USDT', ...COINS.map((c) => c[1])]),
-    Promise.all(COINS.map((c) => bitgetLast(c[2]))),
-    envHistory().catch(() => ({ usdt: [], kimchi: [], fng: [] }) as Hist),
+    upbitTick('KRW-USDT'),
+    envHistory().catch(() => ({ usdt: [], fng: [] }) as Hist),
     stableCard().catch(() => null),
   ]);
 
@@ -176,7 +129,6 @@ export async function fetchEnvLive(now = Date.now()): Promise<EnvLive> {
     if (q && q.price) cards.push(naverCard(q));
   }
 
-  const ut = ticks['KRW-USDT'];
   if (ut?.trade_price) {
     const s = seriesCard(hist.usdt, ut.trade_price, today);
     const prev = ut.prev_closing_price || (s ? ut.trade_price - s.change : 0);
@@ -186,23 +138,6 @@ export async function fetchEnvLive(now = Date.now()): Promise<EnvLive> {
       spark: s?.spark ?? [], sparkLabel: '1개월', week52High: s?.week52High, week52Low: s?.week52Low,
       cat: 'crypto', status: '실시간', source: UPBIT_SRC,
     });
-
-    const per: { tag: string; pct: number }[] = [];
-    COINS.forEach(([tag, um], i) => {
-      const krw = ticks[um]?.trade_price, u = usd[i];
-      if (krw && u) per.push({ tag, pct: kimchiPct(krw, u, ut.trade_price) });
-    });
-    if (per.length) {
-      const avg = r2(per.reduce((a, x) => a + x.pct, 0) / per.length);
-      const k = seriesCard(hist.kimchi, avg, today);
-      cards.push({
-        code: ENV_KIMCHI, name: '김치프리미엄', value: avg, change: k?.change ?? 0, changeRate: 0, live: true,
-        unit: '%', dec: 2, diffUnit: '%p', signed: true,
-        note: per.map((p) => { const v = Number(p.pct.toFixed(1)) || 0; return `${p.tag} ${v >= 0 ? '+' : ''}${v.toFixed(1)}`; }).join(' · '),
-        spark: k?.spark ?? [], sparkLabel: '1개월', week52High: k?.week52High, week52Low: k?.week52Low,
-        cat: 'crypto', status: '실시간', source: KIMCHI_SRC,
-      });
-    }
   }
 
   if (hist.fng.length >= 2) {
@@ -223,7 +158,7 @@ export async function fetchEnvLive(now = Date.now()): Promise<EnvLive> {
 
 /** 상세 시트 히스토리(시장환경 전용 코드) — 없으면 null */
 export async function envHistoryFor(code: string): Promise<Pt[] | null> {
-  if (code !== ENV_USDT && code !== ENV_KIMCHI && code !== ENV_FNG) return null;
+  if (code !== ENV_USDT && code !== ENV_FNG) return null;
   const h = await envHistory();
-  return (code === ENV_USDT ? h.usdt : code === ENV_KIMCHI ? h.kimchi : h.fng).slice(-270);
+  return (code === ENV_USDT ? h.usdt : h.fng).slice(-270);
 }

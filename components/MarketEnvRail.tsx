@@ -2,7 +2,7 @@
 
 /**
  * 코인 › 시장환경 — 홈 '오늘의 시장'과 같은 카드(현재값·전일 대비·1개월 추이)로 15초마다 갱신, 누르면 상세 시트.
- * 미 국채 10Y·2Y·30Y · 브렌트유 · 달러인덱스 · USDT/KRW · 김치프리미엄 · 공포탐욕 · 스테이블코인 시총 + 다음 FOMC.
+ * 미 국채 10Y·2Y·30Y · 브렌트유 · 달러인덱스 · USDT/KRW · 공포탐욕 · 스테이블코인 시총 + 다음 FOMC.
  * 데이터: /api/coin-env/live (lib/coinEnvLive). 색은 가격 방향(상승=빨강·하락=파랑) — 유불리 판정이 아니다.
  */
 import { useState } from 'react';
@@ -46,7 +46,7 @@ export default function MarketEnvRail() {
       </div>
       <div className="idx-rail env-rail">
         {!data
-          ? Array.from({ length: 10 }).map((_, i) => <div key={i} className="idx-card skeleton" style={{ height: 112 }} />)
+          ? Array.from({ length: 9 }).map((_, i) => <div key={i} className="idx-card skeleton" style={{ height: 112 }} />)
           : cards.length === 0
             ? <p style={{ fontSize: 12, color: 'var(--faint)', gridColumn: '1 / -1' }}>시장환경을 불러오지 못했습니다. 잠시 후 다시 시도됩니다.</p>
             : cards.map((c) => <CardButton key={c.code} c={c} onClick={() => setSel(c.code)} />)}

@@ -39,7 +39,7 @@ export default function MarketIndicatorDetail({ q }: { q: LiveQuote }) {
     `/api/naver/indicator-history?code=${encodeURIComponent(q.code)}`, fetcher, { refreshInterval: 300000 });
   const points = data?.points ?? [];
   const dec = q.dec ?? decOf(q.cat, q.code);
-  const diff = q.diffUnit != null; // 김치프리미엄(%p)·공포탐욕(점) — 전일 대비를 비율이 아니라 차이로
+  const diff = q.diffUnit != null; // 공포탐욕(점) 등 — 전일 대비를 비율이 아니라 차이로
   const info = INDICATOR_INFO[q.code];
   const live = q.status === '실시간' || q.status.endsWith('지연');
   const isPct = q.unit === '%';

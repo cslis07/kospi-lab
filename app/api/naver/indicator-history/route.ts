@@ -19,7 +19,7 @@ async function handler(req: Request) {
   const code = new URL(req.url).searchParams.get('code') ?? '';
   // 스테이블코인 시총(홈 지수 레일 카드) — DefiLlama 일간, 최근 약 9개월
   if (code === STABLE_CODE) return NextResponse.json({ points: (await stableSeries()).slice(-270) });
-  // 코인 › 시장환경 전용(USDT/KRW·김치프리미엄·공포탐욕) — 업비트·Bitget·alternative.me 일별
+  // 코인 › 시장환경 전용(USDT/KRW·공포탐욕) — 업비트·alternative.me 일별
   const env = await envHistoryFor(code);
   if (env) return NextResponse.json({ points: env });
   const market = INDEX_MARKET[code];

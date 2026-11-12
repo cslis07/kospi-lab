@@ -145,7 +145,7 @@ export default function StudyMacroPage() {
           ['김치 프리미엄', '국내 가격 − 해외 가격. 높으면 국내 과열 신호로 해석'],
           ['공포·탐욕 지수', '변동성·거래량·SNS 등을 합친 심리 지표. 극단값일 때만 참고'],
         ]} />
-        <AppLinks links={[{ href: '/coins', label: '코인 › 시장환경 (김치프리미엄·공포탐욕·다음 FOMC)' }]} />
+        <AppLinks links={[{ href: '/coins', label: '코인 › 시장환경 (공포탐욕·다음 FOMC)' }]} />
       </Lesson>
 
       <Lesson id="corr" n="4-11" title="상관관계 주의 — 같이 움직인다 ≠ 원인이다">

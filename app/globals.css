@@ -1017,7 +1017,7 @@ a.fin-row:active { background: var(--surface-2); }
 .idx-card-btn:hover .idx-card { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 .idx-card-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (min-width: 1024px) { .idx-rail { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
-/* 코인 › 시장환경(10칸) — PC 5열 × 2줄 */
+/* 코인 › 시장환경(9칸) — PC 5열 */
 @media (min-width: 1024px) { .idx-rail.env-rail { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 /* 시세 상태 표시(기존 클래스 — DataStatus .ds 와 같은 모양 규칙): 실시간 = 채운 점 · 그 외(장마감) = 빈 원 */
 .idx-live { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
