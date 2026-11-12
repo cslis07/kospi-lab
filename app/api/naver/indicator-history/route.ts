@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { indicatorHistory, INDICATORS } from '@/lib/naverStock';
 import { indexDaily } from '@/lib/naverIndex';
 import { withCdn } from '@/lib/cdn';
+import { STABLE_CODE, stableSeries } from '@/lib/stablecoinCap';
 
 // 시장지표(환율·금리·원자재) 단일 종목 일별 히스토리 — 상세 시트 차트·표용.
 // code 는 INDICATORS 화이트리스트만 허용(오픈 프록시 방지), cat 도 거기서 가져온다.
@@ -15,6 +16,8 @@ const INDEX_MARKET: Record<string, 'domestic' | 'foreign'> = {
 
 async function handler(req: Request) {
   const code = new URL(req.url).searchParams.get('code') ?? '';
+  // 스테이블코인 시총(홈 지수 레일 카드) — DefiLlama 일간, 최근 약 9개월
+  if (code === STABLE_CODE) return NextResponse.json({ points: (await stableSeries()).slice(-270) });
   const market = INDEX_MARKET[code];
   if (market) {
     const rows = await indexDaily(market, code, 270);

@@ -1,3 +1,4 @@
+import { stableCard } from '@/lib/stablecoinCap';
 import { krIndexLive, worldIndexLive, usdKrwLive, indexMinute, indexDaily, downsample, kstYmd, r2, type LiveQuote } from '@/lib/naverIndex';
 
 /**
@@ -15,6 +16,8 @@ export interface IndexCard {
   live: boolean;
   spark: number[]; sparkLabel: '오늘' | '1개월';
   week52High?: number | null; week52Low?: number | null;
+  /** 값 뒤 단위(스테이블코인 시총 'B' = 십억 달러) · 상태 표기 대체('일간' — 실시간/장마감이 맞지 않는 하루 1회 집계) */
+  unit?: string; tag?: string;
 }
 
 type Rv = { live?: number; minute?: number };
@@ -68,7 +71,7 @@ async function usd(rv: Rv): Promise<IndexCard | null> {
   return { ...card('USDKRW', '미국 USD', q, spark, '1개월'), ...w };
 }
 
-/** 풀 = 기본 6종 + 아시아·유럽 4종(레일 커스터마이즈로 표시 선택). 실패한 카드는 빠진다. */
+/** 풀 = 기본 6종 + 아시아·유럽 4종 + 스테이블코인 시총(레일 커스터마이즈로 표시 선택). 실패한 카드는 빠진다. */
 export async function fetchHomeIndexCards(rv: Rv = {}): Promise<IndexCard[]> {
   return (await Promise.all([
     kr('KOSPI', '코스피', rv),
@@ -81,5 +84,6 @@ export async function fetchHomeIndexCards(rv: Rv = {}): Promise<IndexCard[]> {
     world('.HSI', '항셍', rv),
     world('.GDAXI', 'DAX', rv),
     world('.FTSE', 'FTSE 100', rv),
+    stableCard().catch(() => null),
   ])).filter((x): x is IndexCard => !!x);
 }

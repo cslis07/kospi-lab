@@ -68,7 +68,7 @@ export default function MarketIndicatorDetail({ q }: { q: LiveQuote }) {
 
       {/* 차트 */}
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-        <h2 className="text-sm font-semibold text-[var(--text)] mb-3">히스토리 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 {points.length || '—'}영업일</span></h2>
+        <h2 className="text-sm font-semibold text-[var(--text)] mb-3">히스토리 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 {points.length || '—'}{q.cat === 'crypto' ? '일' : '영업일'}</span></h2>
         {points.length
           ? <MacroChartLazy data={points} decimals={dec} monthly={false} unit={isPct ? '%' : (q.unit ?? '')} />
           : <div className="skeleton rounded-xl" style={{ height: 240 }} aria-label="차트 로딩 중" />}
@@ -120,7 +120,7 @@ export default function MarketIndicatorDetail({ q }: { q: LiveQuote }) {
       )}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-1">
-        {q.cat === 'index' ? '출처: 네이버페이 증권(지수 일봉 종가). 해외 지수는 현지 종가 기준입니다.' : '출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물). ‘N분 지연’ 표시는 실시간이 아닙니다.'} 투자 권유가 아닙니다.
+        {q.cat === 'crypto' ? '출처: DefiLlama(모든 스테이블코인 유통량의 달러 환산 합, 하루 1회 집계). TradingView 등 다른 집계와는 포함 범위가 달라 수치가 조금 다릅니다.' : q.cat === 'index' ? '출처: 네이버페이 증권(지수 일봉 종가). 해외 지수는 현지 종가 기준입니다.' : '출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물). ‘N분 지연’ 표시는 실시간이 아닙니다.'} 투자 권유가 아닙니다.
       </p>
     </div>
   );

@@ -14,15 +14,18 @@ import useSWR from 'swr';
 import dynamic from 'next/dynamic';
 import BottomSheet from '@/components/ui/BottomSheet';
 import type { LiveQuote } from '@/components/MarketIndicatorDetail';
-import { useRailPref, DEFAULT_RAIL } from '@/hooks/useRailPref';
+import { useRailPref, DEFAULT_RAIL, RAIL_KEY } from '@/hooks/useRailPref';
 import RailManager from '@/components/RailManager';
 
 interface IndexCard {
   code: string; name: string; value: number; change: number; changeRate: number;
   live: boolean; spark: number[]; sparkLabel: string;
   week52High?: number | null; week52Low?: number | null;
-  unit?: string; dec?: number; // 시장지표 병합분 표기용(금리 % · 국내금 원 등)
+  unit?: string; dec?: number; // 시장지표 병합분 표기용(금리 % · 국내금 원 등) · 스테이블코인 시총 'B'
+  tag?: string; // 상태 표기 대체('일간' — 하루 1회 집계라 실시간/장마감이 맞지 않는 카드)
 }
+const STABLE = 'STABLE'; // 스테이블코인 전체 시총(lib/stablecoinCap)
+const STABLE_FLAG = 'kospi-lab-rail-stable-v1'; // 이 기기 레일에 한 번 넣었는지
 
 // 환율·시장지표(/api/naver/indicators) 응답 — 홈 레일 풀에 합쳐 레일에서도 선택·표시 가능하게
 interface IndicatorQuote { code: string; name: string; cat: string; unit?: string; price: number; change: number; changeRate: number; status: string; spark: number[] }
@@ -39,6 +42,7 @@ const MarketIndicatorDetail = dynamic(() => import('@/components/MarketIndicator
 // 레일 카드 → 상세 시트 입력. 시장지표 병합분은 원래 시세(지연 표기 포함) 그대로, 지수는 cat 'index', 홈의 원/달러는 시장지표 코드로.
 function toQuote(c: IndexCard, ind?: IndicatorQuote): LiveQuote {
   if (ind) return ind;
+  if (c.code === STABLE) return { code: c.code, name: c.name, cat: 'crypto', unit: '십억 달러', price: c.value, change: c.change, changeRate: c.changeRate, status: '일간 집계' };
   const fx = c.code === 'USDKRW';
   return { code: fx ? 'FX_USDKRW' : c.code, name: c.name, cat: fx ? 'exchange' : 'index', unit: fx ? '원' : c.unit, price: c.value, change: c.change, changeRate: c.changeRate, status: c.live ? '실시간' : '장마감' };
 }
@@ -76,11 +80,11 @@ function Card({ c, on }: { c: IndexCard; on?: boolean }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
         <span className={`idx-live${c.live ? ' on' : ''}`} style={{ marginLeft: 'auto' }}>
-          <i />{c.live ? '실시간' : '장마감'}
+          <i />{c.tag ?? (c.live ? '실시간' : '장마감')}
         </span>
       </div>
       <div className="tabular-nums" style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.02em', marginTop: 4 }}>
-        {f(c.value)}{c.unit === '%' ? <span style={{ fontSize: 12, marginLeft: 1 }}>%</span> : null}
+        {f(c.value)}{c.unit === '%' || c.unit === 'B' ? <span style={{ fontSize: 12, marginLeft: 1 }}>{c.unit}</span> : null}
       </div>
       <div className="tabular-nums" style={{ fontSize: 11.5, fontWeight: 700, color: col, marginTop: 1, whiteSpace: 'nowrap' }}>
         {arrow} {f(Math.abs(c.change))} ({c.changeRate >= 0 ? '+' : ''}{c.changeRate.toFixed(2)}%)
@@ -118,6 +122,21 @@ export default function IndexRail() {
   const open = (code: string) => { setShowAll(false); setSel(code); };
 
   const { pref, save } = useRailPref(); // 관심종목 화면과 공유되는 단일 리스트(라이브 동기화)
+  // 스테이블코인 시총 카드가 생긴 뒤 처음 한 번만 이 기기 레일에 넣는다 — 6칸이 차 있으면 6번째 자리에(밀린 지수는 목록에 남아 편집에서 되돌릴 수 있다).
+  // 그 뒤로 사용자가 숨기면 다시 넣지 않는다.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(STABLE_FLAG)) return;
+      localStorage.setItem(STABLE_FLAG, '1');
+      const raw = localStorage.getItem(RAIL_KEY);
+      const cur: string[] = raw ? JSON.parse(raw) : DEFAULT_RAIL;
+      if (!Array.isArray(cur) || cur.includes(STABLE)) return;
+      const next = [...cur];
+      next.splice(Math.min(next.length, 5), 0, STABLE);
+      save(next);
+    } catch { /* 저장 불가 환경 — 전체보기·편집에서 고를 수 있다 */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [editing, setEditing] = useState(false);
   const [showAll, setShowAll] = useState(false); // '전체보기' 팝업 — 전체 지수 한눈에
   const shown = pref.filter((c) => byCode.has(c)).slice(0, 6); // 홈 '오늘의 시장'은 6개까지(기획서 4~6개)

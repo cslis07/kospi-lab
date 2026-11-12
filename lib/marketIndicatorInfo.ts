@@ -6,6 +6,11 @@
 export interface IndicatorInfo { desc: string; impact: string }
 
 export const INDICATOR_INFO: Record<string, IndicatorInfo> = {
+  // 홈 지수 레일 카드용(코인 시장 대기 자금)
+  STABLE: {
+    desc: 'USDT(테더)·USDC 등 달러에 가치를 맞춘 스테이블코인을 모두 더한 시가총액. 코인 시장 안에 들어와 있는 달러 자금의 크기를 보여준다. 하루 한 번 집계된다.',
+    impact: '늘면 코인을 살 수 있는 대기 자금이 들어오는 중, 줄면 달러로 환전돼 시장 밖으로 빠지는 중으로 읽는다. 가격 방향을 알려주는 신호가 아니라 유동성 배경이며, 가격과 엇갈리는 구간도 흔하다.',
+  },
   // 홈 지수 레일 카드용(주가지수)
   KOSPI: {
     desc: '유가증권시장 전체 시가총액 지수. 삼성전자·SK하이닉스 등 대형주 비중이 커 반도체 업황과 외국인 수급에 크게 움직인다.',
