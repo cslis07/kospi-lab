@@ -221,21 +221,27 @@ export const INDICATORS: IndicatorDef[] = [
   { code: 'KR10YT=RR', name: '한국 국채 10년', cat: 'bond', unit: '%', flag: '🇰🇷' },
 ];
 
+/** 기본 13종에 없는 지표 — 코인 › 시장환경(미 국채 2년·30년). 상세 히스토리 화이트리스트에도 포함 */
+export const EXTRA_INDICATORS: IndicatorDef[] = [
+  { code: 'US2YT=RR', name: '미국 국채 2년', cat: 'bond', unit: '%', flag: '🇺🇸' },
+  { code: 'US30YT=RR', name: '미국 국채 30년', cat: 'bond', unit: '%', flag: '🇺🇸' },
+];
+
 export interface IndicatorQuote {
   code: string; name: string; cat: string; unit?: string; flag?: string;
   price: number; change: number; changeRate: number;
   status: '실시간' | string; tradedAt: string; spark: number[];
 }
 
-export async function marketIndicators(): Promise<IndicatorQuote[]> {
-  const codes = INDICATORS.map((x) => x.code).join(',');
+export async function marketIndicators(defs: IndicatorDef[] = INDICATORS): Promise<IndicatorQuote[]> {
+  const codes = defs.map((x) => x.code).join(',');
   const live = await nget<Record<string, string | number | null>[]>(
     `/securityService/integration/indicators?indicatorCodes=${encodeURIComponent(codes)}`, LIVE);
   const byCode = new Map((live ?? []).map((x) => [String(x.reutersCode), x]));
   // 미니차트 — 일별 종가 최근 30개(10분 캐시)
-  const hist = await Promise.all(INDICATORS.map((d) =>
+  const hist = await Promise.all(defs.map((d) =>
     nget<{ closePrice: string }[]>(`/securityService/marketindex/${d.cat}/${encodeURIComponent(d.code)}/prices?page=1&pageSize=30`, 600)));
-  return INDICATORS.map((d, i) => {
+  return defs.map((d, i) => {
     const x = byCode.get(d.code);
     const spark = (hist[i] ?? []).map((h) => n(h.closePrice)).filter((v) => v > 0).reverse();
     const price = n(x?.currentPrice) || spark[spark.length - 1] || 0;

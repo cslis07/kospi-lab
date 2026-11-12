@@ -16,14 +16,8 @@ import BottomSheet from '@/components/ui/BottomSheet';
 import type { LiveQuote } from '@/components/MarketIndicatorDetail';
 import { useRailPref, DEFAULT_RAIL, RAIL_KEY } from '@/hooks/useRailPref';
 import RailManager from '@/components/RailManager';
+import { CardButton, type IndexCard } from '@/components/IndexCardView';
 
-interface IndexCard {
-  code: string; name: string; value: number; change: number; changeRate: number;
-  live: boolean; spark: number[]; sparkLabel: string;
-  week52High?: number | null; week52Low?: number | null;
-  unit?: string; dec?: number; // 시장지표 병합분 표기용(금리 % · 국내금 원 등) · 스테이블코인 시총 'B'
-  tag?: string; // 상태 표기 대체('일간' — 하루 1회 집계라 실시간/장마감이 맞지 않는 카드)
-}
 const STABLE = 'STABLE'; // 스테이블코인 전체 시총(lib/stablecoinCap)
 const STABLE_FLAG = 'kospi-lab-rail-stable-v1'; // 이 기기 레일에 한 번 넣었는지
 
@@ -45,64 +39,6 @@ function toQuote(c: IndexCard, ind?: IndicatorQuote): LiveQuote {
   if (c.code === STABLE) return { code: c.code, name: c.name, cat: 'crypto', unit: '십억 달러', price: c.value, change: c.change, changeRate: c.changeRate, status: '일간 집계' };
   const fx = c.code === 'USDKRW';
   return { code: fx ? 'FX_USDKRW' : c.code, name: c.name, cat: fx ? 'exchange' : 'index', unit: fx ? '원' : c.unit, price: c.value, change: c.change, changeRate: c.changeRate, status: c.live ? '실시간' : '장마감' };
-}
-const colorOf = (c: number) => (c > 0 ? 'var(--warn)' : c < 0 ? 'var(--accent)' : 'var(--faint)');
-
-/** 폭 100% 반응형 스파크 — viewBox 늘림 + non-scaling-stroke 로 선 두께 유지 */
-function Spark({ points, change, base }: { points: number[]; change: number; base?: number }) {
-  const W = 100, H = 30;
-  if (!points || points.length < 2) return <div style={{ height: H }} aria-hidden />;
-  const lo = Math.min(...points, base ?? Infinity), hi = Math.max(...points, base ?? -Infinity);
-  const span = hi - lo || 1;
-  const X = (i: number) => (i / (points.length - 1)) * W;
-  const Y = (v: number) => 2 + (1 - (v - lo) / span) * (H - 4);
-  const d = points.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(2)},${Y(v).toFixed(2)}`).join(' ');
-  const col = colorOf(change);
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height={H} aria-hidden style={{ display: 'block' }}>
-      {base != null && base >= lo && base <= hi && (
-        <line x1={0} x2={W} y1={Y(base)} y2={Y(base)} stroke="var(--faint)" strokeWidth={1} strokeDasharray="2 2" vectorEffect="non-scaling-stroke" opacity={0.7} />
-      )}
-      <path d={`${d} L${W},${H} L0,${H} Z`} fill={col} opacity={0.1} />
-      <path d={d} fill="none" stroke={col} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-}
-
-function Card({ c, on }: { c: IndexCard; on?: boolean }) {
-  const col = colorOf(c.change);
-  const arrow = c.change > 0 ? '▲' : c.change < 0 ? '▼' : '·';
-  const isKr = c.sparkLabel === '오늘';
-  const d = c.dec ?? 2; // 금리=4자리·국내금=정수 등 시장지표 소수자리
-  const f = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-  return (
-    <div className={`idx-card${on ? ' on' : ''}`} title={c.week52Low != null && c.week52High != null ? `52주 ${f(c.week52Low)} ~ ${f(c.week52High)}` : undefined}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
-        <span className={`idx-live${c.live ? ' on' : ''}`} style={{ marginLeft: 'auto' }}>
-          <i />{c.tag ?? (c.live ? '실시간' : '장마감')}
-        </span>
-      </div>
-      <div className="tabular-nums" style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.02em', marginTop: 4 }}>
-        {f(c.value)}{c.unit === '%' || c.unit === 'B' ? <span style={{ fontSize: 12, marginLeft: 1 }}>{c.unit}</span> : null}
-      </div>
-      <div className="tabular-nums" style={{ fontSize: 11.5, fontWeight: 700, color: col, marginTop: 1, whiteSpace: 'nowrap' }}>
-        {arrow} {f(Math.abs(c.change))} ({c.changeRate >= 0 ? '+' : ''}{c.changeRate.toFixed(2)}%)
-      </div>
-      <div style={{ marginTop: 6 }}>
-        <Spark points={c.spark} change={c.change} base={isKr ? c.value - c.change : undefined} />
-      </div>
-    </div>
-  );
-}
-
-function CardButton({ c, on, onClick }: { c: IndexCard; on?: boolean; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} aria-label={`${c.name} 상세`} className="idx-card-btn"
-      style={{ display: 'block', width: '100%', minWidth: 0, padding: 0, background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', font: 'inherit' }}>
-      <Card c={c} on={on} />
-    </button>
-  );
 }
 
 export default function IndexRail() {

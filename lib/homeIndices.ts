@@ -18,6 +18,8 @@ export interface IndexCard {
   week52High?: number | null; week52Low?: number | null;
   /** 값 뒤 단위(스테이블코인 시총 'B' = 십억 달러) · 상태 표기 대체('일간' — 실시간/장마감이 맞지 않는 하루 1회 집계) */
   unit?: string; tag?: string;
+  /** 시장환경 카드용 — 소수 자리 · 등락 아래 한 줄 · 차이만 표시(단위) · 값 앞 부호 (components/IndexCardView 와 같은 뜻) */
+  dec?: number; note?: string; diffUnit?: string; signed?: boolean;
 }
 
 type Rv = { live?: number; minute?: number };

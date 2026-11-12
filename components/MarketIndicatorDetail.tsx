@@ -13,6 +13,8 @@ import { INDICATOR_INFO } from '@/lib/marketIndicatorInfo';
 export interface LiveQuote {
   code: string; name: string; cat: string; unit?: string;
   price: number; change: number; changeRate: number; status: string;
+  /** 시장환경 카드용 — 소수 자리 · 출처 문구 대체 · 등락을 차이만 표시(변화율이 뜻 없는 지표, 단위) */
+  dec?: number; source?: string; diffUnit?: string;
 }
 
 const decOf = (cat: string, code: string) => (cat === 'bond' ? 4 : code === 'M04020000' ? 0 : 2);
@@ -36,7 +38,8 @@ export default function MarketIndicatorDetail({ q }: { q: LiveQuote }) {
   const { data } = useSWR<{ points: { date: string; value: number }[] }>(
     `/api/naver/indicator-history?code=${encodeURIComponent(q.code)}`, fetcher, { refreshInterval: 300000 });
   const points = data?.points ?? [];
-  const dec = decOf(q.cat, q.code);
+  const dec = q.dec ?? decOf(q.cat, q.code);
+  const diff = q.diffUnit != null; // 김치프리미엄(%p)·공포탐욕(점) — 전일 대비를 비율이 아니라 차이로
   const info = INDICATOR_INFO[q.code];
   const live = q.status === '실시간' || q.status.endsWith('지연');
   const isPct = q.unit === '%';
@@ -57,10 +60,12 @@ export default function MarketIndicatorDetail({ q }: { q: LiveQuote }) {
               {q.price ? fmtNum(q.price, dec) : '—'}
               <span className="text-xs font-normal text-[var(--text-muted)] ml-1">{isPct ? '%' : q.unit}</span>
             </p>
-            <p className={`text-xs font-semibold tabular-nums ${chgClass(q.changeRate)}`}>
-              {q.changeRate > 0 ? '▲' : q.changeRate < 0 ? '▼' : ''} {fmtNum(Math.abs(q.change), dec)} ({fmtPct(q.changeRate)})
+            <p className={`text-xs font-semibold tabular-nums ${chgClass(diff ? q.change : q.changeRate)}`}>
+              {diff
+                ? <>{q.change > 0 ? '▲' : q.change < 0 ? '▼' : ''} {fmtNum(Math.abs(q.change), dec)}{q.diffUnit}</>
+                : <>{q.changeRate > 0 ? '▲' : q.changeRate < 0 ? '▼' : ''} {fmtNum(Math.abs(q.change), dec)} ({fmtPct(q.changeRate)})</>}
               {/* 금리는 변화폭이 %p — 1bp = 0.01%p 로 풀이(괄호 안 %는 금리 수준 대비 상대 변화율이라 bp 와 다르다) */}
-              {isPct && q.change ? <span className="block font-normal text-[var(--text-muted)]">금리 약 {Math.abs(q.change * 100).toFixed(2)}bp {q.change > 0 ? '상승' : '하락'} (1bp = 0.01%p)</span> : null}
+              {isPct && q.cat === 'bond' && q.change ? <span className="block font-normal text-[var(--text-muted)]">금리 약 {Math.abs(q.change * 100).toFixed(2)}bp {q.change > 0 ? '상승' : '하락'} (1bp = 0.01%p)</span> : null}
             </p>
           </div>
         </div>
@@ -90,12 +95,12 @@ export default function MarketIndicatorDetail({ q }: { q: LiveQuote }) {
               <tbody>
                 {[...points].reverse().slice(0, 12).map((p, i, arr) => {
                   const next = arr[i + 1];
-                  const ch = next && next.value !== 0 ? ((p.value - next.value) / next.value) * 100 : null;
+                  const ch = !next ? null : diff ? p.value - next.value : next.value !== 0 ? ((p.value - next.value) / next.value) * 100 : null;
                   return (
                     <tr key={p.date} className={i % 2 === 1 ? 'bg-[var(--bg)]/30' : ''}>
                       <td className="px-3 py-2 text-[var(--text-muted)]">{fmtDate(p.date)}</td>
                       <td className="px-3 py-2 text-right font-semibold tabular-nums text-[var(--text)]">{fmtNum(p.value, dec)}</td>
-                      <td className={`px-3 py-2 text-right tabular-nums ${chgClass(ch)}`}>{ch == null ? '-' : fmtPct(ch)}</td>
+                      <td className={`px-3 py-2 text-right tabular-nums ${chgClass(ch)}`}>{ch == null ? '-' : diff ? `${ch >= 0 ? '+' : ''}${fmtNum(ch, dec)}${q.diffUnit}` : fmtPct(ch)}</td>
                     </tr>
                   );
                 })}
@@ -120,7 +125,7 @@ export default function MarketIndicatorDetail({ q }: { q: LiveQuote }) {
       )}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-1">
-        {q.cat === 'crypto' ? '출처: DefiLlama(모든 스테이블코인 유통량의 달러 환산 합, 하루 1회 집계). TradingView 등 다른 집계와는 포함 범위가 달라 수치가 조금 다릅니다.' : q.cat === 'index' ? '출처: 네이버페이 증권(지수 일봉 종가). 해외 지수는 현지 종가 기준입니다.' : '출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물). ‘N분 지연’ 표시는 실시간이 아닙니다.'} 투자 권유가 아닙니다.
+        {q.source ? q.source : q.cat === 'crypto' ? '출처: DefiLlama(모든 스테이블코인 유통량의 달러 환산 합, 하루 1회 집계). TradingView 등 다른 집계와는 포함 범위가 달라 수치가 조금 다릅니다.' : q.cat === 'index' ? '출처: 네이버페이 증권(지수 일봉 종가). 해외 지수는 현지 종가 기준입니다.' : '출처: 네이버페이 증권(하나은행 고시 환율·로이터 채권·선물). ‘N분 지연’ 표시는 실시간이 아닙니다.'} 투자 권유가 아닙니다.
       </p>
     </div>
   );
