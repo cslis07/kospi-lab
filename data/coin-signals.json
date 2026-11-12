@@ -1,6 +1,7 @@
 {
-  "updated": "2026-11-12T00:27:29.506Z",
-  "open": [
+  "updated": "2026-11-12T07:34:35.499Z",
+  "open": [],
+  "closed": [
     {
       "id": "XRPUSDT-scalp-1794443247092",
       "sym": "XRPUSDT",
@@ -14,10 +15,12 @@
       "price0": 1.055,
       "ultra": false,
       "conf": 92,
-      "eq": 66
-    }
-  ],
-  "closed": [
+      "eq": 66,
+      "closeTs": 1794468873654,
+      "closePrice": 1.0446,
+      "outcome": "WIN",
+      "r": 0.73
+    },
     {
       "id": "ETHUSDT-scalp-1794277947319",
       "sym": "ETHUSDT",
@@ -895,9 +898,9 @@
   ],
   "stats": {
     "scalp": {
-      "n": 42,
-      "winRate": 45,
-      "avgR": 0.15
+      "n": 43,
+      "winRate": 47,
+      "avgR": 0.16
     },
     "swing": {
       "n": 4,
@@ -905,9 +908,9 @@
       "avgR": 2.21
     },
     "all": {
-      "n": 46,
-      "winRate": 50,
-      "avgR": 0.32
+      "n": 47,
+      "winRate": 51,
+      "avgR": 0.33
     }
   },
   "watch": {
