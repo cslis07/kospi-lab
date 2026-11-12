@@ -26,7 +26,16 @@ function pages(dir: string): string[] {
 const routeOf = (file: string) =>
   '/' + relative(APP, file).split(sep).slice(0, -1).map((s) => (s.startsWith('[') ? 'x' : s)).join('/');
 
-const all = pages(APP).map((f) => ({ route: routeOf(f), hasH1: /<h1[\s>]|<PageHeader[\s>]/.test(readFileSync(f, 'utf8')) })); // PageHeader(components/ui)는 h1을 렌더
+const H1_RE = /<h1[\s>]|<PageHeader[\s>]/; // PageHeader(components/ui)는 h1을 렌더
+/** page.tsx 가 서버 래퍼이고 화면은 같은 폴더의 클라이언트 파일('./XxxClient')에 있는 경우(ISR 첫 시세 주입)까지 본다 */
+function ownsH1(file: string): boolean {
+  const src = readFileSync(file, 'utf8');
+  if (H1_RE.test(src)) return true;
+  return [...src.matchAll(/from '\.\/([\w-]+)'/g)].some((m) => {
+    try { return H1_RE.test(readFileSync(join(file, '..', `${m[1]}.tsx`), 'utf8')); } catch { return false; }
+  });
+}
+const all = pages(APP).map((f) => ({ route: routeOf(f), hasH1: ownsH1(f) }));
 
 ok('본문에 h1이 있는 페이지는 전부 OWN_H1_ROUTES에 등록돼 있다(헤더와 중복 방지)', () => {
   const missing = all.filter((p) => p.hasH1 && !pageOwnsH1(p.route)).map((p) => p.route);
