@@ -11,15 +11,45 @@ import useSWR from 'swr';
 import dynamic from 'next/dynamic';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { CardButton, type IndexCard } from '@/components/IndexCardView';
+import FearGreedGauge from '@/components/FearGreedGauge';
+import { fngBand, type FngCompare } from '@/lib/fearGreed';
 import type { LiveQuote } from '@/components/MarketIndicatorDetail';
 
-interface EnvCard extends IndexCard { cat: string; status: string; source?: string }
+interface EnvCard extends IndexCard { cat: string; status: string; source?: string; compare?: FngCompare[] }
+const ENV_FNG = 'ENV_FNG';
 interface Resp { cards: EnvCard[]; fomc: { date: string; dday: number } | null; asOf: string }
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const MarketIndicatorDetail = dynamic(() => import('@/components/MarketIndicatorDetail'), {
   ssr: false, loading: () => <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0' }}>지표 불러오는 중…</p>,
 });
+
+const FearGreedDetail = dynamic(() => import('@/components/FearGreedDetail'), { ssr: false });
+
+/** 공포·탐욕 카드 — 추이선 대신 반원 게이지(값·구간 이름·전일 대비) */
+function FngCard({ c, onClick }: { c: EnvCard; onClick: () => void }) {
+  const band = fngBand(c.value);
+  const arrow = c.change > 0 ? '▲' : c.change < 0 ? '▼' : '·';
+  return (
+    <button type="button" onClick={onClick} aria-label={`${c.name} 상세`} className="idx-card-btn"
+      style={{ display: 'block', width: '100%', minWidth: 0, padding: 0, background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', font: 'inherit' }}>
+      <div className="idx-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+          <span className="idx-live" style={{ marginLeft: 'auto' }}><i />{c.tag ?? '일간'}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginTop: 4 }}>
+          <div style={{ minWidth: 0 }}>
+            <div className="tabular-nums" style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 600, color: 'var(--ink)', letterSpacing: '-0.02em' }}>{c.value}</div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: band.color, marginTop: 1, whiteSpace: 'nowrap' }}>{band.label}</div>
+            <div className="tabular-nums" style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2, whiteSpace: 'nowrap' }}>전일 대비 {arrow} {Math.abs(c.change)}</div>
+          </div>
+          <div style={{ marginLeft: 'auto', width: 92, flexShrink: 0 }}><FearGreedGauge value={c.value} /></div>
+        </div>
+      </div>
+    </button>
+  );
+}
 
 const DETAIL_UNIT: Record<string, string> = { B: '십억 달러' };
 function toQuote(c: EnvCard): LiveQuote {
@@ -49,7 +79,9 @@ export default function MarketEnvRail() {
           ? Array.from({ length: 9 }).map((_, i) => <div key={i} className="idx-card skeleton" style={{ height: 112 }} />)
           : cards.length === 0
             ? <p style={{ fontSize: 12, color: 'var(--faint)', gridColumn: '1 / -1' }}>시장환경을 불러오지 못했습니다. 잠시 후 다시 시도됩니다.</p>
-            : cards.map((c) => <CardButton key={c.code} c={c} onClick={() => setSel(c.code)} />)}
+            : cards.map((c) => c.code === ENV_FNG
+              ? <FngCard key={c.code} c={c} onClick={() => setSel(c.code)} />
+              : <CardButton key={c.code} c={c} onClick={() => setSel(c.code)} />)}
         {fomc && (
           <Link href="/calendar" className="idx-card-btn" aria-label="다음 FOMC — 경제 캘린더로" style={{ display: 'block', minWidth: 0, textDecoration: 'none' }}>
             <div className="idx-card">
@@ -68,7 +100,10 @@ export default function MarketEnvRail() {
       </p>
 
       <BottomSheet open={!!selCard} onClose={() => setSel(null)} title={selCard?.name ?? ''} full>
-        {selCard && <MarketIndicatorDetail q={toQuote(selCard)} />}
+        {selCard && selCard.code === ENV_FNG && (
+          <div style={{ marginBottom: 16 }}><FearGreedDetail value={selCard.value} compare={selCard.compare ?? []} /></div>
+        )}
+        {selCard && <MarketIndicatorDetail q={toQuote(selCard)} hideSummary={selCard.code === ENV_FNG} />}
       </BottomSheet>
     </section>
   );

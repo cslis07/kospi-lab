@@ -34,7 +34,7 @@ function fmtDate(d: string) {
   return `${y.slice(2)}.${m}.${day}`;
 }
 
-export default function MarketIndicatorDetail({ q }: { q: LiveQuote }) {
+export default function MarketIndicatorDetail({ q, hideSummary }: { q: LiveQuote; hideSummary?: boolean }) {
   const { data } = useSWR<{ points: { date: string; value: number }[] }>(
     `/api/naver/indicator-history?code=${encodeURIComponent(q.code)}`, fetcher, { refreshInterval: 300000 });
   const points = data?.points ?? [];
@@ -46,8 +46,8 @@ export default function MarketIndicatorDetail({ q }: { q: LiveQuote }) {
 
   return (
     <div className="space-y-4">
-      {/* 현재값 요약 */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
+      {/* 현재값 요약 — 위에 전용 요약(공포·탐욕 게이지)이 있으면 생략 */}
+      {!hideSummary && <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-[var(--text)]">{q.name}</p>
@@ -69,7 +69,7 @@ export default function MarketIndicatorDetail({ q }: { q: LiveQuote }) {
             </p>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* 차트 */}
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">

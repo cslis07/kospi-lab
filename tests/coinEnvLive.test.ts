@@ -1,11 +1,27 @@
 import assert from 'node:assert/strict';
-import { fngLabel, nextFomc, seriesCard, naverCard, type Pt } from '../lib/coinEnvLive';
+import { nextFomc, seriesCard, naverCard, type Pt } from '../lib/coinEnvLive';
+import { fngLabel, fngBand, fngCompare } from '../lib/fearGreed';
 
 let passed = 0;
 function ok(name: string, fn: () => void) { fn(); passed++; console.log(`ok - ${name}`); }
 
 ok('공포·탐욕 구간 이름', () => {
-  assert.deepEqual([10, 24, 25, 44, 50, 56, 74, 75, 90].map(fngLabel), ['극단 공포', '극단 공포', '공포', '공포', '중립', '탐욕', '탐욕', '극단 탐욕', '극단 탐욕']);
+  // 0~25 극단적 공포 · 26~45 공포 · 46~55 중립 · 56~75 탐욕 · 76~100 극단적 탐욕
+  assert.deepEqual([0, 25, 26, 45, 46, 55, 56, 75, 76, 100].map(fngLabel),
+    ['극단적 공포', '극단적 공포', '공포', '공포', '중립', '중립', '탐욕', '탐욕', '극단적 탐욕', '극단적 탐욕']);
+  assert.equal(fngBand(-5).label, '극단적 공포');
+  assert.equal(fngBand(120).label, '극단적 탐욕');
+});
+
+ok('공포·탐욕 비교: 전일·1주·1개월·1년 전 — 자료가 없는 기간은 뺀다', () => {
+  const day = (i: number) => new Date(Date.parse('2026-11-12T00:00:00Z') - i * 86_400_000).toISOString().slice(0, 10);
+  const full = Array.from({ length: 400 }, (_, i) => ({ date: day(399 - i), value: (399 - i) % 100 })); // 값 = 며칠 전인지(100 으로 나눈 나머지)
+  assert.deepEqual(fngCompare(full), [{ label: '전일', value: 1 }, { label: '1주 전', value: 7 }, { label: '1개월 전', value: 30 }, { label: '1년 전', value: 65 }]);
+  assert.deepEqual(fngCompare(full.slice(-20)).map((r) => r.label), ['전일', '1주 전']);
+  // 그 날짜가 빠져 있으면 그 이전 가장 가까운 날
+  const gap = full.filter((p) => p.date !== day(7));
+  assert.equal(fngCompare(gap)[1].value, 8);
+  assert.deepEqual(fngCompare([]), []);
 });
 
 ok('다음 FOMC: 오늘 포함 가장 가까운 결정일과 남은 일수', () => {

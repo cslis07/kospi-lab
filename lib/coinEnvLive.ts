@@ -14,11 +14,13 @@ import type { IndexCard } from '@/lib/homeIndices';
 import { marketIndicators, EXTRA_INDICATORS, INDICATORS, type IndicatorQuote } from '@/lib/naverStock';
 import { stableCard } from '@/lib/stablecoinCap';
 import { FOMC_DECISION_DATES } from '@/lib/macroSchedule';
+import { fngLabel, fngCompare, type FngCompare } from '@/lib/fearGreed';
 
 export interface EnvLiveCard extends IndexCard {
   cat: string;      // 상세 시트 분류(bond·energy·exchange·crypto)
   status: string;   // '실시간' · '10분 지연' · '장마감' · '일간 집계'
   source?: string;  // 상세 시트 출처 문구(네이버가 아닌 것)
+  compare?: FngCompare[]; // 공포·탐욕 — 전일·1주·1개월·1년 전 값
 }
 export interface EnvLive { cards: EnvLiveCard[]; fomc: { date: string; dday: number } | null; asOf: string }
 export interface Pt { date: string; value: number }
@@ -30,10 +32,6 @@ export const ENV_NAVER = ['US10YT=RR', 'US2YT=RR', 'US30YT=RR', 'LCOcv1', '.DXY'
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /* ── 순수 계산(테스트 대상) ───────────────────────────── */
-
-export function fngLabel(v: number): string {
-  return v <= 24 ? '극단 공포' : v <= 44 ? '공포' : v <= 55 ? '중립' : v <= 74 ? '탐욕' : '극단 탐욕';
-}
 
 /** 오늘(UTC) 이후 가장 가까운 FOMC 결정일과 남은 일수 */
 export function nextFomc(now: number, dates: string[] = FOMC_DECISION_DATES): { date: string; dday: number } | null {
@@ -88,7 +86,7 @@ async function upbitDays(market: string, count = 200): Promise<Pt[]> {
 }
 async function fngDays(): Promise<Pt[]> {
   try {
-    const j = (await jget('https://api.alternative.me/fng/?limit=270', 600)) as { data?: { value: string; timestamp: string }[] };
+    const j = (await jget('https://api.alternative.me/fng/?limit=400', 600)) as { data?: { value: string; timestamp: string }[] };
     return (j?.data ?? []).map((d) => ({ date: new Date(Number(d.timestamp) * 1000).toISOString().slice(0, 10), value: Number(d.value) }))
       .filter((p) => Number.isFinite(p.value)).sort((a, b) => a.date.localeCompare(b.date));
   } catch { return []; }
@@ -111,7 +109,7 @@ export async function envHistory(): Promise<Hist> {
 }
 
 const UPBIT_SRC = '출처: 업비트(USDT/KRW 실거래가, 일별 종가는 UTC 0시 기준).';
-const FNG_SRC = '출처: alternative.me Crypto Fear & Greed Index(0 = 극단 공포, 100 = 극단 탐욕, 하루 1회 집계).';
+const FNG_SRC = '출처: alternative.me Crypto Fear & Greed Index(0 = 극단적 공포, 100 = 극단적 탐욕, 하루 1회 집계). 구간 이름은 CNN Fear & Greed Index 와 같은 5단계 기준으로 붙였습니다.';
 
 export async function fetchEnvLive(now = Date.now()): Promise<EnvLive> {
   const today = new Date(now).toISOString().slice(0, 10);
@@ -145,7 +143,7 @@ export async function fetchEnvLive(now = Date.now()): Promise<EnvLive> {
     const year = f.slice(-366).map((p) => p.value);
     cards.push({
       code: ENV_FNG, name: '공포·탐욕 지수', value: v, change: v - f[f.length - 2].value, changeRate: 0, live: false, tag: '일간',
-      dec: 0, diffUnit: '', note: fngLabel(v),
+      dec: 0, diffUnit: '', note: fngLabel(v), compare: fngCompare(f),
       spark: f.slice(-23).map((p) => p.value), sparkLabel: '1개월', week52High: Math.max(...year), week52Low: Math.min(...year),
       cat: 'crypto', status: '일간 집계', source: FNG_SRC,
     });
