@@ -50,7 +50,7 @@ export interface SignalObservation {
 export interface RiskEvent {
   id: string;
   name: string;
-  type: 'macro_release' | 'fed_statement' | 'geopolitical' | 'exchange_outage';
+  type: 'macro_release' | 'fed_statement' | 'geopolitical' | 'exchange_outage' | 'market_panic';
   severity: 'high' | 'critical';
   /** 예정 이벤트 — 공식 발표 시각(UTC) */
   scheduledAt?: string;

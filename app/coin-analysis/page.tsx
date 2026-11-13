@@ -31,6 +31,7 @@ import { recommendEntry, type RecInput } from '@/lib/entryRec';
 import EntryRecCard from '@/components/coin/EntryRecCard';
 import DecisionEnginePanel from '@/components/coin/DecisionEnginePanel';
 import { buildDecision, type AnalysisSnapshot } from '@/lib/intel/fromAnalysis';
+import type { IntelContext } from '@/lib/intel/liquidity';
 import { useRiskSettings } from '@/hooks/useRiskControl';
 
 /** 의사결정 엔진(실험) 표시 — 빌드 때 NEXT_PUBLIC_CRYPTO_DECISION_ENGINE_V1=0 이면 숨김(롤백용) */
@@ -645,6 +646,7 @@ function engineSnapshot(data: AnalysisData, v: Verdict, price: number): Analysis
     takerRatio: data.taker.ratio,
     event: data.event ? { title: data.event.title, hoursUntil: data.event.hoursUntil } : null,
     m15Candles: data.charts.m15,
+    news: (data.news ?? []).map((n) => ({ title: n.title, link: n.link, source: n.source, pubDate: n.pubDate })),
   };
 }
 
@@ -696,6 +698,9 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
   const { settings: riskSt } = useRiskSettings();
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => { const id = setInterval(() => setNowMs(Date.now()), 60_000); return () => clearInterval(id); }, []);
+  // Phase 2 입력(유동성·연준 공식 RSS·해외 뉴스) — 공개 데이터, CDN 5분 캐시. 실패하면 패널에 '받지 못함'으로 남는다
+  const { data: intelCtx } = useSWR<IntelContext>(DECISION_ENGINE_ON ? '/api/intel/context' : null, jsonFetcher,
+    { revalidateOnFocus: false, refreshInterval: 300_000, shouldRetryOnError: false });
   const decision = useMemo(() => {
     if (!DECISION_ENGINE_ON) return null;
     try {
@@ -703,9 +708,9 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
         equityUsd: 1000, riskPerTradePct: Math.min(1, riskSt.riskPerTradePct), maxLeverage: riskSt.maxLeverage,
         makerFeePct: riskSt.makerFeePct, takerFeePct: riskSt.takerFeePct, slippagePct: riskSt.slippagePct,
         holdHours: riskSt.holdHours, minNetRR: riskSt.minNetRR, eventPreMin: riskSt.eventPreMin, eventPostMin: riskSt.eventPostMin,
-      });
+      }, intelCtx ?? null);
     } catch { return null; } // 엔진 오류가 기존 화면을 깨지 않게
-  }, [data, v, price, rec, nowMs, riskSt]);
+  }, [data, v, price, rec, nowMs, riskSt, intelCtx]);
 
   return (
     <div className="rounded-2xl border border-sky-500/30 bg-[var(--bg-card)] p-5 space-y-4">
