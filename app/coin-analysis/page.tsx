@@ -29,6 +29,12 @@ import { notionalForNetRisk, perUnitStopLoss, isolatedLiqPrice, liqSafety, tranc
 import { scenarioLevels } from '@/lib/coinScenario';
 import { recommendEntry, type RecInput } from '@/lib/entryRec';
 import EntryRecCard from '@/components/coin/EntryRecCard';
+import DecisionEnginePanel from '@/components/coin/DecisionEnginePanel';
+import { buildDecision, type AnalysisSnapshot } from '@/lib/intel/fromAnalysis';
+import { useRiskSettings } from '@/hooks/useRiskControl';
+
+/** 의사결정 엔진(실험) 표시 — 빌드 때 NEXT_PUBLIC_CRYPTO_DECISION_ENGINE_V1=0 이면 숨김(롤백용) */
+const DECISION_ENGINE_ON = process.env.NEXT_PUBLIC_CRYPTO_DECISION_ENGINE_V1 !== '0';
 import { jsonFetcher, ApiError } from '@/lib/fetcher';
 import TradeGate from '@/components/TradeGate';
 import CircuitBreakerBar from '@/components/CircuitBreakerBar';
@@ -624,6 +630,24 @@ function recInput(data: AnalysisData, v: Verdict, price: number): RecInput {
   };
 }
 
+/** 의사결정 엔진 입력 — 이미 받은 분석 응답의 실제 값만(lib/intel/fromAnalysis) */
+function engineSnapshot(data: AnalysisData, v: Verdict, price: number): AnalysisSnapshot {
+  const { h1, m15 } = data.timeframes;
+  const m = data.macro;
+  return {
+    symbol: data.symbol, updatedAt: data.updatedAt, price,
+    h1: { structure: h1.structure, emaAlign: h1.emaAlign, priceVsEma20: h1.priceVsEma20 },
+    m15: { structure: m15.structure, emaAlign: m15.emaAlign, priceVsEma20: m15.priceVsEma20 },
+    regime: v.regime ? { h4: v.regime.h4, d1: v.regime.d1 } : null,
+    macro: m ? { bias: m.bias, strength: m.strength, asOf: [m.values.us10?.asOf ?? null, m.values.dxy?.asOf ?? null, m.values.realYield?.date ?? null] } : null,
+    funding: data.funding && Number.isFinite(data.funding.ratePct) ? { ratePct: data.funding.ratePct, intervalH: data.funding.intervalH || 8 } : null,
+    lsRatio: data.longShort.latest?.ratio ?? null,
+    takerRatio: data.taker.ratio,
+    event: data.event ? { title: data.event.title, hoursUntil: data.event.hoursUntil } : null,
+    m15Candles: data.charts.m15,
+  };
+}
+
 function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; digits: number }) {
   const [detail, setDetail] = useState(false);
   const price = data.markPrice ?? data.price;
@@ -668,6 +692,20 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
   const trailNow = v.direction === 'long' ? price - (data.exit?.trailDistance ?? 0) : price + (data.exit?.trailDistance ?? 0);
   // 추천 진입가(기다릴 자리) — 지금 진입 가정 계산(엔진 박스)과 별개
   const rec = useMemo(() => recommendEntry(recInput(data, v, price), (n) => fmtP(n, digits)), [data, v, price, digits]);
+  // 🧪 의사결정 엔진(실험) — 1분마다 '지금' 기준으로 다시 평가(시세가 오래되면 스스로 보류)
+  const { settings: riskSt } = useRiskSettings();
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNowMs(Date.now()), 60_000); return () => clearInterval(id); }, []);
+  const decision = useMemo(() => {
+    if (!DECISION_ENGINE_ON) return null;
+    try {
+      return buildDecision(engineSnapshot(data, v, price), rec, nowMs, {
+        equityUsd: 1000, riskPerTradePct: Math.min(1, riskSt.riskPerTradePct), maxLeverage: riskSt.maxLeverage,
+        makerFeePct: riskSt.makerFeePct, takerFeePct: riskSt.takerFeePct, slippagePct: riskSt.slippagePct,
+        holdHours: riskSt.holdHours, minNetRR: riskSt.minNetRR, eventPreMin: riskSt.eventPreMin, eventPostMin: riskSt.eventPostMin,
+      });
+    } catch { return null; } // 엔진 오류가 기존 화면을 깨지 않게
+  }, [data, v, price, rec, nowMs, riskSt]);
 
   return (
     <div className="rounded-2xl border border-sky-500/30 bg-[var(--bg-card)] p-5 space-y-4">
@@ -680,6 +718,7 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
 
       {/* 📍 추천 진입가 — 근거가 겹친 가격대에서 기다릴 자리(지정가). 상황(뉴스·지표·파생·거시) 반영 */}
       <EntryRecCard rec={rec} fmt={(n) => fmtP(n, digits)} symbol={data.symbol} />
+      {decision && <DecisionEnginePanel result={decision} fmt={(n) => fmtP(n, digits)} asOfMs={nowMs} updatedAt={data.updatedAt} />}
 
       {/* 엔진 계산 — 지금 시장가 진입 가정의 손절·목표(방향·R:R) */}
       <div className={`rounded-xl border p-3.5 ${v.direction === 'long' ? 'border-emerald-500/40 bg-emerald-500/[0.06]' : v.direction === 'short' ? 'border-red-500/40 bg-red-500/[0.06]' : 'border-amber-500/30 bg-amber-500/[0.05]'}`}>
