@@ -27,6 +27,8 @@ import { type SourceStat } from '@/components/SourceStatus';
 import { useBriefingModel } from '@/hooks/useBriefingModel';
 import { notionalForNetRisk, perUnitStopLoss, isolatedLiqPrice, liqSafety, tranches3, STD_MAKER, STD_TAKER, STD_SLIPPAGE, type StopCostModel } from '@/lib/positionSizing';
 import { scenarioLevels } from '@/lib/coinScenario';
+import { recommendEntry, type RecInput } from '@/lib/entryRec';
+import EntryRecCard from '@/components/coin/EntryRecCard';
 import { jsonFetcher, ApiError } from '@/lib/fetcher';
 import TradeGate from '@/components/TradeGate';
 import CircuitBreakerBar from '@/components/CircuitBreakerBar';
@@ -594,6 +596,34 @@ function AlertRegisterButton({ symbol, dir, levels }: { symbol: string; dir: 'lo
   );
 }
 
+/** 추천 진입가 입력 — 분석 응답(가격대·지표·파생·뉴스·거시)을 lib/entryRec 형태로 */
+function recInput(data: AnalysisData, v: Verdict, price: number): RecInput {
+  const { h4, h1, m15 } = data.timeframes;
+  const ma: RecInput['ma'] = [
+    { label: '15m EMA20', value: m15.ema20, weight: 1 }, { label: '15m EMA60', value: m15.ema60, weight: 0.8 },
+    { label: '1H EMA20', value: h1.ema20, weight: 1.5 }, { label: '1H EMA60', value: h1.ema60, weight: 1.2 },
+    { label: '15m VWAP', value: m15.vwap, weight: 0.8 }, { label: '1H VWAP', value: h1.vwap, weight: 1 },
+  ];
+  if (h4) ma.push({ label: '4H EMA20', value: h4.ema20, weight: 2 }, { label: '4H EMA60', value: h4.ema60, weight: 1.5 });
+  const bb: RecInput['bb'] = [{ label: '15m 볼린저', lower: m15.bb.lower, upper: m15.bb.upper, weight: 0.8 }, { label: '1H 볼린저', lower: h1.bb.lower, upper: h1.bb.upper, weight: 1.5 }];
+  if (h4) bb.push({ label: '4H 볼린저', lower: h4.bb.lower, upper: h4.bb.upper, weight: 1.5 });
+  const news = data.news ?? [];
+  return {
+    price, atr15: m15.atr, atr1h: h1.atr,
+    zones: data.zones, high24h: data.high24h, low24h: data.low24h, fib: data.fib,
+    smc: data.smc ? { want: data.smc.want, ote: data.smc.ote, orderBlock: data.smc.orderBlock, fvg: data.smc.fvg && !data.smc.fvg.filled ? data.smc.fvg : null } : null,
+    ma, bb,
+    walls: { bid: data.orderbook?.bidWall?.price ?? null, ask: data.orderbook?.askWall?.price ?? null },
+    ctx: {
+      engineDir: v.direction, h4: v.regime?.h4 ?? null, d1: v.regime?.d1 ?? null,
+      newsPos: news.filter((n) => n.sentiment === 'pos').length, newsNeg: news.filter((n) => n.sentiment === 'neg').length,
+      fundingPct: data.funding ? data.funding.ratePct : null, lsRatio: data.longShort.latest?.ratio ?? null,
+      fearGreed: data.fearGreed?.value ?? null, macroBias: data.macro?.bias ?? null, takerRatio: data.taker.ratio,
+      eventHours: data.event?.hoursUntil ?? null, eventTitle: data.event?.title ?? null,
+    },
+  };
+}
+
 function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; digits: number }) {
   const [detail, setDetail] = useState(false);
   const price = data.markPrice ?? data.price;
@@ -636,6 +666,8 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
   const liq = v.direction !== 'wait' ? isolatedLiqPrice(v.entry, liqLev, v.direction === 'short') : null;
   // 러너 추적손절 — 현재가에서 ATR×1.5 거리(방향 반영)
   const trailNow = v.direction === 'long' ? price - (data.exit?.trailDistance ?? 0) : price + (data.exit?.trailDistance ?? 0);
+  // 추천 진입가(기다릴 자리) — 지금 진입 가정 계산(엔진 박스)과 별개
+  const rec = useMemo(() => recommendEntry(recInput(data, v, price), (n) => fmtP(n, digits)), [data, v, price, digits]);
 
   return (
     <div className="rounded-2xl border border-sky-500/30 bg-[var(--bg-card)] p-5 space-y-4">
@@ -646,10 +678,13 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
         <span className="ml-auto text-[10px] text-[var(--text-muted)]">조건 충족도·리스크 계획 · 매수 신호 아님(엔진 백테스트 49.7%)</span>
       </div>
 
-      {/* 추천 진입가 — 중요 가격대 종합해 가장 좋은 진입가 1개 + 엔진추천 요약(방향·진입·손절·목표·R:R) */}
+      {/* 📍 추천 진입가 — 근거가 겹친 가격대에서 기다릴 자리(지정가). 상황(뉴스·지표·파생·거시) 반영 */}
+      <EntryRecCard rec={rec} fmt={(n) => fmtP(n, digits)} symbol={data.symbol} />
+
+      {/* 엔진 계산 — 지금 시장가 진입 가정의 손절·목표(방향·R:R) */}
       <div className={`rounded-xl border p-3.5 ${v.direction === 'long' ? 'border-emerald-500/40 bg-emerald-500/[0.06]' : v.direction === 'short' ? 'border-red-500/40 bg-red-500/[0.06]' : 'border-amber-500/30 bg-amber-500/[0.05]'}`}>
         <div className="flex items-center gap-2 flex-wrap mb-1.5">
-          <span className="text-[11px] font-bold text-[var(--text-muted)]">🏆 엔진 계산 진입가</span>
+          <span className="text-[11px] font-bold text-[var(--text-muted)]">🏆 엔진 계산 <span className="font-normal">(지금 진입 가정)</span></span>
           <span className={`text-[14px] font-extrabold ${recDirCls}`}>{v.direction === 'long' ? '▲ 롱' : v.direction === 'short' ? '▼ 숏' : '⏸ 관망'}</span>
           <span className="text-[13px] font-bold text-[var(--text)]">{bestEntryText}</span>
           {v.direction !== 'wait' && <span className={`ml-auto text-[10px] font-bold ${gradeC}`}>신뢰 {v.confidence.grade} {v.confidence.pct}%</span>}
