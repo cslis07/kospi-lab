@@ -13,7 +13,9 @@ const FILL_CLS: Record<SideRec['fill'], string> = {
   '높음': 'text-emerald-400', '보통': 'text-sky-400', '낮음': 'text-amber-400', '매우 낮음': 'text-red-400',
 };
 
-function SideBox({ s, primary, fmt, symbol }: { s: SideRec; primary: boolean; fmt: (n: number) => string; symbol: string }) {
+export type NetRR = Partial<Record<'long' | 'short', { rr1: number | null; rr2: number | null }>>;
+
+function SideBox({ s, primary, fmt, symbol, net }: { s: SideRec; primary: boolean; fmt: (n: number) => string; symbol: string; net?: NetRR[keyof NetRR] }) {
   const long = s.side === 'long';
   const { addMany } = useCoinPriceAlerts();
   const [added, setAdded] = useState(false);
@@ -42,6 +44,12 @@ function SideBox({ s, primary, fmt, symbol }: { s: SideRec; primary: boolean; fm
         <span className="text-[var(--text-muted)]">목표1 <b className="text-emerald-400">${fmt(s.target1)}</b></span>
         <span className="text-[var(--text-muted)]">목표2 <b className="text-emerald-400">${fmt(s.target2)}</b></span>
       </div>
+      {net && net.rr1 != null && (
+        <p className="text-[10.5px] text-[var(--text-muted)] tabular-nums mt-0.5">
+          비용 반영 손익비 <b className={(net.rr1 ?? 0) >= 1.6 ? 'text-emerald-400' : 'text-amber-400'}>{net.rr1.toFixed(2)} / {net.rr2 == null ? '—' : net.rr2.toFixed(2)}</b>
+          <span> (수수료·슬리피지·펀딩 차감 — 위 손익비는 비용 전)</span>
+        </p>
+      )}
       <div className="flex flex-wrap gap-1 mt-2">
         {s.basis.map((b) => <span key={b} className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.05] border border-[var(--border)] text-[var(--text)]">{b}</span>)}
       </div>
@@ -68,7 +76,7 @@ function SideBox({ s, primary, fmt, symbol }: { s: SideRec; primary: boolean; fm
   );
 }
 
-export default function EntryRecCard({ rec, fmt, symbol }: { rec: EntryRec; fmt: (n: number) => string; symbol: string }) {
+export default function EntryRecCard({ rec, fmt, symbol, net }: { rec: EntryRec; fmt: (n: number) => string; symbol: string; net?: NetRR }) {
   const [why, setWhy] = useState(false);
   const order: SideRec[] = [rec.long, rec.short].filter((x): x is SideRec => !!x)
     .sort((a, b) => (a.side === rec.primary ? -1 : b.side === rec.primary ? 1 : 0));
@@ -99,7 +107,7 @@ export default function EntryRecCard({ rec, fmt, symbol }: { rec: EntryRec; fmt:
       {rec.eventWait && <p className="mt-2 text-[10.5px] font-semibold text-amber-400">⚠ {rec.eventWait}</p>}
       {rec.primary == null && <p className="mt-1.5 text-[10.5px] text-[var(--text-muted)]">방향이 뚜렷하지 않아 양쪽 자리를 모두 보여줍니다 — 먼저 닿고 반응이 나오는 쪽만.</p>}
       <div className="grid gap-2 mt-2 md:grid-cols-2">
-        {order.map((s) => <SideBox key={s.side} s={s} primary={rec.primary === s.side} fmt={fmt} symbol={symbol} />)}
+        {order.map((s) => <SideBox key={s.side} s={s} primary={rec.primary === s.side} fmt={fmt} symbol={symbol} net={net?.[s.side]} />)}
       </div>
       {!order.length && <p className="mt-2 text-[11px] text-[var(--text-muted)]">근거가 겹친 가격대가 가까이에 없습니다 — 다음 분석 때 다시 계산합니다.</p>}
       <p className="text-[9.5px] text-[var(--text-muted)] mt-2 leading-snug">

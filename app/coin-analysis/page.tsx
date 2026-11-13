@@ -32,6 +32,8 @@ import EntryRecCard from '@/components/coin/EntryRecCard';
 import DecisionEnginePanel from '@/components/coin/DecisionEnginePanel';
 import { buildDecision, type AnalysisSnapshot } from '@/lib/intel/fromAnalysis';
 import type { IntelContext } from '@/lib/intel/liquidity';
+import { buildLogEntry } from '@/lib/intel/evidenceLog';
+import { recordIfDue } from '@/lib/intel/evidenceStore';
 import { useRiskSettings } from '@/hooks/useRiskControl';
 
 /** 의사결정 엔진(실험) 표시 — 빌드 때 NEXT_PUBLIC_CRYPTO_DECISION_ENGINE_V1=0 이면 숨김(롤백용) */
@@ -699,7 +701,7 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => { const id = setInterval(() => setNowMs(Date.now()), 60_000); return () => clearInterval(id); }, []);
   // Phase 2 입력(유동성·연준 공식 RSS·해외 뉴스) — 공개 데이터, CDN 5분 캐시. 실패하면 패널에 '받지 못함'으로 남는다
-  const { data: intelCtx } = useSWR<IntelContext>(DECISION_ENGINE_ON ? '/api/intel/context' : null, jsonFetcher,
+  const { data: intelCtx, error: intelErr } = useSWR<IntelContext>(DECISION_ENGINE_ON ? '/api/intel/context' : null, jsonFetcher,
     { revalidateOnFocus: false, refreshInterval: 300_000, shouldRetryOnError: false });
   const decision = useMemo(() => {
     if (!DECISION_ENGINE_ON) return null;
@@ -711,6 +713,12 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
       }, intelCtx ?? null);
     } catch { return null; } // 엔진 오류가 기존 화면을 깨지 않게
   }, [data, v, price, rec, nowMs, riskSt, intelCtx]);
+  // 📒 사전 기록 — Phase 2 입력을 받았거나(실패 포함) 확정된 뒤, 미리 정한 규칙(lib/intel/evidenceLog shouldRecord)에 맞을 때만 덧붙인다
+  useEffect(() => {
+    if (!decision || (!intelCtx && !intelErr)) return;
+    try { recordIfDue(buildLogEntry(decision, data.symbol, price, data.updatedAt, nowMs)); } catch { /* 기록 실패는 화면에 영향 없음 */ }
+  }, [decision, intelCtx, intelErr, data.symbol, data.updatedAt, price, nowMs]);
+  const netRR = decision ? Object.fromEntries(decision.output.evaluated.map((e) => [e.side, { rr1: e.rr1Net, rr2: e.rr2Net }])) : undefined;
 
   return (
     <div className="rounded-2xl border border-sky-500/30 bg-[var(--bg-card)] p-5 space-y-4">
@@ -722,7 +730,7 @@ function EntryDecision({ data, v, digits }: { data: AnalysisData; v: Verdict; di
       </div>
 
       {/* 📍 추천 진입가 — 근거가 겹친 가격대에서 기다릴 자리(지정가). 상황(뉴스·지표·파생·거시) 반영 */}
-      <EntryRecCard rec={rec} fmt={(n) => fmtP(n, digits)} symbol={data.symbol} />
+      <EntryRecCard rec={rec} fmt={(n) => fmtP(n, digits)} symbol={data.symbol} net={netRR} />
       {decision && <DecisionEnginePanel result={decision} fmt={(n) => fmtP(n, digits)} asOfMs={nowMs} updatedAt={data.updatedAt} />}
 
       {/* 엔진 계산 — 지금 시장가 진입 가정의 손절·목표(방향·R:R) */}

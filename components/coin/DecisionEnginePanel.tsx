@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { GROUPS, GROUP_LABEL, GROUP_WEIGHTS, STATUS_LABEL, type EngineStatus, type SetupEvaluation } from '@/lib/intel/decisionEngine';
 import type { DecisionResult, ProviderStatus } from '@/lib/intel/fromAnalysis';
+import EngineEvidence from './EngineEvidence';
 import { TOPIC_LABEL, VERIFICATION_LABEL, type Verification } from '@/lib/intel/newsEvents';
 
 const STATUS_CLS: Record<EngineStatus, string> = {
@@ -148,6 +149,7 @@ export default function DecisionEnginePanel({ result, fmt, asOfMs, updatedAt }: 
           <p className="text-[10px] text-[var(--text-muted)] tabular-nums">비용 가정: 수수료 {result.costs.feeBps.toFixed(0)}bp(지정가 진입+시장가 청산) · 슬리피지 {result.costs.slippageBps.toFixed(0)}bp · 펀딩 {result.costs.fundingBps.toFixed(1)}bp(보유 시간 기준) — 위험관리 설정 값</p>
         </div>
       )}
+      <EngineEvidence />
       <p className="text-[9.5px] text-[var(--text-muted)] mt-2 leading-snug">
         {o.disclaimer} 그룹 가중치·기준값(정렬 ±0.20·순손익비 1.6·데이터 범위 55%)은 검증 전 임시값입니다. <b className="text-[var(--text)]">독립 성과 검증: 아직 없음.</b> 주문·알림으로 이어지지 않습니다.
       </p>
