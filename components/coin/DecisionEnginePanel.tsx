@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { GROUPS, GROUP_LABEL, GROUP_WEIGHTS, STATUS_LABEL, type EngineStatus, type SetupEvaluation } from '@/lib/intel/decisionEngine';
 import type { DecisionResult, ProviderStatus } from '@/lib/intel/fromAnalysis';
 import EngineEvidence from './EngineEvidence';
-import { TOPIC_LABEL, VERIFICATION_LABEL, type Verification } from '@/lib/intel/newsEvents';
+import NewsEventList, { shortWhen as when } from './NewsEventList';
 
 const STATUS_CLS: Record<EngineStatus, string> = {
   BLOCKED: 'border-red-500/40 bg-red-500/10 text-red-400',
@@ -17,13 +17,9 @@ const STATUS_CLS: Record<EngineStatus, string> = {
   WATCH: 'border-sky-500/40 bg-sky-500/10 text-sky-400',
   READY: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400',
 };
-const VER_CLS: Record<Verification, string> = {
-  official: 'bg-emerald-500/15 text-emerald-400', multi_source: 'bg-sky-500/15 text-sky-400', single_source: 'bg-white/[0.06] text-[var(--text-muted)]',
-};
 const PROV: Record<ProviderStatus['status'], { t: string; c: string }> = {
   ok: { t: '정상', c: 'text-emerald-400' }, stale: { t: '지연', c: 'text-amber-400' }, missing: { t: '없음', c: 'text-red-400' }, na: { t: '해당 없음', c: 'text-[var(--text-muted)]' },
 };
-const when = (iso: string) => new Date(iso).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 const BIAS_LABEL = { LONG_CONTEXT: '롱 배경', SHORT_CONTEXT: '숏 배경', MIXED: '혼조', UNAVAILABLE: '판단 불가' } as const;
 
 function ScoreBar({ v, empty = '데이터 없음' }: { v: number | null; empty?: string }) {
@@ -115,16 +111,7 @@ export default function DecisionEnginePanel({ result, fmt, asOfMs, updatedAt }: 
           </div>
           <div className="rounded-lg border border-[var(--border)] bg-white/[0.02] px-2.5 py-2">
             <p className="text-[10.5px] font-bold text-[var(--text-muted)] mb-1">뉴스 사건(24시간 · 같은 사건 묶음 · 방향 점수 없음)</p>
-            {result.newsEvents.length === 0 && <p className="text-[10.5px] text-[var(--text-muted)]">시각이 확인된 기사 없음</p>}
-            {result.newsEvents.slice(0, 6).map((e) => (
-              <p key={e.eventId} className="text-[10.5px] text-[var(--text)] leading-snug mb-0.5">
-                {e.crisis && <span className="text-red-400 font-bold">⚠ </span>}
-                <span className={`text-[9.5px] px-1 py-px rounded mr-1 ${VER_CLS[e.verification]}`}>{VERIFICATION_LABEL[e.verification]}{e.sources.length > 1 ? ` ${e.sources.length}곳` : ''}</span>
-                {e.topic && <span className="text-[9.5px] text-[var(--text-muted)] mr-1">[{TOPIC_LABEL[e.topic]}]</span>}
-                <a href={e.link} target="_blank" rel="noopener noreferrer" className="hover:underline">{e.title}</a>
-                <span className="text-[var(--text-muted)]"> · {e.sources.slice(0, 2).join('·')} · {when(e.firstSeenAt)}{e.articleCount > 1 ? ` · 기사 ${e.articleCount}건` : ''}</span>
-              </p>
-            ))}
+            <NewsEventList events={result.newsEvents} />
             <p className="text-[10.5px] font-bold text-[var(--text-muted)] mt-1.5 mb-0.5">연준 공식 자료(48시간)</p>
             {result.fed.length === 0 && <p className="text-[10.5px] text-[var(--text-muted)]">없음</p>}
             {result.fed.slice(0, 5).map((f) => (
