@@ -11,8 +11,9 @@
  *     n개 표본(15초 간격)의 평균. 비트겟·하이퍼리퀴드는 가격 묶음 호가창이라 넓은 구간 경계가 묶음 단위만큼 거칠다.
  *   {"k":"liq","t":버킷시작ms,"s":"BTC","v":"okx","l":롱청산코인,"sh":숏청산코인,"nl":건수,"ns":건수,"mx":최대한건}
  *     15분 버킷, 청산이 없던 버킷도 0으로 남긴다. 청산 원본을 REST로 주는 곳이 OKX뿐이라 OKX만.
- * 한계: 바이낸스·바이비트는 미국 IP 차단이라 GitHub 러너에선 호가가 비고(OI·펀딩은 배포된 /api/coin/derivs 로 받음),
- *   한국에서 직접 돌리면 채워진다. 호가 스냅샷은 15분에 한 번(3표본)이라 그 사이 변화는 모른다.
+ * 바이낸스·바이비트는 미국 IP 차단이라 GitHub 러너에선 직접 못 받는다 → 배포된 앱(서울 리전)의 /api/micro/depth(호가)·
+ *   /api/coin/derivs(OI·펀딩)를 거쳐 받는다. 이 두 곳은 호가창이 좁아 넓은 구간(BTC는 ±0.25% 이상)이 null 이다.
+ * 한계: 호가 스냅샷은 15분에 한 번(3표본)이라 그 사이 변화는 모른다.
  * 실거래 주문·API 키 없음. 방향 신호 아님 — 쌓인 뒤 표본 밖 검증을 통과해야 쓴다.
  */
 import { existsSync, readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs';
@@ -106,8 +107,15 @@ async function main() {
   for (let i = 0; i < SAMPLES; i++) {
     if (i) await sleep(GAP_MS);
     await Promise.all(COINS.flatMap((c) => VENUES.map(async (v) => {
-      samples[c][v].push(v === 'okx' && !ctVals[c] ? null : await quiet(depthOf[v](c, ctVals[c])));
+      const skip = (v === 'okx' && !ctVals[c]) || (!!process.env.MICRO_NO_DIRECT && (v === 'binance' || v === 'bybit'));
+      samples[c][v][i] = skip ? null : await quiet(depthOf[v](c, ctVals[c]));
     })));
+    // 직접 못 받은 바이낸스·바이비트(미국 IP 차단)는 배포된 앱(서울 리전)의 /api/micro/depth 로 채운다
+    const lacks = (v: Venue) => COINS.some((c) => !samples[c][v][i]);
+    if (process.env.MICRO_NO_DIRECT || lacks('binance') || lacks('bybit')) {
+      const via = await quiet(get<{ depth: Record<string, Partial<Record<Venue, BandDepth | null>>> }>(`${BASE}/api/micro/depth`));
+      for (const c of COINS) for (const v of ['binance', 'bybit'] as const) if (!samples[c][v][i] && via?.depth?.[c]?.[v]) samples[c][v][i] = via.depth[c][v]!;
+    }
   }
 
   // 2) OI·펀딩

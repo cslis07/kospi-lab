@@ -2,7 +2,7 @@
 # 왜: 적중률 연구(scripts/accuracy-lab.ts)에서 가격·거래량·펀딩은 표본 밖 50~53%였고, 남은 재료인 호가·청산은
 # 무료 과거 이력이 없어 지금부터 쌓아야 한다. 공개 무키 API만 쓴다(실거래 주문·API 키 없음).
 # 보관은 micro-data 브랜치(data/micro/YYYY-MM-DD.jsonl + state.json). data·etf-data·bnf-forward 브랜치와 섞지 않는다.
-# 러너가 미국 IP라 바이낸스·바이비트 호가는 비고(OKX·비트겟·하이퍼리퀴드만), OI·펀딩은 배포된 앱(icn1) 경유로 5곳 다 받는다.
+# 러너가 미국 IP라 바이낸스·바이비트는 배포된 앱(icn1) 경유로 받는다(호가 /api/micro/depth · OI·펀딩 /api/coin/derivs).
 name: 미시 데이터 수집
 on:
   schedule:
