@@ -2,149 +2,163 @@
  "version": 1,
  "registeredAt": "2026-11-04",
  "startUtc": "2026-11-05T00:00:00Z",
- "updatedAt": "2026-11-14T01:29:56.676Z",
+ "updatedAt": "2026-11-14T10:41:51.622Z",
  "symbol": "ETHUSDT",
  "exchange": "bitget",
  "revisions": [],
  "status": "ok",
  "statusNote": null,
  "now": {
-  "barUtc": "2026-11-14T00:00:00Z",
-  "close": 1931.3,
+  "barUtc": "2026-11-14T09:00:00Z",
+  "close": 1912.48,
   "sma25": 2256.7216000000008,
-  "deviation": -0.1442,
+  "deviation": -0.15254,
   "q10": -0.141,
   "oversoldRecent": true
  },
- "dataThroughUtc": "2026-11-14T01:00:00Z",
+ "dataThroughUtc": "2026-11-14T10:00:00Z",
  "candidates": [
   {
    "id": "A",
    "name": "A · 1시간 BNF형 (목표 1.8R)",
    "desc": "1차 규격 그대로",
    "targetR": 1.8,
-   "closed": [],
-   "open": {
-    "signalT": "2026-11-13T06:00:00Z",
-    "entryT": "2026-11-13T07:00:00Z",
-    "entry": 1938.56,
-    "stop": 1879.82,
-    "target": 2044.29,
-    "qty": 0.085119,
-    "lastClose": 1931.3,
-    "unrealizedR": -0.124,
-    "expiresT": "2026-11-16T07:00:00Z"
-   },
+   "closed": [
+    {
+     "signalT": "2026-11-13T06:00:00Z",
+     "entryT": "2026-11-13T07:00:00Z",
+     "exitT": "2026-11-14T02:30:00Z",
+     "reason": "stop",
+     "entry": 1938.56,
+     "stop": 1879.82,
+     "target": 2044.29,
+     "exit": 1879.44,
+     "qty": 0.085119,
+     "net": -5.1945,
+     "r": -1.0389,
+     "holdH": 19.5,
+     "maePct": -3.25,
+     "firstSeenAt": "2026-11-14T10:41:51.622Z"
+    }
+   ],
+   "open": null,
    "pending": null,
    "summary": {
-    "trades": 0,
+    "trades": 1,
     "wins": 0,
-    "winRate": null,
-    "pf": null,
-    "avgR": null,
-    "avgHoldH": null,
-    "maxLossUsdt": null,
-    "maxLossR": null,
-    "mddPct": 0.5165309141007329,
-    "totalReturnPct": 0,
-    "finalEquity": 1000,
-    "maxConsecLoss": 0,
-    "feesTotal": 0,
-    "slipTotal": 0,
-    "fundingTotal": 0,
+    "winRate": 0,
+    "pf": 0,
+    "avgR": -1.0388986692596158,
+    "avgHoldH": 19.5,
+    "maxLossUsdt": -5.194493346298079,
+    "maxLossR": -1.0388986692596158,
+    "mddPct": 0.8405458616806638,
+    "totalReturnPct": -0.5194493346298068,
+    "finalEquity": 994.805506653702,
+    "maxConsecLoss": 1,
+    "feesTotal": 0.16249178845191892,
+    "slipTotal": 0.06499651670055118,
+    "fundingTotal": null,
     "exitReasons": {
      "target": 0,
-     "stop": 0,
+     "stop": 1,
      "stop_gap": 0,
      "time": 0,
      "data_end": 0
     },
-    "worstMaePct": null,
+    "worstMaePct": -3.2502326933654624,
     "cappedTrades": 0,
     "skipped": {
      "wideStop": 0,
-     "busy": 6,
-     "cooldown": 1,
+     "busy": 7,
+     "cooldown": 2,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 8,
+    "signalsInWindow": 10,
     "sufficient": false
    },
-   "progress": "0/30",
+   "progress": "1/30",
    "verdict": null,
    "verdictLabel": null,
    "monthly": [
     [
      "2026-11",
-     -0.084
+     -0.519
     ]
    ],
-   "equity": 999.1644
+   "equity": 994.8055
   },
   {
    "id": "B",
    "name": "B · 1시간 BNF형 (목표 1.0R)",
    "desc": "진단(E3)에서 나온 변형 — 선행 테스트로만 판정",
    "targetR": 1,
-   "closed": [],
-   "open": {
-    "signalT": "2026-11-13T06:00:00Z",
-    "entryT": "2026-11-13T07:00:00Z",
-    "entry": 1938.56,
-    "stop": 1879.82,
-    "target": 1997.3,
-    "qty": 0.085119,
-    "lastClose": 1931.3,
-    "unrealizedR": -0.124,
-    "expiresT": "2026-11-16T07:00:00Z"
-   },
+   "closed": [
+    {
+     "signalT": "2026-11-13T06:00:00Z",
+     "entryT": "2026-11-13T07:00:00Z",
+     "exitT": "2026-11-14T02:30:00Z",
+     "reason": "stop",
+     "entry": 1938.56,
+     "stop": 1879.82,
+     "target": 1997.3,
+     "exit": 1879.44,
+     "qty": 0.085119,
+     "net": -5.1945,
+     "r": -1.0389,
+     "holdH": 19.5,
+     "maePct": -3.25,
+     "firstSeenAt": "2026-11-14T10:41:51.622Z"
+    }
+   ],
+   "open": null,
    "pending": null,
    "summary": {
-    "trades": 0,
+    "trades": 1,
     "wins": 0,
-    "winRate": null,
-    "pf": null,
-    "avgR": null,
-    "avgHoldH": null,
-    "maxLossUsdt": null,
-    "maxLossR": null,
-    "mddPct": 0.5165309141007329,
-    "totalReturnPct": 0,
-    "finalEquity": 1000,
-    "maxConsecLoss": 0,
-    "feesTotal": 0,
-    "slipTotal": 0,
-    "fundingTotal": 0,
+    "winRate": 0,
+    "pf": 0,
+    "avgR": -1.0388986692596158,
+    "avgHoldH": 19.5,
+    "maxLossUsdt": -5.194493346298079,
+    "maxLossR": -1.0388986692596158,
+    "mddPct": 0.8405458616806638,
+    "totalReturnPct": -0.5194493346298068,
+    "finalEquity": 994.805506653702,
+    "maxConsecLoss": 1,
+    "feesTotal": 0.16249178845191892,
+    "slipTotal": 0.06499651670055118,
+    "fundingTotal": null,
     "exitReasons": {
      "target": 0,
-     "stop": 0,
+     "stop": 1,
      "stop_gap": 0,
      "time": 0,
      "data_end": 0
     },
-    "worstMaePct": null,
+    "worstMaePct": -3.2502326933654624,
     "cappedTrades": 0,
     "skipped": {
      "wideStop": 0,
-     "busy": 6,
-     "cooldown": 1,
+     "busy": 7,
+     "cooldown": 2,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 8,
+    "signalsInWindow": 10,
     "sufficient": false
    },
-   "progress": "0/30",
+   "progress": "1/30",
    "verdict": null,
    "verdictLabel": null,
    "monthly": [
     [
      "2026-11",
-     -0.084
+     -0.519
     ]
    ],
-   "equity": 999.1644
+   "equity": 994.8055
   }
  ]
 }
