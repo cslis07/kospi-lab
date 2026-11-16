@@ -6,6 +6,7 @@ import NavTabs from '@/components/NavTabs';
 import BottomNav from '@/components/BottomNav';
 import SideNav from '@/components/SideNav';
 import PwaRegister from '@/components/PwaRegister';
+import VersionWatcher from '@/components/VersionWatcher';
 import PriceAlertWatcher from '@/components/PriceAlertWatcher';
 import PollingGovernor from '@/components/PollingGovernor';
 import CooldownBanner from '@/components/CooldownBanner';
@@ -59,6 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* 자동 갱신 절약(화면 요소 없음) — 숨긴 탭·10분 무입력이면 주기 요청 멈춤 */}
         <PollingGovernor>
         <PwaRegister />
+        <VersionWatcher />
         {/* 국내 종목 가격 알림 감시(켜진 알림이 있을 때만 30초 확인) */}
         <PriceAlertWatcher />
         {/* PC(lg+) 왼쪽 사이드바(2.0 — 접힘 72px) . 본문은 .with-side 로 오른쪽에 */}
