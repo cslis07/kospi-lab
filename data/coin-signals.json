@@ -1,6 +1,37 @@
 {
-  "updated": "2026-11-16T16:29:02.066Z",
-  "open": [],
+  "updated": "2026-11-17T00:24:35.819Z",
+  "open": [
+    {
+      "id": "ETHUSDT-scalp-1794875073073",
+      "sym": "ETHUSDT",
+      "mode": "scalp",
+      "dir": -1,
+      "dirLabel": "SHORT",
+      "entry": 1817.2649999999999,
+      "tp": 1811.26,
+      "sl": 1824.15,
+      "ts": 1794875073073,
+      "price0": 1811.75,
+      "ultra": false,
+      "conf": 98,
+      "eq": 66
+    },
+    {
+      "id": "SOLUSDT-scalp-1794875073073",
+      "sym": "SOLUSDT",
+      "mode": "scalp",
+      "dir": -1,
+      "dirLabel": "SHORT",
+      "entry": 71.5077,
+      "tp": 71.147,
+      "sl": 71.847,
+      "ts": 1794875073073,
+      "price0": 71.31,
+      "ultra": false,
+      "conf": 95,
+      "eq": 76
+    }
+  ],
   "closed": [
     {
       "id": "XRPUSDT-scalp-1794443247092",
