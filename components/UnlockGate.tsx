@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { clearLocked } from '@/lib/unlockHint';
 
 /**
  * 잠긴 페이지에서 토큰을 붙여넣어 브라우저를 인증하는 폼.
@@ -26,7 +27,8 @@ export default function UnlockGate({ reason = '계좌 잔고는 본인만 볼 �
       });
       const j = await res.json().catch(() => ({}));
       if (res.ok && j.ok) {
-        // 쿠키가 심어졌으니 새로고침하면 계좌 데이터가 실린다
+        // 쿠키가 심어졌으니 새로고침하면 계좌 데이터가 실린다(이 탭의 '잠김' 표시도 지운다)
+        clearLocked();
         window.location.reload();
         return;
       }

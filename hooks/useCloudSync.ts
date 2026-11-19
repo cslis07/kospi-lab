@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { pollingIdle } from '@/components/PollingGovernor';
+import { markLocked, probeUnlocked } from '@/lib/unlockHint';
 import { applyRemote, detectLocalChanges, findFirstSyncConflicts, labelFor, readMeta, writeMeta, type SyncItem } from '@/lib/cloudSync';
 
 const PUSH_DEBOUNCE = 2500;
@@ -75,6 +76,8 @@ export function useCloudSync(): CloudSyncState {
     busy.current = true;
     setStatus((s) => (s === 'off' ? s : 'syncing'));
     try {
+      // 잠긴 기기는 /api/sync(게이트)를 부르지 않는다 — 401 콘솔 오류 없이 '잠김'(lib/unlockHint)
+      if (!(await probeUnlocked())) { setStatus('locked'); return; }
       const force = forceRef.current;
       forceRef.current = null;
 
@@ -83,7 +86,7 @@ export function useCloudSync(): CloudSyncState {
       //   그래서 GET 만으로 서버를 받아 반영하는 전용 경로를 둔다.
       if (force === 'remote') {
         const res = await fetch('/api/sync');
-        if (res.status === 401) { setStatus('locked'); return; }
+        if (res.status === 401) { markLocked(); setStatus('locked'); return; }
         const j = (await res.json()) as { configured?: boolean; items?: SyncItem[]; error?: string };
         if (j.configured === false) { setStatus('off'); return; }
         if (!res.ok) { setStatus('error'); setError(j.error ?? `HTTP ${res.status}`); return; }
@@ -103,7 +106,7 @@ export function useCloudSync(): CloudSyncState {
         const meta0 = readMeta();
         if (Object.keys(meta0).length === 0) {
           const peek = await fetch('/api/sync');
-          if (peek.status === 401) { setStatus('locked'); return; }
+          if (peek.status === 401) { markLocked(); setStatus('locked'); return; }
           const pj = (await peek.json()) as { configured?: boolean; items?: SyncItem[] };
           if (pj.configured === false) { setStatus('off'); return; }
           const cf = findFirstSyncConflicts(pj.items ?? [], meta0);
@@ -132,7 +135,7 @@ export function useCloudSync(): CloudSyncState {
         body: JSON.stringify({ items, device: deviceId() }),
       });
 
-      if (res.status === 401) { setStatus('locked'); return; }
+      if (res.status === 401) { markLocked(); setStatus('locked'); return; }
       const j = (await res.json()) as { configured?: boolean; items?: SyncItem[]; error?: string };
       if (j.configured === false) { setStatus('off'); return; }
       if (!res.ok) { setStatus('error'); setError(j.error ?? `HTTP ${res.status}`); return; }
