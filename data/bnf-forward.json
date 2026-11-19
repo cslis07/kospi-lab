@@ -2,21 +2,21 @@
  "version": 1,
  "registeredAt": "2026-11-04",
  "startUtc": "2026-11-05T00:00:00Z",
- "updatedAt": "2026-11-18T20:44:51.460Z",
+ "updatedAt": "2026-11-19T02:40:11.976Z",
  "symbol": "ETHUSDT",
  "exchange": "bitget",
  "revisions": [],
  "status": "ok",
  "statusNote": null,
  "now": {
-  "barUtc": "2026-11-18T19:00:00Z",
-  "close": 1755.16,
-  "sma25": 2158.7344000000003,
-  "deviation": -0.18695,
-  "q10": -0.14612,
+  "barUtc": "2026-11-19T01:00:00Z",
+  "close": 1778.07,
+  "sma25": 2135.4719999999998,
+  "deviation": -0.16736,
+  "q10": -0.14899,
   "oversoldRecent": true
  },
- "dataThroughUtc": "2026-11-18T20:00:00Z",
+ "dataThroughUtc": "2026-11-19T02:00:00Z",
  "candidates": [
   {
    "id": "A",
@@ -87,11 +87,11 @@
     "skipped": {
      "wideStop": 0,
      "busy": 24,
-     "cooldown": 4,
+     "cooldown": 7,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 30,
+    "signalsInWindow": 33,
     "sufficient": false
    },
    "progress": "2/30",
@@ -174,11 +174,11 @@
     "skipped": {
      "wideStop": 0,
      "busy": 24,
-     "cooldown": 4,
+     "cooldown": 7,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 30,
+    "signalsInWindow": 33,
     "sufficient": false
    },
    "progress": "2/30",
