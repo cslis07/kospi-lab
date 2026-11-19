@@ -158,8 +158,12 @@ ok('관측값: 상위 추세·1H·15m·거시·펀딩·롱숏·체결 — 받은
   const none = buildObservations({ ...bear, symbol: 'ETHUSDT', price: 2052.5, m15Candles: [], regime: null, macro: null, funding: null, lsRatio: null, takerRatio: null });
   assert.deepEqual(none.map((x) => x.id), ['tech-1h', 'tech-15m']);
 });
-ok('거시 공개 시각: 날짜만 있으면 그날 0시(UTC), 없으면 수집 시각', () => {
-  assert.equal(macroAvailableAt(['2026-11-12', '2026-11-11'], 0), '2026-11-11T00:00:00.000Z');
+ok('거시 기준 시각: 가장 최근 값(실질금리 1~3일 지연은 허용), 7일 넘게 뒤처진 값이 있으면 그 날짜 · 날짜 없으면 수집 시각', () => {
+  assert.equal(macroAvailableAt(['2026-11-12', '2026-11-11'], 0), '2026-11-12T00:00:00.000Z');
+  // 월요일 아침: 10년물·달러 실시간 + 실질금리는 목요일자 → 실시간 기준(예전엔 목요일 0시라 4일 유효기간 초과로 보류)
+  assert.equal(macroAvailableAt(['2026-11-16T00:59:16-05:00', '2026-11-16T00:58:47-05:00', '2026-11-12'], 0), '2026-11-16T05:59:16.000Z');
+  // 실질금리 수집이 10일 멈춤 → 오래된 날짜를 써서 유효기간에 걸림
+  assert.equal(macroAvailableAt(['2026-11-16T00:59:16-05:00', '2026-11-05'], 0), '2026-11-05T00:00:00.000Z');
   assert.equal(macroAvailableAt([null], Date.parse('2026-11-13T00:00:00Z')), '2026-11-13T00:00:00.000Z');
 });
 

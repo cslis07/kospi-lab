@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { AUTH_COOKIE } from '@/middleware';
+import { UNLOCK_HINT_COOKIE } from '@/lib/unlockHint';
 
 /**
  * 브라우저에 인증 쿠키를 심는다. 두 가지 경로:
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
 
   const res = NextResponse.redirect(new URL(safeNext(req.nextUrl.searchParams.get('next')), req.url));
   res.cookies.set(AUTH_COOKIE, secret, cookieOpts);
+  res.cookies.set(UNLOCK_HINT_COOKIE, '1', { ...cookieOpts, httpOnly: false }); // 화면이 게이트 API 를 부를지 고르는 표시(비밀 아님)
   return res;
 }
 
@@ -72,5 +74,6 @@ export async function POST(req: NextRequest) {
 
   const res = NextResponse.json({ ok: true });
   res.cookies.set(AUTH_COOKIE, secret, cookieOpts);
+  res.cookies.set(UNLOCK_HINT_COOKIE, '1', { ...cookieOpts, httpOnly: false }); // 화면이 게이트 API 를 부를지 고르는 표시(비밀 아님)
   return res;
 }

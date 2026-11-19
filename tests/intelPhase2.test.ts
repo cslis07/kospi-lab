@@ -76,6 +76,14 @@ ok('연준·물가 제목은 참고 주제(위기 아님)', () => {
   assert.equal(classifyTopic('Waller says more rate cuts may be needed'), 'fed_policy');
   assert.equal(classifyTopic('US CPI rises 0.3% in October'), 'inflation');
 });
+ok('다른 나라 금리·흔한 이름은 연준으로 묶지 않음', () => {
+  assert.equal(classifyTopic('인도 10월 물가 6.09% 치솟았다…식료품 쇼크에 다시 고개 든 금리 인상론'), 'inflation');
+  assert.equal(classifyTopic('ECB signals another rate cut in December'), 'rates');
+  assert.equal(classifyTopic('한국은행 기준금리 동결'), 'rates');
+  assert.equal(classifyTopic('Japan Bonds Fall as Treasury Rout Extends on Fed-Hike Bets'), 'fed_policy');
+  assert.equal(classifyTopic('Tim Cook says Apple will expand AI features'), null);
+  assert.equal(classifyTopic('美 연준, 2027년부터 금리 결정 회의 연 7회로 축소'), 'fed_policy');
+});
 
 console.log('newsEvents — 사건 묶기·확인 수준');
 ok('제목 꼬리(" - 언론사") 제거·겹침 계수', () => {

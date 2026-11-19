@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useTradeTags } from '@/hooks/useTradeTags';
 import { convictionCoaching } from '@/lib/tradeTags';
 import type { TradePosition } from '@/lib/tradeReport';
+import { probeUnlocked } from '@/lib/unlockHint';
 
 interface HistoryResp { positions?: TradePosition[] }
 
@@ -26,7 +27,7 @@ export default function MyReviewLine() {
   useEffect(() => {
     if (!hasTags) return; // 태그 없으면 개인 데이터 조회하지 않음
     let alive = true;
-    fetch('/api/bitget/history?days=60')
+    probeUnlocked().then((ok) => (ok ? fetch('/api/bitget/history?days=60') : Promise.reject(new Error('locked')))) // 잠긴 기기는 부르지 않음(401 방지)
       .then((r) => (r.ok ? r.json() : null))
       .then((j: HistoryResp | null) => { if (alive && Array.isArray(j?.positions)) setPositions(j!.positions!); })
       .catch(() => { /* 잠금·권한·네트워크 — 조용히 숨김 */ });

@@ -2,14 +2,21 @@
 
 /**
  * 냉각 타이머 배너 — 손실 청산 직후 30분, 서킷브레이커 차단 시 오늘 자정까지 "다음 진입 가능까지 N분"을 띄운다.
- * 거래소 주문을 막을 수는 없다(리마인더). 잠금 해제 안 된 기기는 /api/bitget/cooldown 이 401 → 아무것도 안 보임.
+ * 거래소 주문을 막을 수는 없다(리마인더). 잠금 해제 안 된 기기는 부르지 않는다(lib/unlockHint — 모든 화면에 401 콘솔 오류가 찍히던 것).
  * 판정은 서버(lib/guard.cooldownState)가 Bitget 실현손익으로 — 손으로 적은 일지와 무관.
  */
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
+import { markLocked } from '@/lib/unlockHint';
+import { useUnlockHint } from '@/hooks/useUnlockHint';
 
 interface Cooldown { until: number; kind: 'loss' | 'breaker'; reason: string }
-const fetcher = async (u: string) => { const r = await fetch(u); if (!r.ok) throw new Error(String(r.status)); return r.json(); };
+const fetcher = async (u: string) => {
+  const r = await fetch(u);
+  if (r.status === 401) markLocked();
+  if (!r.ok) throw new Error(String(r.status));
+  return r.json();
+};
 
 function left(ms: number) {
   const m = Math.ceil(ms / 60_000);
@@ -17,7 +24,8 @@ function left(ms: number) {
 }
 
 export default function CooldownBanner() {
-  const { data } = useSWR<{ cooldown: Cooldown | null }>('/api/bitget/cooldown', fetcher, { refreshInterval: 120_000, shouldRetryOnError: false, revalidateOnFocus: true });
+  const enabled = useUnlockHint();
+  const { data } = useSWR<{ cooldown: Cooldown | null }>(enabled ? '/api/bitget/cooldown' : null, fetcher, { refreshInterval: 120_000, shouldRetryOnError: false, revalidateOnFocus: true });
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 15_000); return () => clearInterval(t); }, []);
   const c = data?.cooldown;

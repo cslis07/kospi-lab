@@ -19,11 +19,11 @@ export interface RawNews { title: string; link: string; source: string; pubDate?
 
 export type NewsTopic =
   | 'exchange_outage' | 'war_oil_supply' | 'risk_panic'          // 위기(안전모드)
-  | 'fed_policy' | 'inflation' | 'growth_jobs' | 'crypto_policy'; // 참고(방향 점수 없음)
+  | 'fed_policy' | 'inflation' | 'growth_jobs' | 'rates' | 'crypto_policy'; // 참고(방향 점수 없음)
 
 export const TOPIC_LABEL: Readonly<Record<NewsTopic, string>> = {
   exchange_outage: '거래소 사고·해킹', war_oil_supply: '전쟁·유가 공급', risk_panic: '시장 급락',
-  fed_policy: '연준·금리', inflation: '물가', growth_jobs: '고용·성장', crypto_policy: '가상자산 정책',
+  fed_policy: '연준', inflation: '물가', growth_jobs: '고용·성장', rates: '금리·중앙은행', crypto_policy: '가상자산 정책',
 };
 export const CRISIS_TOPICS: ReadonlySet<NewsTopic> = new Set(['exchange_outage', 'war_oil_supply', 'risk_panic']);
 
@@ -58,9 +58,12 @@ const TOPIC_RULES: { topic: NewsTopic; re: RegExp; ctx?: RegExp }[] = [
   { topic: 'exchange_outage', ctx: CRYPTO_CTX, re: /\b(hack(ed|ers?)?|exploited|drained|withdrawals? (halted|suspended|paused|frozen)|exchange (outage|halts? (trading|withdrawals))|insolven(t|cy)|files? for bankruptcy)\b|해킹|탈취|출금\s*(중단|정지|중지)|입출금\s*(중단|정지)|거래소\s*(장애|먹통|파산)|파산\s*신청/i },
   { topic: 'war_oil_supply', re: /\b(invasion|invades?|invaded|declares? war|war (breaks|broke) out|missile (strike|attack)s? on|strait of hormuz|oil supply disruption|pipeline (attack|sabotage))\b|침공|선전포고|전쟁\s*(발발|개시)|호르무즈|원유\s*공급\s*차질/i },
   { topic: 'risk_panic', re: /\b(circuit breakers?|flash crash)\b|서킷\s*브레이커|사이드카\s*발동/i },
-  { topic: 'fed_policy', re: /\b(fed|fomc|powell|waller|bowman|barr|jefferson|cook|williams|logan|hammack|kashkari|goolsbee|musalem|schmid|daly|bostic|barkin|harker|rate (cut|hike)s?)\b|연준|파월|금리\s*(인하|인상|동결)/i },
+  // 연준: 연준·FOMC·의장/이사 이름 중 흔한 단어와 겹치지 않는 것만(Cook·Williams·Logan·Daly·Barr 는 다른 인물 기사와 겹쳐 뺌)
+  { topic: 'fed_policy', re: /\b(fed|fomc|powell|waller|bowman|jefferson|hammack|kashkari|goolsbee|musalem|schmid|bostic|barkin)\b|연준|파월|FOMC/i },
   { topic: 'inflation', re: /\b(cpi|ppi|pce|inflation)\b|물가|인플레/i },
   { topic: 'growth_jobs', re: /\b(payrolls?|jobless|unemployment|gdp|recession|jobs report)\b|고용|실업|경기\s*침체|성장률/i },
+  // 다른 나라 중앙은행·일반 금리 기사(예: '인도 물가…금리 인상론'은 위 물가로, 'ECB rate cut'은 여기로)
+  { topic: 'rates', re: /\b(rate (cut|hike)s?|ecb|boj|bank of (england|japan|korea)|central bank|bond yields?|treasury yields?)\b|금리\s*(인하|인상|동결)|기준금리|한은|한국은행|국채\s*금리/i },
   { topic: 'crypto_policy', re: /\b(sec|etf approval|stablecoin (bill|act)|crypto (bill|regulation|rule)s?|genius act|clarity act)\b|가상자산\s*(법|규제)|코인\s*규제|스테이블코인\s*(법|규제)/i },
 ];
 

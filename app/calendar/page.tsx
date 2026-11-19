@@ -6,6 +6,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
+import { useUnlockHint } from '@/hooks/useUnlockHint';
 import { CALENDAR_EVENTS } from '@/lib/calendarEvents';
 import type { CalendarEvent } from '@/lib/types';
 import EventRow, { kstToday } from '@/components/EventRow';
@@ -105,8 +106,10 @@ export default function CalendarPage() {
   const nFilters = (country !== 'all' ? 1 : 0) + (imp !== 'all' ? 1 : 0) + (showPast ? 1 : 0);
 
   // 달력(월간 그리드)용 — 정적 일정 + 나우캐스트 미국 지표 발표일을 모두 표시(필터는 아래 목록에만 적용)
-  const { data: relCal, error: relCalErr } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, { revalidateOnFocus: false });
-  const { data: econWin } = useSWR<EconCalWindow>('/api/nf/econcal_window.json', fetcher, { revalidateOnFocus: false });
+  // /api/nf 는 게이트 뒤 — 잠긴 기기는 부르지 않는다(401 콘솔 오류 방지). null=판단 전(자리만 잡아 둠)
+  const nfOn = useUnlockHint();
+  const { data: relCal, error: relCalErr } = useSWR<ReleaseCalendar>(nfOn ? '/api/nf/release_calendar.json' : null, fetcher, { revalidateOnFocus: false });
+  const { data: econWin } = useSWR<EconCalWindow>(nfOn ? '/api/nf/econcal_window.json' : null, fetcher, { revalidateOnFocus: false });
   const { data: soso } = useSWR<{ events: MacroEvt[]; upcoming: MacroRelease[] }>('/api/macro/events', fetcher, { revalidateOnFocus: false });
   const calEvents = useMemo<CalEvt[]>(() => {
     const out: CalEvt[] = allEvents.map((e) => ({ date: e.date, label: e.title, tone: CAT_TONE[e.category] ?? 'ind' }));
@@ -139,7 +142,7 @@ export default function CalendarPage() {
           <div className="fin-sec"><h3 className="!text-[15px]">다음 주요 발표</h3><span className="text-[11px] text-[var(--text-muted)]">컨센서스·나우캐스트</span></div>
           <NextReleases rc={relCal} detailHref="/inflation/calendar" />
         </div>
-      ) : relCal === undefined && !relCalErr ? (
+      ) : relCal === undefined && !relCalErr && nfOn !== false ? (
         // 불러오는 동안 자리를 잡아 둔다 — 늦게 끼어들면 아래 달력·목록이 통째로 밀렸다(CLS 0.44, 실측 높이 모바일 395·태블릿 이상 232~243px)
         <div className="mb-4 min-h-[395px] sm:min-h-[236px]" aria-hidden />
       ) : null}

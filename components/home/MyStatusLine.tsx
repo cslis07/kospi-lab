@@ -7,9 +7,11 @@
 import Link from 'next/link';
 import { useEffect } from 'react';
 import useSWR from 'swr';
+import { useUnlockHint } from '@/hooks/useUnlockHint';
+import { markLocked } from '@/lib/unlockHint';
 import type { MyStatus } from '@/lib/guard';
 
-const fetcher = async (u: string) => { const r = await fetch(u); if (!r.ok) throw new Error(String(r.status)); return r.json(); };
+const fetcher = async (u: string) => { const r = await fetch(u); if (r.status === 401) markLocked(); if (!r.ok) throw new Error(String(r.status)); return r.json(); };
 const STALE = 15 * 60_000;
 const ago = (ms: number) => (ms < 60_000 ? '방금' : ms < 3_600_000 ? `${Math.round(ms / 60_000)}분 전` : `${Math.round(ms / 3_600_000)}시간 전`);
 const base = (s: string) => s.replace('USDT', '');
@@ -27,10 +29,11 @@ function rememberSlot(v: '1' | 'p' | null) {
 }
 
 export default function MyStatusLine() {
-  const { data, error } = useSWR<MyStatus & { configured?: boolean; asOf?: number }>('/api/bitget/status', fetcher, { refreshInterval: 60_000, shouldRetryOnError: false });
+  const unlocked = useUnlockHint(); // 잠긴 기기는 부르지 않는다(401 콘솔 오류 방지)
+  const { data, error } = useSWR<MyStatus & { configured?: boolean; asOf?: number }>(unlocked ? '/api/bitget/status' : null, fetcher, { refreshInterval: 60_000, shouldRetryOnError: false });
   const shown = !!(data?.configured && data.positions);
   const slot = shown ? (data?.positions?.length ? 'p' : '1') : null;
-  useEffect(() => { if (data || error) rememberSlot(slot); }, [data, error, slot]);
+  useEffect(() => { if (data || error || unlocked === false) rememberSlot(slot); }, [data, error, slot, unlocked]);
   return <div className="status-slot mb-3">{shown && data ? <StatusLink data={data} /> : null}</div>;
 }
 

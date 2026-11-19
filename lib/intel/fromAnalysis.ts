@@ -72,10 +72,20 @@ export interface ProviderStatus {
 const iso = (ms: number) => new Date(ms).toISOString();
 const KO = { up: '상승', down: '하락', flat: '횡보' } as const;
 
-/** 기준일(YYYY-MM-DD 또는 ISO) 중 가장 이른 것 → 공개 시각. 날짜뿐이면 그날 0시(UTC) */
+/** 실질금리(FRED DFII10)처럼 원래 1~3 영업일 늦게 나오는 값을 허용하는 폭. 이보다 더 벌어지면 가장 오래된 날짜를 기준으로 본다 */
+export const MACRO_LAG_TOLERANCE_DAYS = 7;
+
+/**
+ * 거시 투표의 기준 시각. 10년물·달러는 실시간(네이버), 실질금리는 FRED 일간(보통 2~4일 전 날짜)이다.
+ * 가장 오래된 날짜를 쓰면 월요일 아침·미국 휴일 뒤마다 4일 유효기간을 넘겨 엔진이 '거시 누락 → 보류'로 멈췄다(2026-11-13 발견).
+ * → 가장 최근 값의 시각을 쓰되, 가장 오래된 값이 그보다 7일 넘게 뒤처지면(수집 고장) 오래된 날짜를 써서 유효기간에 걸리게 한다.
+ * 날짜뿐이면 그날 0시(UTC). 아무 날짜도 없으면 수집 시각.
+ */
 export function macroAvailableAt(asOf: (string | null)[], fallbackMs: number): string {
   const ts = asOf.filter((x): x is string => !!x).map((x) => Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(x) ? `${x}T00:00:00Z` : x)).filter(Number.isFinite);
-  return iso(ts.length ? Math.min(...ts) : fallbackMs);
+  if (!ts.length) return iso(fallbackMs);
+  const newest = Math.max(...ts), oldest = Math.min(...ts);
+  return iso(newest - oldest > MACRO_LAG_TOLERANCE_DAYS * 86_400_000 ? oldest : newest);
 }
 
 function trendObs(id: string, family: string, tf: TfLite, label: string, reliability: number, at: string): SignalObservation {

@@ -6,6 +6,8 @@
  * 잠금 안 된 기기(401)·키 없음이면 개인 수치는 숨기고 이동 버튼만. 개인 수치는 외부로 보내지 않는다(화면 렌더만).
  */
 import useSWR from 'swr';
+import { useUnlockHint } from '@/hooks/useUnlockHint';
+import { markLocked } from '@/lib/unlockHint';
 import { useState } from 'react';
 import Link from 'next/link';
 import { lossGauge, weekRules } from '@/lib/reviewDash';
@@ -13,7 +15,7 @@ import { kstDateKey } from '@/lib/journalAnalytics';
 import { useRiskLimits } from '@/hooks/useRiskLimits';
 import type { ClosedPosition } from '@/app/api/bitget/history/route';
 
-const fetcher = async (u: string) => { const r = await fetch(u); if (!r.ok) throw new Error(String(r.status)); return r.json(); };
+const fetcher = async (u: string) => { const r = await fetch(u); if (r.status === 401) markLocked(); if (!r.ok) throw new Error(String(r.status)); return r.json(); };
 const fmt = (n: number) => (Math.abs(n) >= 1000 ? Math.round(n).toLocaleString() : String(Math.round(n * 100) / 100));
 const signed = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v))}`;
 const tone = (v: number) => (v > 0 ? 'var(--up)' : v < 0 ? 'var(--down)' : 'var(--ink)');
@@ -36,7 +38,8 @@ function Gauge({ label, used, limit, assumed }: { label: string; used: number; l
 }
 
 export default function RiskCenter() {
-  const { data, error } = useSWR<{ positions?: ClosedPosition[]; error?: string; configured?: boolean }>('/api/bitget/history?days=31', fetcher, { revalidateOnFocus: false, shouldRetryOnError: false });
+  const unlocked = useUnlockHint(); // null=판단 전(첫 화면과 같게 자리 잡기), false=잠긴 기기 → 부르지 않음
+  const { data, error } = useSWR<{ positions?: ClosedPosition[]; error?: string; configured?: boolean }>(unlocked ? '/api/bitget/history?days=31' : null, fetcher, { revalidateOnFocus: false, shouldRetryOnError: false });
   const { data: pos } = useSWR<{ account?: { equity?: number } | null }>(data?.positions ? '/api/bitget/positions' : null, fetcher, { revalidateOnFocus: false, shouldRetryOnError: false });
   const { data: fx } = useSWR<{ price: number | null }>('/api/crypto/usdt-krw', fetcher, { refreshInterval: 60_000 });
   const { limits } = useRiskLimits();
@@ -46,7 +49,7 @@ export default function RiskCenter() {
   const krw = (u: number) => (fx?.price ? `${u > 0 ? '+' : u < 0 ? '−' : ''}₩${Math.abs(Math.round(u * fx.price)).toLocaleString('ko-KR')}` : '');
 
   let body: React.ReactNode;
-  if (!data && !error) body = <div className="skeleton" style={{ height: 150 }} />;
+  if (!data && !error && unlocked !== false) body = <div className="skeleton" style={{ height: 150 }} />;
   else if (!ready) body = <p className="text-[12.5px] text-[var(--text-muted)] leading-relaxed">잠금 해제한 기기에서 오늘 손익·손실 한도가 여기 표시됩니다. 진입 전 손절·수량은 리스크 계산에서 확인하세요.</p>;
   else {
     const today = kstDateKey(now), month = today.slice(0, 7);

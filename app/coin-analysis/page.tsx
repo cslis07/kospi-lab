@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import Link from 'next/link';
 import DataStatus from '@/components/ui/DataStatus';
 import AnalysisSwitch from '@/components/AnalysisSwitch';
 import PrecursorCard from '@/components/PrecursorCard';
@@ -983,6 +982,7 @@ function MyPositionGuide({ data, v, digits }: { data: AnalysisData; v: Verdict; 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(key);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage 는 마운트 후에만 읽을 수 있다(SSR 불일치 방지)
       if (raw) { const o = JSON.parse(raw); setEntryStr(o.entry ?? ''); setStopStr(o.stop ?? ''); if (o.dir === 'long' || o.dir === 'short') setDir(o.dir); }
       else { setEntryStr(''); setStopStr(''); }
     } catch { /* 저장소 비접근 */ }
@@ -1150,12 +1150,14 @@ export default function CoinAnalysisPage() {
     const p = new URLSearchParams(window.location.search);
     const s = p.get('symbol');
     if (s && /^[A-Z0-9]+USDT$/.test(s)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 주소(?symbol=)는 마운트 후에만 읽는다(정적 화면 그대로 두고 클라이언트에서 반영)
       setSymbol(s);
       if (p.get('run') === '1') setAutoRunSym(s);
     }
   }, []);
   useEffect(() => {
     if (autoRunSym && modelReady && !run) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- AI 모델 설정(로컬 저장값)을 읽은 뒤에 한 번만 자동 실행
       setRun({ symbol: autoRunSym, model: aiModel });
       setAutoRunSym(null);
     }
@@ -1243,10 +1245,23 @@ export default function CoinAnalysisPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.symbol, data?.updatedAt, journal.entries.length]);
 
+  // 공식 일정의 주요 발표 중 기존 '임박 이벤트'(중요도 높음만)에 안 잡힌 것 — 참고 표시만(판정·자동 차단 규칙은 그대로)
+  const { data: intelForEvents } = useSWR<IntelContext>(DECISION_ENGINE_ON && data ? '/api/intel/context' : null, jsonFetcher,
+    { revalidateOnFocus: false, refreshInterval: 300_000, shouldRetryOnError: false });
+  const extraRelease = useMemo(() => {
+    if (!data || !intelForEvents) return null;
+    return (intelForEvents.releases ?? [])
+      .map((r) => ({ title: r.title, hoursUntil: (Date.parse(r.at) - data.updatedAt) / 3_600_000 }))
+      .find((r) => Number.isFinite(r.hoursUntil) && r.hoursUntil >= -0.5 && r.hoursUntil <= 12 && r.title !== data.event?.title) ?? null;
+  }, [data, intelForEvents]);
+
+  // 남은 시간 계산용 시계(30초) — 렌더 중 Date.now() 를 부르지 않게
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setClock(Date.now()), 30_000); return () => clearInterval(id); }, []);
   const nextFundingMin = useMemo(() => {
     if (!data?.funding?.nextTs) return null;
-    return Math.max(0, Math.round((data.funding.nextTs - Date.now()) / 60000));
-  }, [data]);
+    return Math.max(0, Math.round((data.funding.nextTs - clock) / 60000));
+  }, [data, clock]);
 
   const priceDigits = data && data.price < 10 ? 4 : data && data.price < 1000 ? 2 : 1;
 
@@ -1257,11 +1272,11 @@ export default function CoinAnalysisPage() {
   const btc52 = useMemo(() => {
     const s = macroDaily?.btc;
     if (!s?.length) return null;
-    const cutoff = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
+    const cutoff = new Date(clock - 365 * 864e5).toISOString().slice(0, 10);
     const recent = s.filter((p) => p.date >= cutoff && Number.isFinite(p.close));
     if (recent.length < 2) return null;
     return { high: Math.max(...recent.map((p) => p.close)), low: Math.min(...recent.map((p) => p.close)) };
-  }, [macroDaily]);
+  }, [macroDaily, clock]);
 
   // 알림은 분석된 심볼(data.symbol)로 발동한다. 선택만 바꾼 상태에서 규칙이 어긋나지 않도록 맞춘다.
   const alertSymbol = data?.symbol ?? symbol;
@@ -1296,6 +1311,7 @@ export default function CoinAnalysisPage() {
   const saveToJournal = () => {
     if (!data || !v) return;
     const sz = sizingRef.current;
+    // eslint-disable-next-line react-hooks/purity -- '일지 기록' 버튼을 누른 순간의 시각(이벤트 핸들러 — 렌더 중 호출 아님)
     const ts = Date.now();
     journal.add({
       ts, symbol: data.symbol, name: data.name,
@@ -1521,6 +1537,16 @@ export default function CoinAnalysisPage() {
               <span>
                 {data.event.title} — {data.event.hoursUntil <= 0 ? '발표 직후 변동성 구간' : `약 ${Math.round(data.event.hoursUntil)}시간 후`}
                 {data.event.hoursUntil <= 12 && ' · 신규 진입 자동 차단 중 (이벤트 통과 후 재평가)'}
+              </span>
+            </div>
+          )}
+
+          {extraRelease && (
+            <div className="flex items-center gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm font-semibold text-amber-400">
+              <span className="text-lg">📅</span>
+              <span>
+                {extraRelease.title} — {extraRelease.hoursUntil <= 0 ? '발표 직후 변동성 구간' : `약 ${Math.max(1, Math.round(extraRelease.hoursUntil))}시간 후`}
+                <span className="font-normal text-[12px] text-[var(--text-muted)]"> · 참고 표시(기존 판정의 자동 차단은 중요도 높음 발표만) — 🧪 엔진은 발표 전후 거래 보류</span>
               </span>
             </div>
           )}

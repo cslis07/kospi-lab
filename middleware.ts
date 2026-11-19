@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { UNLOCK_HINT_COOKIE } from '@/lib/unlockHint';
 
 /**
  * 민감 라우트 게이트 — 내 거래소 계좌(/api/bitget/*), AI 과금 라우트(/api/analyze,
@@ -16,7 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const AUTH_COOKIE = 'kl_auth';
 
 /** 길이 노출은 감수하되 내용 비교는 조기 종료하지 않는다 */
-function timingSafeEqual(a: string, b: string): boolean {
+export function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
@@ -38,7 +39,14 @@ export function middleware(req: NextRequest) {
   const presented =
     req.cookies.get(AUTH_COOKIE)?.value ?? req.headers.get('x-app-token') ?? '';
 
-  if (presented && timingSafeEqual(presented, secret)) return NextResponse.next();
+  if (presented && timingSafeEqual(presented, secret)) {
+    const res = NextResponse.next();
+    // 이미 잠금 해제된 기기에도 표시 쿠키를 심는다(비밀 아님 — 화면이 401 날 요청을 미리 거르는 용도, lib/unlockHint)
+    if (req.cookies.get(UNLOCK_HINT_COOKIE)?.value !== '1') {
+      res.cookies.set(UNLOCK_HINT_COOKIE, '1', { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+    }
+    return res;
+  }
 
   return NextResponse.json({ locked: true, error: '인증이 필요합니다.' }, { status: 401 });
 }
