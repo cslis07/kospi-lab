@@ -2,21 +2,21 @@
  "version": 1,
  "registeredAt": "2026-11-04",
  "startUtc": "2026-11-05T00:00:00Z",
- "updatedAt": "2026-11-19T11:54:55.996Z",
+ "updatedAt": "2026-11-19T20:49:44.417Z",
  "symbol": "ETHUSDT",
  "exchange": "bitget",
  "revisions": [],
  "status": "ok",
  "statusNote": null,
  "now": {
-  "barUtc": "2026-11-19T10:00:00Z",
-  "close": 1802.75,
+  "barUtc": "2026-11-19T19:00:00Z",
+  "close": 1770,
   "sma25": 2135.4719999999998,
-  "deviation": -0.15581,
+  "deviation": -0.17114,
   "q10": -0.14899,
   "oversoldRecent": true
  },
- "dataThroughUtc": "2026-11-19T11:00:00Z",
+ "dataThroughUtc": "2026-11-19T20:00:00Z",
  "candidates": [
   {
    "id": "A",
@@ -64,8 +64,8 @@
     "stop": 1730.28,
     "target": 1906.59,
     "qty": 0.078926,
-    "lastClose": 1802.75,
-    "unrealizedR": 0.151,
+    "lastClose": 1770,
+    "unrealizedR": -0.369,
     "expiresT": "2026-11-22T04:00:00Z"
    },
    "pending": null,
@@ -78,7 +78,7 @@
     "avgHoldH": 45.75,
     "maxLossUsdt": -5.194493346298079,
     "maxLossR": -1.0388986692596158,
-    "mddPct": 1.0925941861485922,
+    "mddPct": 1.2377530436730368,
     "totalReturnPct": -0.607799580511359,
     "finalEquity": 993.9220041948864,
     "maxConsecLoss": 2,
@@ -96,12 +96,12 @@
     "cappedTrades": 0,
     "skipped": {
      "wideStop": 0,
-     "busy": 26,
+     "busy": 27,
      "cooldown": 7,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 36,
+    "signalsInWindow": 37,
     "sufficient": false
    },
    "progress": "2/30",
@@ -110,10 +110,10 @@
    "monthly": [
     [
      "2026-11",
-     -0.516
+     -0.766
     ]
    ],
-   "equity": 994.8379
+   "equity": 992.3375
   },
   {
    "id": "B",
@@ -161,8 +161,8 @@
     "stop": 1730.28,
     "target": 1856.21,
     "qty": 0.078926,
-    "lastClose": 1802.75,
-    "unrealizedR": 0.151,
+    "lastClose": 1770,
+    "unrealizedR": -0.369,
     "expiresT": "2026-11-22T04:00:00Z"
    },
    "pending": null,
@@ -175,7 +175,7 @@
     "avgHoldH": 45.75,
     "maxLossUsdt": -5.194493346298079,
     "maxLossR": -1.0388986692596158,
-    "mddPct": 1.0925941861485922,
+    "mddPct": 1.2377530436730368,
     "totalReturnPct": -0.607799580511359,
     "finalEquity": 993.9220041948864,
     "maxConsecLoss": 2,
@@ -193,12 +193,12 @@
     "cappedTrades": 0,
     "skipped": {
      "wideStop": 0,
-     "busy": 26,
+     "busy": 27,
      "cooldown": 7,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 36,
+    "signalsInWindow": 37,
     "sufficient": false
    },
    "progress": "2/30",
@@ -207,10 +207,10 @@
    "monthly": [
     [
      "2026-11",
-     -0.516
+     -0.766
     ]
    ],
-   "equity": 994.8379
+   "equity": 992.3375
   }
  ]
 }
