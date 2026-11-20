@@ -55,6 +55,14 @@ export default function StudyPage() {
         <p className="text-[12px] text-[var(--text-muted)] mt-1.5 leading-relaxed">진입 전 7문항 + 손절 후 재진입 프로토콜(60분 대기·새 근거 4단계). 주문 전에 조건을 직접 체크하는 규율 도구.</p>
       </Link>
 
+      <Link href="/study/habits" className="fin-card p-4 block mb-7 border border-[var(--accent)]/30">
+        <div className="flex items-center justify-between">
+          <b className="text-[14px] text-[var(--text)]">🧭 매매 습관 교정 교본</b>
+          <span className="text-[12px] font-semibold text-[var(--accent-ink)]">열기 →</span>
+        </div>
+        <p className="text-[12px] text-[var(--text-muted)] mt-1.5 leading-relaxed">돈이 새는 곳(빈도·비용), 손실을 키우는 습관 5단계, 심리 함정 3가지, 돌파 확인 2단계, 시간봉 역할, 모의 검증용 손실 한도·기록 템플릿.</p>
+      </Link>
+
       <Link href="/study/crash" className="fin-card p-4 block mb-7 border border-[var(--accent)]/30">
         <div className="flex items-center justify-between">
           <b className="text-[14px] text-[var(--text)]">🧯 폭락 대응 교본</b>

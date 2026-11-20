@@ -14,6 +14,8 @@ import BackupPanel from '@/components/BackupPanel';
 import NextReleases from '@/components/NextReleases';
 import type { ReleaseCalendar } from '@/lib/inflation';
 import type { MacroIndicator } from '@/lib/macroData';
+import { useUnlockHint } from '@/hooks/useUnlockHint';
+import { markLocked } from '@/lib/unlockHint';
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
@@ -32,7 +34,9 @@ const MACRO_KEY: [string, string][] = [['cpi', '미 CPI'], ['dxy', '달러지수
 export default function ToolsPage() {
   const { data: macro } = useSWR<MacroIndicator[]>('/api/macro/indicators', fetcher, { refreshInterval: 300000 });
   const mi = (id: string) => (macro ?? []).find((x) => x.id === id);
-  const { data: relCal } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, { revalidateOnFocus: false });
+  // 발표 일정(/api/nf)은 게이트 뒤 — 잠긴 기기는 부르지 않고 조용히 숨긴다(401 콘솔 오류 없음 · lib/unlockHint)
+  const nfOn = useUnlockHint();
+  const { data: relCal } = useSWR<ReleaseCalendar>(nfOn ? '/api/nf/release_calendar.json' : null, (u: string) => fetch(u).then((r) => { if (r.status === 401) markLocked(); return r.json(); }), { revalidateOnFocus: false });
 
   return (
     <div className="pb-12">

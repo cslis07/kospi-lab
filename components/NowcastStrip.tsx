@@ -3,8 +3,10 @@
 import useSWR from 'swr';
 import Link from 'next/link';
 import { pct, signPp, type Pulse } from '@/lib/inflation';
+import { useUnlockHint } from '@/hooks/useUnlockHint';
+import { markLocked } from '@/lib/unlockHint';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const fetcher = (url: string) => fetch(url).then((r) => { if (r.status === 401) markLocked(); return r.json(); });
 
 /** 허브(hub 모드)에서 노출할 주요 섹션 바로가기 */
 const HUB_CHIPS: { href: string; label: string }[] = [
@@ -21,7 +23,8 @@ const HUB_CHIPS: { href: string; label: string }[] = [
  * hub=true 면 허브 주요 섹션 바로가기 칩을 함께 노출(홈·브리핑에서 18페이지 허브 진입점 강조).
  */
 export default function NowcastStrip({ className = '', hub = false }: { className?: string; hub?: boolean }) {
-  const { data } = useSWR<Pulse>('/api/nf/pulse.json', fetcher, { revalidateOnFocus: false });
+  const unlocked = useUnlockHint();   // 잠긴 기기는 게이트 API 를 부르지 않는다(401 콘솔 오류 없음 · lib/unlockHint)
+  const { data } = useSWR<Pulse>(unlocked ? '/api/nf/pulse.json' : null, fetcher, { revalidateOnFocus: false });
   const g = data?.gap;
   if (!data || data.locked || !g) return null;
   const up = (g.current_pp ?? 0) >= 0;

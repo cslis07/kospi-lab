@@ -4,7 +4,7 @@ const BASE = 'https://kospi-lab.vercel.app';
 const ROUTES = [
   '', '/brief', '/stock-analysis', '/coin-analysis', '/journal', '/review', '/screener', '/krx', '/news',
   '/calendar', '/domestic', '/overseas', '/futures', '/my-stocks',
-  '/assets', '/simulate', '/principles', '/study', '/study/chart', '/study/indicators', '/study/fibonacci', '/study/macro', '/study/execution', '/study/reentry', '/study/entry-signals',
+  '/assets', '/simulate', '/principles', '/study', '/study/chart', '/study/indicators', '/study/fibonacci', '/study/macro', '/study/execution', '/study/reentry', '/study/habits', '/study/entry-signals',
   '/industry', '/ranking', '/indicators', '/theme-etf', '/research', '/coins', '/overseas-analysis', '/releases', '/eth',
 ];
 
