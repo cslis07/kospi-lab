@@ -119,7 +119,7 @@ export default function HabitsPage() {
         ]} />
         <p className="rounded-lg border border-[var(--border)] px-3 py-2 text-[12.5px]"><b>수량 = (최대 허용 손실 − 예상 비용) ÷ |진입가 − 손절가|</b><br />BTC·ETH를 같은 자금으로 동시에 잡으면 두 포지션을 합친 위험으로 계산합니다.</p>
         <Tip>전부 정리한 상태라면 바로 다시 들어갈 이유가 없습니다. 규칙을 먼저 모의로 검증합니다.</Tip>
-        <AppLinks links={[{ href: '/simulate', label: '리스크 계산 — 비용 차감 수량' }, { href: '/', label: '홈 — 하루·1회 손실 한도 설정' }]} />
+        <AppLinks links={[{ href: '/simulate', label: '리스크 계산 — 비용 차감 수량' }, { href: '/coin-analysis', label: '코인 분석 — 손실 한도(서킷브레이커) 설정' }]} note="설정한 한도는 홈 리스크 센터의 오늘·7일 게이지와 냉각 배너에 반영됩니다." />
       </Lesson>
 
       <Lesson id="log" n="H-8" title="기록 템플릿과 20건 검증">
