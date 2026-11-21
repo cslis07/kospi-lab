@@ -2,21 +2,21 @@
  "version": 1,
  "registeredAt": "2026-11-04",
  "startUtc": "2026-11-05T00:00:00Z",
- "updatedAt": "2026-11-21T02:34:43.629Z",
+ "updatedAt": "2026-11-21T11:27:53.377Z",
  "symbol": "ETHUSDT",
  "exchange": "bitget",
  "revisions": [],
  "status": "ok",
  "statusNote": null,
  "now": {
-  "barUtc": "2026-11-21T01:00:00Z",
-  "close": 1625.02,
+  "barUtc": "2026-11-21T10:00:00Z",
+  "close": 1640.09,
   "sma25": 2084.542,
-  "deviation": -0.22044,
+  "deviation": -0.21321,
   "q10": -0.15129,
   "oversoldRecent": true
  },
- "dataThroughUtc": "2026-11-21T02:00:00Z",
+ "dataThroughUtc": "2026-11-21T11:00:00Z",
  "candidates": [
   {
    "id": "A",
@@ -73,7 +73,17 @@
      "firstSeenAt": "2026-11-20T02:25:52.490Z"
     }
    ],
-   "open": null,
+   "open": {
+    "signalT": "2026-11-21T06:00:00Z",
+    "entryT": "2026-11-21T07:00:00Z",
+    "entry": 1640.16,
+    "stop": 1568.06,
+    "target": 1769.93,
+    "qty": 0.068574,
+    "lastClose": 1640.09,
+    "unrealizedR": -0.001,
+    "expiresT": "2026-11-24T07:00:00Z"
+   },
    "pending": null,
    "summary": {
     "trades": 3,
@@ -84,7 +94,7 @@
     "avgHoldH": 37.833333333333336,
     "maxLossUsdt": -5.194493346298079,
     "maxLossR": -1.0388986692596158,
-    "mddPct": 1.440549124438094,
+    "mddPct": 1.5610416108482355,
     "totalReturnPct": -1.121395518166346,
     "finalEquity": 988.7860448183366,
     "maxConsecLoss": 3,
@@ -102,12 +112,12 @@
     "cappedTrades": 0,
     "skipped": {
      "wideStop": 0,
-     "busy": 27,
+     "busy": 28,
      "cooldown": 12,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 42,
+    "signalsInWindow": 44,
     "sufficient": false
    },
    "progress": "3/30",
@@ -116,10 +126,10 @@
    "monthly": [
     [
      "2026-11",
-     -1.121
+     -1.133
     ]
    ],
-   "equity": 988.786
+   "equity": 988.6717
   },
   {
    "id": "B",
@@ -176,7 +186,17 @@
      "firstSeenAt": "2026-11-20T02:25:52.490Z"
     }
    ],
-   "open": null,
+   "open": {
+    "signalT": "2026-11-21T06:00:00Z",
+    "entryT": "2026-11-21T07:00:00Z",
+    "entry": 1640.16,
+    "stop": 1568.06,
+    "target": 1712.25,
+    "qty": 0.068574,
+    "lastClose": 1640.09,
+    "unrealizedR": -0.001,
+    "expiresT": "2026-11-24T07:00:00Z"
+   },
    "pending": null,
    "summary": {
     "trades": 3,
@@ -187,7 +207,7 @@
     "avgHoldH": 37.833333333333336,
     "maxLossUsdt": -5.194493346298079,
     "maxLossR": -1.0388986692596158,
-    "mddPct": 1.440549124438094,
+    "mddPct": 1.5610416108482355,
     "totalReturnPct": -1.121395518166346,
     "finalEquity": 988.7860448183366,
     "maxConsecLoss": 3,
@@ -205,12 +225,12 @@
     "cappedTrades": 0,
     "skipped": {
      "wideStop": 0,
-     "busy": 27,
+     "busy": 28,
      "cooldown": 12,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 42,
+    "signalsInWindow": 44,
     "sufficient": false
    },
    "progress": "3/30",
@@ -219,10 +239,10 @@
    "monthly": [
     [
      "2026-11",
-     -1.121
+     -1.133
     ]
    ],
-   "equity": 988.786
+   "equity": 988.6717
   }
  ]
 }
