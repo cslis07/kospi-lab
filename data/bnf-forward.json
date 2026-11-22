@@ -2,21 +2,21 @@
  "version": 1,
  "registeredAt": "2026-11-04",
  "startUtc": "2026-11-05T00:00:00Z",
- "updatedAt": "2026-11-22T11:42:25.508Z",
+ "updatedAt": "2026-11-22T19:51:56.051Z",
  "symbol": "ETHUSDT",
  "exchange": "bitget",
  "revisions": [],
  "status": "ok",
  "statusNote": null,
  "now": {
-  "barUtc": "2026-11-22T10:00:00Z",
-  "close": 1708.39,
+  "barUtc": "2026-11-22T18:00:00Z",
+  "close": 1713.77,
   "sma25": 2057.96,
-  "deviation": -0.16986,
+  "deviation": -0.16725,
   "q10": -0.15129,
   "oversoldRecent": true
  },
- "dataThroughUtc": "2026-11-22T11:00:00Z",
+ "dataThroughUtc": "2026-11-22T19:00:00Z",
  "candidates": [
   {
    "id": "A",
@@ -80,8 +80,8 @@
     "stop": 1568.06,
     "target": 1769.93,
     "qty": 0.068574,
-    "lastClose": 1708.39,
-    "unrealizedR": 0.946,
+    "lastClose": 1713.77,
+    "unrealizedR": 1.021,
     "expiresT": "2026-11-24T07:00:00Z"
    },
    "pending": null,
@@ -112,12 +112,12 @@
     "cappedTrades": 0,
     "skipped": {
      "wideStop": 0,
-     "busy": 33,
+     "busy": 35,
      "cooldown": 12,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 49,
+    "signalsInWindow": 51,
     "sufficient": false
    },
    "progress": "3/30",
@@ -126,10 +126,10 @@
    "monthly": [
     [
      "2026-11",
-     -0.661
+     -0.62
     ]
    ],
-   "equity": 993.3909
+   "equity": 993.7989
   },
   {
    "id": "B",
@@ -202,7 +202,17 @@
      "firstSeenAt": "2026-11-21T19:32:15.748Z"
     }
    ],
-   "open": null,
+   "open": {
+    "signalT": "2026-11-22T14:00:00Z",
+    "entryT": "2026-11-22T15:00:00Z",
+    "entry": 1712.4,
+    "stop": 1641.74,
+    "target": 1783.06,
+    "qty": 0.070309,
+    "lastClose": 1713.77,
+    "unrealizedR": 0.019,
+    "expiresT": "2026-11-25T15:00:00Z"
+   },
    "pending": null,
    "summary": {
     "trades": 4,
@@ -231,12 +241,12 @@
     "cappedTrades": 0,
     "skipped": {
      "wideStop": 0,
-     "busy": 29,
+     "busy": 30,
      "cooldown": 16,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 49,
+    "signalsInWindow": 51,
     "sufficient": false
    },
    "progress": "4/30",
@@ -245,10 +255,10 @@
    "monthly": [
     [
      "2026-11",
-     -0.641
+     -0.635
     ]
    ],
-   "equity": 993.5916
+   "equity": 993.6493
   }
  ]
 }
