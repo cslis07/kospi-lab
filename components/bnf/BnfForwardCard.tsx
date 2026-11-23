@@ -33,7 +33,7 @@ function Candidate({ c }: { c: CandidateResult }) {
           ['MDD', `${s.mddPct.toFixed(2)}%`], ['자산', `${c.equity.toFixed(1)}`],
         ].map(([k, v]) => (
           <div key={k} className="rounded-lg px-2 py-1.5" style={{ background: 'var(--surface-2)' }}>
-            <div className="text-[10.5px] text-[var(--text-muted)]">{k}</div>
+            <div className="text-cap text-[var(--text-muted)]">{k}</div>
             <div className="font-bold text-[var(--text)]" style={k === '평균 R' ? { color: tone(s.avgR) } : undefined}>{v}</div>
           </div>
         ))}
@@ -84,7 +84,7 @@ export default function BnfForwardCard() {
       </div>
       <p className="text-[12.5px] text-[var(--text-muted)] leading-relaxed mb-3">
         2026-11-05 00:00 UTC 이후 Bitget ETHUSDT 확정 봉만으로 두 규칙(A 목표 1.8R · B 목표 1.0R)을 모의로 기록합니다.
-        규칙과 판정 기준은 시작 전에 고정했고, 청산 30회가 쌓이면(약 14개월 예상) 한 번 판정합니다. 3시간마다 GitHub 에서 갱신합니다.
+        규칙과 판정 기준은 시작 전에 고정했고, 청산 30회가 쌓이면(약 14개월 예상) 한 번 판정합니다 — 이것도 첫 중간 점검이며, 30회만으로 우위가 확정되지는 않습니다. 3시간마다 GitHub 에서 갱신합니다.
       </p>
       {notYet && <p className="text-[12.5px] text-[var(--text-muted)]">아직 첫 기록이 없습니다. GitHub Actions 의 첫 실행을 기다리는 중입니다.</p>}
       {error && !notYet && <p className="text-[12.5px] text-[var(--warn)]">기록을 불러오지 못했습니다: {String((error as Error).message ?? error)}</p>}

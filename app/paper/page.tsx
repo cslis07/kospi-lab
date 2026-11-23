@@ -13,6 +13,7 @@ import {
   judgeTrade, checkSkip, summarize, byCondition, meanRTest, meanRText, binomTailP, verdictText, roundStatus,
   MIN_N, ROUND_GAP_MS, type Candle, type Judged, type PaperLog, type SkipCheck, type Status,
 } from '@/lib/paperJudge';
+import { netRs, meanCI, ciText } from '@/lib/paperStats';
 
 const LOG = rawLog as unknown as PaperLog;
 const DOC_URL = 'https://github.com/cslis07/kospi-lab/blob/main/모의매매테스트.md';
@@ -101,6 +102,9 @@ export default function PaperPage() {
   const decidedR = judged ? judged.filter((j) => j.status === 'win' || j.status === 'loss').map((j) => j.r ?? 0) : [];
   const decided = decidedR.length;
   const decidedSum = decidedR.reduce((a, b) => a + b, 0);
+  // KL-015 보조 통계(표시 전용 — 판정 규칙 아님): 평균 R 95% 구간 · 비용 차감 추정 R
+  const grossCI = meanCI(decidedR);
+  const netCI = judged ? meanCI(netRs(judged)) : null;
   const openSum = judged ? judged.filter((j) => j.status === 'open').reduce((a, j) => a + (j.r ?? 0), 0) : 0;
   const live = judged ? judged.filter((j) => j.status === 'open' || j.status === 'pending') : [];
   const conds = judged ? byCondition(judged) : [];
@@ -123,7 +127,7 @@ export default function PaperPage() {
         <h2 className="text-xl font-extrabold text-[var(--text)] lg:hidden">모의 선행테스트</h2>{/* PC는 공통 페이지 머리가 제목 */}
         <p className="text-[13px] text-[var(--text-muted)] mt-1 leading-relaxed">
           12시간마다 BTC·ETH·SOL·XRP 중 조건이 맞는 매매를 <b className="text-[var(--text)]">결과 보기 전에</b> 진입·손절·목표까지 기록하고,
-          이후 1시간봉으로 자동 채점합니다. 목표는 확정 {MIN_N}건 — 그 전엔 어떤 결론도 내리지 않습니다.
+          이후 1시간봉으로 자동 채점합니다. 확정 {MIN_N}건은 <b className="text-[var(--text)]">첫 중간 점검</b>입니다 — 그 전엔 어떤 결론도 내리지 않고, {MIN_N}건에서도 신뢰구간이 0을 포함하면 우위를 확인했다고 보지 않습니다.
         </p>
         <div className="flex flex-wrap gap-1.5 mt-2">
           <Chip kind="flat">실제 주문 아님</Chip>
@@ -145,15 +149,15 @@ export default function PaperPage() {
 
         <div className="grid grid-cols-3 gap-2 mt-4 text-center">
           <div className="min-w-0">
-            <div className="text-[10.5px] font-bold text-[var(--faint)]">승 · 패</div>
+            <div className="text-cap font-bold text-[var(--faint)]">승 · 패</div>
             <div className="text-[16px] font-extrabold text-[var(--text)] mt-0.5 tabular-nums">{judged ? `${s!.wins} · ${s!.losses}` : '–'}</div>
           </div>
           <div className="min-w-0 border-l border-[var(--line)]">
-            <div className="text-[10.5px] font-bold text-[var(--faint)]">누적 R(확정)</div>
+            <div className="text-cap font-bold text-[var(--faint)]">누적 R(확정)</div>
             <div className="text-[16px] font-extrabold mt-0.5 tabular-nums" style={{ color: !judged ? 'var(--text)' : decidedSum >= 0 ? 'var(--ok)' : 'var(--warn)' }}>{judged ? fmtR(decidedSum) : '–'}</div>
           </div>
           <div className="min-w-0 border-l border-[var(--line)]">
-            <div className="text-[10.5px] font-bold text-[var(--faint)]">미결 평가</div>
+            <div className="text-cap font-bold text-[var(--faint)]">미결 평가</div>
             <div className="text-[16px] font-extrabold text-[var(--text)] mt-0.5 tabular-nums">{judged ? (s!.open ? fmtR(openSum) : '없음') : '–'}</div>
           </div>
         </div>
@@ -164,7 +168,13 @@ export default function PaperPage() {
           <li className="flex gap-2"><b className="shrink-0 text-[var(--text)] w-14">평균 R</b>
             <span className="text-[var(--text-muted)] min-w-0">{judged ? meanRText(meanRTest(decidedR)) : err ? '판정 불가' : '판정 중…'}</span></li>
         </ul>
-        <p className="text-[11px] text-[var(--faint)] mt-2 leading-relaxed">두 기준은 따로 봅니다. 하나만 유의해도 &lsquo;우위 확인&rsquo;이라 부르지 않습니다. 수수료·슬리피지 미반영.</p>
+        <ul className="mt-2 space-y-1.5 text-[12.5px] leading-snug">
+          <li className="flex gap-2"><b className="shrink-0 text-[var(--text)] w-14">95% 구간</b>
+            <span className="text-[var(--text-muted)] min-w-0">{judged ? ciText(grossCI) : '–'}</span></li>
+          <li className="flex gap-2"><b className="shrink-0 text-[var(--text)] w-14">비용 후</b>
+            <span className="text-[var(--text-muted)] min-w-0">{netCI ? ciText(netCI) : '–'}</span></li>
+        </ul>
+        <p className="text-[11px] text-[var(--faint)] mt-2 leading-relaxed">두 기준은 따로 봅니다. 하나만 유의해도 &lsquo;우위 확인&rsquo;이라 부르지 않습니다. 위 승률·평균 R·누적 R은 수수료·슬리피지 미반영(판정 규칙 그대로) — &lsquo;비용 후&rsquo;는 앱 표준 비용(테이커 0.06%·메이커 0.02%·시장가 슬리피지 0.05%)을 거래마다 뺀 참고 추정이며 판정에 쓰지 않습니다.</p>
 
         <div className="mt-3 pt-3 border-t border-[var(--line)] text-[12px] text-[var(--text-muted)]">
           다음 라운드 <b className="text-[var(--text)]">R{rs.last + 1}</b> · {due ? <>기록 대기 중(예정 {kst(nextAt)} KST 지남)</> : <><b className="text-[var(--text)]">{kst(nextAt)} KST</b> 이후</>}
@@ -198,9 +208,9 @@ export default function PaperPage() {
                   <Chip kind={STATUS[j.status].chip}>{STATUS[j.status].label}{j.status === 'open' ? ` ${fmtR(j.r)}` : ''}</Chip>
                 </div>
                 <div className="grid grid-cols-3 gap-1 mt-3 text-center text-[12px]">
-                  <div><div className="text-[10.5px] text-[var(--faint)]">진입</div><div className="font-bold text-[var(--text)] tabular-nums">{px(t.entry)}</div></div>
-                  <div><div className="text-[10.5px] text-[var(--faint)]">손절</div><div className="font-bold tabular-nums" style={{ color: 'var(--warn)' }}>{px(t.stop)}</div></div>
-                  <div><div className="text-[10.5px] text-[var(--faint)]">목표</div><div className="font-bold tabular-nums" style={{ color: 'var(--ok)' }}>{px(t.target)}</div></div>
+                  <div><div className="text-cap text-[var(--faint)]">진입</div><div className="font-bold text-[var(--text)] tabular-nums">{px(t.entry)}</div></div>
+                  <div><div className="text-cap text-[var(--faint)]">손절</div><div className="font-bold tabular-nums" style={{ color: 'var(--warn)' }}>{px(t.stop)}</div></div>
+                  <div><div className="text-cap text-[var(--faint)]">목표</div><div className="font-bold tabular-nums" style={{ color: 'var(--ok)' }}>{px(t.target)}</div></div>
                 </div>
                 <p className="text-[11.5px] text-[var(--text-muted)] mt-2.5 leading-relaxed">
                   {j.status === 'pending'
