@@ -7,8 +7,7 @@ import type { BriefData, BriefMarket, MacroNum, BriefNews, NewsTag } from '@/lib
 import type { EdgeReport, EdgeRow } from '@/lib/briefEdge';
 import type { EtfEdge } from '@/lib/etfEdge';
 import NowcastStrip from '@/components/NowcastStrip';
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { jsonFetcher } from '@/lib/fetcher';
 
 const TABS: { key: BriefMarket; label: string; emoji: string }[] = [
   { key: 'coin', label: '코인', emoji: '🪙' },
@@ -175,7 +174,7 @@ function EdgeSection({ e }: { e: EdgeReport }) {
 
 /** 현물 ETF 순유입 과거 통계(BTC·ETH) — 보관분이 쌓이기 전엔 '표본 쌓는 중'만 보여 준다 */
 function EtfEdgeSection() {
-  const { data } = useSWR<{ BTC: EtfEdge; ETH: EtfEdge; archivedAt: string | null }>('/api/etf/edge', fetcher, { revalidateOnFocus: false });
+  const { data } = useSWR<{ BTC: EtfEdge; ETH: EtfEdge; archivedAt: string | null }>('/api/etf/edge', jsonFetcher, { revalidateOnFocus: false });
   if (!data?.BTC) return null;
   const list = [data.BTC, data.ETH];
   const ready = list.filter((x) => x.rows.length);
@@ -227,16 +226,16 @@ function Skeleton() {
 
 export default function BriefPage() {
   const [market, setMarket] = useState<BriefMarket>('coin');
-  const { data, isLoading, error } = useSWR<BriefData>(`/api/brief?market=${market}`, fetcher, {
+  const { data, isLoading, error } = useSWR<BriefData>(`/api/brief?market=${market}`, jsonFetcher, {
     revalidateOnFocus: false,
     refreshInterval: 30 * 60 * 1000,
   });
   // 수치는 요약과 따로 1분마다 갱신(요약은 1시간 캐시)
-  const { data: live } = useSWR<{ asOf: string; macro: MacroNum[] }>(`/api/brief/macro?market=${market}`, fetcher, {
+  const { data: live } = useSWR<{ asOf: string; macro: MacroNum[] }>(`/api/brief/macro?market=${market}`, jsonFetcher, {
     refreshInterval: 60 * 1000,
     revalidateOnFocus: true,
   });
-  const { data: edge } = useSWR<EdgeReport>(`/api/brief/edge?market=${market}`, fetcher, { revalidateOnFocus: false });
+  const { data: edge, error: edgeErr } = useSWR<EdgeReport>(`/api/brief/edge?market=${market}`, jsonFetcher, { revalidateOnFocus: false });
 
   const ai = data?.ai;
   const macro = live?.macro?.length ? live.macro : data?.macro ?? [];
@@ -274,14 +273,15 @@ export default function BriefPage() {
 
       {isLoading && <Skeleton />}
 
-      {error && !isLoading && (
+      {/* 데이터가 있을 때의 갱신 실패는 SWR 이 직전 값을 유지 — 화면을 지우지 않는다 */}
+      {error && !isLoading && !data && (
         <div className="text-center py-16 text-[var(--text-muted)]">
           <p>브리핑을 불러오지 못했습니다</p>
           <p className="text-xs mt-1 opacity-60">잠시 후 다시 시도해 주세요</p>
         </div>
       )}
 
-      {!isLoading && !error && data && (
+      {!isLoading && data && (
         <div className="space-y-5">
           {/* ① 오늘의 핵심 3가지 — AI 요약(2.0 기획서 §5.5: 요약 → 일정 → 상세 자료) */}
           <div className="fin-card ai p-4">
@@ -353,7 +353,7 @@ export default function BriefPage() {
           {/* 과거 통계 */}
           <div>
             <h3 className="text-sm font-semibold text-[var(--text)] mb-2">과거 통계 — 이런 날 다음엔 어땠나</h3>
-            {edge ? <EdgeSection e={edge} /> : <div className="h-28 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] animate-pulse" />}
+            {edge ? <EdgeSection e={edge} /> : edgeErr ? <p className="text-sm text-[var(--text-muted)] py-2">과거 통계를 불러오지 못했습니다.</p> : <div className="h-28 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] animate-pulse" />}
             {market === 'coin' && <EtfEdgeSection />}
           </div>
 

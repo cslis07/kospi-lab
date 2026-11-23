@@ -2,15 +2,17 @@
 
 /** 경제 기사 — articles_index.json. Nowflation 경제 기사 목록(영문·외부 링크). 요약은 수치 맥락용, 매매 신호 아님. */
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import { nfLink, type ArticlesIndex } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 const dShort = (d?: string) => (d ? d.slice(0, 10).replace(/-/g, '.').slice(2) : '');
 
 export default function ArticlesPage() {
-  const { data: ai } = useSWR<ArticlesIndex>('/api/nf/articles_index.json', fetcher, SWR_OPT);
+  const { data: ai, error: aiErr } = useSWR<ArticlesIndex>('/api/nf/articles_index.json', fetcher, SWR_OPT);
   const articles = ai?.articles ?? [];
   const author = ai?.author;
 
@@ -55,7 +57,7 @@ export default function ArticlesPage() {
         </ul>
       )}
 
-      {!ai && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!ai && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{aiErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (CC BY 4.0, 중계). 기사 원문·저작권은 작성자/Nowflation에 있으며, 링크는 원문으로 연결됩니다.

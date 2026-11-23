@@ -9,6 +9,7 @@ import { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import Segmented from '@/components/ui/Segmented';
+import { jsonFetcher } from '@/lib/fetcher';
 
 type Tab = 'ranking' | 'news' | 'industry' | 'etf' | 'research';
 const TABS: readonly (readonly [Tab, string])[] = [['ranking', '실시간 랭킹'], ['news', '뉴스'], ['industry', '산업 트렌드'], ['etf', '테마 ETF'], ['research', '리서치']];
@@ -20,7 +21,6 @@ const KEY: Record<Tab, string> = {
   etf: '/api/naver/theme-etf?region=kr',
   research: '/api/naver/research?direction=up',
 };
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const N = 5;
 const chg = (r: number) => <span className="tabular-nums font-semibold" style={{ color: r > 0 ? 'var(--up)' : r < 0 ? 'var(--down)' : 'var(--text-muted)' }}>{r > 0 ? '+' : ''}{r.toFixed(2)}%</span>;
 
@@ -37,8 +37,9 @@ function Line({ href, external, left, right, sub }: { href: string; external?: b
 }
 
 function Body({ tab }: { tab: Tab }) {
-  const { data, error } = useSWR(KEY[tab], fetcher, { refreshInterval: tab === 'news' || tab === 'research' ? 300000 : 30000, revalidateOnFocus: false, keepPreviousData: false });
-  if (error) return <p className="text-[12.5px] text-[var(--text-muted)] py-6 text-center">불러오지 못했습니다. 잠시 후 다시 시도하세요.</p>;
+  const { data, error } = useSWR(KEY[tab], jsonFetcher, { refreshInterval: tab === 'news' || tab === 'research' ? 300000 : 30000, revalidateOnFocus: false, keepPreviousData: false });
+  // 첫 로드 실패는 뼈대(5행)와 같은 높이로 안내 — 첫 화면이 밀리지 않게. 데이터가 있을 때의 갱신 실패는 SWR 이 직전 값을 유지한다
+  if (error && !data) return <p className="text-[12.5px] text-[var(--text-muted)] text-center flex items-center justify-center" style={{ minHeight: 210 }}>불러오지 못했습니다. 잠시 후 다시 시도하세요.</p>;
   if (!data) return <div className="space-y-2 py-1">{Array.from({ length: N }, (_, i) => <div key={i} className="skeleton" style={{ height: 34 }} />)}</div>;
   let rows: React.ReactNode[] = [];
   if (tab === 'ranking') rows = ((data.kr ?? []) as RankRow[]).slice(0, N).map((r, i) => (

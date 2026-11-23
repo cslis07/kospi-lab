@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import Link from 'next/link';
 import UnlockGate from '@/components/UnlockGate';
 import InflationChartLazy from '@/components/InflationChartLazy';
@@ -32,7 +33,8 @@ const INFLATION_TOOLS: { href: string; label: string }[] = [
   { href: '/inflation/heatcheck', label: '경기 열지수' },
 ];
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 const NF_FILES = ['pulse.json', 'compare_daily.json', 'forecast.json', 'forecastCurrent.json', 'grocery_basket.json', 'fuel.json', 'compare.json', 'geo.json', 'fedwatch.json', 'labor.json', 'release_calendar.json', 'predmarkets_summary.json'];
 
@@ -67,7 +69,7 @@ function Card({ title, children, aside }: { title: string; children: React.React
 
 export default function InflationPage() {
   // 12개 파일을 한 번에(/api/nf/bundle) — 예전엔 파일마다 따로 불러 함수가 12번 돌았다(콜드 1.4~1.5초씩, 모바일 데이터 완료 7.3초)
-  const { data: nf } = useSWR<Record<string, unknown> & { locked?: boolean }>(`/api/nf/bundle?n=${NF_FILES.join(',')}`, fetcher, SWR_OPT);
+  const { data: nf, error: nfErr } = useSWR<Record<string, unknown> & { locked?: boolean }>(`/api/nf/bundle?n=${NF_FILES.join(',')}`, fetcher, SWR_OPT);
   const pick = <T,>(file: string): T | undefined => (nf?.locked ? ({ locked: true } as T) : ((nf?.[file] ?? undefined) as T | undefined));
   const pulse = pick<Pulse>('pulse.json');
   const cmp = pick<CompareDaily>('compare_daily.json');
@@ -257,7 +259,7 @@ export default function InflationPage() {
       )}
 
       {!locked && !pulse && (
-        <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>
+        <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{nfErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>
       )}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">

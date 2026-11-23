@@ -18,8 +18,8 @@ import type { MacroEvent } from '@/lib/macroSchedule';
 import NextReleases from '@/components/NextReleases';
 import PastReleases from '@/components/PastReleases';
 import type { ReleaseCalendar, EconCalWindow } from '@/lib/inflation';
+import { jsonFetcher, gatedJsonFetcher } from '@/lib/fetcher';
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const KIND_KO: Record<string, string> = { cpi: 'CPI', pce: 'PCE', ppi: 'PPI', jobs: '고용', nfp: '고용', gdp: 'GDP', retail: '소매판매' };
 const CAT_TONE: Record<string, CalEvt['tone']> = { fomc: 'fomc', bok: 'bok', earnings: 'earn', holiday: 'holi', indicator: 'ind' };
 
@@ -80,7 +80,7 @@ export default function CalendarPage() {
   }, [target, today]);
 
   // 공식 일정(FRED 발표 캘린더·연준 FOMC, 시각은 미 동부→KST 서머타임 반영) — 달력·표·목록의 미국 지표 날짜 기준
-  const { data: official } = useSWR<{ events: MacroEvent[] }>('/api/risk/events', fetcher, { revalidateOnFocus: false });
+  const { data: official } = useSWR<{ events: MacroEvent[] }>('/api/risk/events', jsonFetcher, { revalidateOnFocus: false });
   const allEvents = useMemo(() => mergeOfficial(CALENDAR_EVENTS, officialToCalendar(official?.events ?? [])), [official]);
 
   const grouped = useMemo(() => {
@@ -108,9 +108,9 @@ export default function CalendarPage() {
   // 달력(월간 그리드)용 — 정적 일정 + 나우캐스트 미국 지표 발표일을 모두 표시(필터는 아래 목록에만 적용)
   // /api/nf 는 게이트 뒤 — 잠긴 기기는 부르지 않는다(401 콘솔 오류 방지). null=판단 전(자리만 잡아 둠)
   const nfOn = useUnlockHint();
-  const { data: relCal, error: relCalErr } = useSWR<ReleaseCalendar>(nfOn ? '/api/nf/release_calendar.json' : null, fetcher, { revalidateOnFocus: false });
-  const { data: econWin } = useSWR<EconCalWindow>(nfOn ? '/api/nf/econcal_window.json' : null, fetcher, { revalidateOnFocus: false });
-  const { data: soso } = useSWR<{ events: MacroEvt[]; upcoming: MacroRelease[] }>('/api/macro/events', fetcher, { revalidateOnFocus: false });
+  const { data: relCal, error: relCalErr } = useSWR<ReleaseCalendar>(nfOn ? '/api/nf/release_calendar.json' : null, gatedJsonFetcher, { revalidateOnFocus: false });
+  const { data: econWin } = useSWR<EconCalWindow>(nfOn ? '/api/nf/econcal_window.json' : null, gatedJsonFetcher, { revalidateOnFocus: false });
+  const { data: soso } = useSWR<{ events: MacroEvt[]; upcoming: MacroRelease[] }>('/api/macro/events', jsonFetcher, { revalidateOnFocus: false });
   const calEvents = useMemo<CalEvt[]>(() => {
     const out: CalEvt[] = allEvents.map((e) => ({ date: e.date, label: e.title, tone: CAT_TONE[e.category] ?? 'ind' }));
     for (const e of relCal?.events ?? []) {

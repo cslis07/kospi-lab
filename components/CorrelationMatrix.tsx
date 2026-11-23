@@ -17,8 +17,8 @@ import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 import { strongPairs, avgCorr, corrLabel, type CorrMatrix } from '@/lib/correlation';
 import { batchFetcher } from '@/lib/stockBatch';
+import { gatedJsonFetcher, jsonFetcher } from '@/lib/fetcher';
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 type Scope = 'hold' | 'watch';
 type Days = '90' | '180';
 const MAX = 14;
@@ -42,7 +42,7 @@ export default function CorrelationMatrix() {
   const [days, setDays] = useState<Days>('90');
   // 열린 선물 포지션(잠금 해제 기기만 — 실패하면 조용히 빼고 진행)
   const posUnlocked = useUnlockHint();   // 잠긴 기기는 계좌 API 를 부르지 않는다(401 콘솔 오류 없음)
-  const { data: pos } = useSWR<{ positions?: { symbol: string }[] }>(posUnlocked ? '/api/bitget/positions' : null, fetcher, { revalidateOnFocus: false, shouldRetryOnError: false });
+  const { data: pos } = useSWR<{ positions?: { symbol: string }[] }>(posUnlocked ? '/api/bitget/positions' : null, gatedJsonFetcher, { revalidateOnFocus: false, shouldRetryOnError: false });
 
   const picks = useMemo(() => {
     const out: { id: string; label: string; group: string }[] = [];
@@ -63,7 +63,7 @@ export default function CorrelationMatrix() {
   const unnamed = picks.filter((p) => p.id.startsWith('kr:') && p.label === p.id.slice(3)).map((p) => p.id.slice(3));
   const { data: names } = useSWR<Record<string, { name?: string }>>(unnamed.length ? `/api/stock/batch?tickers=${unnamed.join(',')}` : null, batchFetcher<{ name?: string }>, { revalidateOnFocus: false });
   const key = picks.length >= 2 ? `/api/correlation?ids=${encodeURIComponent(picks.map((p) => p.id).join(','))}&days=${days}` : null;
-  const { data, error } = useSWR<Resp>(key, fetcher, { revalidateOnFocus: false, keepPreviousData: true });
+  const { data, error } = useSWR<Resp>(key, jsonFetcher, { revalidateOnFocus: false, keepPreviousData: true });
   const label = (id: string) => (id.startsWith('kr:') ? names?.[id.slice(3)]?.name : undefined) ?? picks.find((p) => p.id === id)?.label ?? data?.assets.find((a) => a.id === id)?.label ?? id;
   const groupOf = (id: string) => picks.find((p) => p.id === id)?.group;
   const isBench = (id: string) => groupOf(id) === '기준';

@@ -111,7 +111,7 @@ const PerformanceView = dynamic(() => import('@/components/PerformanceView'), { 
 
 /** 시장 벤치마크 — 내 매매 기간 동안 시장 + (원금 입력 시) 내 수익률%곡선 vs 지수 오버레이. 공통 조각은 components/MarketBenchmark. */
 function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
-  const { data } = useMacroDaily();
+  const { data, error: macroErr } = useMacroDaily();
   const [principal, setPrincipal] = useState('');
   const [idx, setIdx] = useState<BmIdxKey>('btc');
   useEffect(() => { try { const s = localStorage.getItem(PRINCIPAL_KEY); if (s) setPrincipal(s); } catch {} }, []);
@@ -127,7 +127,7 @@ function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
     <div className="fin-card p-4">
       <h3 className="text-sm font-semibold text-[var(--text)]">시장 벤치마크 <span className="text-[11px] font-normal text-[var(--text-muted)]">· 내 매매 기간 동안 시장</span></h3>
       <p className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-2 tabular-nums">{from} ~ {to} · 내 순손익 <b className={bmCol(net)}>{net >= 0 ? '+' : ''}{fmtUsdt(net)} USDT</b></p>
-      <IndexReturnGrid data={data} from={from} to={to} />
+      <IndexReturnGrid data={data} from={from} to={to} failed={!data && !!macroErr} />
       <div className="mt-3 pt-3 border-t border-[var(--border)]">
         <div className="flex items-center gap-2 flex-wrap mb-2">
           <label className="text-[11px] text-[var(--text-muted)]">계좌 원금(USDT)</label>

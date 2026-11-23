@@ -2,10 +2,12 @@
 
 /** 예측시장 — predmarkets_summary(Polymarket·Kalshi). 실제 돈이 걸린 시장 확률(시장 심리), 예측·매매 신호 아님. */
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import type { PredMarkets, PredMarket } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 function fmtVol(n?: number) {
   if (!n || !Number.isFinite(n)) return '';
@@ -16,7 +18,7 @@ function fmtVol(n?: number) {
 }
 
 export default function MarketsPage() {
-  const { data: pm } = useSWR<PredMarkets>('/api/nf/predmarkets_summary.json', fetcher, SWR_OPT);
+  const { data: pm, error: pmErr } = useSWR<PredMarkets>('/api/nf/predmarkets_summary.json', fetcher, SWR_OPT);
   const groups = (pm?.groups ?? []).filter((g) => g.markets?.length);
 
   return (
@@ -38,7 +40,7 @@ export default function MarketsPage() {
         </div>
       ))}
 
-      {!pm && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!pm && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{pmErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (CC BY 4.0, 중계) · 원시장 Polymarket·Kalshi. 확률은 시장 가격이며 사실·예측이 아닙니다.

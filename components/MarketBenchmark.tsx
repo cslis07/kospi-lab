@@ -7,13 +7,15 @@
  */
 import type { ReactNode } from 'react';
 import useSWR from 'swr';
+import { jsonFetcher } from '@/lib/fetcher';
 import { periodReturn, monthlyPnl, kstDateKey, type TradeValue, type PricePt } from '@/lib/journalAnalytics';
 
 export type MacroDaily = { btc: PricePt[]; nasdaq: PricePt[]; kospi: PricePt[] };
 export type BmIdxKey = 'btc' | 'nasdaq' | 'kospi';
 export const BM_IDX: readonly (readonly [BmIdxKey, string])[] = [['btc', '비트코인'], ['nasdaq', '나스닥'], ['kospi', '코스피']];
 
-const bmFetcher = (u: string) => fetch(u).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 값을 유지한다(오류 본문이 데이터로 덮어쓰지 않게)
+const bmFetcher = jsonFetcher;
 /** 지수 일별 종가(비트코인·나스닥·코스피) — 느리게 변해 포커스 재검증 끔 */
 export const useMacroDaily = () => useSWR<MacroDaily>('/api/macro/daily', bmFetcher, { revalidateOnFocus: false });
 
@@ -27,14 +29,15 @@ export function bmSpan(trades: TradeValue[]): { from: string; to: string } {
 }
 
 /** 매매 기간 동안 3개 지수 수익률 카드 */
-export function IndexReturnGrid({ data, from, to }: { data?: MacroDaily; from: string; to: string }) {
+/** failed = 첫 로딩 실패(데이터 없음 + 오류) — '…'에 멈추지 않고 '불러오지 못함'(fetcher 전환 후속) */
+export function IndexReturnGrid({ data, from, to, failed = false }: { data?: MacroDaily; from: string; to: string; failed?: boolean }) {
   const rows: [string, number | null][] = BM_IDX.map(([k, l]) => [l, data ? periodReturn(data[k], from, to) : null]);
   return (
     <div className="grid grid-cols-3 gap-2">
       {rows.map(([k, v]) => (
         <div key={k} className="rounded-xl border border-[var(--border)] p-2.5">
           <p className="text-[11px] text-[var(--text-muted)]">{k}</p>
-          <p className={`text-base font-bold tabular-nums ${v == null ? 'text-[var(--text-muted)]' : bmCol(v)}`}>{v == null ? (data ? '—' : '…') : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`}</p>
+          <p className={`text-base font-bold tabular-nums ${v == null ? 'text-[var(--text-muted)]' : bmCol(v)}`}>{v == null ? (data ? '—' : failed ? '불러오지 못함' : '…') : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`}</p>
         </div>
       ))}
     </div>

@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import useSWR from 'swr';
+import { jsonFetcher } from '@/lib/fetcher';
 import type { RegimeRead, LayerTilt } from '@/lib/coinRegime';
 import type { SupplyLayer } from '@/lib/coinSupply';
 import type { DemandLayer } from '@/lib/coinPremium';
@@ -32,7 +33,8 @@ interface RegimePayload {
   asof: number;
 }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 값을 유지한다(첫 로딩 실패는 아래 '불러오지 못했습니다' 안내)
+const fetcher = jsonFetcher;
 
 function fmt(v: number | null | undefined, dec = 2) {
   return v == null || !Number.isFinite(v) ? '—' : v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });

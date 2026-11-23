@@ -13,8 +13,10 @@ import UnlockGate from '@/components/UnlockGate';
 import { ICON } from '@/lib/menu';
 import HoldingsConcentration from '@/components/HoldingsConcentration';
 import CorrelationMatrix from '@/components/CorrelationMatrix';
+import { gatedJsonFetcher, jsonFetcher } from '@/lib/fetcher';
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// 계좌(/api/bitget) 는 게이트 — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지). 환율(/api/market) 은 공개라 jsonFetcher
+const fetcher = gatedJsonFetcher;
 
 const fmtUsd = (n: number) => {
   if (n <= 0) return '0';
@@ -88,13 +90,13 @@ function NavCard({ href, icon, title, sub, onNavigate }: { href: string; icon: s
 
 export default function AssetsPage() {
   const [period, setPeriod] = useState<Period>(7);
-  const { data: acc, isLoading } = useSWR<AccountResp>('/api/bitget/account', fetcher, { refreshInterval: 30000, revalidateOnFocus: false });
+  const { data: acc, error: accErr, isLoading } = useSWR<AccountResp>('/api/bitget/account', fetcher, { refreshInterval: 30000, revalidateOnFocus: false });
   const configured = !!acc?.configured;
-  const { data: pos } = useSWR<PositionsResp>(configured ? '/api/bitget/positions' : null, fetcher, { refreshInterval: 15000, revalidateOnFocus: false });
-  const { data: hist } = useSWR<HistResp>(configured ? `/api/bitget/history?days=${period}` : null, fetcher, { revalidateOnFocus: false });
+  const { data: pos, error: posErr } = useSWR<PositionsResp>(configured ? '/api/bitget/positions' : null, fetcher, { refreshInterval: 15000, revalidateOnFocus: false });
+  const { data: hist, error: histErr } = useSWR<HistResp>(configured ? `/api/bitget/history?days=${period}` : null, fetcher, { revalidateOnFocus: false });
   const { data: cum } = useSWR<CumResp>(configured ? '/api/bitget/cumulative' : null, fetcher, { revalidateOnFocus: false });
   // 원화 환산 — USDT/KRW(업비트) 우선, 없으면 USD/KRW
-  const { data: market } = useSWR<{ usdkrw?: { value: number }; usdtkrw?: { value: number } }>('/api/market', fetcher, { refreshInterval: 30000, revalidateOnFocus: false });
+  const { data: market } = useSWR<{ usdkrw?: { value: number }; usdtkrw?: { value: number } }>('/api/market', jsonFetcher, { refreshInterval: 30000, revalidateOnFocus: false });
   const krwRate = market?.usdtkrw?.value ?? market?.usdkrw?.value ?? null;
   const toKrw = (usd: number) => (krwRate == null ? null : Math.round(usd * krwRate));
 
@@ -138,7 +140,8 @@ export default function AssetsPage() {
       <section>
         <div className="fin-sec"><h3>계좌</h3></div>
 
-        {isLoading && <div className="h-32 rounded-2xl bg-[var(--surface-2)] animate-pulse" />}
+        {isLoading && !accErr && <div className="h-32 rounded-2xl bg-[var(--surface-2)] animate-pulse" />}
+        {!acc && accErr && <p className="text-sm text-amber-600">계좌를 불러오지 못했습니다. 잠시 후 다시 시도합니다.</p>}
         {acc?.locked && <UnlockGate />}
         {acc && !acc.locked && acc.configured === false && (
           <Link href="/bitget" className="block rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-600">
@@ -175,6 +178,8 @@ export default function AssetsPage() {
                   )}
                   {krwRate != null && <span className="w-full text-cap-pc text-[var(--text-muted)]">1 USDT ≈ ₩{Math.round(krwRate).toLocaleString('ko-KR')}</span>}
                 </div>
+              ) : !pos && posErr ? (
+                <p className="text-sm text-amber-600 mt-1">불러오지 못했습니다. 잠시 후 다시 시도합니다.</p>
               ) : pos?.error ? (
                 <p className="text-sm text-amber-600 mt-1">선물 잔액 조회 실패 — API 키에 선물 읽기 권한이 필요합니다.</p>
               ) : (
@@ -260,7 +265,9 @@ export default function AssetsPage() {
         </div>
         <div className="fin-card p-4">
           {!configured ? (
-            <p className="text-xs text-[var(--text-muted)] py-6 text-center">거래소(API 키) 연결 후 표시됩니다.</p>
+            <p className="text-xs text-[var(--text-muted)] py-6 text-center">{!acc && accErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '거래소(API 키) 연결 후 표시됩니다.'}</p>
+          ) : !hist && histErr ? (
+            <p className="text-xs text-amber-600 py-6 text-center">청산 이력을 불러오지 못했습니다. 잠시 후 다시 시도합니다.</p>
           ) : !hist ? (
             <div className="skeleton h-28" />
           ) : hist.error ? (

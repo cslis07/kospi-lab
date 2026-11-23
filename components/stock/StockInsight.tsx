@@ -12,8 +12,8 @@ import { useState } from 'react';
 import Collapsible from '@/components/ui/Collapsible';
 import Segmented from '@/components/ui/Segmented';
 import { opinionLabel, upsidePct, type StockInsight, type OverseasInsight } from '@/lib/stockInsight';
+import { jsonFetcher } from '@/lib/fetcher';
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const UP = 'var(--up)';
 const DOWN = 'var(--down)';
 const won = (n: number) => new Intl.NumberFormat('ko-KR').format(Math.round(n));
@@ -28,7 +28,7 @@ function vol(n: number) {
 }
 
 export function useStockInsight(code: string) {
-  return useSWR<StockInsight & { error?: string }>(`/api/stock/${code}/insight`, fetcher, { revalidateOnFocus: false });
+  return useSWR<StockInsight & { error?: string }>(`/api/stock/${code}/insight`, jsonFetcher, { revalidateOnFocus: false });
 }
 
 /* ── 투자 지표 + 목표주가 컨센서스 ─────────────────────── */
@@ -166,9 +166,10 @@ function HoldSpark({ rows }: { rows: FlowRow[] }) {
 }
 
 export function FlowSection({ code }: { code: string }) {
-  const { data, error } = useSWR<FlowRow[] | { error: string }>(`/api/stock/${code}/investor?days=20`, fetcher, { refreshInterval: 60000 });
+  // 1분 갱신이 한 번 실패해도 직전 수급은 유지(SWR) — 첫 로드 실패면 data 가 없어 카드째 숨김
+  const { data } = useSWR<FlowRow[] | { error: string }>(`/api/stock/${code}/investor?days=20`, jsonFetcher, { refreshInterval: 60000 });
   const [span, setSpan] = useState<Span>('d1');
-  if (error || !data || !Array.isArray(data) || !data.length) return null;
+  if (!data || !Array.isArray(data) || !data.length) return null;
   const n = span === 'd1' ? 1 : span === 'd5' ? 5 : 20;
   const rows = data.slice(0, n);
   const sum = (k: 'individual' | 'foreign' | 'institution') => rows.reduce((a, r) => a + r[k], 0);
@@ -214,7 +215,7 @@ const usd = (n: number) => `$${n.toLocaleString('en-US', { maximumFractionDigits
 const usdCap = (n: number) => (n >= 1e12 ? `$${(n / 1e12).toFixed(2)}T` : n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : `$${(n / 1e6).toFixed(0)}M`);
 
 export function OverseasInsightSections({ symbol, price }: { symbol: string; price: number | null }) {
-  const { data } = useSWR<OverseasInsight & { error?: string }>(`/api/overseas/insight?symbol=${encodeURIComponent(symbol)}`, fetcher, { revalidateOnFocus: false });
+  const { data } = useSWR<OverseasInsight & { error?: string }>(`/api/overseas/insight?symbol=${encodeURIComponent(symbol)}`, jsonFetcher, { revalidateOnFocus: false });
   if (!data || data.error) return null;
   const c = data.consensus;
   const up = upsidePct(c?.targetMean ?? null, price);
@@ -290,7 +291,7 @@ export function OverseasInsightSections({ symbol, price }: { symbol: string; pri
 interface Holder { name: string; shares: number; ownershipPct: number }
 export function ShareholdersSection({ code }: { code: string }) {
   const year = new Date().getFullYear() - 1; // 직전 사업연도 사업보고서
-  const { data } = useSWR<Holder[] | { error: string }>(`/api/dart/shareholders?code=${code}&year=${year}`, fetcher, { revalidateOnFocus: false });
+  const { data } = useSWR<Holder[] | { error: string }>(`/api/dart/shareholders?code=${code}&year=${year}`, jsonFetcher, { revalidateOnFocus: false });
   if (!Array.isArray(data) || !data.length) return null;
   const rows = [...data].sort((a, b) => b.ownershipPct - a.ownershipPct).slice(0, 10);
   const sum = data.reduce((a, h) => a + h.ownershipPct, 0);

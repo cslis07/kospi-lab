@@ -37,7 +37,7 @@ import { useRiskSettings } from '@/hooks/useRiskControl';
 
 /** 의사결정 엔진(실험) 표시 — 빌드 때 NEXT_PUBLIC_CRYPTO_DECISION_ENGINE_V1=0 이면 숨김(롤백용) */
 const DECISION_ENGINE_ON = process.env.NEXT_PUBLIC_CRYPTO_DECISION_ENGINE_V1 !== '0';
-import { jsonFetcher, ApiError } from '@/lib/fetcher';
+import { jsonFetcher, gatedJsonFetcher, ApiError } from '@/lib/fetcher';
 import TradeGate from '@/components/TradeGate';
 import CircuitBreakerBar from '@/components/CircuitBreakerBar';
 import ExchangeQtyLine from '@/components/ExchangeQtyLine';
@@ -48,8 +48,8 @@ import { useRiskLimits } from '@/hooks/useRiskLimits';
 import { useUnlockHint } from '@/hooks/useUnlockHint';
 import { evaluateBreaker, type BreakerEntry } from '@/lib/circuitBreaker';
 
-// 시세·스캔 등 부수 요청은 조용히 실패해도 무방하지만, 분석 본문은 jsonFetcher(throw)를 쓴다
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 시세·스캔 등 부수 요청도 실패를 데이터로 삼키지 않는다 — 공개 키는 jsonFetcher(throw, 직전 값 유지),
+// 게이트 키(/api/bitget)는 gatedJsonFetcher(401 은 { locked: true } 데이터). 분석 본문도 jsonFetcher(throw)
 
 interface ScanItem {
   symbol: string; name: string; price: number;
@@ -1177,15 +1177,15 @@ export default function CoinAnalysisPage() {
   // 분석(무거운 스냅샷)과 별개로 시세만 5초 폴링 — Bitget 공개 티커라 저렴하다
   const { data: liveMap } = useSWR<Record<string, { price: number; changeRate: number }>>(
     run ? `/api/crypto/batch?symbols=${run.symbol}` : null,
-    fetcher,
+    jsonFetcher,
     { refreshInterval: 5000, dedupingInterval: 2500, revalidateOnFocus: false },
   );
   const liveTick = run ? liveMap?.[run.symbol] : undefined;
 
   // 전체 스캔 — 4코인 룰엔진 신호 일괄 (버튼으로만 실행, 서버 3분 캐시)
   const [scanOn, setScanOn] = useState(false);
-  const { data: scan, isValidating: scanning } = useSWR<{ items: ScanItem[]; updatedAt: number }>(
-    scanOn ? '/api/coin-scan' : null, fetcher, { revalidateOnFocus: false },
+  const { data: scan, error: scanErr, isValidating: scanning } = useSWR<{ items: ScanItem[]; updatedAt: number }>(
+    scanOn ? '/api/coin-scan' : null, jsonFetcher, { revalidateOnFocus: false },
   );
 
   const journal = useCoinJournal();
@@ -1271,7 +1271,7 @@ export default function CoinAnalysisPage() {
 
   // BTC 52주 위치(레일·보드와 일관) — /api/macro/daily의 BTC 일별 종가로 최근 365일 고/저. BTC 분석일 때만.
   const { data: macroDaily } = useSWR<{ btc?: { date: string; close: number }[] }>(
-    data?.symbol === 'BTCUSDT' ? '/api/macro/daily' : null, fetcher, { revalidateOnFocus: false },
+    data?.symbol === 'BTCUSDT' ? '/api/macro/daily' : null, jsonFetcher, { revalidateOnFocus: false },
   );
   const btc52 = useMemo(() => {
     const s = macroDaily?.btc;
@@ -1293,12 +1293,13 @@ export default function CoinAnalysisPage() {
   // → 판정에서 통과가 아니라 '확인 불가'로 표시된다(모르는 걸 통과로 위장하지 않는다).
   // 잠긴 기기는 부르지 않는다(401 콘솔 오류 없음 · lib/unlockHint) — 결과는 위와 같이 '확인 불가'
   const posUnlocked = useUnlockHint();
-  const { data: posData } = useSWR<{ configured?: boolean; error?: string; positions?: { symbol: string; side: 'long' | 'short'; size: number; markPrice: number }[] }>(
-    posUnlocked ? '/api/bitget/positions' : null, fetcher, { refreshInterval: 60000, shouldRetryOnError: false },
+  const { data: posData, error: posErr } = useSWR<{ configured?: boolean; error?: string; positions?: { symbol: string; side: 'long' | 'short'; size: number; markPrice: number }[] }>(
+    posUnlocked ? '/api/bitget/positions' : null, gatedJsonFetcher, { refreshInterval: 60000, shouldRetryOnError: false },
   );
   const accountCtx = useMemo(() => {
     // 조회 실패(200 + error)는 '포지션 없음'이 아니라 '확인 불가'(null) — 예전엔 '첫 포지션'으로 통과시켰다
-    if (!posData || posData.error || posData.configured === false) return null;
+    // 5xx 등 예외(posErr)도 '확인 불가' — 직전 포지션을 현재처럼 쓰지 않는다
+    if (posErr || !posData || posData.error || posData.configured === false) return null;
     const ps = posData.positions;
     if (!ps || !v) return null;
     let same = 0, total = 0;
@@ -1308,7 +1309,7 @@ export default function CoinAnalysisPage() {
       if (p.side === v.direction) same += n;
     }
     return { sameSideExposure: same, totalExposure: total };
-  }, [posData, v]);
+  }, [posData, posErr, v]);
 
   // 손실 서킷브레이커 — blocked 면 실행가능 판정을 NO 로 만든다
   const { limits } = useRiskLimits();
@@ -1394,6 +1395,7 @@ export default function CoinAnalysisPage() {
       <p className="sec-label">자동 관찰</p>
 
       {/* 전체 스캔 스트립 — 어떤 코인이 지금 신호가 강한가 */}
+      {scanOn && !scan && scanErr && !scanning && <p className="text-[12px] text-[var(--text-muted)] mb-4">스캔 결과를 불러오지 못했습니다. 잠시 후 다시 시도합니다.</p>}
       {scanOn && scan?.items && scan.items.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           {scan.items.map((it) => {

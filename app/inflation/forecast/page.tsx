@@ -7,11 +7,13 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import UnlockGate from '@/components/UnlockGate';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import type { ForecastPayload, ForecastItem, ScoreRow } from '@/lib/priceForecastData';
 import { AI_ADJ_MAX, type TargetKey } from '@/lib/priceForecast';
 
 type Resp = ForecastPayload & { locked?: boolean; error?: string };
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API — 401 은 { locked: true } 데이터(잠금 안내 유지), 502 등 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 
 const n1 = (x?: number | null) => (x == null || !Number.isFinite(x) ? '—' : `${x.toFixed(1)}%`);
 const n2 = (x?: number | null) => (x == null || !Number.isFinite(x) ? '—' : x.toFixed(2));
@@ -30,7 +32,7 @@ function kstWhen(iso?: string | null): string | null {
 const kstStamp = (ms: number) => { const k = new Date(ms + 9 * 3_600_000); return `${k.getUTCMonth() + 1}/${k.getUTCDate()} ${String(k.getUTCHours()).padStart(2, '0')}:${String(k.getUTCMinutes()).padStart(2, '0')}`; };
 
 export default function ForecastPage() {
-  const { data, mutate } = useSWR<Resp>('/api/price-forecast', fetcher, { revalidateOnFocus: false });
+  const { data, error, mutate } = useSWR<Resp>('/api/price-forecast', fetcher, { revalidateOnFocus: false });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -66,8 +68,8 @@ export default function ForecastPage() {
       </p>
 
       {data?.locked && <div className="mb-4"><UnlockGate reason="이 페이지는 접근 권한이 필요한 분석 페이지입니다." /></div>}
-      {!data && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">계산하는 중…</p>}
-      {data && !data.locked && data.error && <p className="text-[12px] text-[var(--warn)] mb-3">불러오지 못했습니다. 잠시 후 다시 열어 주세요.</p>}
+      {!data && !error && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">계산하는 중…</p>}
+      {((data && !data.locked && data.error) || (error && !data?.locked)) && <p className="text-[12px] text-[var(--warn)] mb-3">불러오지 못했습니다. 잠시 후 다시 열어 주세요.</p>}
       {data && !data.locked && !data.error && data.configured === false && <p className="text-[12px] text-[var(--warn)] mb-3">FRED 키가 설정되지 않아 수치 모델을 계산할 수 없습니다.</p>}
 
       {groups.map((g) => <GroupCard key={g[0].group} items={g} refs={g[0].group === 'cpi' ? data?.refs ?? null : null} />)}

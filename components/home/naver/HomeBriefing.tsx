@@ -8,6 +8,7 @@
  */
 import { useState } from 'react';
 import useSWR from 'swr';
+import { jsonFetcher } from '@/lib/fetcher';
 
 type Tab = 'kr' | 'us' | 'coin';
 interface Provider {
@@ -17,7 +18,6 @@ interface Provider {
 interface BriefResp { tab: Tab; providers: Provider[]; facts: string; asOf: string }
 
 const TABS: [Tab, string][] = [['kr', '국내'], ['us', '해외'], ['coin', '코인']];
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
 const DOT: Record<Provider['id'], string> = { gemini: 'var(--ai)' };
 
@@ -58,7 +58,7 @@ function ProviderCard({ p, facts }: { p: Provider; facts: string }) {
 
 export default function HomeBriefing() {
   const [tab, setTab] = useState<Tab>('kr');
-  const { data, isLoading } = useSWR<BriefResp>(`/api/home/briefing?tab=${tab}`, fetcher, { revalidateOnFocus: false, keepPreviousData: true });
+  const { data, isLoading, error } = useSWR<BriefResp>(`/api/home/briefing?tab=${tab}`, jsonFetcher, { revalidateOnFocus: false, keepPreviousData: true });
 
   const providers = data?.tab === tab ? data.providers : [];
   const shown = providers.filter((p) => p.id === 'gemini');
@@ -79,7 +79,10 @@ export default function HomeBriefing() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginTop: 14 }}>
         {shown.length === 0
-          ? <div className="skeleton" style={{ height: 230, borderRadius: 'var(--r-sm)' }} />
+          // 첫 로드 실패면 뼈대와 같은 높이(230)로 안내 — 끝없는 뼈대·자리 밀림 방지
+          ? error
+            ? <div style={{ height: 230, borderRadius: 'var(--r-sm)', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12.5, color: 'var(--muted)' }}>불러오지 못했습니다. 잠시 후 다시 시도합니다.</div>
+            : <div className="skeleton" style={{ height: 230, borderRadius: 'var(--r-sm)' }} />
           : shown.map((p) => <ProviderCard key={p.id} p={p} facts={data?.facts ?? ''} />)}
       </div>
       {isLoading && shown.length === 0 && <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 6 }}>시세·뉴스를 모아 요약하는 중…</div>}

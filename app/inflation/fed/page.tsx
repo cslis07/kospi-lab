@@ -2,15 +2,17 @@
 
 /** Fed Watch — fedwatch.json(Kalshi KXFEDDECISION). 다음 FOMC 시장 확률·예상 변화폭·회의 전 주요 발표. 매매 신호 아님. */
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import type { FedWatch, FedOutcome } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 const dShort = (d?: string) => (d ? d.slice(0, 10).replace(/-/g, '.').slice(2) : '—');
 
 export default function FedPage() {
-  const { data: fw } = useSWR<FedWatch>('/api/nf/fedwatch.json', fetcher, SWR_OPT);
+  const { data: fw, error: fwErr } = useSWR<FedWatch>('/api/nf/fedwatch.json', fetcher, SWR_OPT);
   const nm = fw?.next_meeting;
   const mk = fw?.market;
   const outs = [...(mk?.outcomes ?? [])].sort((a, b) => (b.prob ?? 0) - (a.prob ?? 0));
@@ -66,7 +68,7 @@ export default function FedPage() {
         </>
       )}
 
-      {!fw && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!fw && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{fwErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (CC BY 4.0, 중계) · 원시장 Kalshi KXFEDDECISION{fw?.asof ? ` · ${fw.asof}` : ''}. 확률은 시장 가격이며 사실·예측이 아닙니다.

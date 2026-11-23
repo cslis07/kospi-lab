@@ -6,8 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { searchKrStocks } from '@/lib/krStocks';
 import type { KrxDailyData } from '@/app/api/krx/daily/route';
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { jsonFetcher } from '@/lib/fetcher';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface BDetails {
@@ -411,7 +410,7 @@ function ScreenerInner() {
 
   const { data: rawData, isLoading, error: swrError } = useSWR<
     ScreenerResult[] | { error: string; failedTickers?: string[] }
-  >(apiUrl, fetcher, { revalidateOnFocus: false });
+  >(apiUrl, jsonFetcher, { revalidateOnFocus: false });
 
   const apiErrorMsg   = (rawData as { error?: string })?.error ?? null;
   const failedTickers = (rawData as { failedTickers?: string[] })?.failedTickers ?? [];
@@ -424,7 +423,7 @@ function ScreenerInner() {
     : null;
   const { data: krxDailyMap } = useSWR<Record<string, KrxDailyData>>(
     krxCodesKey ? `/api/krx/daily?codes=${krxCodesKey}` : null,
-    fetcher,
+    jsonFetcher,
     { revalidateOnFocus: false },
   );
 

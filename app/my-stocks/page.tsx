@@ -21,8 +21,10 @@ import { useAlerts } from '@/hooks/useAlerts';
 import { COINS, fmtCoinPrice } from '@/lib/coins';
 import type { StockData, OverseasStockData, CryptoData } from '@/lib/types';
 import { batchFetcher } from '@/lib/stockBatch';
+import { jsonFetcher } from '@/lib/fetcher';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 값을 유지한다(오류 본문이 데이터로 덮어쓰지 않게)
+const fetcher = jsonFetcher;
 type MarketTab = 'domestic' | 'overseas' | 'crypto';
 type Sort = 'default' | 'up' | 'down' | '52low' | '52high';
 type KrFilter = 'all' | 'KOSPI' | 'KOSDAQ';
@@ -77,11 +79,12 @@ function MyStocksInner() {
   const { portfolio } = usePortfolio();
   const { alerts } = useAlerts();
 
-  const { data: krData } = useSWR<Record<string, StockData>>(
+  // 실패(error)면 스켈레톤을 멈추고 '—'(fetcher 전환 후속 — 예전엔 시세 실패 시 칸이 계속 로딩)
+  const { data: krData, error: krErr } = useSWR<Record<string, StockData>>(
     tab === 'domestic' && kr.watchlist.length ? `/api/stock/batch?tickers=${kr.watchlist.map((w) => w.ticker).join(',')}` : null, batchFetcher<StockData>, { refreshInterval: 5000 });
-  const { data: ovData } = useSWR<Record<string, OverseasStockData>>(
+  const { data: ovData, error: ovErr } = useSWR<Record<string, OverseasStockData>>(
     tab === 'overseas' && ov.watchlist.length ? `/api/overseas/batch?symbols=${ov.watchlist.map((w) => w.symbol).join(',')}` : null, batchFetcher<OverseasStockData>, { refreshInterval: 15000 });
-  const { data: crData } = useSWR<Record<string, CryptoData>>(
+  const { data: crData, error: crErr } = useSWR<Record<string, CryptoData>>(
     tab === 'crypto' && cr.watchlist.length ? `/api/crypto/batch?symbols=${cr.watchlist.map((w) => w.symbol).join(',')}` : null, batchFetcher<CryptoData>, { refreshInterval: 5000 });
   // 주요 코인 52주(주봉) — 느리게 변해 길게 캐시
   const crMajors = cr.watchlist.filter((w) => MAJOR_CRYPTO.includes(w.base)).map((w) => w.symbol).join(',');
@@ -99,7 +102,7 @@ function MyStocksInner() {
         if (alerts[w.ticker]) parts.push('알림');
         return {
           key: w.ticker, href: `/stock/${w.ticker}`, title: w.name, sub: parts.join(' · '), badge: w.name.slice(0, 1),
-          price: d ? d.price.toLocaleString('ko-KR') : '—', cr: d?.changeRate, loading: !krData,
+          price: d ? d.price.toLocaleString('ko-KR') : '—', cr: d?.changeRate, loading: !krData && !krErr,
           px: d?.price, hi52: d?.high52w, lo52: d?.low52w,
           detailLabel: '종목 상세', analysis: `/stock-analysis?ticker=${w.ticker}&run=1`, analysisLabel: '종목 분석',
           remove: () => { kr.remove(w.ticker); setToast({ text: `${w.name} 삭제됨`, undo: () => kr.add(w) }); },
@@ -110,7 +113,7 @@ function MyStocksInner() {
         const d = ovData?.[w.symbol];
         return {
           key: w.symbol, href: `/overseas/${encodeURIComponent(w.symbol)}`, title: w.name, sub: `${w.symbol} · ${w.exchange}`, badge: w.symbol.slice(0, 2),
-          price: d ? `$${d.price.toFixed(2)}` : '—', cr: d?.changeRate, loading: !ovData,
+          price: d ? `$${d.price.toFixed(2)}` : '—', cr: d?.changeRate, loading: !ovData && !ovErr,
           px: d?.price, hi52: d?.high52w, lo52: d?.low52w,
           detailLabel: '종목 상세',
           remove: () => { ov.remove(w.symbol); setToast({ text: `${w.name} 삭제됨`, undo: () => ov.add(w) }); },
@@ -122,7 +125,7 @@ function MyStocksInner() {
         const ko = COINS.find((c) => c.symbol === w.symbol)?.ko ?? w.name;
         return {
           key: w.symbol, href: `/crypto/${w.symbol}`, title: ko, sub: `${w.base} · USDT`, badge: w.base.slice(0, 3),
-          price: fmtCoinPrice(d?.price), cr: d?.changeRate, loading: !crData,
+          price: fmtCoinPrice(d?.price), cr: d?.changeRate, loading: !crData && !crErr,
           px: d?.price, hi52: w52c?.[w.symbol]?.high52w, lo52: w52c?.[w.symbol]?.low52w,
           detailLabel: '코인 상세',
           analysis: ANALYZABLE.includes(w.base) ? `/coin-analysis?symbol=${w.symbol}&run=1` : undefined, analysisLabel: '코인선물 분석',
@@ -140,7 +143,7 @@ function MyStocksInner() {
       if (b.cr == null) return -1;
       return sort === 'up' ? b.cr - a.cr : a.cr - b.cr;
     });
-  }, [tab, sort, krFilter, kr, ov, cr, krData, ovData, crData, w52c, portfolio, alerts]);
+  }, [tab, sort, krFilter, kr, ov, cr, krData, ovData, crData, krErr, ovErr, crErr, w52c, portfolio, alerts]);
 
   // 국내 보유 평가손익 합계(관심종목에 있는 보유분)
   const totalPnl = useMemo(() => {

@@ -7,12 +7,14 @@
 import useSWR from 'swr';
 import Link from 'next/link';
 import DataStatus from '@/components/ui/DataStatus';
+import { jsonFetcher } from '@/lib/fetcher';
 
 interface UpDown { up: number; upper: number; flat: number; down: number; lower: number }
 interface Board { upDown: UpDown | null; live: { live: boolean; tradedAt: string } | null; tradingDate: string | null }
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
-function Row({ name, ud }: { name: string; ud: UpDown | null | undefined }) {
+function Row({ name, ud, failed }: { name: string; ud: UpDown | null | undefined; failed?: boolean }) {
+  // 첫 로드 실패 — 뼈대와 같은 높이(52)로 안내해 자리를 유지한다
+  if (ud === undefined && failed) return <p className="text-[12px] text-[var(--text-muted)] flex items-center" style={{ height: 52 }}>{name} — 불러오지 못했습니다. 잠시 후 다시 시도합니다.</p>;
   if (ud === undefined) return <div className="skeleton" style={{ height: 52 }} />;
   if (!ud) return <p className="text-[12px] text-[var(--text-muted)]">{name} — 데이터 없음</p>;
   const total = ud.up + ud.flat + ud.down || 1;
@@ -39,8 +41,8 @@ function Row({ name, ud }: { name: string; ud: UpDown | null | undefined }) {
 
 export default function MarketBreadth() {
   const opts = { refreshInterval: 30000, revalidateOnFocus: true, keepPreviousData: true };
-  const { data: k } = useSWR<Board>('/api/home/board?code=KOSPI&range=1d', fetcher, opts);
-  const { data: q } = useSWR<Board>('/api/home/board?code=KOSDAQ&range=1d', fetcher, opts);
+  const { data: k, error: kErr } = useSWR<Board>('/api/home/board?code=KOSPI&range=1d', jsonFetcher, opts);
+  const { data: q, error: qErr } = useSWR<Board>('/api/home/board?code=KOSDAQ&range=1d', jsonFetcher, opts);
   const live = k?.live?.live;
   return (
     <section className="fin-card p-4 lg:p-5 h-full" aria-label="시장 폭">
@@ -49,8 +51,8 @@ export default function MarketBreadth() {
         {k && <span className="ml-auto"><DataStatus state={live ? 'live' : 'closed'} at={k.tradingDate} source="네이버페이 증권" /></span>}
       </div>
       <div className="space-y-4">
-        <Row name="코스피" ud={k ? k.upDown : undefined} />
-        <Row name="코스닥" ud={q ? q.upDown : undefined} />
+        <Row name="코스피" ud={k ? k.upDown : undefined} failed={!!kErr} />
+        <Row name="코스닥" ud={q ? q.upDown : undefined} failed={!!qErr} />
       </div>
       <Link href="/domestic" className="dash-more block mt-4 !ml-0">국내 시장 →</Link>
     </section>

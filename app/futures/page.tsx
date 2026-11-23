@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import HBarChart, { type BarItem } from '@/components/HBarChart';
+import { jsonFetcher } from '@/lib/fetcher';
 
 // 코인선물 분석 엔진 지원 종목(그 외는 분석 버튼 없음)
 const ANALYZABLE = new Set(['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT']);
@@ -20,7 +21,8 @@ interface FuturesRow {
   holdingAmount: number | null;
 }
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 시세를 유지하고 error 로 알린다
+const fetcher = jsonFetcher;
 
 const fmtPrice = (n: number) => {
   if (n >= 1000) return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -44,7 +46,7 @@ type Filter  = 'all' | 'up' | 'down';
 type ChartView = 'gainers' | 'losers' | 'volume';
 
 export default function FuturesPage() {
-  const { data, isLoading } = useSWR<FuturesRow[]>('/api/futures/tickers', fetcher, {
+  const { data, isLoading, error } = useSWR<FuturesRow[]>('/api/futures/tickers', fetcher, {
     refreshInterval: 10000,
     revalidateOnFocus: false,
   });
@@ -91,6 +93,9 @@ export default function FuturesPage() {
     return filtered.slice(0, 100);
   }, [data, filter, sortBy]);
 
+  // 첫 로딩부터 실패해 보여 줄 시세가 없음
+  const loadFailed = !data && !!error;
+
   const CHART_TABS: [ChartView, string][] = [['gainers', '상승 TOP'], ['losers', '하락 TOP'], ['volume', '거래대금 TOP']];
 
   return (
@@ -111,6 +116,8 @@ export default function FuturesPage() {
           <div className="space-y-2">
             {[...Array(8)].map((_, i) => <div key={i} className="h-3 rounded bg-white/5 animate-pulse" />)}
           </div>
+        ) : loadFailed ? (
+          <p className="text-xs text-[var(--text-muted)] py-3 text-center">시세를 불러오지 못했습니다. 잠시 후 다시 시도합니다.</p>
         ) : (
           <HBarChart items={chart.items} mode={chart.mode}
             posColor="bg-emerald-400/70" negColor="bg-red-400/70"
@@ -198,7 +205,7 @@ export default function FuturesPage() {
                 );
               })}
               {!rows.length && (
-                <tr><td colSpan={7} className="text-center py-8 text-[var(--text-muted)]">조건에 맞는 종목이 없습니다</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-[var(--text-muted)]">{loadFailed ? '시세를 불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '조건에 맞는 종목이 없습니다'}</td></tr>
               )}
             </tbody>
           </table>

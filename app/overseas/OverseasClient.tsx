@@ -11,8 +11,10 @@ import type { OverseasStockData } from '@/lib/types';
 import Mini52 from '@/components/Mini52';
 import { ALL_SYMBOLS, CHUNK_KEYS, MARKET_KEY } from '@/lib/overseasKeys';
 import { kstClock, kstStamp } from '@/lib/kstClock';
+import { jsonFetcher } from '@/lib/fetcher';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 시세를 유지하고 error 로 알린다
+const fetcher = jsonFetcher;
 
 // ── 브랜드 로고 ───────────────────────────────────────────────
 const BRAND: Record<string, { bg: string; color: string; label: string }> = {
@@ -174,10 +176,13 @@ export default function OverseasClient({ snapshotAt }: { snapshotAt?: number }) 
     [watchSet, add, remove]
   );
 
-  const isLoading = Object.keys(allData).length === 0;
   // 등락 TOP 은 모든 묶음이 도착(또는 실패)한 뒤에 그린다 — 묶음이 하나씩 올 때마다 순위가 바뀌어 행이 88px씩 밀렸다(CLS)
   const topLoading = ([[chunk1, d1, e1], [chunk2, d2, e2], [chunk3, d3, e3], [chunk4, d4, e4], [chunk5, d5, e5]] as const)
     .some(([c, d, e]) => !!c && d === undefined && e === undefined);
+  // 모든 묶음이 실패로 끝나 시세가 하나도 없으면 스켈레톤 대신 실패 안내
+  const noData = Object.keys(allData).length === 0;
+  const loadFailed = noData && !topLoading && [e1, e2, e3, e4, e5].some(Boolean);
+  const isLoading = noData && !loadFailed;
 
   // 등락 TOP — 수록 종목(OVERSEAS_LIST) 중 실시간 등락률 정렬(국내 RankList와 동일한 카드 구성)
   const ranked = useMemo(() => {
@@ -260,7 +265,7 @@ export default function OverseasClient({ snapshotAt }: { snapshotAt?: number }) 
                     </Link>
                   ))
                 ) : (
-                  <p className="px-4 py-6 text-center text-xs text-[var(--text-muted)]">표시할 종목이 없습니다</p>
+                  <p className="px-4 py-6 text-center text-xs text-[var(--text-muted)]">{loadFailed ? '시세를 불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '표시할 종목이 없습니다'}</p>
                 )}
               </div>
             </section>
@@ -271,7 +276,7 @@ export default function OverseasClient({ snapshotAt }: { snapshotAt?: number }) 
       {/* 섹션 헤더 — 홈 대시보드 스타일(fin-sec) */}
       <div className="fin-sec">
         <h3>미국 종목</h3>
-        <span className="text-xs font-medium text-[var(--faint)] tabular-nums shrink-0">미국 주식 · {updatedAt ? `${updatedAt} 갱신` : '로딩 중…'}</span>
+        <span className="text-xs font-medium text-[var(--faint)] tabular-nums shrink-0">미국 주식 · {updatedAt ? `${updatedAt} 갱신` : loadFailed ? '갱신 실패' : '로딩 중…'}</span>
       </div>
 
       {/* 안내 배너 */}
@@ -364,6 +369,12 @@ export default function OverseasClient({ snapshotAt }: { snapshotAt?: number }) 
                 <div className="h-3 w-16 bg-white/10 rounded" />
               </div>
             ))}
+          </div>
+        )}
+
+        {loadFailed && (
+          <div className="px-5 py-3 border-b border-[var(--line-2)] text-xs text-[var(--text-muted)]">
+            시세를 불러오지 못했습니다. 잠시 후 다시 시도합니다.
           </div>
         )}
 

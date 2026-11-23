@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import Fold, { Chevron, useMediaQuery } from './Fold';
+import { jsonFetcher } from '@/lib/fetcher';
 
 interface Pt { x: string; o: number; h: number; l: number; c: number }
 interface Live { value: number; change: number; changeRate: number; live: boolean; tradedAt: string }
@@ -29,7 +30,6 @@ type Range = '1d' | '1m' | '3m' | '1y' | 'ytd';
 const RANGES: [Range, string][] = [['1d', '1일'], ['1m', '1개월'], ['3m', '3개월'], ['1y', '1년'], ['ytd', 'YTD']];
 const VALID_RANGES = new Set<Range>(RANGES.map(([k]) => k));
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt0 = (n: number) => Math.round(n).toLocaleString('en-US');
 const fmtEok = (n: number) => `${n >= 0 ? '+' : ''}${Math.round(n).toLocaleString('ko-KR')}`;
@@ -53,7 +53,7 @@ function xLabel(x: string, range: Range) {
 
 /* ── 인터랙티브 차트 ─────────────────────────────── */
 // 높이는 CSS(.nv-board-chart: 모바일 250 · PC 310)가 정하고 여기선 실측만 — JS 폭 판별 전후로 높이가 바뀌지 않게
-function Chart({ points, mode, range, prevClose }: { points: Pt[]; mode: 'line' | 'candle'; range: Range; prevClose: number }) {
+function Chart({ points, mode, range, prevClose, failed }: { points: Pt[]; mode: 'line' | 'candle'; range: Range; prevClose: number; failed?: boolean }) {
   const wrap = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
   const [h, setH] = useState(0);
@@ -109,7 +109,10 @@ function Chart({ points, mode, range, prevClose }: { points: Pt[]; mode: 'line' 
   return (
     <div ref={wrap} className="nv-board-chart" style={{ position: 'relative', width: '100%', touchAction: 'pan-y', userSelect: 'none' }}
       onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHover(null)}>
-      {!ready ? (
+      {!ready && failed && n < 2 ? (
+        // 첫 로드 실패 — 차트 자리(높이는 CSS)는 그대로 두고 안내만
+        <div style={{ width: '100%', height: '100%', borderRadius: 12, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12.5, color: 'var(--muted)' }}>불러오지 못했습니다. 잠시 후 다시 시도합니다.</div>
+      ) : !ready ? (
         <div className="skeleton" style={{ width: '100%', height: '100%', borderRadius: 12 }} />
       ) : (
         <svg width={w} height={H} style={{ display: 'block' }} role="img" aria-label="지수 차트">
@@ -313,10 +316,12 @@ export default function IndexBoard({ breadth = true }: { breadth?: boolean }) {
   const ranges = isUs ? RANGES.filter(([k]) => k !== '1d') : RANGES;
   const effRange: Range = isUs && range === '1d' ? '1m' : range;
 
-  const { data: b } = useSWR<BoardResp>(`/api/home/board?code=${code}&range=${effRange}`, fetcher, {
+  const { data: rawB, error: bErr } = useSWR<BoardResp>(`/api/home/board?code=${code}&range=${effRange}`, jsonFetcher, {
     refreshInterval: effRange === '1d' ? 30000 : 300000, revalidateOnFocus: true, keepPreviousData: true,
   });
-  const { data: brief } = useSWR<BriefResp>(`/api/home/briefing?tab=${isUs ? 'us' : 'kr'}`, fetcher, { revalidateOnFocus: false });
+  // keepPreviousData 라 새 탭·기간 요청이 실패하면 직전(다른 지수·기간) 값이 남는다 — 실패 시엔 그 값을 이 탭 값처럼 보여 주지 않는다
+  const b = bErr && rawB && (rawB.code !== code || rawB.range !== effRange) ? undefined : rawB;
+  const { data: brief, error: briefErr } = useSWR<BriefResp>(`/api/home/briefing?tab=${isUs ? 'us' : 'kr'}`, jsonFetcher, { revalidateOnFocus: false });
   const headline = brief?.providers?.find((p) => p.ok && p.brief)?.brief?.headline;
 
   const live = b?.live;
@@ -352,7 +357,7 @@ export default function IndexBoard({ breadth = true }: { breadth?: boolean }) {
           <span className="fin-chip" style={{ background: 'var(--accent-soft)', color: 'var(--accent-ink)', maxWidth: '100%', fontSize: 11.5, padding: '5px 10px' }}>
             <b style={{ fontWeight: 800, marginRight: 4 }}>AI</b>{headline}
           </span>
-        ) : brief === undefined ? (
+        ) : brief === undefined && !briefErr ? (
           // 요약 도착 전 칩 자리(모바일에선 한 줄을 차지해 도착 순간 아래가 밀렸다)
           <span className="fin-chip skeleton" aria-hidden style={{ width: '62%', height: 27, padding: 0 }} />
         ) : null}
@@ -399,7 +404,7 @@ export default function IndexBoard({ breadth = true }: { breadth?: boolean }) {
 
         <div className="board-grid" style={{ marginTop: 10 }}>
           <div style={{ minWidth: 0 }}>
-            <Chart points={b?.points ?? []} mode={mode} range={effRange} prevClose={b?.prevClose ?? 0} />
+            <Chart points={b?.points ?? []} mode={mode} range={effRange} prevClose={b?.prevClose ?? 0} failed={!!bErr && !b} />
             {/* 안내 줄은 데이터 전에도 자리를 잡는다(도착 순간 아래가 밀리지 않게) */}
             {isUs && (
               <div style={{ fontSize: 10.5, color: 'var(--faint)', marginTop: 2, minHeight: 15 }}>{US_LABEL[code]} · 현지 종가 기준 일봉(분봉 미제공)</div>
@@ -429,7 +434,10 @@ export default function IndexBoard({ breadth = true }: { breadth?: boolean }) {
             )}
 
             {/* 데이터 전엔 실제와 같은 높이(52주 58 · 투자자/프로그램 63px 실측)의 자리 — 첫 방문 CLS 0.27의 원인이었다 */}
-            {!b ? (
+            {!b && bErr ? (
+              // 첫 로드 실패 — 안내는 차트 자리에, 여기는 같은 높이의 빈 자리만(58 · 58+63+63+간격 36)
+              <div aria-hidden style={{ height: isUs ? 58 : 220 }} />
+            ) : !b ? (
               isUs ? (
                 <div className="skeleton" style={{ height: 58, borderRadius: 10 }} />
               ) : (

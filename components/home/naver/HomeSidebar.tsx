@@ -11,13 +11,13 @@ import Link from 'next/link';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { Flash, LiveStamp } from '@/components/naver/ui';
 import { batchFetcher } from '@/lib/stockBatch';
+import { jsonFetcher } from '@/lib/fetcher';
 
 interface PopularItem { code: string; name: string; price: number; changeRate: number }
 interface StatusResp { popular: PopularItem[]; date?: string; source?: 'naver' | 'krx'; asOf?: string }
 
 interface BatchItem { ticker: string; name: string; price: number; changeRate: number }
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const colorOf = (c: number) => (c > 0 ? 'var(--warn)' : c < 0 ? 'var(--accent)' : 'var(--faint)');
 
 function Badge({ name }: { name: string }) {
@@ -47,7 +47,7 @@ function StockRow({ code, name, price, changeRate, href }: { code: string; name:
 /** 인기 | 관심 종목 탭 — 2.0 홈 '관심종목' 카드도 이걸 쓴다(initial='watch', limit 행 수) */
 export function StockTabs({ initial = 'popular', limit }: { initial?: 'popular' | 'watch'; limit?: number }) {
   const [tab, setTab] = useState<'popular' | 'watch'>(initial);
-  const { data: st } = useSWR<StatusResp>('/api/home/status', fetcher, { refreshInterval: tab === 'popular' ? 20000 : 0, revalidateOnFocus: false, keepPreviousData: true });
+  const { data: st, error: stErr } = useSWR<StatusResp>('/api/home/status', jsonFetcher, { refreshInterval: tab === 'popular' ? 20000 : 0, revalidateOnFocus: false, keepPreviousData: true });
   const { watchlist, mounted } = useWatchlist();
   const tickers = watchlist.map((w) => w.ticker).join(',');
   const { data: batch } = useSWR<BatchItem[] | Record<string, BatchItem>>(
@@ -79,7 +79,10 @@ export function StockTabs({ initial = 'popular', limit }: { initial?: 'popular' 
       <div>
         {tab === 'popular' ? (
           popular.length === 0
-            ? <div className="skeleton" style={{ height: 200, margin: '10px 0', borderRadius: 10 }} />
+            // 첫 로드 실패면 뼈대와 같은 높이(200)로 안내
+            ? stErr && !st
+              ? <div style={{ height: 200, margin: '10px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: 13, color: 'var(--faint)' }}>불러오지 못했습니다. 잠시 후 다시 시도합니다.</div>
+              : <div className="skeleton" style={{ height: 200, margin: '10px 0', borderRadius: 10 }} />
             : popular.map((p) => <StockRow key={p.code} code={p.code} name={p.name} price={p.price} changeRate={p.changeRate} href={`/stock/${p.code}`} />)
         ) : (
           !mounted

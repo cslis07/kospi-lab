@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import type { StockData, ChartPoint, InvestorTrend } from '@/lib/types';
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { jsonFetcher } from '@/lib/fetcher';
 
 const TIMEFRAMES = [
   { label: '1개월', months: 1  },
@@ -106,20 +105,21 @@ export default function StockDetailModal({ code, name, market, onClose }: Props)
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const { data: rawStock } = useSWR<StockData | { error: string }>(
-    `/api/stock/${code}`, fetcher, { refreshInterval: 5000 }
+  const { data: rawStock, error: stockErr } = useSWR<StockData | { error: string }>(
+    `/api/stock/${code}`, jsonFetcher, { refreshInterval: 5000 }
   );
   // 502 {error}(상장폐지·조회 실패)면 시세 칸을 그리지 않는다 — 예전엔 stock.changeRate.toFixed 에서 화면 전체가 오류로 넘어갔다
-  const stockFailed = !!rawStock && ('error' in rawStock || typeof (rawStock as StockData).price !== 'number');
+  // 이제 실패는 SWR error 로 온다: 받은 시세가 없을 때만 실패 표시(갱신 실패는 직전 시세 유지)
+  const stockFailed = (!!stockErr && !rawStock) || (!!rawStock && ('error' in rawStock || typeof (rawStock as StockData).price !== 'number'));
   const stock: StockData | undefined = rawStock && !stockFailed ? (rawStock as StockData) : undefined;
-  const { data: chart } = useSWR<ChartPoint[]>(
-    `/api/stock/${code}/chart?months=${tf.months}`, fetcher, { refreshInterval: 60000 }
+  const { data: chart, error: chartErr } = useSWR<ChartPoint[]>(
+    `/api/stock/${code}/chart?months=${tf.months}`, jsonFetcher, { refreshInterval: 60000 }
   );
   const { data: investor } = useSWR<InvestorTrend[]>(
-    `/api/stock/${code}/investor`, fetcher
+    `/api/stock/${code}/investor`, jsonFetcher
   );
   const { data: kis } = useSWR<KisQuote>(
-    `/api/kis/price?ticker=${code}`, fetcher, { refreshInterval: 30000 }
+    `/api/kis/price?ticker=${code}`, jsonFetcher, { refreshInterval: 30000 }
   );
 
   const chartData     = Array.isArray(chart)    ? chart    : [];
@@ -260,7 +260,7 @@ export default function StockDetailModal({ code, name, market, onClose }: Props)
             </ResponsiveContainer>
           ) : (
             <div className="h-44 flex items-center justify-center text-[var(--text-muted)] text-xs">
-              차트 로딩 중…
+              {chartErr && !chart ? '차트를 불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '차트 로딩 중…'}
             </div>
           )}
         </div>

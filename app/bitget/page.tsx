@@ -3,6 +3,7 @@
 import useSWR from 'swr';
 import UnlockGate from '@/components/UnlockGate';
 import ClosedTrades from '@/components/ClosedTrades';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 
 interface Asset {
   coin: string;
@@ -89,7 +90,8 @@ const BIZ_LABEL: Record<string, string> = {
 };
 const bizLabel = (b: string) => BIZ_LABEL[b] ?? b.toLowerCase().replace(/_/g, ' ');
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// 게이트 API(/api/bitget) — 401 은 { locked: true } 데이터(잠금 안내 유지), 502 등 실패는 error 로(직전 값 유지, 메시지는 error.message)
+const fetcher = gatedJsonFetcher;
 const fmtUsd = (n: number) => {
   if (n <= 0) return '0';
   if (n < 0.01) return '<0.01';
@@ -98,7 +100,7 @@ const fmtUsd = (n: number) => {
 };
 
 export default function BitgetPage() {
-  const { data, isLoading } = useSWR<AccountResp>('/api/bitget/account', fetcher, {
+  const { data, error, isLoading } = useSWR<AccountResp>('/api/bitget/account', fetcher, {
     refreshInterval: 30000,
     revalidateOnFocus: false,
   });
@@ -141,7 +143,7 @@ export default function BitgetPage() {
         </div>
       </details>
 
-      {isLoading && (
+      {isLoading && !error && (
         <div className="space-y-3">
           <div className="h-24 rounded-2xl bg-[var(--surface-2)] animate-pulse" />
           {[...Array(4)].map((_, i) => <div key={i} className="h-14 rounded-xl bg-[var(--surface-2)] animate-pulse" />)}
@@ -180,11 +182,11 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
         </div>
       )}
 
-      {/* 키 설정됨 + 에러 */}
-      {data?.configured && data.error && (
+      {/* 키 설정됨 + 에러 — 조회 실패(502)는 SWR error 로 온다(첫 로드 실패일 때만 표시, 갱신 실패면 직전 잔고 유지) */}
+      {((data?.configured && data.error) || (!data && error)) && (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-5">
           <p className="text-sm font-semibold text-red-500 mb-1">조회 실패</p>
-          <p className="text-xs text-[var(--text-muted)] break-all">{data.error}</p>
+          <p className="text-xs text-[var(--text-muted)] break-all">{data?.error ?? error?.message}</p>
           <p className="text-xs text-[var(--text-muted)] mt-2">키 권한·Passphrase·IP 화이트리스트를 확인하세요.</p>
         </div>
       )}

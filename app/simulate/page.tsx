@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import useSWR from 'swr';
+import { jsonFetcher } from '@/lib/fetcher';
 import dynamic from 'next/dynamic';
 import PageHeader from '@/components/ui/PageHeader';
 import Segmented from '@/components/ui/Segmented';
@@ -18,7 +19,8 @@ const SimulateChart = dynamic(() => import('@/components/SimulateChart'), {
   loading: () => <div className="skeleton rounded-xl" style={{ height: 260 }} aria-label="그래프 로딩 중" />,
 });
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 값을 유지하고 error 로 알린다
+const fetcher = jsonFetcher;
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, isNaN(n) ? lo : n));
 
 const fmtW = (n: number) =>
@@ -227,7 +229,7 @@ function LeverageCalc() {
   // 코인 전환 시 진입가·목표가·손절가 초기화(현재가 기준으로)
   useEffect(() => { setEntryStr(''); setTargetStr(''); setStopStr(''); }, [symbol]);
 
-  const { data: prices } = useSWR<Record<string, { price: number }>>(
+  const { data: prices, error: pricesError } = useSWR<Record<string, { price: number }>>(
     `/api/crypto/batch?symbols=${COINS.map((c) => c.symbol).join(',')}`,
     fetcher,
     { refreshInterval: 10000 },
@@ -235,10 +237,10 @@ function LeverageCalc() {
   const { data: market } = useSWR('/api/market', fetcher, { refreshInterval: 30000 });
   const usdtKrw: number | null = market?.usdtkrw?.value ?? market?.usdkrw?.value ?? null;
   // 선물 펀딩비(8h, %) — 실손익용
-  const { data: futures } = useSWR<{ symbol: string; fundingRate: number | null }[]>(
+  const { data: futures, error: futuresError } = useSWR<{ symbol: string; fundingRate: number | null }[]>(
     '/api/futures/tickers', fetcher, { refreshInterval: 60000 },
   );
-  // 실패 시 라우트가 502 {error} 객체를 준다 — 배열일 때만 찾는다(예전엔 .find TypeError 로 화면 전체가 오류로 넘어감)
+  // 실패(502 {error})는 이제 jsonFetcher 가 예외로 돌린다 — 그래도 배열일 때만 찾는다(예전엔 .find TypeError 로 화면 전체가 오류로 넘어감)
   const fundingPct = (Array.isArray(futures) ? futures.find((f) => f.symbol === symbol)?.fundingRate : null) ?? null; // 8h당 %
   const { limits: riskLimits } = useRiskLimits();      // 1회 손실 한도(서킷브레이커 설정 공유)
 
@@ -353,7 +355,7 @@ function LeverageCalc() {
             <p className="text-[11px] text-[var(--text-muted)] mt-0.5">고립(격리) 마진 기준 · 최대 손실 = 증거금 <b className="text-[var(--text)] tabular-nums">{margin.toLocaleString('en-US')} USDT</b>(청산 시)</p>
           </div>
           <span className="text-xs text-[var(--text-muted)] tabular-nums">
-            현재가 {price ? `$${price.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '로딩…'}
+            현재가 {price ? `$${price.toLocaleString('en-US', { maximumFractionDigits: dg })}` : !prices && pricesError ? '불러오지 못함' : '로딩…'}
             {usingManualEntry && <span className="text-sky-400"> · 기준 ${entry.toLocaleString('en-US', { maximumFractionDigits: dg })}</span>}
           </span>
         </div>
@@ -442,7 +444,7 @@ function LeverageCalc() {
               <SimSlider label="보유 시간" sliderValue={holdH} sliderMin={0} sliderMax={720} sliderStep={1} onSlider={setHoldH}
                 numValue={holdH} numMin={0} numMax={8760} numStep={1} unit="시간" onNum={setHoldH} numW="w-20" />
               <p className="text-cap-pc text-[var(--text-muted)]">
-                진입 {(openRate * 100).toFixed(2)}% + 청산 {(closeRate * 100).toFixed(2)}% · 펀딩 {fundingPct != null ? `${fundingPct >= 0 ? '+' : ''}${fundingPct.toFixed(4)}%/8h (${dir === 'long' ? (fundingPct >= 0 ? '롱 지급' : '롱 수취') : (fundingPct >= 0 ? '숏 수취' : '숏 지급')})` : '로딩…'} · {fundingPeriods.toFixed(1)}회 · Bitget VIP0 기준(BGB 할인 미적용)
+                진입 {(openRate * 100).toFixed(2)}% + 청산 {(closeRate * 100).toFixed(2)}% · 펀딩 {fundingPct != null ? `${fundingPct >= 0 ? '+' : ''}${fundingPct.toFixed(4)}%/8h (${dir === 'long' ? (fundingPct >= 0 ? '롱 지급' : '롱 수취') : (fundingPct >= 0 ? '숏 수취' : '숏 지급')})` : !futures && futuresError ? '불러오지 못함' : '로딩…'} · {fundingPeriods.toFixed(1)}회 · Bitget VIP0 기준(BGB 할인 미적용)
               </p>
             </div>
           )}

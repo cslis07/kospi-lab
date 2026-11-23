@@ -10,8 +10,8 @@ import { useState } from 'react';
 import Collapsible from '@/components/ui/Collapsible';
 import Segmented from '@/components/ui/Segmented';
 import { yoy, type StockFinance, type FinPeriod } from '@/lib/stockFinance';
+import { jsonFetcher } from '@/lib/fetcher';
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 type Per = 'quarter' | 'annual';
 type Metric = 'revenue' | 'op' | 'net';
 const PERS: readonly (readonly [Per, string])[] = [['quarter', '분기'], ['annual', '연간']];
@@ -64,8 +64,9 @@ export default function FinanceSection(props: { kind: 'kr'; code: string } | { k
   const [per, setPer] = useState<Per>('quarter');
   const [metric, setMetric] = useState<Metric>('op');
   const url = props.kind === 'kr' ? `/api/stock/${props.code}/finance?period=${per}` : `/api/overseas/finance?symbol=${encodeURIComponent(props.symbol)}&period=${per}`;
-  const { data } = useSWR<StockFinance & { error?: string }>(url, fetcher, { revalidateOnFocus: false, keepPreviousData: true });
-  if (data && (data.error || !data.periods?.length) && per === 'quarter') return null; // 실적 자료 없는 종목(ETF 등)은 카드째 숨김
+  const { data, error } = useSWR<StockFinance & { error?: string }>(url, jsonFetcher, { revalidateOnFocus: false, keepPreviousData: true });
+  // 실적 자료 없는 종목(ETF 등)·분기 첫 로드 실패는 카드째 숨김(예전처럼 실패 응답이 데이터로 오던 때와 같은 동작)
+  if (((data && (data.error || !data.periods?.length)) || (error && !data)) && per === 'quarter') return null;
   const usd = props.kind === 'us';
   const ps = data?.periods ?? [];
   const annual = per === 'annual';
@@ -76,7 +77,7 @@ export default function FinanceSection(props: { kind: 'kr'; code: string } | { k
         <Segmented label="실적 기간" value={per} options={PERS} onChange={setPer} />
         <Segmented label="실적 항목" value={metric} options={usd ? METRICS.map(([k, l]) => [k, k === 'op' ? 'EBIT' : l] as const) : METRICS} onChange={setMetric} />
       </div>
-      {!data ? <div className="skeleton" style={{ height: 180 }} /> : !ps.length ? (
+      {!data ? (error ? <p className="text-[12.5px] text-[var(--text-muted)] py-6 text-center">불러오지 못했습니다. 잠시 후 다시 시도합니다.</p> : <div className="skeleton" style={{ height: 180 }} />) : !ps.length ? (
         <p className="text-[12.5px] text-[var(--text-muted)] py-6 text-center">{annual ? '연간' : '분기'} 실적 자료가 없습니다.</p>
       ) : (
         <>

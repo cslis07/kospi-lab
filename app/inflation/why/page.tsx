@@ -2,10 +2,12 @@
 
 /** 오늘 왜 움직였나 — latestSnapshot.json. 게이지 최신값·전일/전주/전월·연율 페이스·한 달 기여 품목. */
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import { snapDrivers, gapExplainedParts, categorize, pct, signPp, type LatestSnapshot, type GapExplained, type Cat } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 const sign = (v: number | null | undefined) => (v == null ? 'text-[var(--text-muted)]' : v > 0 ? 'text-red-400' : v < 0 ? 'text-blue-400' : 'text-[var(--text)]');
 
@@ -17,7 +19,7 @@ const CAT_STYLE: Record<Cat, string> = {
 };
 
 export default function WhyPage() {
-  const { data: s } = useSWR<LatestSnapshot>('/api/nf/latestSnapshot.json', fetcher, SWR_OPT);
+  const { data: s, error: sErr } = useSWR<LatestSnapshot>('/api/nf/latestSnapshot.json', fetcher, SWR_OPT);
 
   return (
     <>
@@ -80,7 +82,7 @@ export default function WhyPage() {
         </>
       )}
 
-      {!s && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!s && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{sErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (CC BY 4.0, 중계). 모델 추정치이며 예측·투자 권유가 아닙니다.

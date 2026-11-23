@@ -6,14 +6,16 @@
  */
 import useSWR from 'swr';
 import Link from 'next/link';
+import { jsonFetcher } from '@/lib/fetcher';
 
 interface RankItem { code: string; name: string; market: string; close: number; change: number; changeRate: number }
 interface RankResp { configured: boolean; date?: string; rankings?: { gainers?: RankItem[]; losers?: RankItem[] } }
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 값을 유지한다(오류 본문이 데이터로 덮어쓰지 않게)
+const fetcher = jsonFetcher;
 
 export default function RankList({ kind, limit = 4 }: { kind: 'gainers' | 'losers'; limit?: number }) {
-  const { data, isLoading } = useSWR<RankResp>('/api/krx/ranking', fetcher, { refreshInterval: 300000, revalidateOnFocus: false });
+  const { data, isLoading, error } = useSWR<RankResp>('/api/krx/ranking', fetcher, { refreshInterval: 300000, revalidateOnFocus: false });
   const up = kind === 'gainers';
   const rows = (data?.rankings?.[kind] ?? []).slice(0, limit);
   const date = data?.date && data.date.length === 8 ? `${data.date.slice(4, 6)}.${data.date.slice(6, 8)} 기준` : null;
@@ -53,7 +55,7 @@ export default function RankList({ kind, limit = 4 }: { kind: 'gainers' | 'loser
           ))
         ) : (
           <p className="px-4 py-6 text-center text-xs text-[var(--text-muted)]">
-            {data?.configured === false ? 'KRX 데이터 연결 전입니다' : '표시할 종목이 없습니다'}
+            {!data && error ? '순위를 불러오지 못했습니다. 잠시 후 다시 시도합니다.' : data?.configured === false ? 'KRX 데이터 연결 전입니다' : '표시할 종목이 없습니다'}
           </p>
         )}
       </div>

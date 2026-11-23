@@ -19,10 +19,12 @@ import ActionSheet, { KebabButton, type SheetAction } from '@/components/ui/Acti
 import { badgeTint } from '@/components/WatchRow';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import type { OverseasStockData, ChartPoint } from '@/lib/types';
+import { jsonFetcher } from '@/lib/fetcher';
 
 const UP = '#ff4433';
 const DOWN = '#1c6cff';
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 값을 유지하고 error 로 알린다
+const fetcher = jsonFetcher;
 // Yahoo 내부 거래소 코드 → 통용 명칭(NMS 같은 코드가 그대로 노출되지 않게)
 const EXCHANGE: Record<string, string> = { NMS: 'NASDAQ', NGM: 'NASDAQ', NCM: 'NASDAQ', NASDAQGS: 'NASDAQ', NASDAQGM: 'NASDAQ', NYQ: 'NYSE', NYSE: 'NYSE', PCX: 'NYSE Arca', ASE: 'NYSE American', BTS: 'Cboe' };
 const exName = (code: string) => EXCHANGE[code.replace(/\s/g, '').toUpperCase()] ?? code;
@@ -49,7 +51,7 @@ export default function OverseasDetailPage() {
 
   const { data: batch, error } = useSWR<Record<string, OverseasStockData>>(
     symbol ? `/api/overseas/batch?symbols=${encodeURIComponent(symbol)}` : null, fetcher, { refreshInterval: 15000 });
-  const { data: chart } = useSWR<ChartPoint[]>(
+  const { data: chart, error: chartError } = useSWR<ChartPoint[]>(
     symbol ? `/api/overseas/chart?symbol=${encodeURIComponent(symbol)}&months=${TIMEFRAMES[tfIdx].months}` : null, fetcher, { refreshInterval: 300000 });
   const { data: market } = useSWR<{ usdkrw?: { value: number } | null }>('/api/market', fetcher, { refreshInterval: 60000, revalidateOnFocus: false });
 
@@ -123,7 +125,8 @@ export default function OverseasDetailPage() {
         </div>
       </SwipeNav>
 
-      <PriceChart points={chart} isUp={isUp} tfIdx={tfIdx} onTf={setTfIdx} fmt={usd} yFmt={yFmt} />
+      {/* 첫 로딩 실패 시 빈 배열을 넘겨 '불러오지 못했습니다' 안내(스켈레톤에 멈추지 않게) */}
+      <PriceChart points={chart ?? (chartError ? [] : undefined)} isUp={isUp} tfIdx={tfIdx} onTf={setTfIdx} fmt={usd} yFmt={yFmt} />
 
       {d && pos !== null && (
         <Collapsible title="52주 위치" sub={`하단에서 ${Math.round(pos * 100)}%`} defaultOpen>

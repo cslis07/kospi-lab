@@ -8,6 +8,7 @@
  */
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 
 interface ClosedPosition {
   positionId: string; symbol: string; side: 'long' | 'short';
@@ -17,7 +18,8 @@ interface ClosedPosition {
 }
 interface Resp { configured?: boolean; error?: string; positions?: ClosedPosition[]; slRecovered?: number; days?: number }
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// 게이트 API — 401 은 본문({ locked, error }) 그대로 데이터(아래 data.error 안내 유지), 그 밖의 실패는 error 로(직전 내역 유지)
+const fetcher = gatedJsonFetcher;
 const fnum = (n: number, d = 2) => n.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: 0 });
 const fdt = (ts: number) => { const d = new Date(ts); return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const fdate = (ts: number) => { const d = new Date(ts); return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; };
@@ -28,7 +30,7 @@ export default function ClosedTrades() {
   const [days, setDays] = useState(30);
   const [sortKey, setSortKey] = useState<SortKey>('time');
   const [asc, setAsc] = useState(false);
-  const { data, isLoading } = useSWR<Resp>(`/api/bitget/history?days=${days}`, fetcher, { revalidateOnFocus: false });
+  const { data, error, isLoading } = useSWR<Resp>(`/api/bitget/history?days=${days}`, fetcher, { revalidateOnFocus: false });
 
   const pos = useMemo(() => data?.positions ?? [], [data]);
   const sorted = useMemo(() => {
@@ -75,10 +77,11 @@ export default function ClosedTrades() {
         </div>
       </div>
 
-      {isLoading && <p className="text-xs text-[var(--text-muted)] py-6 text-center animate-pulse">거래소 이력 불러오는 중…</p>}
+      {isLoading && !error && <p className="text-xs text-[var(--text-muted)] py-6 text-center animate-pulse">거래소 이력 불러오는 중…</p>}
       {data?.error && (
         <p className="text-xs text-amber-600 py-4">청산 내역 조회 실패 — API 키에 <strong>선물 읽기</strong> 권한이 필요합니다. (현물은 별개)</p>
       )}
+      {!data && error && <p className="text-xs text-amber-600 py-4">청산 내역을 불러오지 못했습니다. 잠시 후 다시 시도합니다.</p>}
       {data && !data.error && pos.length === 0 && (
         <p className="text-xs text-[var(--text-muted)] py-6 text-center">최근 {days}일 청산된 선물 포지션이 없습니다.</p>
       )}

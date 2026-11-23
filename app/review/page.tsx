@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
+import { gatedJsonFetcher, jsonFetcher } from '@/lib/fetcher';
 import TradeCalendar from '@/components/TradeCalendar';
 import BreakdownTables from '@/components/BreakdownTables';
 import CostCard from '@/components/CostCard';
@@ -30,7 +31,6 @@ const fmtPnl = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).
 const fmtUsdt = (n: number) => (Math.abs(n) >= 1000 ? Math.round(n).toLocaleString() : String(Math.round(n * 100) / 100));
 const tone = (n: number) => (n > 0 ? 'var(--warn)' : n < 0 ? 'var(--accent-ink)' : 'var(--text)');
 const signed = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmtUsdt(Math.abs(v))}`;
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 const DAY = 86_400_000;
 
 /** 상세 드롭다운 — 접힌 상태가 기본 */
@@ -74,8 +74,8 @@ export default function ReviewPage() {
   const [loaded, setLoaded] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const { limits } = useRiskLimits();
-  const { data: fx } = useSWR<{ price: number | null }>('/api/crypto/usdt-krw', fetcher, { refreshInterval: 60_000 });
-  const { data: gm } = useSWR<{ marks: GuardMark[] }>('/api/bitget/guard-marks', fetcher, { revalidateOnFocus: false });
+  const { data: fx } = useSWR<{ price: number | null }>('/api/crypto/usdt-krw', jsonFetcher, { refreshInterval: 60_000 });
+  const { data: gm } = useSWR<{ marks: GuardMark[] }>('/api/bitget/guard-marks', gatedJsonFetcher, { revalidateOnFocus: false });
   const usdtKrw = fx?.price ?? null;
   /** USDT → 원화 문자열(테더 시세 없으면 null) */
   const krw = useCallback((usdt: number) => {

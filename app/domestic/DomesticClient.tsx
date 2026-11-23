@@ -14,10 +14,12 @@ import type { StockItem } from '@/lib/stockList';
 import type { StockData } from '@/lib/types';
 import Mini52 from '@/components/Mini52';
 import { batchFetcher } from '@/lib/stockBatch';
+import { jsonFetcher } from '@/lib/fetcher';
 import { ALL_STOCKS, FIRST_KEY, REST_KEY } from '@/lib/domesticKeys';
 import { kstClock, kstStamp } from '@/lib/kstClock';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 시세를 유지하고 error 로 알린다
+const fetcher = jsonFetcher;
 
 // ── 브랜드 로고 ───────────────────────────────────────────────
 const BRAND: Record<string, { bg: string; color: string; label: string }> = {
@@ -87,8 +89,8 @@ export default function DomesticClient({ snapshotAt }: { snapshotAt?: number }) 
   }, []);
   // 청크 × 20종목을 5초마다 갱신하면 네이버 호출이 과하다 → 15초. 첫 청크는 먼저 그리고 나머지는 한 번에 받는다.
   const OPT = { refreshInterval: 15000, dedupingInterval: 5000, revalidateOnFocus: false };
-  const { data: d0 } = useSWR<Record<string, StockData>>(FIRST_KEY, fetcher, OPT);
-  const { data: dRest } = useSWR<Record<string, StockData>>(REST_KEY, batchFetcher<StockData>, OPT);
+  const { data: d0, error: e0 } = useSWR<Record<string, StockData>>(FIRST_KEY, fetcher, OPT);
+  const { data: dRest, error: eRest } = useSWR<Record<string, StockData>>(REST_KEY, batchFetcher<StockData>, OPT);
   // 서버가 넣어 준 값(fallback)을 아직 그대로 쓰는 중인지 — SWR 은 새로 받기 전까지 fallback 객체를 그대로 돌려준다
   const { fallback } = useSWRConfig();
   const fromSnapshot = !!d0 && FIRST_KEY != null && d0 === fallback?.[FIRST_KEY];
@@ -97,7 +99,9 @@ export default function DomesticClient({ snapshotAt }: { snapshotAt?: number }) 
     () => Object.assign({}, d0, dRest),
     [d0, dRest]
   );
-  const isLoading = !d0 && !dRest;
+  // 둘 다 실패하면 스켈레톤에 멈추지 않고 실패 안내를 띄운다
+  const loadFailed = !d0 && !dRest && (!!e0 || !FIRST_KEY) && (!!eRest || !REST_KEY);
+  const isLoading = !d0 && !dRest && !loadFailed;
 
   const { watchlist, add, remove, mounted } = useWatchlist();
 
@@ -235,6 +239,8 @@ export default function DomesticClient({ snapshotAt }: { snapshotAt?: number }) 
               </div>
             ))}
           </div>
+        ) : loadFailed ? (
+          <div className="py-20 text-center text-[var(--text-muted)] text-sm">시세를 불러오지 못했습니다. 잠시 후 다시 시도합니다.</div>
         ) : filtered.length === 0 ? (
           <div className="py-20 text-center text-[var(--text-muted)] text-sm">해당 조건의 종목이 없습니다</div>
         ) : (

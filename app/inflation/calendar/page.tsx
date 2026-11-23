@@ -2,18 +2,20 @@
 
 /** 발표 일정(미국) — release_calendar(나우캐스트 예측 포함 주요 지표) + econcal_window(미국 주요 경제 이벤트). */
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import { usHighImpact, type ReleaseCalendar, type EconCalWindow } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 const fx = (x?: number | null) => (x == null || !Number.isFinite(x) ? '—' : x.toFixed(x >= 10 ? 1 : 2));
 const KIND_KO: Record<string, string> = { cpi: 'CPI', pce: 'PCE', ppi: 'PPI', jobs: '고용', nfp: '고용', gdp: 'GDP', retail: '소매판매' };
 const dShort = (d?: string) => (d ? d.slice(0, 10).replace(/-/g, '.').slice(2) : '—');
 
 export default function CalendarPage() {
-  const { data: rc } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, SWR_OPT);
-  const { data: ec } = useSWR<EconCalWindow>('/api/nf/econcal_window.json', fetcher, SWR_OPT);
+  const { data: rc, error: rcErr } = useSWR<ReleaseCalendar>('/api/nf/release_calendar.json', fetcher, SWR_OPT);
+  const { data: ec, error: ecErr } = useSWR<EconCalWindow>('/api/nf/econcal_window.json', fetcher, SWR_OPT);
   const locked = rc?.locked || ec?.locked;
   const releases = (rc?.events ?? []).slice(0, 10);
   const events = usHighImpact(ec, 24);
@@ -75,7 +77,7 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {!rc && !ec && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!rc && !ec && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{rcErr && ecErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (CC BY 4.0, 중계). 발표 시각은 미 동부(ET) 기준. 공시·실적 일정은 앱 <a href="/calendar" className="text-[var(--accent-ink)]">경제 캘린더</a>를 참고하세요.

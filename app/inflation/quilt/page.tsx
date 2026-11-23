@@ -3,17 +3,19 @@
 /** 인플레 히트맵 — quilt_months_*.json. 품목 × 월 YoY 색지도(빨강=상승·파랑=하락, 진할수록 큼). 가로 스크롤. */
 import { useState } from 'react';
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import { quiltCellColor, type Quilt } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 const mLabel = (m: string) => { const [y, mm] = m.split('-'); return `${y.slice(2)}.${mm}`; };
 const cellPct = (yoy?: number | null) => (yoy == null || !Number.isFinite(yoy) ? '' : `${(yoy * 100).toFixed(1)}`);
 
 export default function QuiltPage() {
   const [win, setWin] = useState<24 | 48>(24);
-  const { data: q } = useSWR<Quilt>(`/api/nf/quilt_months_${win}.json`, fetcher, SWR_OPT);
+  const { data: q, error: qErr } = useSWR<Quilt>(`/api/nf/quilt_months_${win}.json`, fetcher, SWR_OPT);
   const months = q?.months ?? [];
   const comps = q?.components ?? [];
 
@@ -62,7 +64,7 @@ export default function QuiltPage() {
         </div>
       )}
 
-      {!q && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!q && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{qErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <div className="flex items-center gap-2 text-cap-pc text-[var(--text-muted)] mb-3">
         <span className="inline-block w-3 h-3 rounded-sm" style={{ background: quiltCellColor(-0.05) }} /> 하락

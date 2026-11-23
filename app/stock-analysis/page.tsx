@@ -22,8 +22,7 @@ import { TagPickRow, ConvictionPickRow } from '@/components/TagPicker';
 
 import { jsonFetcher, ApiError } from '@/lib/fetcher';
 
-// 시세 등 부수 요청은 조용히 실패해도 무방하지만, 분석 본문은 jsonFetcher(throw)를 쓴다
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 시세·종목 검색 같은 부수 요청도 jsonFetcher — 실패는 화면에 따로 알리지 않고(조용히) 직전 값을 유지한다
 
 /* ── 타입 ────────────────────────────────────────────── */
 interface TF {
@@ -144,7 +143,7 @@ export default function StockAnalysisPage() {
   // 분석(무거운 스냅샷)과 별개로 시세만 10초 폴링 — 네이버 basic 단건이라 저렴하다
   const { data: liveTick } = useSWR<{ price: number; change: number; changeRate: number }>(
     run ? `/api/stock/${run.ticker}` : null,
-    fetcher,
+    jsonFetcher,
     { refreshInterval: 10000, dedupingInterval: 5000, revalidateOnFocus: false },
   );
 
@@ -188,7 +187,7 @@ export default function StockAnalysisPage() {
   const [showDrop, setShowDrop] = useState(false);
   const { data: hits } = useSWR<{ code: string; name: string; market: string }[]>(
     query.trim().length >= 1 && !KR_CODE_RE.test(query.trim().toUpperCase()) ? `/api/stock-search?q=${encodeURIComponent(query.trim())}` : null,
-    fetcher,
+    jsonFetcher,
   );
   // 우선주 뒤로, 보통주/대표주 우선 정렬
   const suggestions: SearchHit[] = useMemo(() => {

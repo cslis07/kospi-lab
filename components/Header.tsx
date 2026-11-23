@@ -14,11 +14,13 @@ import ThemeToggle from './ThemeToggle';
 import { activeItem, drillTitle, pageOwnsH1 } from '@/lib/menu';
 import type { FxRate } from '@/lib/types';
 import { useAppPathname } from '@/hooks/useAppPathname';
+import { jsonFetcher } from '@/lib/fetcher';
 
 // 앱바는 쿼리 없는 메뉴 항목만 판정하므로 빈 파라미터로 충분(useSearchParams 를 쓰면 레이아웃 전체에 Suspense 가 필요해진다)
 const NO_QUERY = new URLSearchParams();
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 값을 유지한다(오류 본문이 데이터로 덮어쓰지 않게)
+const fetcher = jsonFetcher;
 
 /* ── 시장 상태 & 카운트다운 훅 ────────────────────────── */
 interface MarketStatus {

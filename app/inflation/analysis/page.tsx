@@ -2,17 +2,19 @@
 
 /** 발표일 분석 — nextprint 로 이번 발표월을 얻어 print_<YYYY_MM>.json(예측 대 실제). 발표 전=예측 비교, 발표 후=적중. */
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import { printFile, pct, type PrintDay, type PrintTarget } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 const sign = (v: number | null | undefined) => (v == null ? 'text-[var(--text-muted)]' : v > 0 ? 'text-red-400' : v < 0 ? 'text-blue-400' : 'text-[var(--text)]');
 
 export default function AnalysisPage() {
-  const { data: np } = useSWR<{ print_month?: string; locked?: boolean }>('/api/nf/nextprint.json', fetcher, SWR_OPT);
+  const { data: np, error: npErr } = useSWR<{ print_month?: string; locked?: boolean }>('/api/nf/nextprint.json', fetcher, SWR_OPT);
   const file = printFile(np?.print_month);
-  const { data: pd } = useSWR<PrintDay>(file ? `/api/nf/${file}` : null, fetcher, SWR_OPT);
+  const { data: pd, error: pdErr } = useSWR<PrintDay>(file ? `/api/nf/${file}` : null, fetcher, SWR_OPT);
   const locked = np?.locked || pd?.locked;
   const released = pd?.status === 'released';
 
@@ -48,7 +50,8 @@ export default function AnalysisPage() {
       )}
 
       {!locked && np && !file && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">예정된 발표 분석이 아직 없습니다.</p>}
-      {!np && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!locked && np && file && !pd && pdErr && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오지 못했습니다. 잠시 후 다시 시도합니다.</p>}
+      {!np && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{npErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (CC BY 4.0, 중계). 발표 시각은 미 동부(ET) 기준. 스코어보드는 <a href="/inflation/scoreboard" className="text-[var(--accent-ink)]">예측 스코어보드</a>를 참고하세요.

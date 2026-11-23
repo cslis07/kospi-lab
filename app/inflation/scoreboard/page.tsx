@@ -2,17 +2,19 @@
 
 /** 예측 스코어보드 — accountability(발표별 누가 맞혔나) + backtest(장기 성적). 정직한 한계 표기, 매매 신호 아님. */
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import { acctForecasters, type Accountability, type Backtest } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 const fx = (x?: number) => (x == null || !Number.isFinite(x) ? '—' : x.toFixed(2));
 const pctOf = (x?: number) => (x == null || !Number.isFinite(x) ? '—' : `${(x * 100).toFixed(0)}%`);
 
 export default function ScoreboardPage() {
-  const { data: acct } = useSWR<Accountability>('/api/nf/accountability_target_cpi_headline_yoy.json', fetcher, SWR_OPT);
-  const { data: bt } = useSWR<Backtest>('/api/nf/backtest.json', fetcher, SWR_OPT);
+  const { data: acct, error: acctErr } = useSWR<Accountability>('/api/nf/accountability_target_cpi_headline_yoy.json', fetcher, SWR_OPT);
+  const { data: bt, error: btErr } = useSWR<Backtest>('/api/nf/backtest.json', fetcher, SWR_OPT);
   const locked = acct?.locked || bt?.locked;
   const prints = (acct?.prints ?? []).slice(0, 6);
   const s = bt?.summary;
@@ -73,7 +75,7 @@ export default function ScoreboardPage() {
         </div>
       )}
 
-      {!acct && !bt && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!acct && !bt && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{acctErr && btErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (CC BY 4.0, 중계). 백테스트는 빈티지 기준 과거 재현치로 표본이 작습니다. 서프라이즈로 방향을 맞히는 우위는 이 앱의 측정에서 확인되지 않았습니다.

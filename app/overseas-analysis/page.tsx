@@ -14,10 +14,12 @@ import PriceChart from '@/components/detail/PriceChartLazy';
 import { TIMEFRAMES } from '@/components/detail/chartLayout';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import type { OverseasStockData, ChartPoint } from '@/lib/types';
+import { jsonFetcher } from '@/lib/fetcher';
 
 const UP = '#ff4433';
 const DOWN = '#1c6cff';
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 값을 유지하고 error 로 알린다
+const fetcher = jsonFetcher;
 const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const yFmt = (v: number) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}K` : `$${v.toFixed(v >= 100 ? 0 : 2)}`);
 function fmtCap(n?: number | null) {
@@ -67,9 +69,9 @@ function Inner() {
 
   const { data: batch, error } = useSWR<Record<string, OverseasStockData>>(
     symbol ? `/api/overseas/batch?symbols=${encodeURIComponent(symbol)}` : null, fetcher, { refreshInterval: 15000 });
-  const { data: chart } = useSWR<ChartPoint[]>(
+  const { data: chart, error: chartError } = useSWR<ChartPoint[]>(
     symbol ? `/api/overseas/chart?symbol=${encodeURIComponent(symbol)}&months=${TIMEFRAMES[tfIdx].months}` : null, fetcher, { refreshInterval: 300000 });
-  const { data: scr } = useSWR<ScreenerResult[] | { error: string }>(
+  const { data: scr, error: scrError } = useSWR<ScreenerResult[] | { error: string }>(
     symbol ? `/api/screener?tickers=${encodeURIComponent(symbol)}&market=US` : null, fetcher, { revalidateOnFocus: false });
   const { data: market } = useSWR<{ usdkrw?: { value: number } | null }>('/api/market', fetcher, { refreshInterval: 60000, revalidateOnFocus: false });
   const usdRate = market?.usdkrw?.value;
@@ -80,7 +82,8 @@ function Inner() {
 
   const d = batch?.[symbol];
   const f = Array.isArray(scr) ? scr[0] : undefined;
-  const scrFailed = scr && !Array.isArray(scr);
+  // 200 {error}(소스 모두 실패) 또는 요청 자체 실패(non-2xx) — 같은 안내
+  const scrFailed = (scr && !Array.isArray(scr)) || (!scr && !!scrError);
   const isUp = (d?.change ?? 0) >= 0;
   const name = d?.name ?? wl.watchlist.find((w) => w.symbol === symbol)?.name ?? symbol;
   const pos = d?.high52w && d?.low52w && d.high52w > d.low52w ? (d.price - d.low52w) / (d.high52w - d.low52w) : null;
@@ -124,7 +127,8 @@ function Inner() {
       </div>
 
       {/* 가격 차트 */}
-      <PriceChart points={chart} isUp={isUp} tfIdx={tfIdx} onTf={setTfIdx} fmt={usd} yFmt={yFmt} />
+      {/* 첫 로딩 실패 시 빈 배열을 넘겨 '불러오지 못했습니다' 안내(스켈레톤에 멈추지 않게) */}
+      <PriceChart points={chart ?? (chartError ? [] : undefined)} isUp={isUp} tfIdx={tfIdx} onTf={setTfIdx} fmt={usd} yFmt={yFmt} />
 
       {/* 52주 위치 */}
       {d && pos !== null && (

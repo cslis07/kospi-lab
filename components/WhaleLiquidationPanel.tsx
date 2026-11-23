@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import useSWR from 'swr';
 import RotatingTicker from '@/components/ui/RotatingTicker';
+import { jsonFetcher } from '@/lib/fetcher';
 
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT'];
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 값을 유지한다(오류 본문이 데이터로 덮어쓰지 않게)
+const fetcher = jsonFetcher;
 
 interface Liq { sym: string; long: boolean; usd: number; price: number; ts: number }
 interface WhaleItem { type: string; symbol: string; ts: number; side: string; usd: number | null; qty: number; label: string; from?: string; to?: string }
@@ -28,7 +30,7 @@ export default function WhaleLiquidationPanel({ symbol }: { symbol?: string }) {
   const [liqs, setLiqs] = useState<Liq[]>([]);
   const [liqSrc, setLiqSrc] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const { data: whale } = useSWR<{ items: WhaleItem[]; note?: string; sources?: Record<string, number> }>('/api/whale', fetcher, { refreshInterval: 90_000 });
+  const { data: whale, error: whaleError } = useSWR<{ items: WhaleItem[]; note?: string; sources?: Record<string, number> }>('/api/whale', fetcher, { refreshInterval: 90_000 });
 
   useEffect(() => {
     let alive = true;
@@ -120,7 +122,7 @@ export default function WhaleLiquidationPanel({ symbol }: { symbol?: string }) {
       <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">대량 체결 · 온체인 이동{short ? ` · ${short}` : ''}</p>
       <ul className="max-h-72 overflow-y-auto">
         {fWhale.slice(0, 30).map((it, i) => <li key={i} className="py-1 border-b border-[var(--border)] text-[12px]">{whaleLine(it)}</li>)}
-        {!fWhale.length && <li className="text-[11px] text-[var(--text-muted)] py-1">{short ? `${short} 고래 데이터 대기 중…` : '고래 데이터 로딩 중…'}</li>}
+        {!fWhale.length && <li className="text-[11px] text-[var(--text-muted)] py-1">{!whale && whaleError ? '고래 데이터를 불러오지 못했습니다. 잠시 후 다시 시도합니다.' : short ? `${short} 고래 데이터 대기 중…` : '고래 데이터 로딩 중…'}</li>}
       </ul>
       <p className="text-cap-pc text-[var(--text-muted)] mt-2 opacity-70">대량 체결·온체인 이동은 실제 청산이나 신규 숏 진입과 다른 현상입니다. 거래소 입출금·내부 지갑 이동이 구분되지 않으면 매도 압력으로 단정할 수 없습니다.{whale?.note ? ` ${whale.note}` : ''}</p>
     </RotatingTicker>

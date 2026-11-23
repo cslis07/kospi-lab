@@ -48,7 +48,7 @@ function LinkRow({ href, icon, title, sub }: { href: string; icon: string; title
 
 /** 시장 벤치마크 — 내 매매 기간 동안 지수 변화 + 월별 실현 R vs 지수 월간 %. 성과는 R(리스크 배수)이라 금액·원금 비교 대신 '시장 방향' 참고. */
 function MarketBenchmarkR({ trades }: { trades: TradeValue[] }) {
-  const { data } = useMacroDaily();
+  const { data, error: macroErr } = useMacroDaily();
   const [idx, setIdx] = useState<BmIdxKey>('btc');
   if (!trades.length) return null;
   const { from, to } = bmSpan(trades);
@@ -60,7 +60,7 @@ function MarketBenchmarkR({ trades }: { trades: TradeValue[] }) {
     <div className="fin-card p-4">
       <h3 className="text-sm font-semibold text-[var(--text)]">시장 벤치마크 <span className="text-[11px] font-normal text-[var(--text-muted)]">· 내 매매 기간 동안 시장</span></h3>
       <p className="text-[11px] text-[var(--text-muted)] mt-0.5 mb-2 tabular-nums">{from} ~ {to} · 내 실현 <b style={{ color: RCOLOR(netR) }}>{fmtR(netR)}</b> · {trades.length}건</p>
-      <IndexReturnGrid data={data} from={from} to={to} />
+      <IndexReturnGrid data={data} from={from} to={to} failed={!data && !!macroErr} />
       {hasMonths && (
         <div className="mt-3 pt-3 border-t border-[var(--border)]">
           <div className="flex items-center justify-between gap-2 mb-1.5">

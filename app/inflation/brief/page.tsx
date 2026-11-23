@@ -2,15 +2,17 @@
 
 /** 데일리 브리핑 — brief_daily.json. nowflation의 하루치 인플레 요약(오늘 + 최근 아카이브). 앱 /brief(증시 모닝)와 역할 구분. */
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import { pct, signPp, type BriefDaily } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 const sign = (v: number | null | undefined) => (v == null ? 'text-[var(--text-muted)]' : v > 0 ? 'text-red-400' : v < 0 ? 'text-blue-400' : 'text-[var(--text)]');
 
 export default function BriefPage() {
-  const { data: bd } = useSWR<BriefDaily>('/api/nf/brief_daily.json', fetcher, SWR_OPT);
+  const { data: bd, error: bdErr } = useSWR<BriefDaily>('/api/nf/brief_daily.json', fetcher, SWR_OPT);
   const t = bd?.today;
   const archive = (bd?.archive ?? []).filter((d) => d.date !== t?.date).slice(0, 14);
   const nr = t?.next_release;
@@ -84,7 +86,7 @@ export default function BriefPage() {
         </>
       )}
 
-      {!bd && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!bd && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{bdErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (CC BY 4.0, 중계). 영어 원문 요약의 수치 중심 정리이며 번역이 아닙니다. 증시 아침 정리는 앱 <a href="/brief" className="text-[var(--accent-ink)]">모닝 브리핑</a>을 참고하세요.

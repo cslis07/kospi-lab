@@ -2,15 +2,17 @@
 
 /** 고용 — labor.json. NFP 나우캐스트·최근 예측 대 실제·실업률·임금 상승. 매매 신호 아님. */
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import { seriesLast, type Labor } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 const k = (v?: number | null) => (v == null || !Number.isFinite(v) ? '—' : `${v >= 0 ? '+' : ''}${Math.round(v)}K`);
 
 export default function JobsPage() {
-  const { data: lb } = useSWR<Labor>('/api/nf/labor.json', fetcher, SWR_OPT);
+  const { data: lb, error: lbErr } = useSWR<Labor>('/api/nf/labor.json', fetcher, SWR_OPT);
   const nfp = lb?.nfp;
   const rows = (nfp?.rows ?? []).slice(-8).reverse();
   const unemp = seriesLast(lb?.unemployment?.series);
@@ -77,7 +79,7 @@ export default function JobsPage() {
         </>
       )}
 
-      {!lb && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!lb && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{lbErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (CC BY 4.0, 중계) · BLS·애틀랜타 연준·Indeed. 침체 신호는 <a href="/inflation/heatcheck" className="text-[var(--accent-ink)]">경기 열지수</a>를 참고하세요.

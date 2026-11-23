@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
+import { jsonFetcher } from '@/lib/fetcher';
 import NewsCard, { NewsCardHorizontal } from '@/components/NewsCard';
 import type { NewsItem } from '@/lib/types';
 import type { DisclosureItem } from '@/app/api/news/disclosures/route';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — 오류 본문이 목록 데이터로 들어오지 않고 error 로 잡힌다
+const fetcher = jsonFetcher;
 
 type Tab = 'international' | 'domestic' | 'disclosure';
 
@@ -104,13 +106,14 @@ export default function NewsPage() {
     { refreshInterval: 5 * 60 * 1000, revalidateOnFocus: false }
   );
   const naverEmpty = !!naverError || (Array.isArray(naverData) && naverData.length === 0);
-  const { data: rssData } = useSWR<NewsItem[]>(
+  const { data: rssData, isLoading: rssLoading } = useSWR<NewsItem[]>(
     tab === 'domestic' && naverEmpty ? '/api/news?category=domestic' : null,
     fetcher,
     { revalidateOnFocus: false }
   );
   const domesticData = naverEmpty ? rssData : naverData;
-  const domesticLoading = naverLoading;
+  // 네이버 실패 후 RSS 폴백을 받는 동안에도 로딩으로 — 그 사이 '불러오지 못했습니다'가 잠깐 뜨지 않게
+  const domesticLoading = naverLoading || (naverEmpty && rssLoading);
 
   // 공시
   const { data: discData, isLoading: discLoading, error: discError } = useSWR<DisclosureItem[]>(

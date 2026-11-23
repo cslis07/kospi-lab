@@ -15,6 +15,7 @@ import { useAlerts } from '@/hooks/useAlerts';
 import { calcMA, calcRSI, calcBB } from '@/lib/indicators';
 import type { StockData, ChartPoint } from '@/lib/types';
 import type { DartCompany, DartFinancials, DartDividend } from '@/lib/dartClient';
+import { jsonFetcher } from '@/lib/fetcher';
 import Collapsible from '@/components/ui/Collapsible';
 import Range52Bar from '@/components/Range52Bar';
 import BottomSheet from '@/components/ui/BottomSheet';
@@ -32,7 +33,6 @@ function krSessionOpen(now = Date.now()): boolean {
   return d >= 1 && d <= 5 && m >= 540 && m <= 940;
 }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
 // 한국 관행: 상승=빨강, 하락=파랑 (앱 전체와 통일 — 이 화면만 초록/빨강이던 불일치 수정)
 const UP = '#ff4433';
 const DOWN = '#1c6cff';
@@ -53,7 +53,7 @@ interface KrxInfo {
 }
 function KrxListingSection({ code }: { code: string }) {
   const { data } = useSWR<{ configured: boolean; found?: boolean; info?: KrxInfo }>(
-    code ? `/api/krx/stock-info?code=${code}` : null, fetcher, { revalidateOnFocus: false }
+    code ? `/api/krx/stock-info?code=${code}` : null, jsonFetcher, { revalidateOnFocus: false }
   );
   if (!data?.found || !data.info) return null;
   const i = data.info;
@@ -83,7 +83,7 @@ function KrxListingSection({ code }: { code: string }) {
 function DartCompanySection({ code }: { code: string }) {
   const { data, error } = useSWR<DartCompany>(
     code ? `/api/dart/company?code=${code}` : null,
-    fetcher,
+    jsonFetcher,
     { revalidateOnFocus: false }
   );
   if (error || !data || 'error' in data) return null;
@@ -130,12 +130,12 @@ function DartFinancialSection({ code }: { code: string }) {
 
   const { data: fin1 } = useSWR<DartFinancials>(
     code ? `/api/dart/financials?code=${code}&year=${year1}` : null,
-    fetcher,
+    jsonFetcher,
     { revalidateOnFocus: false }
   );
   const { data: fin2 } = useSWR<DartFinancials>(
     code ? `/api/dart/financials?code=${code}&year=${year2}` : null,
-    fetcher,
+    jsonFetcher,
     { revalidateOnFocus: false }
   );
 
@@ -194,7 +194,7 @@ function DartDividendSection({ code }: { code: string }) {
   const year = new Date().getFullYear() - 1;
   const { data, error } = useSWR<DartDividend>(
     code ? `/api/dart/dividends?code=${code}&year=${year}` : null,
-    fetcher,
+    jsonFetcher,
     { revalidateOnFocus: false }
   );
   if (error || !data || 'error' in data) return null;
@@ -355,18 +355,18 @@ export default function StockDetailClient() {
   const tf = TIMEFRAMES[tfIdx];
 
   // 시세 갱신: 장중(KST 평일 09:00~15:40) 15초, 장외 60초 — 예전 5초 고정은 장이 닫혀도 계속 함수를 불렀다
-  const { data: stock, isLoading, error: stockError } = useSWR<StockData>(
-    ticker ? `/api/stock/${ticker}` : null, fetcher, { refreshInterval: () => (krSessionOpen() ? 15_000 : 60_000) }
+  const { data: stock, isLoading } = useSWR<StockData>(
+    ticker ? `/api/stock/${ticker}` : null, jsonFetcher, { refreshInterval: () => (krSessionOpen() ? 15_000 : 60_000) }
   );
   // 차트는 시세(market)를 기다리지 않고 바로 — 예전엔 market='' 로 한 번, 시세 도착 후 market=KOSPI 로 또 한 번(2.98초+3.49초) 받았다.
   // 라우트가 market 없으면 .KS → .KQ 순으로 알아서 찾는다.
-  const { data: chart } = useSWR<ChartPoint[]>(
+  const { data: chart, error: chartErr } = useSWR<ChartPoint[]>(
     ticker ? `/api/stock/${ticker}/chart?months=${tf.months}` : null,
-    fetcher, { refreshInterval: 60000 }
+    jsonFetcher, { refreshInterval: 60000 }
   );
   const { data: compareChart } = useSWR<ChartPoint[]>(
     compareTicker ? `/api/stock/${compareTicker}/chart?months=${tf.months}` : null,
-    fetcher, { refreshInterval: 60000 }
+    jsonFetcher, { refreshInterval: 60000 }
   );
 
   const { portfolio, setEntry, removeEntry } = usePortfolio();
@@ -462,7 +462,8 @@ export default function StockDetailClient() {
       <div className="h-64 bg-[var(--surface-2)] rounded-2xl" />
     </div>
   );
-  if (stockError || !stock || 'error' in stock) return (
+  // 첫 로드 실패는 stock 이 없어 아래 안내로. 이미 받은 시세가 있으면 15·60초 갱신이 한 번 실패해도 화면을 지우지 않는다(SWR 이 직전 값 유지)
+  if (!stock || 'error' in stock) return (
     <div className="max-w-4xl mx-auto">
       <Link href="/" className="hidden md:inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text)] mb-6 transition-colors">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -584,7 +585,7 @@ export default function StockDetailClient() {
           </div>
         ) : (
           <div className="h-60 flex items-center justify-center text-[var(--text-muted)] text-sm">
-            차트 데이터 로딩 중...
+            {chartErr && !chart ? '차트를 불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '차트 데이터 로딩 중...'}
           </div>
         )}
       </div>

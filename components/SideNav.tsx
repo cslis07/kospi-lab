@@ -12,8 +12,10 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { MENU, EXTRAS, TOOL_SECTIONS, ICON, GUIDE, itemIsActive, type MenuItem } from '@/lib/menu';
 import { useAppPathname } from '@/hooks/useAppPathname';
+import { jsonFetcher } from '@/lib/fetcher';
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// 실패(non-2xx)는 예외로 — SWR 이 직전 값을 유지한다(오류 본문이 데이터로 덮어쓰지 않게)
+const fetcher = jsonFetcher;
 const COLLAPSE_KEY = 'kl-side'; // 'min' = 접힘. kospi-lab- 접두어가 아니라 클라우드 동기화 대상 아님(기기별)
 
 function Ic({ name }: { name: string }) {

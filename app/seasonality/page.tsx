@@ -10,8 +10,8 @@ import useSWR from 'swr';
 import Segmented from '@/components/ui/Segmented';
 import type { Seasonality } from '@/lib/seasonality';
 import { buildSeasonalityInsight } from '@/lib/seasonInsight';
+import { jsonFetcher } from '@/lib/fetcher';
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 type Asset = 'kospi' | 'kosdaq' | 'sp500' | 'nasdaq' | 'btc';
 const ASSETS: readonly (readonly [Asset, string])[] = [['kospi', '코스피'], ['kosdaq', '코스닥'], ['sp500', 'S&P 500'], ['nasdaq', '나스닥'], ['btc', '비트코인']];
 type Stat = 'avg' | 'median' | 'upPct';
@@ -29,7 +29,7 @@ function cell(v: number | null, cap: number) {
 export default function SeasonalityPage() {
   const [asset, setAsset] = useState<Asset>('kospi');
   const [stat, setStat] = useState<Stat>('avg');
-  const { data, error } = useSWR<Seasonality & { name: string; asset?: string; error?: string }>(`/api/seasonality?asset=${asset}`, fetcher, { revalidateOnFocus: false, keepPreviousData: true });
+  const { data, error } = useSWR<Seasonality & { name: string; asset?: string; error?: string }>(`/api/seasonality?asset=${asset}`, jsonFetcher, { revalidateOnFocus: false, keepPreviousData: true });
   const [nowM] = useState(() => new Date().getMonth() + 1);
   const cap = asset === 'btc' ? 25 : 8;
   const stats = data?.stats ?? [];

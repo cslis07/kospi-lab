@@ -9,12 +9,12 @@ import { useState } from 'react';
 import Collapsible from '@/components/ui/Collapsible';
 import Segmented from '@/components/ui/Segmented';
 import type { StockNewsItem, StockDisclosure } from '@/lib/stockFinance';
+import { jsonFetcher } from '@/lib/fetcher';
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 type Tab = 'news' | 'disc';
 
 export default function StockNews({ code }: { code: string }) {
-  const { data } = useSWR<{ news: StockNewsItem[]; disclosures: StockDisclosure[]; error?: string }>(`/api/stock/${code}/news`, fetcher, { refreshInterval: 300000, revalidateOnFocus: false });
+  const { data } = useSWR<{ news: StockNewsItem[]; disclosures: StockDisclosure[]; error?: string }>(`/api/stock/${code}/news`, jsonFetcher, { refreshInterval: 300000, revalidateOnFocus: false });
   const [tab, setTab] = useState<Tab>('news');
   if (!data || data.error || (!data.news?.length && !data.disclosures?.length)) return null;
   const rows = tab === 'news'

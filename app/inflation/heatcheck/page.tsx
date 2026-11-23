@@ -2,14 +2,16 @@
 
 /** 경기 열지수 — labor.recession.signals(Sahm·금리커브·실업수당·산업생산·소매판매). 침체 신호 점검, 매매 신호 아님. */
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import { signalTone, type Labor } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 
 export default function HeatcheckPage() {
-  const { data: lb } = useSWR<Labor>('/api/nf/labor.json', fetcher, SWR_OPT);
+  const { data: lb, error: lbErr } = useSWR<Labor>('/api/nf/labor.json', fetcher, SWR_OPT);
   const signals = lb?.recession?.signals ?? [];
   const alerts = signals.filter((s) => signalTone(s.state).ko !== '양호').length;
 
@@ -50,7 +52,7 @@ export default function HeatcheckPage() {
         </>
       )}
 
-      {!lb && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!lb && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{lbErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (CC BY 4.0, 중계) · FRED. 단일 신호가 침체를 확정하지 않으며, 표본·시차가 커 해석에 주의가 필요합니다.

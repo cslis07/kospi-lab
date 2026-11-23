@@ -3,10 +3,12 @@
 /** 리드 테스트 — lead_test.json. 발표 전야 게이지가 공식 CPI를 얼마나 앞서 맞혔나(과거 통계). 예측 아님·정직한 한계 표기. */
 import { useState } from 'react';
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import type { LeadTest, LeadStat } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 
 const WINDOW_LABEL: Record<string, string> = {
@@ -22,7 +24,7 @@ const rate = (x?: number) => (x == null || !Number.isFinite(x) ? '—' : `${(x *
 const corr = (x?: number) => (x == null || !Number.isFinite(x) ? '—' : x.toFixed(2));
 
 export default function LeadPage() {
-  const { data: lt } = useSWR<LeadTest>('/api/nf/lead_test.json', fetcher, SWR_OPT);
+  const { data: lt, error: ltErr } = useSWR<LeadTest>('/api/nf/lead_test.json', fetcher, SWR_OPT);
   const [win, setWin] = useState('last_12');
 
   const windows = lt?.print_eve?.windows ?? {};
@@ -74,7 +76,7 @@ export default function LeadPage() {
         </>
       )}
 
-      {!lt && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!lt && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{ltErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (CC BY 4.0, 중계). 표본이 작고 자기상관이 커 불확실성이 큽니다 — 지표 서프라이즈로 방향을 맞히는 우위는 이 앱의 측정에서 확인되지 않았습니다.

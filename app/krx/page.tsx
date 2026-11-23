@@ -4,8 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import HBarChart, { type BarItem } from '@/components/HBarChart';
-
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+import { jsonFetcher } from '@/lib/fetcher';
 
 /* ── 타입 ───────────────────────────────────────────────── */
 interface RankItem {
@@ -46,9 +45,9 @@ const RANK_TABS: { key: RankKey; label: string; metric: (r: RankItem) => string;
 ];
 
 export default function KrxPage() {
-  const { data: rank, isLoading: rankLoading } = useSWR<RankResp>('/api/krx/ranking', fetcher, { refreshInterval: 300000, revalidateOnFocus: false });
-  const { data: market } = useSWR<MarketResp>('/api/krx/market', fetcher, { refreshInterval: 300000, revalidateOnFocus: false });
-  const { data: etf } = useSWR<EtfResp>('/api/krx/etf', fetcher, { refreshInterval: 300000, revalidateOnFocus: false });
+  const { data: rank, isLoading: rankLoading, error: rankErr } = useSWR<RankResp>('/api/krx/ranking', jsonFetcher, { refreshInterval: 300000, revalidateOnFocus: false });
+  const { data: market } = useSWR<MarketResp>('/api/krx/market', jsonFetcher, { refreshInterval: 300000, revalidateOnFocus: false });
+  const { data: etf, error: etfErr } = useSWR<EtfResp>('/api/krx/etf', jsonFetcher, { refreshInterval: 300000, revalidateOnFocus: false });
 
   const [rankTab, setRankTab] = useState<RankKey>('value');
   const [etfTab, setEtfTab] = useState<EtfKey>('value');
@@ -141,7 +140,7 @@ export default function KrxPage() {
             </div>
             {rankLoading ? (
               <div className="space-y-2">{[...Array(8)].map((_, i) => <div key={i} className="h-10 rounded-lg bg-white/5 animate-pulse" />)}</div>
-            ) : rank?.error || (rank?.count ?? 0) === 0 ? (
+            ) : (rankErr && !rank) || (rank?.count ?? 0) === 0 ? (
               <p className="text-xs text-[var(--text-muted)] text-center py-6">데이터를 불러올 수 없습니다 (KRX 키 확인)</p>
             ) : (
               <>
@@ -177,9 +176,9 @@ export default function KrxPage() {
                   }`}>{l}</button>
               ))}
             </div>
-            {!etf ? (
+            {!etf && !etfErr ? (
               <div className="space-y-2">{[...Array(6)].map((_, i) => <div key={i} className="h-10 rounded-lg bg-white/5 animate-pulse" />)}</div>
-            ) : (etf.count ?? 0) === 0 ? (
+            ) : (etf?.count ?? 0) === 0 ? (
               <p className="text-xs text-[var(--text-muted)] text-center py-6">ETF 데이터를 불러올 수 없습니다</p>
             ) : (
               <>

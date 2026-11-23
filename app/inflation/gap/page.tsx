@@ -2,15 +2,17 @@
 
 /** CPI 격차 (vs 공식 BLS 전지표) — gaptable.json. 게이지·나우캐스트가 공식 발표치와 지금 얼마나 벌어져 있나(지표별). */
 import useSWR from 'swr';
+import { gatedJsonFetcher } from '@/lib/fetcher';
 import UnlockGate from '@/components/UnlockGate';
 import { pct, signPp, type GapTable } from '@/lib/inflation';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// 게이트 API(/api/nf) — 401 은 { locked: true } 데이터(잠금 안내 유지), 그 밖의 실패는 error 로(직전 값 유지)
+const fetcher = gatedJsonFetcher;
 const SWR_OPT = { revalidateOnFocus: false };
 const sign = (v: number | null | undefined) => (v == null ? 'text-[var(--text-muted)]' : v > 0 ? 'text-red-400' : v < 0 ? 'text-blue-400' : 'text-[var(--text)]');
 
 export default function GapPage() {
-  const { data: g } = useSWR<GapTable>('/api/nf/gaptable.json', fetcher, SWR_OPT);
+  const { data: g, error: gErr } = useSWR<GapTable>('/api/nf/gaptable.json', fetcher, SWR_OPT);
   const rows = g?.rows ?? [];
 
   return (
@@ -63,7 +65,7 @@ export default function GapPage() {
         격차는 <b className="text-[var(--text)]">게이지 읽기 − 마지막 공식 발표치</b>로, 공식이 아직 안 나온 최근 달의 추정 수준을 보여줄 뿐 발표를 예언하지 않습니다.
       </div>
 
-      {!g && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
+      {!g && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">{gErr ? '불러오지 못했습니다. 잠시 후 다시 시도합니다.' : '불러오는 중…'}</p>}
 
       <p className="text-[11px] leading-relaxed text-[var(--text-muted)] opacity-70 border-t border-[var(--border)] pt-4 mt-5">
         출처: <a href="https://nowflation.com" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-ink)]">Nowflation</a> (CC BY 4.0, 중계). 공식 CPI/PCE는 BLS·BEA 발표치입니다.
