@@ -1,8 +1,8 @@
 @import "tailwindcss";
-/* 한글 웹폰트(Pretendard)는 불러오지 않는다 — 10-01 결정. 실측(모바일 4G): 화면마다 조각 11~19개·300~500KB 추가로
-   페이지 용량이 약 2배(홈 408→847KB), 폰트 교체 밀림 증가. 한글은 기기 기본(안드로이드 Noto Sans KR·iOS Apple SD 고딕·
-   윈도우 맑은 고딕). 폰트 스택의 'Pretendard' 는 기기에 설치돼 있으면 쓰인다(다운로드 없음).
-   ※ 예전 '@import url(...pretendard...)' 은 '@import "tailwindcss"' 뒤라 빌드에서 빠져 원래 적용된 적이 없었다. */
+/* 글꼴(2026-11-23 주석 정정) — 라틴·숫자 = Inter(next/font, app/layout.tsx) · 한글 = Pretendard Variable 동적 서브셋
+   (app/layout.tsx 의 <link>, jsDelivr — 화면에 쓰인 글자 조각만 받는다). 실패·차단 시 아래 폰트 스택의 기기 기본 서체로.
+   이력: 10-01 에 '한글 웹폰트 안 불러옴'으로 정했으나(모바일 4G 실측 홈 408→847KB), 10-29 2.0 디자인(ea04e67)에서 동적 서브셋으로 다시 넣었다.
+   ※ '@import url(...pretendard...)' 는 '@import "tailwindcss"' 뒤라 빌드에서 빠진다 — 웹폰트는 layout <link> 로만. */
 
 /* dark: 변형을 클래스 기준으로(html.dark 정적 부착) */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -54,7 +54,7 @@
    다크 전용 · 미드나잇 캔버스 + 표면 3단(deep → indigo → cobalt) + 시그널 블루 단일 액센트.
    깊이는 드롭섀도가 아니라 인셋 섀도(뉴모픽)로만. 캔디 태그 팔레트 = 카테고리·차트 계열색.
    한국 관행 유지: 상승 = Tag Coral #ff4433 · 하락 = Signal Blue #1c6cff.
-   폰트: Jokker/Matter(상용) 대체 → 제목 Space Grotesk · 본문 Inter · 한글 Pretendard.
+   폰트: Jokker/Matter(상용) 대체 → 제목·본문 Inter(라틴·숫자) · 한글 Pretendard. (Space Grotesk 는 계획만 — 불러오지 않음)
    본문 굵기: 원본 100 대신 300(한글 가독성 보정 — 사용자 결정), 핵심 숫자는 굵게 유지.
    ── 컴포넌트가 쓰는 변수명은 그대로 두고 값만 바꿔 92개 파일을 수정 없이 리스킨한다.
    ══════════════════════════════════════════════════════════════ */
@@ -258,7 +258,7 @@ body {
 input, select, button, textarea { font-family: inherit; letter-spacing: inherit; }
 b, strong { font-weight: 600; }
 
-/* 제목 — 디스플레이 서체(라틴·숫자는 Space Grotesk, 한글은 Pretendard) · 음수 자간 */
+/* 제목 — 디스플레이 서체(--font-display = 라틴·숫자 Inter, 한글 Pretendard) · 음수 자간 */
 h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; }
 
 /* 아이브로우(키커) — 대문자 · +0.04em 트래킹(간판처럼) */
