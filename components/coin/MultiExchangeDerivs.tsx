@@ -83,8 +83,8 @@ export default function MultiExchangeDerivs({ symbol }: { symbol: string }) {
     <section className="fin-card p-4 sm:p-5" aria-label="거래소별 파생 수급">
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <h3 className="text-sm font-bold text-[var(--text)]">거래소별 파생 수급</h3>
-        <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--text-muted)]">신호 아님</span>
-        {data && <span className="ml-auto text-[10.5px] text-[var(--text-muted)] tabular-nums">{kst(data.asOf)} 기준 · 1분마다</span>}
+        <span className="text-cap font-bold px-2 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--text-muted)]">신호 아님</span>
+        {data && <span className="ml-auto text-cap text-[var(--text-muted)] tabular-nums">{kst(data.asOf)} 기준 · 1분마다</span>}
       </div>
 
       {error && !data && <p className="text-[12px] text-[var(--text-muted)]">거래소 자료를 불러오지 못했습니다. 잠시 뒤 다시 시도됩니다.</p>}
@@ -105,7 +105,7 @@ export default function MultiExchangeDerivs({ symbol }: { symbol: string }) {
               <QuadTile title="지난 1시간" w={data.oi.h1} />
               <QuadTile title="지난 24시간" w={data.oi.h24} />
             </div>
-            <p className="text-[10.5px] text-[var(--text-muted)] leading-snug">
+            <p className="text-cap text-[var(--text-muted)] leading-snug">
               OI 변화 = {data.oi.histVenues.map((v) => VENUE_LABEL[v]).join('·') || '–'} 합산 코인 수량(가격 효과 제외) · 선 그래프 실선 OI, 점선 가격(24시간).
               4분면은 지난 구간에 있었던 일의 흔한 해석이지 다음 방향이 아닙니다.
             </p>
@@ -116,7 +116,7 @@ export default function MultiExchangeDerivs({ symbol }: { symbol: string }) {
             <div className="overflow-x-auto -mx-1 px-1">
               <table className="w-full text-[11.5px] tabular-nums">
                 <thead>
-                  <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+                  <tr className="text-cap text-[var(--text-muted)] text-right">
                     <th className="text-left font-normal py-1">거래소</th>
                     <th className="font-normal">펀딩 8h 환산</th>
                     <th className="font-normal">연환산</th>
@@ -129,7 +129,7 @@ export default function MultiExchangeDerivs({ symbol }: { symbol: string }) {
                     <tr key={v.venue} className="border-t border-[var(--border)] text-right">
                       <td className="text-left py-1.5 whitespace-nowrap">
                         <span className="text-[var(--text)]">{VENUE_LABEL[v.venue]}</span>
-                        {v.ok && v.intervalH != null && v.intervalH !== 8 && <span className="block text-[9.5px] text-[var(--text-muted)] leading-none">{v.intervalH}시간 정산</span>}
+                        {v.ok && v.intervalH != null && v.intervalH !== 8 && <span className="block text-cap text-[var(--text-muted)] leading-none">{v.intervalH}시간 정산</span>}
                       </td>
                       {v.ok ? (
                         <>
@@ -153,7 +153,7 @@ export default function MultiExchangeDerivs({ symbol }: { symbol: string }) {
                 )}
               </p>
             )}
-            <p className="text-[10.5px] text-[var(--text-muted)] mt-1 leading-snug">
+            <p className="text-cap text-[var(--text-muted)] mt-1 leading-snug">
               펀딩 양수 = 롱이 숏에게 지급(롱 쏠림). 정산 주기가 달라 8시간·연 단위로 맞춤. 괴리 = 마크가 − 현물 인덱스(무기한 베이시스). 거래소별 OI 금액은 넓은 화면에서.
             </p>
           </div>
@@ -175,12 +175,12 @@ export default function MultiExchangeDerivs({ symbol }: { symbol: string }) {
                   {gapText && <> · {gapText}</>}
                 </p>
               )}
-              <p className="text-[10.5px] text-[var(--text-muted)] leading-snug">계정 비율은 사람 수(돈 아님). 상위 트레이더 = 증거금 상위 20% 계정(바이낸스 정의). 쏠림은 청산이 몰릴 쪽을 보여줄 뿐 방향 예측이 아닙니다.</p>
+              <p className="text-cap text-[var(--text-muted)] leading-snug">계정 비율은 사람 수(돈 아님). 상위 트레이더 = 증거금 상위 20% 계정(바이낸스 정의). 쏠림은 청산이 몰릴 쪽을 보여줄 뿐 방향 예측이 아닙니다.</p>
             </div>
           )}
         </div>
       )}
-      {failed.length > 0 && <p className="text-[10.5px] text-[var(--text-muted)] mt-2">불러오지 못한 거래소: {failed.join(', ')} — 나머지로 계산했습니다.</p>}
+      {failed.length > 0 && <p className="text-cap text-[var(--text-muted)] mt-2">불러오지 못한 거래소: {failed.join(', ')} — 나머지로 계산했습니다.</p>}
     </section>
   );
 }

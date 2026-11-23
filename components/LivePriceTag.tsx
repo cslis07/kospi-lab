@@ -48,13 +48,13 @@ export default function LivePriceTag({
         {format(price)}
       </p>
       {deltaPct !== null && (
-        <p className="text-[10px] text-[var(--text-muted)] mt-0.5 tabular-nums">
+        <p className="text-cap-pc text-[var(--text-muted)] mt-0.5 tabular-nums">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1 align-middle" />
           실시간 · 분석시점({format(analyzed)}) 대비 {deltaPct >= 0 ? '+' : ''}{deltaPct.toFixed(2)}%
         </p>
       )}
       {stale && (
-        <p className="text-[10px] font-semibold text-amber-400 mt-1">
+        <p className="text-cap-pc font-semibold text-amber-400 mt-1">
           ⚠ 분석 이후 가격이 {Math.abs(deltaPct!).toFixed(1)}% 이동 — 손절·목표가가 낡았습니다. 분석을 다시 실행하세요.
         </p>
       )}

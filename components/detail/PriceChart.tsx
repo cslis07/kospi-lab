@@ -69,7 +69,7 @@ export default function PriceChart({
       </div>
       {active.length > 0 && (
         <button type="button" onClick={() => setSheet(true)} className="flex flex-wrap gap-1.5 mb-3" aria-label="켜진 지표 편집">
-          {active.map((i) => <span key={i.key} className="text-[10.5px] font-bold px-2 py-0.5 rounded-md bg-[var(--surface-2)]" style={{ color: i.hex }}>{i.label}</span>)}
+          {active.map((i) => <span key={i.key} className="text-cap font-bold px-2 py-0.5 rounded-md bg-[var(--surface-2)]" style={{ color: i.hex }}>{i.label}</span>)}
         </button>
       )}
 

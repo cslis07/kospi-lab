@@ -47,7 +47,7 @@ function Field({ label, children, hint }: { label: string; children: React.React
     <label className="block min-w-0">
       <span className="block text-[11px] font-bold text-[var(--faint)] mb-1">{label}</span>
       {children}
-      {hint && <span className="block text-[10.5px] text-[var(--faint)] mt-0.5">{hint}</span>}
+      {hint && <span className="block text-cap text-[var(--faint)] mt-0.5">{hint}</span>}
     </label>
   );
 }
@@ -68,9 +68,9 @@ function Toggle<T extends string>({ value, options, onChange, label }: { value: 
 function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
   return (
     <div className="fin-card p-3 min-w-0">
-      <div className="text-[10.5px] font-bold text-[var(--faint)] truncate">{label}</div>
+      <div className="text-cap font-bold text-[var(--faint)] truncate">{label}</div>
       <div className="text-[17px] font-extrabold tabular-nums mt-0.5 truncate" style={{ color: tone ?? 'var(--text)' }}>{value}</div>
-      {sub && <div className="text-[10.5px] text-[var(--text-muted)] mt-0.5 truncate">{sub}</div>}
+      {sub && <div className="text-cap text-[var(--text-muted)] mt-0.5 truncate">{sub}</div>}
     </div>
   );
 }
@@ -290,7 +290,7 @@ export default function RiskControlView() {
               </li>
             ))}
           </ul>
-          <p className="text-[10.5px] text-[var(--faint)] mt-2 leading-relaxed">
+          <p className="text-cap text-[var(--faint)] mt-2 leading-relaxed">
             여러 지표를 점수로 합치지 않습니다 — 규칙 하나라도 위반하면 제한, 데이터가 부족하거나 조건이 안 맞으면 관망. ALLOW 는 승률·수익을 뜻하지 않습니다.
           </p>
         </section>
@@ -334,7 +334,7 @@ export default function RiskControlView() {
                     fund: z.qty > 0 ? z.costs.fundingCost / (z.qty * usedEntry) : 0,
                   }} />
               )}
-              <p className="text-[10.5px] text-[var(--faint)] mt-2.5 leading-relaxed">
+              <p className="text-cap text-[var(--faint)] mt-2.5 leading-relaxed">
                 레버리지는 증거금만 바꿉니다 — 같은 수량·같은 손절가면 5배든 10배든 손절 손실은 같습니다. 청산가는 거래소의 마크가격·유지증거금 티어·마진 모드에 따라 달라지므로 위 값은 확정 청산가가 아닙니다.
               </p>
             </>
@@ -399,13 +399,13 @@ export default function RiskControlView() {
             </div>
             <div className="overflow-x-auto mt-3">
               <table className="w-full text-[12px] text-[var(--text-muted)]">
-                <thead><tr className="text-[10.5px] text-[var(--faint)]"><th className="text-left font-bold py-1">구분</th><th className="text-right font-bold px-1">건수</th><th className="text-right font-bold px-1">평균 R</th><th className="text-right font-bold pl-1">기대값</th></tr></thead>
+                <thead><tr className="text-cap text-[var(--faint)]"><th className="text-left font-bold py-1">구분</th><th className="text-right font-bold px-1">건수</th><th className="text-right font-bold px-1">평균 R</th><th className="text-right font-bold pl-1">기대값</th></tr></thead>
                 <tbody>
                   {[...review.sum.byLeverage, ...review.sum.bySide, ...(reviewSrc === 'decisions' ? [...review.sum.byEvent, ...review.sum.byRegime] : [])].map((g) => <StatRow key={g.label} label={g.label} s={g.stat} />)}
                 </tbody>
               </table>
             </div>
-            <p className="text-[10.5px] text-[var(--faint)] mt-2 leading-relaxed">표본이 적으면 우연입니다. 발표 구간·추세/횡보 구분은 판정 기록에만 있습니다(매매일지는 읽기만 하고 바꾸지 않음).</p>
+            <p className="text-cap text-[var(--faint)] mt-2 leading-relaxed">표본이 적으면 우연입니다. 발표 구간·추세/횡보 구분은 판정 기록에만 있습니다(매매일지는 읽기만 하고 바꾸지 않음).</p>
           </>
         )}
       </section>
@@ -435,7 +435,7 @@ export default function RiskControlView() {
         <button type="button" className="fin-more mt-3" onClick={reset}>기본값으로</button>
       </details>
 
-      <p className="text-[10.5px] text-[var(--faint)] leading-relaxed px-0.5">
+      <p className="text-cap text-[var(--faint)] leading-relaxed px-0.5">
         시세: Bitget USDT 무기한(공개) · OI: 바이낸스 · 계좌: Bitget 읽기 전용 API(연결 시) · 경제지표: {events.data?.note ?? 'FRED·연준 일정'}
         {events.data?.missing?.length ? ` · 일정 누락: ${events.data.missing.join(', ')}` : ''}. 이 화면은 주문·청산을 하지 않습니다.
       </p>

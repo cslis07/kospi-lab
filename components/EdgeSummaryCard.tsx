@@ -11,9 +11,9 @@ const DOWN = 'var(--accent-ink)';
 function Tile({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
     <div className="rounded-xl bg-[var(--surface-2)] px-3 py-2.5">
-      <p className="text-[10.5px] text-[var(--text-muted)]">{label}</p>
+      <p className="text-cap text-[var(--text-muted)]">{label}</p>
       <p className="text-[16px] font-extrabold tabular-nums leading-tight mt-0.5" style={{ color: color ?? 'var(--text)' }}>{value}</p>
-      {sub && <p className="text-[10px] text-[var(--faint)] mt-0.5 tabular-nums">{sub}</p>}
+      {sub && <p className="text-cap-pc text-[var(--faint)] mt-0.5 tabular-nums">{sub}</p>}
     </div>
   );
 }
@@ -44,7 +44,7 @@ export default function EdgeSummaryCard({ e, unit, fmt, sub }: {
     <section className="fin-card p-4 mb-3">
       <div className="flex items-center gap-2 flex-wrap mb-3">
         <h2 className="text-sm font-bold text-[var(--text)]">성적 요약</h2>
-        <span className="text-[10px] text-[var(--text-muted)]">{sub ?? `청산 ${e.n}건 · ${unit}`}</span>
+        <span className="text-cap-pc text-[var(--text-muted)]">{sub ?? `청산 ${e.n}건 · ${unit}`}</span>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <Tile label="승률" value={e.winRate != null ? `${e.winRate.toFixed(0)}%` : '—'} sub={`${e.wins}승 ${e.losses}패`} />
@@ -58,7 +58,7 @@ export default function EdgeSummaryCard({ e, unit, fmt, sub }: {
         <Tile label="평균 손절" value={e.avgLoss != null ? `−${fmt(e.avgLoss)}` : '—'} sub={`총 −${fmt(e.grossLoss)}`} color={e.avgLoss != null ? DOWN : undefined} />
       </div>
       <p className="text-[11.5px] text-[var(--text-muted)] mt-2.5 leading-relaxed">{verdict(e)}</p>
-      <p className="text-[10px] text-[var(--faint)] mt-1">손익비가 1보다 낮아도 승률이 손익분기 승률보다 높으면 남습니다. 둘을 함께 보세요. 과거 성적이며 앞으로를 보장하지 않습니다.</p>
+      <p className="text-cap-pc text-[var(--faint)] mt-1">손익비가 1보다 낮아도 승률이 손익분기 승률보다 높으면 남습니다. 둘을 함께 보세요. 과거 성적이며 앞으로를 보장하지 않습니다.</p>
     </section>
   );
 }

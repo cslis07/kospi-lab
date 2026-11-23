@@ -73,7 +73,7 @@ export default function MarketIndicatorDetail({ q, hideSummary }: { q: LiveQuote
 
       {/* 차트 */}
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
-        <h2 className="text-sm font-semibold text-[var(--text)] mb-3">히스토리 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 {points.length || '—'}{q.cat === 'crypto' ? '일' : '영업일'}</span></h2>
+        <h2 className="text-sm font-semibold text-[var(--text)] mb-3">히스토리 <span className="text-cap-pc font-normal text-[var(--text-muted)]">최근 {points.length || '—'}{q.cat === 'crypto' ? '일' : '영업일'}</span></h2>
         {points.length
           ? <MacroChartLazy data={points} decimals={dec} monthly={false} unit={isPct ? '%' : (q.unit ?? '')} />
           : <div className="skeleton rounded-xl" style={{ height: 240 }} aria-label="차트 로딩 중" />}

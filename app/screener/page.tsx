@@ -109,7 +109,7 @@ function CritBadge({ pass, label }: { pass: boolean | null; label: string }) {
                      'bg-white/5 text-[var(--text-muted)] border-[var(--border)]';
   const icon = pass === true ? '✅' : pass === false ? '❌' : '❓';
   return (
-    <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded border font-medium ${cls}`}>
+    <span className={`inline-flex items-center gap-0.5 text-cap-pc px-1.5 py-0.5 rounded border font-medium ${cls}`}>
       {icon} {label}
     </span>
   );
@@ -125,7 +125,7 @@ function MetricCell({
     'text-[var(--text)]';
   return (
     <div className="text-center p-2">
-      <p className="text-[10px] text-[var(--text-muted)] mb-0.5">{label}</p>
+      <p className="text-cap-pc text-[var(--text-muted)] mb-0.5">{label}</p>
       <p className={`text-xs font-bold tabular-nums ${vColor}`}>{value}</p>
     </div>
   );
@@ -156,18 +156,18 @@ function StockCard({
       >
         {/* Score badge */}
         <div className={`shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-xl border text-lg font-black ${scoreStyle(r.buffettScore)}`}>
-          {r.buffettScore}<span className="text-[10px] font-normal opacity-70">/7</span>
+          {r.buffettScore}<span className="text-cap-pc font-normal opacity-70">/7</span>
         </div>
 
         {/* Name + info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-bold text-[var(--text)]">{displayName}</span>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-[var(--text-muted)]">
+            <span className="text-cap-pc font-mono px-1.5 py-0.5 rounded bg-white/10 text-[var(--text-muted)]">
               {codeLabel}
             </span>
             {r.sector && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              <span className="text-cap-pc px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
                 {r.sector}
               </span>
             )}
@@ -180,7 +180,7 @@ function StockCard({
                 style={{ width: `${(r.buffettScore / 7) * 100}%` }}
               />
             </div>
-            <span className="text-[10px] text-[var(--text-muted)]">
+            <span className="text-cap-pc text-[var(--text-muted)]">
               {fmtMarketCap(r.marketCap, r.currency)}
             </span>
           </div>
@@ -192,7 +192,7 @@ function StockCard({
                 <div
                   key={c.key}
                   title={c.full}
-                  className={`w-4 h-4 rounded-sm text-[8px] flex items-center justify-center font-bold border ${
+                  className={`w-4 h-4 rounded-sm text-cap flex items-center justify-center font-bold border ${
                     p === true  ? 'bg-emerald-500/30 border-emerald-500/50 text-emerald-300' :
                     p === false ? 'bg-red-500/30 border-red-500/50 text-red-300' :
                                   'bg-white/5 border-white/10 text-white/30'
@@ -221,7 +221,7 @@ function StockCard({
           <p className={`text-xs font-bold tabular-nums ${pctColor(r.roe)}`}>
             ROE {r.roe != null ? `${r.roe.toFixed(1)}%` : '-'}
           </p>
-          <p className="text-[10px] text-[var(--text-muted)] tabular-nums">
+          <p className="text-cap-pc text-[var(--text-muted)] tabular-nums">
             PER {fmtPer(r.per)}
           </p>
         </div>
@@ -512,7 +512,7 @@ function ScreenerInner() {
                 <span className="text-base shrink-0">{item.icon}</span>
                 <div>
                   <p className="text-xs font-semibold text-[var(--text)]">{item.crit}</p>
-                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{item.desc}</p>
+                  <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -623,7 +623,7 @@ function ScreenerInner() {
                   className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-sky-500/15 text-sky-400 border border-sky-500/30"
                 >
                   <span className="font-medium">{chipLabel(t)}</span>
-                  <span className="text-[10px] opacity-60 font-mono">
+                  <span className="text-cap-pc opacity-60 font-mono">
                     {t.replace(/\.(KS|KQ)$/, '')}
                   </span>
                   <button
@@ -667,7 +667,7 @@ function ScreenerInner() {
           {failedTickers.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
               {failedTickers.map((t) => (
-                <span key={t} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-500/20 text-red-300">
+                <span key={t} className="text-cap-pc font-mono px-1.5 py-0.5 rounded bg-red-500/20 text-red-300">
                   {localNames[t] ?? t}
                 </span>
               ))}

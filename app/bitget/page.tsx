@@ -197,7 +197,7 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
             <div className="rounded-2xl border-2 border-[var(--accent)]/40 bg-[var(--accent-soft)] p-5">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xs text-[var(--text-muted)]">USDT-M 선물 잔액 (계좌 순자산)</p>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] font-bold">USDT-M 선물</span>
+                <span className="text-cap-pc px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] font-bold">USDT-M 선물</span>
               </div>
               <p className="text-3xl font-bold text-[var(--accent)] tabular-nums">
                 ${fmtUsd(pos.account.equity)}
@@ -249,7 +249,7 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
             ) : pos.positions && pos.positions.length > 0 ? (
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-sm font-bold text-[var(--text)]">USDT 선물 포지션 <span className="text-[10px] font-normal text-[var(--text-muted)]">{pos.positions.length}건</span></h2>
+                  <h2 className="text-sm font-bold text-[var(--text)]">USDT 선물 포지션 <span className="text-cap-pc font-normal text-[var(--text-muted)]">{pos.positions.length}건</span></h2>
                   {pos.account && (
                     <span className="text-[11px] tabular-nums">
                       <span className="text-[var(--text-muted)]">미실현 </span>
@@ -267,16 +267,16 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-1.5">
                             <span className="text-sm font-bold text-[var(--text)]">{p.symbol.replace('USDT', '')}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${p.side === 'long' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500'}`}>
+                            <span className={`text-cap-pc px-1.5 py-0.5 rounded font-semibold ${p.side === 'long' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500'}`}>
                               {p.side === 'long' ? '롱' : '숏'} {p.leverage}x
                             </span>
-                            {p.marginMode && <span className="text-[9px] text-[var(--text-muted)]">{p.marginMode === 'isolated' ? '격리' : '교차'}</span>}
+                            {p.marginMode && <span className="text-cap text-[var(--text-muted)]">{p.marginMode === 'isolated' ? '격리' : '교차'}</span>}
                           </div>
                           <span className={`text-sm font-bold tabular-nums ${p.unrealizedPL >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                             {p.unrealizedPL >= 0 ? '+' : ''}{p.unrealizedPL.toFixed(2)}
                           </span>
                         </div>
-                        <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 text-[10px] text-[var(--text-muted)] tabular-nums">
+                        <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 text-cap-pc text-[var(--text-muted)] tabular-nums">
                           <span>평단 {fmtUsd(p.openAvg)}</span>
                           <span>마크 {fmtUsd(p.markPrice)}</span>
                           <span>증거금 {p.marginSize.toFixed(2)}</span>
@@ -292,7 +292,7 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
                     );
                   })}
                 </div>
-                <p className="text-[9px] text-[var(--text-muted)] mt-2 opacity-70">읽기 전용 · 15초 갱신 · 청산가는 거래소 계산값</p>
+                <p className="text-cap text-[var(--text-muted)] mt-2 opacity-70">읽기 전용 · 15초 갱신 · 청산가는 거래소 계산값</p>
               </div>
             ) : (
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
@@ -317,11 +317,11 @@ BITGET_API_PASSPHRASE=직접_정한_Passphrase`}
                   return (
                     <div key={b.billId} className="flex items-center justify-between text-xs rounded-lg bg-[var(--surface-2)] px-3 py-2">
                       <div>
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium mr-1.5 ${inflow ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-600'}`}>
+                        <span className={`px-1.5 py-0.5 rounded text-cap-pc font-medium mr-1.5 ${inflow ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-600'}`}>
                           {bizLabel(b.businessType)}
                         </span>
                         <span className="font-mono text-[var(--text)]">{b.coin}</span>
-                        <span className="text-[10px] text-[var(--text-muted)] ml-1.5">{fmtTs(b.ts)}</span>
+                        <span className="text-cap-pc text-[var(--text-muted)] ml-1.5">{fmtTs(b.ts)}</span>
                       </div>
                       <span className={`tabular-nums font-semibold ${inflow ? 'text-emerald-500' : 'text-red-500'}`}>
                         {inflow ? '+' : ''}{fmtAmount(b.size)}

@@ -38,7 +38,7 @@ export default function PastReleases({ ec, limit = 10 }: { ec?: EconCalWindow; l
               const sc = sur == null || Math.abs(sur) < 1e-9 ? 'text-[var(--text-muted)]' : sur > 0 ? 'text-red-400' : 'text-blue-400';
               return (
                 <tr key={`${e.event}-${e.date}-${i}`} className="border-b border-[var(--line-2)] last:border-0">
-                  <td className="px-3 py-2 text-[var(--text)] max-w-[180px] truncate" title={e.event}>{e.event}{e.unit && (e.unit === 'K' || e.unit === 'B' || e.unit === 'M') ? <span className="text-[9px] text-[var(--text-muted)] ml-1">{e.unit}</span> : null}</td>
+                  <td className="px-3 py-2 text-[var(--text)] max-w-[180px] truncate" title={e.event}>{e.event}{e.unit && (e.unit === 'K' || e.unit === 'B' || e.unit === 'M') ? <span className="text-cap text-[var(--text-muted)] ml-1">{e.unit}</span> : null}</td>
                   <td className="text-[var(--text-muted)]">{String(e.date).slice(5, 10).replace('-', '/')}</td>
                   <td className="text-right font-bold text-[var(--text)]">{fx(e.actual, e.unit)}</td>
                   <td className="text-right text-[var(--text-muted)]">{fx(e.estimate, e.unit)}</td>
@@ -50,7 +50,7 @@ export default function PastReleases({ ec, limit = 10 }: { ec?: EconCalWindow; l
           </tbody>
         </table>
       </div>
-      <p className="text-[10px] text-[var(--text-muted)] px-3 py-2 leading-snug">미국 영향 높음·보통 지표만. 서프라이즈=실제−컨센서스(상회 <span className="text-red-400">빨강</span>·하회 <span className="text-blue-400">파랑</span>). 출처 Nowflation·FMP 경제 캘린더. 매매 신호 아님.</p>
+      <p className="text-cap-pc text-[var(--text-muted)] px-3 py-2 leading-snug">미국 영향 높음·보통 지표만. 서프라이즈=실제−컨센서스(상회 <span className="text-red-400">빨강</span>·하회 <span className="text-blue-400">파랑</span>). 출처 Nowflation·FMP 경제 캘린더. 매매 신호 아님.</p>
     </div>
   );
 }

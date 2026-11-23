@@ -41,16 +41,16 @@ export default function QuiltPage() {
           <table className="border-separate" style={{ borderSpacing: 2 }}>
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 bg-[var(--bg-card)] text-left text-[10px] font-semibold text-[var(--text-muted)] pr-2 pl-1">품목</th>
+                <th className="sticky left-0 z-10 bg-[var(--bg-card)] text-left text-cap-pc font-semibold text-[var(--text-muted)] pr-2 pl-1">품목</th>
                 {months.map((m) => (
-                  <th key={m} className="text-[8px] font-medium text-[var(--text-muted)] tabular-nums" style={{ minWidth: 20 }}>{m.endsWith('-01') || m.endsWith('-07') ? mLabel(m) : ''}</th>
+                  <th key={m} className="text-cap font-medium text-[var(--text-muted)] tabular-nums" style={{ minWidth: 20 }}>{m.endsWith('-01') || m.endsWith('-07') ? mLabel(m) : ''}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {comps.map((c) => (
                 <tr key={c.key}>
-                  <td className="sticky left-0 z-10 bg-[var(--bg-card)] text-[10px] text-[var(--text)] whitespace-nowrap pr-2 pl-1">{c.label}</td>
+                  <td className="sticky left-0 z-10 bg-[var(--bg-card)] text-cap-pc text-[var(--text)] whitespace-nowrap pr-2 pl-1">{c.label}</td>
                   {c.cells.map((cell, i) => (
                     <td key={i} title={`${c.label} ${months[i] ?? ''}: ${cellPct(cell.yoy)}%`}
                       className="rounded-[3px]" style={{ background: quiltCellColor(cell.yoy), width: 20, height: 18 }} />
@@ -64,7 +64,7 @@ export default function QuiltPage() {
 
       {!q && <p className="text-[12px] text-[var(--text-muted)] text-center py-8 border border-dashed border-[var(--border)] rounded-xl">불러오는 중…</p>}
 
-      <div className="flex items-center gap-2 text-[10px] text-[var(--text-muted)] mb-3">
+      <div className="flex items-center gap-2 text-cap-pc text-[var(--text-muted)] mb-3">
         <span className="inline-block w-3 h-3 rounded-sm" style={{ background: quiltCellColor(-0.05) }} /> 하락
         <span className="inline-block w-3 h-3 rounded-sm" style={{ background: quiltCellColor(0.02) }} />
         <span className="inline-block w-3 h-3 rounded-sm" style={{ background: quiltCellColor(0.06) }} /> 상승(강)

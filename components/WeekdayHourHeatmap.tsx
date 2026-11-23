@@ -36,16 +36,16 @@ export default function WeekdayHourHeatmap({ h, fmt, sub, selected, onSelect, de
     <section className="fin-card p-4 mb-3">
       <div className="flex items-center gap-2 flex-wrap mb-2">
         <h2 className="text-sm font-bold text-[var(--text)]">요일 × 시간대</h2>
-        <span className="text-[10px] text-[var(--text-muted)]">{sub ?? '어느 요일·시간에 벌고 잃었나(진입 시각 KST·순손익)'}</span>
+        <span className="text-cap-pc text-[var(--text-muted)]">{sub ?? '어느 요일·시간에 벌고 잃었나(진입 시각 KST·순손익)'}</span>
       </div>
 
       <div className="overflow-x-auto -mx-1 px-1">
         <table className="border-separate tabular-nums" style={{ borderSpacing: 3, minWidth: 60 + h.bands.length * 58 }}>
           <thead>
             <tr>
-              <th className="text-left text-[10px] text-[var(--text-muted)] font-semibold pr-1" />
+              <th className="text-left text-cap-pc text-[var(--text-muted)] font-semibold pr-1" />
               {h.bands.map((b) => (
-                <th key={b} className="text-[9.5px] text-[var(--text-muted)] font-semibold text-center" style={{ minWidth: 54 }}>{HOUR_BANDS[b].label.replace(/시$/, '')}</th>
+                <th key={b} className="text-cap text-[var(--text-muted)] font-semibold text-center" style={{ minWidth: 54 }}>{HOUR_BANDS[b].label.replace(/시$/, '')}</th>
               ))}
             </tr>
           </thead>
@@ -61,7 +61,7 @@ export default function WeekdayHourHeatmap({ h, fmt, sub, selected, onSelect, de
                   const inner = c ? (
                     <div className="leading-tight">
                       <div className="text-[11px] font-bold text-[var(--text)]">{compact(c.net)}</div>
-                      <div className="text-[8.5px] text-[var(--text)] opacity-75">{c.n}건{c.winRate != null ? ` ${Math.round(c.winRate)}%` : ''}</div>
+                      <div className="text-cap text-[var(--text)] opacity-75">{c.n}건{c.winRate != null ? ` ${Math.round(c.winRate)}%` : ''}</div>
                     </div>
                   ) : null;
                   return (
@@ -83,7 +83,7 @@ export default function WeekdayHourHeatmap({ h, fmt, sub, selected, onSelect, de
         </table>
       </div>
 
-      <p className="text-[10.5px] text-[var(--text-muted)] mt-2 leading-relaxed">
+      <p className="text-cap text-[var(--text-muted)] mt-2 leading-relaxed">
         {h.best && h.worst && h.best !== h.worst ? (
           <>표본 {THIN_SAMPLE}건 이상 중 가장 좋았던 칸은 <b style={{ color: 'var(--warn)' }}>{WEEKDAYS[h.best.wd]} {HOUR_BANDS[h.best.band].label}</b>(순손익 {fmt(h.best.net)}),
             가장 나빴던 칸은 <b style={{ color: 'var(--accent-ink)' }}>{WEEKDAYS[h.worst.wd]} {HOUR_BANDS[h.worst.band].label}</b>({fmt(h.worst.net)}). </>

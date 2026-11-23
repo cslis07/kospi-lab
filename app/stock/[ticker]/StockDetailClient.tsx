@@ -182,7 +182,7 @@ function DartFinancialSection({ code }: { code: string }) {
           ))}
         </tbody>
       </table>
-      <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-60">
+      <p className="text-cap-pc text-[var(--text-muted)] mt-2 opacity-60">
         출처: DART 전자공시 (금융감독원) · {fin1?.fsDiv === 'CFS' ? '연결재무제표' : '개별재무제표'}
       </p>
     </Collapsible>
@@ -211,7 +211,7 @@ function DartDividendSection({ code }: { code: string }) {
       <div className="grid grid-cols-3 gap-3">
         {items.map(({ label, value }) => (
           <div key={label} className="text-center p-3 rounded-xl bg-[var(--surface-2)]">
-            <p className="text-[10px] text-[var(--text-muted)] mb-1 leading-snug">{label}</p>
+            <p className="text-cap-pc text-[var(--text-muted)] mb-1 leading-snug">{label}</p>
             <p className="font-bold text-sm text-[var(--text)] tabular-nums">{value}</p>
           </div>
         ))}
@@ -568,9 +568,9 @@ export default function StockDetailClient() {
         {(activeInd.length > 0 || compareTicker) && (
           <button type="button" onClick={() => setIndOpen(true)} className="flex flex-wrap gap-1.5 mb-3 text-left" aria-label="켜진 지표 편집">
             {activeInd.map((i) => (
-              <span key={i.key} className="text-[10.5px] font-bold px-2 py-0.5 rounded-md bg-[var(--surface-2)]" style={{ color: i.hex }}>{i.label}</span>
+              <span key={i.key} className="text-cap font-bold px-2 py-0.5 rounded-md bg-[var(--surface-2)]" style={{ color: i.hex }}>{i.label}</span>
             ))}
-            {compareTicker && <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-amber-500">vs {compareName || compareTicker}</span>}
+            {compareTicker && <span className="text-cap font-bold px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-amber-500">vs {compareName || compareTicker}</span>}
           </button>
         )}
 
@@ -620,7 +620,7 @@ export default function StockDetailClient() {
                   <button key={h.ticker} onClick={() => pickCompare(h)}
                     className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-[var(--surface-2)] transition-colors border-b border-[var(--border)] last:border-0">
                     <span className="text-xs text-[var(--text)]">{h.name}</span>
-                    <span className="text-[10px] font-mono text-[var(--text-muted)]">{h.ticker.replace(/\.(KS|KQ)$/, '')}</span>
+                    <span className="text-cap-pc font-mono text-[var(--text-muted)]">{h.ticker.replace(/\.(KS|KQ)$/, '')}</span>
                   </button>
                 ))}
               </div>

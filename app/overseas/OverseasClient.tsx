@@ -340,7 +340,7 @@ export default function OverseasClient({ snapshotAt }: { snapshotAt?: number }) 
       {/* 테이블 — 홈 대시보드 스타일(fin-card) */}
       <div className="fin-card overflow-hidden">
         {/* 컬럼 헤더 */}
-        <div className="hidden sm:grid grid-cols-[40px_48px_1fr_120px_90px_130px] gap-2 px-5 py-2.5 border-b border-[var(--line-2)] text-[10px] text-[var(--faint)] font-medium">
+        <div className="hidden sm:grid grid-cols-[40px_48px_1fr_120px_90px_130px] gap-2 px-5 py-2.5 border-b border-[var(--line-2)] text-cap-pc text-[var(--faint)] font-medium">
           <span />
           <span className="text-center">순위</span>
           <span>종목</span>
@@ -410,20 +410,20 @@ export default function OverseasClient({ snapshotAt }: { snapshotAt?: number }) 
                         {d?.name ?? item.name}
                       </p>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-sky-500/20 text-sky-400">
+                        <span className="text-cap-pc px-1 py-0.5 rounded bg-sky-500/20 text-sky-400">
                           {item.exchange}
                         </span>
-                        <span className="text-[10px] font-mono text-[var(--text-muted)]">{item.symbol}</span>
+                        <span className="text-cap-pc font-mono text-[var(--text-muted)]">{item.symbol}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); router.push(`/overseas-analysis?symbol=${encodeURIComponent(item.symbol)}`); }}
-                          className="hit hit-pill inline-flex items-center gap-0.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md text-[var(--accent)] bg-[var(--accent-soft)] border border-[var(--accent)]/25 hover:brightness-105"
+                          className="hit hit-pill inline-flex items-center gap-0.5 text-cap font-bold px-1.5 py-0.5 rounded-md text-[var(--accent)] bg-[var(--accent-soft)] border border-[var(--accent)]/25 hover:brightness-105"
                           aria-label={`${item.name} 분석`}>
                           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5" /></svg>
                           분석
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); router.push(`/screener?tickers=${item.symbol}&market=US&run=1`); }}
-                          className="hit hit-pill inline-flex items-center gap-0.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded-md text-[var(--text-muted)] bg-[var(--surface-2)] border border-[var(--border)] hover:text-[var(--text)]"
+                          className="hit hit-pill inline-flex items-center gap-0.5 text-cap font-bold px-1.5 py-0.5 rounded-md text-[var(--text-muted)] bg-[var(--surface-2)] border border-[var(--border)] hover:text-[var(--text)]"
                           aria-label={`${item.name} 간단 재무`}>
                           간단
                         </button>
@@ -462,7 +462,7 @@ export default function OverseasClient({ snapshotAt }: { snapshotAt?: number }) 
         )}
       </div>
 
-      <p className="text-[10px] text-[var(--text-muted)] text-center mt-3 opacity-50">
+      <p className="text-cap-pc text-[var(--text-muted)] text-center mt-3 opacity-50">
         Yahoo Finance 데이터 · 15초 갱신 · 투자 참고용
       </p>
 

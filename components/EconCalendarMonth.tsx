@@ -52,7 +52,7 @@ export default function EconCalendarMonth({ events }: { events: CalEvt[] }) {
         <span className="text-[13px] font-bold text-[var(--text)] tabular-nums">{y}년 {m + 1}월</span>
         <button type="button" onClick={() => go(1)} aria-label="다음 달" className="w-7 h-7 grid place-items-center rounded-lg border border-[var(--line-2)] text-[var(--text-muted)] hover:text-[var(--text)]">›</button>
       </div>
-      <div className="grid grid-cols-7 text-center text-[10px] font-semibold text-[var(--text-muted)] mb-1">
+      <div className="grid grid-cols-7 text-center text-cap-pc font-semibold text-[var(--text-muted)] mb-1">
         {DOW.map((d, i) => <span key={d} className={i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : ''}>{d}</span>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -64,7 +64,7 @@ export default function EconCalendarMonth({ events }: { events: CalEvt[] }) {
             <button key={i} type="button" disabled={!evs.length} onClick={() => setOpenDay(ds)}
               aria-label={`${m + 1}월 ${d}일${isToday ? '(오늘)' : ''} 일정 ${evs.length}건`}
               className={`min-h-[54px] rounded-lg border p-1 overflow-hidden text-left align-top flex flex-col ${evs.length ? 'cursor-pointer hover:border-[var(--border-hover)]' : 'cursor-default'} ${isToday ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-[var(--line-2)]'}`}>
-              <span className={`text-[10px] font-bold leading-none mb-0.5 ${dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-[var(--text)]'}`}>{d}</span>
+              <span className={`text-cap-pc font-bold leading-none mb-0.5 ${dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-[var(--text)]'}`}>{d}</span>
               {/* 폰: 색 점 + 건수 */}
               {evs.length > 0 && (
                 <span className="sm:hidden mt-auto flex items-center gap-0.5 flex-wrap">
@@ -74,14 +74,14 @@ export default function EconCalendarMonth({ events }: { events: CalEvt[] }) {
               )}
               {/* 넓은 화면: 이름 칩 2개 + 나머지 수 */}
               <span className="hidden sm:block space-y-0.5 w-full">
-                {evs.slice(0, 2).map((e, j) => <span key={j} className={`block text-[8.5px] leading-tight px-1 py-0.5 rounded truncate ${TONE[e.tone]}`} title={e.label}>{e.label}</span>)}
-                {evs.length > 2 && <span className="block text-[8px] text-[var(--text-muted)] px-1 leading-none">+{evs.length - 2}</span>}
+                {evs.slice(0, 2).map((e, j) => <span key={j} className={`block text-cap leading-tight px-1 py-0.5 rounded truncate ${TONE[e.tone]}`} title={e.label}>{e.label}</span>)}
+                {evs.length > 2 && <span className="block text-cap text-[var(--text-muted)] px-1 leading-none">+{evs.length - 2}</span>}
               </span>
             </button>
           );
         })}
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[9px] text-[var(--text-muted)]">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-cap text-[var(--text-muted)]">
         <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded bg-sky-500/60" />지표</span>
         <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded bg-violet-500/60" />FOMC</span>
         <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-500/60" />한은</span>

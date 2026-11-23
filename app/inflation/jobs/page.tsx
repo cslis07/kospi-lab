@@ -45,7 +45,7 @@ export default function JobsPage() {
           {rows.length > 0 && (
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
               <h2 className="text-sm font-semibold text-[var(--text)] mb-2">최근 예측 대 실제</h2>
-              <div className="grid grid-cols-4 gap-1 px-1 py-1.5 text-[10px] font-semibold text-[var(--text-muted)] border-b border-[var(--border)]">
+              <div className="grid grid-cols-4 gap-1 px-1 py-1.5 text-cap-pc font-semibold text-[var(--text-muted)] border-b border-[var(--border)]">
                 <span>월</span><span className="text-right">실제</span><span className="text-right">모델</span><span className="text-right">나이브</span>
               </div>
               <ul className="divide-y divide-[var(--border)]/60">
@@ -58,7 +58,7 @@ export default function JobsPage() {
                   </li>
                 ))}
               </ul>
-              <p className="text-[10px] text-[var(--text-muted)] mt-1.5">K = 천 명. 모델=나우캐스트, 나이브=직전값 그대로.</p>
+              <p className="text-cap-pc text-[var(--text-muted)] mt-1.5">K = 천 명. 모델=나우캐스트, 나이브=직전값 그대로.</p>
             </div>
           )}
 
@@ -66,12 +66,12 @@ export default function JobsPage() {
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
               <p className="text-[11px] text-[var(--text-muted)]">실업률</p>
               <p className="text-2xl font-extrabold tabular-nums text-[var(--text)]">{unemp ? `${unemp.value.toFixed(1)}%` : '—'}</p>
-              {unemp && <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{unemp.date}</p>}
+              {unemp && <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">{unemp.date}</p>}
             </div>
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
               <p className="text-[11px] text-[var(--text-muted)]">임금 상승률(YoY)</p>
               <p className="text-2xl font-extrabold tabular-nums text-[var(--text)]">{atlanta ? `${atlanta.value.toFixed(1)}%` : indeed ? `${indeed.value.toFixed(1)}%` : '—'}</p>
-              <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{atlanta ? `애틀랜타 연준 · ${atlanta.date}` : indeed ? `Indeed · ${indeed.date}` : ''}</p>
+              <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">{atlanta ? `애틀랜타 연준 · ${atlanta.date}` : indeed ? `Indeed · ${indeed.date}` : ''}</p>
             </div>
           </div>
         </>

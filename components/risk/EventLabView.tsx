@@ -142,7 +142,7 @@ export default function EventLabView() {
               <div className="w-44"><Toggle label="구간" value={span} options={[['4h', '−1h~+4h'], ['24h', '~+24h']] as const} onChange={setSpan} /></div>
             </div>
             <LineChart pts={span === '4h' ? d.m1 : d.m5} eventTs={d.ts} pre={pre} label={`${sym} 발표 전후 가격`} />
-            <p className="text-[10.5px] text-[var(--faint)] mt-1">점선 = 발표 직전 가격. {span === '4h' ? '1분봉' : '5분봉'} 종가 · 받은 봉 {span === '4h' ? `${d.study.coverage.m1}/${d.study.coverage.m1Expected}` : `${d.study.coverage.m5}/${d.study.coverage.m5Expected}`}개{d.errors.length ? ` · 실패: ${d.errors.join(', ')}` : ''} · {d.source}</p>
+            <p className="text-cap text-[var(--faint)] mt-1">점선 = 발표 직전 가격. {span === '4h' ? '1분봉' : '5분봉'} 종가 · 받은 봉 {span === '4h' ? `${d.study.coverage.m1}/${d.study.coverage.m1Expected}` : `${d.study.coverage.m5}/${d.study.coverage.m5Expected}`}개{d.errors.length ? ` · 실패: ${d.errors.join(', ')}` : ''} · {d.source}</p>
           </section>
 
           <section aria-label="시점별 가격 변화" className="fin-card p-4 mb-4">
@@ -160,7 +160,7 @@ export default function EventLabView() {
                 </tbody>
               </table>
             </div>
-            <p className="text-[10.5px] text-[var(--faint)] mt-1.5">발표 직전 = 발표 시각에 끝나는 1분봉 종가. 그 시각 봉이 없으면 빈칸(보간 안 함).</p>
+            <p className="text-cap text-[var(--faint)] mt-1.5">발표 직전 = 발표 시각에 끝나는 1분봉 종가. 그 시각 봉이 없으면 빈칸(보간 안 함).</p>
           </section>
 
           <section aria-label="변동·거래량·미결제약정·펀딩" className="fin-card p-4 mb-4">
@@ -184,7 +184,7 @@ export default function EventLabView() {
                 </div>
               ))}
             </dl>
-            <p className="text-[10.5px] text-[var(--faint)] mt-2 leading-relaxed">
+            <p className="text-cap text-[var(--faint)] mt-2 leading-relaxed">
               안정화 = 발표 5~60분 전 1분봉 변동폭 중앙값의 1.5배 이하로 15분 창 중앙값이 내려온 첫 시점(정의가 임의인 참고 측정). OI 는 바이낸스 5분 기록(최근 30일만 제공).
               예상치·실제치·이전치는 무료 공개 소스를 확보하지 못해 표시하지 않습니다(추정 안 함).
             </p>
@@ -197,7 +197,7 @@ export default function EventLabView() {
               <div className="overflow-x-auto mt-2">
                 <table className="w-full text-[12px] min-w-[520px]">
                   <thead>
-                    <tr className="text-[10.5px] text-[var(--faint)]">
+                    <tr className="text-cap text-[var(--faint)]">
                       <th className="text-left font-bold py-1">발표(KST)</th>
                       {CHECKPOINTS.filter((c) => c.min > 0).map((c) => <th key={c.key} className="text-right font-bold px-1">{c.label}</th>)}
                       <th className="text-right font-bold pl-1">4h 최대↑/↓</th>
@@ -228,15 +228,15 @@ export default function EventLabView() {
                 </table>
               </div>
             )}
-            <p className="text-[10.5px] text-[var(--faint)] mt-2 leading-relaxed">표본이 몇 건뿐이라 방향을 예측하는 근거가 아닙니다. 평균 절대 변화는 &lsquo;발표 때 얼마나 크게 움직이는가(위험 크기)&rsquo;를 보는 용도입니다. 동시 발표가 있던 날은 다른 지표 영향이 섞여 있습니다.</p>
+            <p className="text-cap text-[var(--faint)] mt-2 leading-relaxed">표본이 몇 건뿐이라 방향을 예측하는 근거가 아닙니다. 평균 절대 변화는 &lsquo;발표 때 얼마나 크게 움직이는가(위험 크기)&rsquo;를 보는 용도입니다. 동시 발표가 있던 날은 다른 지표 영향이 섞여 있습니다.</p>
           </section>
         </>
       )}
 
-      <p className="text-[10.5px] text-[var(--faint)] leading-relaxed px-0.5">
+      <p className="text-cap text-[var(--faint)] leading-relaxed px-0.5">
         일정: {ev.data?.note ?? 'FRED·연준 공식 일정'} · 시세: 바이낸스 USDT 무기한 공개 API. 발표 전 매매 판단에는 발표 전에 알 수 있던 정보만 써야 합니다 — 이 화면의 발표 후 수치는 복기·위험 크기 파악용입니다.
       </p>
-      {now > 0 && cur && now - cur.ts < 24 * 60 * M && <p className="text-[10.5px] text-[var(--amber)] mt-1 px-0.5">발표 후 24시간이 지나지 않아 일부 시점은 아직 비어 있습니다.</p>}
+      {now > 0 && cur && now - cur.ts < 24 * 60 * M && <p className="text-cap text-[var(--amber)] mt-1 px-0.5">발표 후 24시간이 지나지 않아 일부 시점은 아직 비어 있습니다.</p>}
     </div>
   );
 }

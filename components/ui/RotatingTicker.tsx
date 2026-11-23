@@ -34,7 +34,7 @@ export default function RotatingTicker({
       <div className="flex items-center gap-2">
         <div className="text-[12px] font-bold text-[var(--text)] shrink-0">{title}</div>
         {badge}
-        {!open && n > 1 && <span className="text-[9px] text-[var(--text-muted)] tabular-nums shrink-0">{(i % n) + 1}/{n}</span>}
+        {!open && n > 1 && <span className="text-cap text-[var(--text-muted)] tabular-nums shrink-0">{(i % n) + 1}/{n}</span>}
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
           className="ml-auto text-[11px] text-sky-400 shrink-0 flex items-center gap-1 hover:underline">
           {open ? '접기' : '펼치기'}

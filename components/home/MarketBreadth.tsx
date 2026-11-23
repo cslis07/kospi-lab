@@ -29,9 +29,9 @@ function Row({ name, ud }: { name: string; ud: UpDown | null | undefined }) {
         <span style={{ width: w(ud.down), background: 'var(--down)' }} />
       </div>
       <div className="grid grid-cols-3 mt-1.5 text-[12px] tabular-nums">
-        <span style={{ color: 'var(--up)' }}>▲ 상승 <b>{ud.up.toLocaleString()}</b>{ud.upper ? <span className="text-[10.5px]"> (상한 {ud.upper})</span> : null}</span>
+        <span style={{ color: 'var(--up)' }}>▲ 상승 <b>{ud.up.toLocaleString()}</b>{ud.upper ? <span className="text-cap"> (상한 {ud.upper})</span> : null}</span>
         <span className="text-center text-[var(--text-muted)]">보합 <b>{ud.flat.toLocaleString()}</b></span>
-        <span className="text-right" style={{ color: 'var(--down)' }}>▼ 하락 <b>{ud.down.toLocaleString()}</b>{ud.lower ? <span className="text-[10.5px]"> (하한 {ud.lower})</span> : null}</span>
+        <span className="text-right" style={{ color: 'var(--down)' }}>▼ 하락 <b>{ud.down.toLocaleString()}</b>{ud.lower ? <span className="text-cap"> (하한 {ud.lower})</span> : null}</span>
       </div>
     </div>
   );

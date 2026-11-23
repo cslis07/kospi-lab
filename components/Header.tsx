@@ -175,7 +175,7 @@ export default function Header() {
               style={{ background: 'var(--accent)', boxShadow: '0 2px 0 var(--accent-deep)' }}>K</span>
             <span className="block">
               <span className="block font-display text-sm font-extrabold tracking-tight text-[var(--text)]">KOSPI LAB</span>
-              <p className="text-[9px] text-[var(--text-muted)] leading-none mt-0.5 hidden sm:block">투자 리스크 관리</p>
+              <p className="text-cap text-[var(--text-muted)] leading-none mt-0.5 hidden sm:block">투자 리스크 관리</p>
             </span>
           </Link>
           {/* 시장 상태 dot — md+ 에서만 표시 */}

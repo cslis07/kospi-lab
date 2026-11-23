@@ -51,7 +51,7 @@ export default function BreakdownTables({ items, unit, valueLabel, fmt, title = 
     <section className="mb-5">
       <div className="flex items-center gap-2 flex-wrap mb-2">
         <h2 className="text-sm font-bold text-[var(--text)]">{title}</h2>
-        {sub && <span className="text-[10px] text-[var(--text-muted)]">{sub}</span>}
+        {sub && <span className="text-cap-pc text-[var(--text-muted)]">{sub}</span>}
         {/* 탭이 5개라 좁은 화면에선 잘리지 않고 이 안에서 가로 스크롤 */}
         <div className="ml-auto max-w-full overflow-x-auto">
           <div className="seg w-max" role="tablist" aria-label="분해 기준">

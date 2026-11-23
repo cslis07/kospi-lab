@@ -7,6 +7,16 @@
 /* dark: 변형을 클래스 기준으로(html.dark 정적 부착) */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ── 의미 글자 크기(KL-014, 2026-11-23) — 11px 미만 하드코딩(text-[8~10.5px] 754곳)을 대신한다.
+   값은 아래 '모바일 최소 글자'·'PC 시인성' 덮어쓰기가 실제로 만들던 크기와 같다(시각 변화 없음):
+   text-cap = 모든 폭 11px(예전 8·8.5·9·9.5·10.5px) · text-cap-pc = 폰 11px / PC(1024+) 12px(예전 10px).
+   새 코드는 11px 미만을 쓰지 말고 이 둘이나 text-[11px] 이상을 쓴다 — tests/typography.test.ts 가 막는다. */
+@utility text-cap { font-size: 11px; }
+@utility text-cap-pc {
+  font-size: 11px;
+  @media (min-width: 1024px) { font-size: 12px; }
+}
+
 /* ── Tailwind 테마: 폰트 + 하드코딩 팔레트 클래스 → Copilot 캔디 팔레트 재매핑 ──
    30여 파일의 text/bg-(red|emerald|sky|amber…)-N 을 파일 수정 없이 팔레트로 리스킨한다. */
 @theme {

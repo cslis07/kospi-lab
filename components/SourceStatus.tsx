@@ -39,7 +39,7 @@ export default function SourceStatus({ sources }: { sources?: SourceStat[] }) {
       <div className="mt-1.5 flex flex-wrap gap-1.5">
         {missing.map((s) => (
           <span key={s.key}
-            className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${s.critical
+            className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-cap-pc font-medium ${s.critical
               ? 'border-red-500/40 text-red-500 dark:text-red-400'
               : 'border-amber-500/40 text-amber-600 dark:text-amber-400'}`}
             title={s.critical ? '판정에 핵심적인 소스 — 신뢰도가 크게 낮아집니다' : '보조 소스 — 참고치가 비어 있습니다'}>
@@ -48,7 +48,7 @@ export default function SourceStatus({ sources }: { sources?: SourceStat[] }) {
         ))}
       </div>
       {hasCritical && (
-        <p className="mt-1.5 text-[10px] text-[var(--text-muted)]">
+        <p className="mt-1.5 text-cap-pc text-[var(--text-muted)]">
           핵심 소스가 비어 있으면 점수·판정을 신뢰하지 마세요. 잠시 후 다시 시도하면 복구될 수 있습니다.
         </p>
       )}

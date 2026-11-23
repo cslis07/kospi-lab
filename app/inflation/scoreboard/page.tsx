@@ -40,7 +40,7 @@ export default function ScoreboardPage() {
               월가와 겹치는 {s.street_overlap.prints ?? '—'}회: 나우캐스트 MAE <b className="text-[var(--text)]">{fx(s.street_overlap.mae_fmc)}</b> vs 월가 <b className="text-[var(--text)]">{fx(s.street_overlap.mae_street)}</b>
             </p>
           )}
-          {s.range && <p className="text-[10px] text-[var(--text-muted)] mt-1">기간 {s.range[0]}~{s.range[1]} · 모델 {s.model}</p>}
+          {s.range && <p className="text-cap-pc text-[var(--text-muted)] mt-1">기간 {s.range[0]}~{s.range[1]} · 모델 {s.model}</p>}
         </div>
       )}
 
@@ -61,7 +61,7 @@ export default function ScoreboardPage() {
                       <span className="flex items-center gap-1 min-w-0">
                         {x.best && <span className="text-amber-400">★</span>}
                         <span className={`truncate ${x.best ? 'text-[var(--text)] font-semibold' : 'text-[var(--text-muted)]'}`}>{x.name}</span>
-                        {x.f.pre_registered && <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)]">사전등록</span>}
+                        {x.f.pre_registered && <span className="shrink-0 text-cap px-1 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)]">사전등록</span>}
                       </span>
                       <span className="shrink-0 text-[var(--text)]">{fx(x.f.value)}% <span className="text-[var(--text-muted)]">({fx(x.f.abs)})</span></span>
                     </li>
@@ -85,9 +85,9 @@ export default function ScoreboardPage() {
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-xl border border-[var(--border)] p-2.5">
-      <p className="text-[10px] text-[var(--text-muted)]">{label}</p>
+      <p className="text-cap-pc text-[var(--text-muted)]">{label}</p>
       <p className="text-base font-bold tabular-nums text-[var(--text)]">{value}</p>
-      {sub && <p className="text-[9px] text-[var(--text-muted)]">{sub}</p>}
+      {sub && <p className="text-cap text-[var(--text-muted)]">{sub}</p>}
     </div>
   );
 }

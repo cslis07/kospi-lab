@@ -60,15 +60,15 @@ export default function MacroDetail({ cur }: { cur: MacroIndicator }) {
         </div>
         <div className="grid grid-cols-3 gap-2 mt-4">
           <div className="rounded-xl border border-[var(--border)] bg-white/3 p-2.5">
-            <p className="text-[10px] text-[var(--text-muted)]">이전</p>
+            <p className="text-cap-pc text-[var(--text-muted)]">이전</p>
             <p className="text-sm font-bold tabular-nums text-[var(--text)] mt-0.5">{fmtNum(cur.prev?.value, cur.decimals)}</p>
           </div>
           <div className="rounded-xl border border-[var(--border)] bg-white/3 p-2.5">
-            <p className="text-[10px] text-[var(--text-muted)]">{cur.periodicity === 'monthly' ? '전월대비' : '전일대비'}</p>
+            <p className="text-cap-pc text-[var(--text-muted)]">{cur.periodicity === 'monthly' ? '전월대비' : '전일대비'}</p>
             <p className={`text-sm font-bold tabular-nums mt-0.5 ${chgClass(cur.changePct)}`}>{fmtPct(cur.changePct)}</p>
           </div>
           <div className="rounded-xl border border-[var(--border)] bg-white/3 p-2.5">
-            <p className="text-[10px] text-[var(--text-muted)]" title={cur.yoyBasis === 'nsa' ? '1년 전 같은 달 대비. BLS 헤드라인과 같은 계절조정 전 지수로 계산(위 지수 레벨은 계절조정 값)' : cur.yoyBasis === 'same' ? '1년 전 같은 달 대비(위 지수와 같은 계열)' : undefined}>{cur.periodicity === 'monthly' ? `전년동월대비(YoY${cur.yoyBasis === 'nsa' ? '·계절조정 전' : ''})` : '추세'}</p>
+            <p className="text-cap-pc text-[var(--text-muted)]" title={cur.yoyBasis === 'nsa' ? '1년 전 같은 달 대비. BLS 헤드라인과 같은 계절조정 전 지수로 계산(위 지수 레벨은 계절조정 값)' : cur.yoyBasis === 'same' ? '1년 전 같은 달 대비(위 지수와 같은 계열)' : undefined}>{cur.periodicity === 'monthly' ? `전년동월대비(YoY${cur.yoyBasis === 'nsa' ? '·계절조정 전' : ''})` : '추세'}</p>
             <p className={`text-sm font-bold tabular-nums mt-0.5 ${cur.periodicity === 'monthly' ? chgClass(cur.yoyPct) : 'text-[var(--text-muted)]'}`}>
               {cur.periodicity === 'monthly' ? fmtPct(cur.yoyPct) : '아래 차트'}
             </p>
@@ -78,7 +78,7 @@ export default function MacroDetail({ cur }: { cur: MacroIndicator }) {
 
       {/* 차트 */}
       <div className="fin-card p-5">
-        <h2 className="text-sm font-semibold text-[var(--text)] mb-3">히스토리 <span className="text-[10px] font-normal text-[var(--text-muted)]">{cur.periodicity === 'monthly' ? '최근 24개월' : '최근 60영업일'}</span></h2>
+        <h2 className="text-sm font-semibold text-[var(--text)] mb-3">히스토리 <span className="text-cap-pc font-normal text-[var(--text-muted)]">{cur.periodicity === 'monthly' ? '최근 24개월' : '최근 60영업일'}</span></h2>
         <MacroChartLazy data={cur.history} decimals={cur.decimals} monthly={cur.periodicity === 'monthly'} unit={cur.unit} />
       </div>
 

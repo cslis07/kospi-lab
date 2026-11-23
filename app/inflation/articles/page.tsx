@@ -37,7 +37,7 @@ export default function ArticlesPage() {
           {articles.map((a) => (
             <li key={a.slug} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
               <a href={nfLink(a.url)} target="_blank" rel="noopener noreferrer" className="block">
-                <div className="flex items-center gap-2 mb-1 text-[10px] text-[var(--text-muted)] tabular-nums">
+                <div className="flex items-center gap-2 mb-1 text-cap-pc text-[var(--text-muted)] tabular-nums">
                   <span>{dShort(a.date)}</span>
                   {a.reading_min != null && <span>· {a.reading_min}분</span>}
                   {a.has_video && <span className="px-1 py-0.5 rounded bg-[var(--surface-2)]">영상</span>}
@@ -46,7 +46,7 @@ export default function ArticlesPage() {
                 {a.summary && <p className="text-[11px] text-[var(--text-muted)] leading-relaxed mt-1 line-clamp-3">{a.summary}</p>}
                 {a.tags && a.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
-                    {a.tags.slice(0, 4).map((tg) => <span key={tg} className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)]">{tg}</span>)}
+                    {a.tags.slice(0, 4).map((tg) => <span key={tg} className="text-cap px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)]">{tg}</span>)}
                   </div>
                 )}
               </a>

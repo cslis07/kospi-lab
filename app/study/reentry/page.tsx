@@ -134,7 +134,7 @@ export default function ReentryChecklistPage() {
                   className="mt-1 w-4 h-4 shrink-0 accent-sky-500" />
                 <div>
                   <p className="text-[13px] font-bold leading-snug">
-                    <span className="inline-block px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[10px] font-extrabold text-[var(--accent-ink)] mr-1.5 align-middle">{s.tag}</span>
+                    <span className="inline-block px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-cap-pc font-extrabold text-[var(--accent-ink)] mr-1.5 align-middle">{s.tag}</span>
                     <span className={proto[i] ? 'text-[var(--text)]' : 'text-[var(--text)]'}>{s.title}</span>
                   </p>
                   <p className="text-[12px] text-[var(--text-muted)] leading-snug mt-0.5">{s.body}</p>

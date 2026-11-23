@@ -46,7 +46,7 @@ function EarlyWarning({ f, cards, btc, days }: { f: Flags; cards: Scorecard[]; b
     <div className={`rounded-xl border px-3 py-2 mb-2 ${hot ? 'border-[var(--warn)] bg-[var(--warn-soft)]' : 'border-[var(--border)]'}`}>
       <div className="flex items-baseline gap-2 flex-wrap">
         <b className="text-[12.5px] text-[var(--text)]">{hot ? '🚨 ' : ''}폭락 조기 경보 — 30초 체크리스트 {score}/{max}</b>
-        <span className="text-[10.5px] text-[var(--text-muted)]">폭락 = 60분 안 −3% · 15분 이상 앞선 경보만 인정</span>
+        <span className="text-cap text-[var(--text-muted)]">폭락 = 60분 안 −3% · 15분 이상 앞선 경보만 인정</span>
       </div>
       <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 mt-1 text-[11.5px]">
         {items.map(([k, v]) => <li key={k} className={v ? 'text-[var(--text)] font-semibold' : 'text-[var(--text-muted)]'}>{v ? '☑' : '☐'} {k}</li>)}
@@ -56,7 +56,7 @@ function EarlyWarning({ f, cards, btc, days }: { f: Flags; cards: Scorecard[]; b
         <p key={c.key} className="text-[11.5px] text-[var(--text)] mt-1 leading-relaxed"><b>{LABEL[c.key]}</b> — {line(c)}</p>
       ))}
       {!active.length && c4 && <p className="text-[11px] text-[var(--text-muted)] mt-1 leading-relaxed">4개 이상이면: {line(c4)}</p>}
-      <p className="text-[10.5px] text-[var(--text-muted)] mt-1 leading-relaxed">
+      <p className="text-cap text-[var(--text-muted)] mt-1 leading-relaxed">
         행동: 신규 롱 보류·손절 확인용(숏 추격 신호 아님). 첫 급락은 사전 신호 없이 오는 경우가 많고(10-24 23:15도 그랬음), 이 경보는 첫 충격 뒤 추가 하락을 앞서 잡는 데 강했습니다 — 10-24엔 23:30에 4/5로 울렸고 30분 뒤 2차 급락.
       </p>
     </div>
@@ -81,7 +81,7 @@ function LiveRecord({ pooled }: { pooled: ShockStat }) {
         ⚡ 하락 충격봉 {s.shock.n}번 판정 · 2시간 안 추가 하락 <b className="text-[var(--text)]">{s.shock.cont}</b> vs 반등 <b className="text-[var(--text)]">{s.shock.rev}</b>
         {' '}— 과거 {Math.round((pooled.cont / m) * 100)}% vs {Math.round((pooled.rev / m) * 100)}%{s.shock.pending ? ` · 대기 ${s.shock.pending}` : ''}
       </p>
-      {(s.warn.n + s.shock.n) < 30 && <p className="text-[10.5px] text-[var(--text-muted)]">표본 {s.warn.n + s.shock.n}건 — 30건 전엔 측정값과 비교하지 마세요.</p>}
+      {(s.warn.n + s.shock.n) < 30 && <p className="text-cap text-[var(--text-muted)]">표본 {s.warn.n + s.shock.n}건 — 30건 전엔 측정값과 비교하지 마세요.</p>}
     </div>
   );
 }
@@ -103,7 +103,7 @@ export default function PrecursorCard({ symbol }: { symbol: string }) {
     <section className="fin-card p-4 mt-3">
       <div className="flex items-baseline gap-2 flex-wrap mb-2">
         <h3 className="text-sm font-bold text-[var(--text)]">급변 확률 계기판</h3>
-        <span className="text-[10.5px] text-[var(--text-muted)]">다음 4시간 · 과거 {stats.days.signals}일 측정 · 매매 신호 아님</span>
+        <span className="text-cap text-[var(--text-muted)]">다음 4시간 · 과거 {stats.days.signals}일 측정 · 매매 신호 아님</span>
       </div>
 
       {shockFresh && (
@@ -131,15 +131,15 @@ export default function PrecursorCard({ symbol }: { symbol: string }) {
 
       <div className="rounded-xl border border-[var(--border)] overflow-x-auto">
         <table className="w-full text-[12px] tabular-nums" style={{ minWidth: 300 }}>
-          <thead><tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+          <thead><tr className="text-cap text-[var(--text-muted)] text-right">
             <th className="text-left font-semibold px-3 py-1.5">상태</th><th className="font-semibold px-2">급락</th><th className="font-semibold px-3">급등</th>
           </tr></thead>
           <tbody>
             {sig && (
               <tr className="border-t border-[var(--border)] text-right" style={{ background: 'var(--warn-soft)' }}>
-                <td className="text-left px-3 py-1.5 text-[var(--text)]">지금: {label}<span className="block text-[10px] text-[var(--text-muted)]">과거 {sig.n}번</span></td>
-                <td className="px-2"><b className="text-[var(--text)]">{pct(sig.dnRate)}</b><span className="block text-[10px] text-[var(--text-muted)]">{VERDICT[sig.verdictDn]}</span></td>
-                <td className="px-3"><b className="text-[var(--text)]">{pct(sig.upRate)}</b><span className="block text-[10px] text-[var(--text-muted)]">{VERDICT[sig.verdictUp]}</span></td>
+                <td className="text-left px-3 py-1.5 text-[var(--text)]">지금: {label}<span className="block text-cap-pc text-[var(--text-muted)]">과거 {sig.n}번</span></td>
+                <td className="px-2"><b className="text-[var(--text)]">{pct(sig.dnRate)}</b><span className="block text-cap-pc text-[var(--text-muted)]">{VERDICT[sig.verdictDn]}</span></td>
+                <td className="px-3"><b className="text-[var(--text)]">{pct(sig.upRate)}</b><span className="block text-cap-pc text-[var(--text-muted)]">{VERDICT[sig.verdictUp]}</span></td>
               </tr>
             )}
             <tr className="border-t border-[var(--border)] text-right">
@@ -150,7 +150,7 @@ export default function PrecursorCard({ symbol }: { symbol: string }) {
           </tbody>
         </table>
       </div>
-      <p className="text-[10.5px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+      <p className="text-cap text-[var(--text-muted)] mt-1.5 leading-relaxed">
         급락·급등 = 다음 4시간 안 움직임이 이 코인 최근 30일 기준 상위 20% 크기. {active ? '' : '지금은 등록된 신호에 해당하지 않아 평소 확률이 기준입니다. '}
         측정 결과: 조용한 압축 구간 뒤엔 급변이 <b>덜</b> 왔고(평소의 약 절반) 압축 계열 전조는 기각됐습니다. 살아남은 것은 &lsquo;하락 충격봉 뒤 추가 하락이 반등보다 잦다&rsquo;와
         위 폭락 조기 경보 일부(평소의 2~4배 · 그래도 절대 확률 3~8%, 오경보 90%↑)입니다. 판정 기준 n≥30·|z|≥2.58·기간 앞뒤 절반 같은 방향 · 측정 {new Date(Date.parse(stats.generatedAt) + 9 * 3600e3).toISOString().slice(0, 10)}.

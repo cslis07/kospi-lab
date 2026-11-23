@@ -59,14 +59,14 @@ export default function EngineBoard() {
     <section className="rounded-2xl border border-violet-500/35 bg-violet-500/[0.04] p-4 sm:p-5">
       <div className="flex items-center gap-2 flex-wrap">
         <h2 className="text-sm font-extrabold text-[var(--text)]">🧪 엔진 공통 환경</h2>
-        <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300 font-bold">실험 · 연구용</span>
+        <span className="text-cap px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300 font-bold">실험 · 연구용</span>
         {board && (
           <span className={`ml-auto text-[11px] font-extrabold px-2 py-0.5 rounded-lg border ${board.blocks.length ? 'border-red-500/40 bg-red-500/10 text-red-400' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>
             {board.blocks.length ? '공통 거래 보류 중' : '공통 보류 없음'}
           </span>
         )}
       </div>
-      <p className="text-[10.5px] text-[var(--text-muted)] mt-1">모든 코인에 같이 걸리는 입력만 모았습니다. 코인별 기술·파생 판단은 코인 분석을 실행해야 나옵니다. 매수·매도 신호가 아닙니다.</p>
+      <p className="text-cap text-[var(--text-muted)] mt-1">모든 코인에 같이 걸리는 입력만 모았습니다. 코인별 기술·파생 판단은 코인 분석을 실행해야 나옵니다. 매수·매도 신호가 아닙니다.</p>
       {!board && <p className="text-[11px] text-[var(--text-muted)] mt-2">불러오는 중…</p>}
       {board && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mt-2.5">
@@ -82,7 +82,7 @@ export default function EngineBoard() {
                 <span className="text-[var(--text-muted)]"> · 보류 {hm(board.nextRelease.blockFrom)}~{hm(board.nextRelease.blockTo)}{board.nextRelease.hoursUntil > 0 ? ` · ${board.nextRelease.hoursUntil}시간 뒤` : ''}</span>
               </p>
             ) : <p className="text-[11px] text-[var(--text-muted)]">48시간 안 주요 미국 발표 없음</p>}
-            <p className="text-[9.5px] text-[var(--text-muted)] mt-1">발표 전 {settings.eventPreMin}분·후 {settings.eventPostMin}분(위험관리 설정) · 위기 속보는 처음 보인 뒤 2시간 · FOMC 성명 공개 후 {settings.eventPostMin}분</p>
+            <p className="text-cap text-[var(--text-muted)] mt-1">발표 전 {settings.eventPreMin}분·후 {settings.eventPostMin}분(위험관리 설정) · 위기 속보는 처음 보인 뒤 2시간 · FOMC 성명 공개 후 {settings.eventPostMin}분</p>
           </Box>
 
           <Box title="유동성">
@@ -93,12 +93,12 @@ export default function EngineBoard() {
                 {obs.explanation}{stale && <span className="text-amber-400 no-underline"> (유효기간 지남)</span>}
               </p>
             ))}
-            <p className="text-[9.5px] text-[var(--text-muted)] mt-1">스테이블코인 증가는 대기 자금이지 바로 매수가 아닙니다. SOL·XRP 는 현물 ETF 데이터가 없어 빼고 봅니다.</p>
+            <p className="text-cap text-[var(--text-muted)] mt-1">스테이블코인 증가는 대기 자금이지 바로 매수가 아닙니다. SOL·XRP 는 현물 ETF 데이터가 없어 빼고 봅니다.</p>
           </Box>
 
           <Box title="뉴스 충격 보드(24시간)">
             <NewsEventList events={board.news} limit={5} />
-            <p className="text-[9.5px] text-[var(--text-muted)] mt-1">같은 사건은 한 줄로 묶고 확인 수준을 붙입니다. 제목으로 호재·악재를 판단하지 않습니다. 코인별 뉴스는 코인 분석 때 함께 봅니다.</p>
+            <p className="text-cap text-[var(--text-muted)] mt-1">같은 사건은 한 줄로 묶고 확인 수준을 붙입니다. 제목으로 호재·악재를 판단하지 않습니다. 코인별 뉴스는 코인 분석 때 함께 봅니다.</p>
           </Box>
 
           <Box title="데이터 상태">
@@ -109,7 +109,7 @@ export default function EngineBoard() {
                 <span className="text-[var(--text-muted)]"> · {p.delay}{p.note ? ` · ${p.note}` : ''}</span>
               </p>
             ))}
-            <p className="text-[9.5px] text-[var(--text-muted)] mt-1">받은 시각 {shortWhen(new Date(ctx!.ingestedAt).toISOString())} · 5분마다 갱신</p>
+            <p className="text-cap text-[var(--text-muted)] mt-1">받은 시각 {shortWhen(new Date(ctx!.ingestedAt).toISOString())} · 5분마다 갱신</p>
           </Box>
 
           <div className="lg:col-span-2">
@@ -125,7 +125,7 @@ export default function EngineBoard() {
                   </p>
                 ))}
               </div>
-              {last.length > 0 && <p className="text-[9.5px] text-[var(--text-muted)] mt-1">기록 당시 판단입니다 — 지금 상태는 코인 분석에서 다시 확인하세요. 성과 판정은 코인 분석 &gt; 진입 전 점검 &gt; 📒 사전 기록·사후 판정.</p>}
+              {last.length > 0 && <p className="text-cap text-[var(--text-muted)] mt-1">기록 당시 판단입니다 — 지금 상태는 코인 분석에서 다시 확인하세요. 성과 판정은 코인 분석 &gt; 진입 전 점검 &gt; 📒 사전 기록·사후 판정.</p>}
             </Box>
           </div>
         </div>

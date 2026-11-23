@@ -105,17 +105,17 @@ export default function InflationPage() {
               <div>
                 <p className="text-[11px] text-[var(--text-muted)]">CPI 게이지(나우캐스트)</p>
                 <p className={`text-2xl font-extrabold tabular-nums ${sign(pulse.gap?.gauge_yoy)}`}>{pct(pulse.gap?.gauge_yoy)}</p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-0.5">YoY · {pulse.asof ?? pulse.gauge?.date}</p>
+                <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">YoY · {pulse.asof ?? pulse.gauge?.date}</p>
               </div>
               <div>
                 <p className="text-[11px] text-[var(--text-muted)]">공식 CPI</p>
                 <p className={`text-2xl font-extrabold tabular-nums ${sign(pulse.gap?.official_yoy)}`}>{pct(pulse.gap?.official_yoy)}</p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{pulse.gap?.official_month} 기준 · 근원 {pct(pulse.official?.core_yoy, 1)}</p>
+                <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">{pulse.gap?.official_month} 기준 · 근원 {pct(pulse.official?.core_yoy, 1)}</p>
               </div>
               <div>
                 <p className="text-[11px] text-[var(--text-muted)]">격차(게이지−공식)</p>
                 <p className={`text-2xl font-extrabold tabular-nums ${sign(pulse.gap?.current_pp)}`}>{signPp(pulse.gap?.current_pp)}</p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-0.5">실시간이 공식보다 {pulse.gap?.current_pp != null && pulse.gap.current_pp >= 0 ? '높음' : '낮음'}</p>
+                <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">실시간이 공식보다 {pulse.gap?.current_pp != null && pulse.gap.current_pp >= 0 ? '높음' : '낮음'}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-3 border-t border-[var(--border)] text-[11px] tabular-nums">
@@ -125,9 +125,9 @@ export default function InflationPage() {
             </div>
             {pulse.narrative?.body && (
               <div className="mt-3 pt-3 border-t border-[var(--border)]">
-                {pulse.narrative.tag && <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)] mb-1">{pulse.narrative.tag}</span>}
+                {pulse.narrative.tag && <span className="inline-block text-cap-pc font-semibold px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)] mb-1">{pulse.narrative.tag}</span>}
                 <p className="text-[12px] text-[var(--text)] leading-relaxed">{pulse.narrative.body}</p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-1">Nowflation 모델 요약(번역 아님). 참고용.</p>
+                <p className="text-cap-pc text-[var(--text-muted)] mt-1">Nowflation 모델 요약(번역 아님). 참고용.</p>
               </div>
             )}
           </div>
@@ -135,14 +135,14 @@ export default function InflationPage() {
           {/* 공식 vs 나우캐스트 추이 */}
           <Card title="공식 CPI vs 실시간 나우캐스트">
             <InflationChartLazy kind="compare" rows={compareRows(cmp)} />
-            <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+            <p className="text-cap-pc text-[var(--text-muted)] mt-1.5 leading-relaxed">
               월별 YoY(%). <span style={{ color: '#1c6cff' }}>■</span> 나우캐스트(매일 갱신·발표 전 추정) vs <span style={{ color: '#f59e0b' }}>■</span> 공식 CPI(BLS 발표치).
               {cmp?.summary?.gauge?.mae != null && <> 과거 공식 대비 평균 오차 ±{cmp.summary.gauge.mae.toFixed(2)}%p{cmp.summary.gauge.last6_mae != null ? `(최근 6회 ±${cmp.summary.gauge.last6_mae.toFixed(2)}%p)` : ''}.</>}
             </p>
           </Card>
 
           {/* 품목별 기여 */}
-          <Card title="품목별 기여" aside={<span className="text-[10px] text-[var(--text-muted)]">막대 클릭 → 공식 대비 추이</span>}>
+          <Card title="품목별 기여" aside={<span className="text-cap-pc text-[var(--text-muted)]">막대 클릭 → 공식 대비 추이</span>}>
             <DriverBars pulse={pulse} selected={selComp} onSelect={(c) => setSelComp(c)} />
             <DrilldownSheet comp={selComp} citems={citems} open={!!selComp} onClose={() => setSelComp(null)} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
@@ -167,7 +167,7 @@ export default function InflationPage() {
                   <div className="text-[12px] tabular-nums space-y-1">
                     <p><span className="text-[var(--text-muted)]">현재 펌프가 </span><b className="text-[var(--text)]">${fuel.current?.toFixed(3)}</b><span className="text-[var(--text-muted)]">/gal</span></p>
                     <p><span className="text-[var(--text-muted)]">2주 전망 </span><b className={sign(fuel.delta_cents)}>${fuel.forward_2wk?.toFixed(3)}</b> <span className={`text-[11px] ${sign(fuel.delta_cents)}`}>({fuel.delta_cents >= 0 ? '+' : ''}{fuel.delta_cents?.toFixed(1)}¢)</span></p>
-                    <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">선행: {fuel.driver_short}. 출처 {fuel.source}.</p>
+                    <p className="text-cap-pc text-[var(--text-muted)] leading-relaxed">선행: {fuel.driver_short}. 출처 {fuel.source}.</p>
                   </div>
                 ) : <p className="text-[11px] text-[var(--text-muted)]">불러오는 중…</p>}
               </div>
@@ -175,12 +175,12 @@ export default function InflationPage() {
           </Card>
 
           {/* 지역별 물가(미국) */}
-          <Card title="지역별 물가 (미국)" aside={geo?.asof ? <span className="text-[10px] text-[var(--text-muted)]">{geo.asof}</span> : undefined}>
+          <Card title="지역별 물가 (미국)" aside={geo?.asof ? <span className="text-cap-pc text-[var(--text-muted)]">{geo.asof}</span> : undefined}>
             {geo && !geo.locked ? <GeoSection geo={geo} /> : <p className="text-[11px] text-[var(--text-muted)]">불러오는 중…</p>}
           </Card>
 
           {/* 예측 */}
-          <Card title="다음 CPI 예측" aside={fcc?.release_date_label ? <span className="text-[10px] text-[var(--text-muted)]">발표 {fcc.release_date_label}</span> : undefined}>
+          <Card title="다음 CPI 예측" aside={fcc?.release_date_label ? <span className="text-cap-pc text-[var(--text-muted)]">발표 {fcc.release_date_label}</span> : undefined}>
             {fcc && !fcc.locked && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
                 {([
@@ -192,7 +192,7 @@ export default function InflationPage() {
                   ['직전 발표', fcc.prior_print],
                 ] as [string, number | undefined][]).map(([label, v]) => (
                   <div key={label} className="rounded-xl border border-[var(--line-2)] p-2.5">
-                    <p className="text-[10px] text-[var(--text-muted)]">{label}</p>
+                    <p className="text-cap-pc text-[var(--text-muted)]">{label}</p>
                     <p className={`text-base font-bold tabular-nums ${sign(v)}`}>{pct(v)}</p>
                   </div>
                 ))}
@@ -200,7 +200,7 @@ export default function InflationPage() {
             )}
             {fcc?.print_month_label && <p className="text-[11px] text-[var(--text-muted)] mb-2">{fcc.print_month_label} CPI YoY 전망.</p>}
             <InflationChartLazy kind="forecast" rows={forecastRows(fc)} />
-            <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+            <p className="text-cap-pc text-[var(--text-muted)] mt-1.5 leading-relaxed">
               <span style={{ color: '#1c6cff' }}>■</span> 실측/모델 예측(점선, 범위 음영) · <span style={{ color: '#f59e0b' }}>■</span> 공식 투영(점선).
               {fc?.disclaimer ? ` ${fc.disclaimer}` : ' 모델 추정치이며 매매 신호가 아닙니다.'}
             </p>
@@ -285,7 +285,7 @@ function DriverBars({ pulse, selected, onSelect }: { pulse: Pulse; selected: str
               className={`w-full text-left text-[11px] rounded-lg px-1.5 py-1 transition-colors ${on ? 'bg-[var(--surface-2)]' : 'hover:bg-[var(--surface-2)]/50'}`}>
               <div className="flex items-center justify-between gap-2 mb-0.5">
                 <span className="flex items-center gap-1.5 min-w-0">
-                  <span className={`shrink-0 text-[9px] font-semibold px-1 py-0.5 rounded ${CAT_STYLE[cat]}`}>{cat}</span>
+                  <span className={`shrink-0 text-cap font-semibold px-1 py-0.5 rounded ${CAT_STYLE[cat]}`}>{cat}</span>
                   <span className="text-[var(--text)] truncate">{d.label}</span>
                 </span>
                 <span className="shrink-0 tabular-nums"><b className={sign(d.yoy)}>{pctFrac(d.yoy, 1)}</b> <span className="text-[var(--text-muted)]">({d.contribution_bps >= 0 ? '+' : ''}{d.contribution_bps.toFixed(0)}bp)</span></span>
@@ -297,7 +297,7 @@ function DriverBars({ pulse, selected, onSelect }: { pulse: Pulse; selected: str
           </li>
         );
       })}
-      <p className="text-[10px] text-[var(--text-muted)] pt-1">막대 길이 = CPI 기여도(절대값). 빨강=물가 상승 기여, 파랑=하락 기여. <b className="text-[var(--text)]">항목을 누르면</b> 공식(BLS) 대비 추이가 열립니다.</p>
+      <p className="text-cap-pc text-[var(--text-muted)] pt-1">막대 길이 = CPI 기여도(절대값). 빨강=물가 상승 기여, 파랑=하락 기여. <b className="text-[var(--text)]">항목을 누르면</b> 공식(BLS) 대비 추이가 열립니다.</p>
     </ul>
   );
 }
@@ -305,7 +305,7 @@ function DriverBars({ pulse, selected, onSelect }: { pulse: Pulse; selected: str
 function Stat({ label, value, cls }: { label: string; value: string; cls?: string }) {
   return (
     <div className="rounded-xl border border-[var(--line-2)] p-2.5">
-      <p className="text-[10px] text-[var(--text-muted)]">{label}</p>
+      <p className="text-cap-pc text-[var(--text-muted)]">{label}</p>
       <p className={`text-base font-bold tabular-nums ${cls ?? 'text-[var(--text)]'}`}>{value}</p>
     </div>
   );
@@ -337,7 +337,7 @@ function DrilldownSheet({ comp, citems, open, onClose }: { comp: string | null; 
       ) : (
         <>
           <div className="flex items-center gap-1.5 mb-3">
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${CAT_STYLE[cat]}`}>{cat}</span>
+            <span className={`text-cap-pc font-semibold px-1.5 py-0.5 rounded ${CAT_STYLE[cat]}`}>{cat}</span>
             <span className="text-[11px] text-[var(--text-muted)]">{citems.month} 기준 · 공식 CPI(BLS) 대비</span>
           </div>
           {tile && (
@@ -388,7 +388,7 @@ function GeoSection({ geo }: { geo: GeoData }) {
         {/* 주별 휘발유·전기 */}
         <div className="rounded-xl border border-[var(--line-2)] p-3">
           <p className="text-[12px] font-semibold text-sky-400 mb-1.5">주별 휘발유 (높은 순)</p>
-          {gasAvg != null && <p className="text-[10px] text-[var(--text-muted)] mb-1.5">전국 평균 ${gasAvg.toFixed(3)}/gal · {gas.length}개 주</p>}
+          {gasAvg != null && <p className="text-cap-pc text-[var(--text-muted)] mb-1.5">전국 평균 ${gasAvg.toFixed(3)}/gal · {gas.length}개 주</p>}
           <ul className="space-y-1">
             {topGas.map((s) => (
               <li key={s.state} className="flex items-center justify-between text-[11px] tabular-nums">
@@ -477,7 +477,7 @@ function GeoAllSheet({ geo, open, onClose }: { geo: GeoData; open: boolean; onCl
           {metros.length === 0 && <li className="py-3 text-center text-[12px] text-[var(--text-muted)]">검색 결과 없음</li>}
         </ul>
       )}
-      <p className="text-[10px] text-[var(--text-muted)] mt-2">출처 Nowflation(CC BY). 휘발유=주 평균 펌프가($/gal), 전기=YoY, 임대료=중위 월세($)·YoY.</p>
+      <p className="text-cap-pc text-[var(--text-muted)] mt-2">출처 Nowflation(CC BY). 휘발유=주 평균 펌프가($/gal), 전기=YoY, 임대료=중위 월세($)·YoY.</p>
     </BottomSheet>
   );
 }

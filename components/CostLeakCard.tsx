@@ -51,7 +51,7 @@ export default function CostLeakCard({ positions, days, fmt }: { positions: Leak
     <section className="fin-card p-4 mb-3" aria-label="비용 누수 집중 분석">
       <div className="flex items-center gap-2 flex-wrap mb-2">
         <h2 className="text-sm font-bold text-[var(--text)]">비용 누수 집중 분석</h2>
-        <span className="text-[10px] text-[var(--text-muted)]">청산 {pl.n}건 · 어디서 새나</span>
+        <span className="text-cap-pc text-[var(--text-muted)]">청산 {pl.n}건 · 어디서 새나</span>
       </div>
 
       <p className="text-[13px] text-[var(--text)] leading-relaxed tabular-nums">
@@ -86,7 +86,7 @@ export default function CostLeakCard({ positions, days, fmt }: { positions: Leak
           {ranks.map((r) => (
             <li key={r.key}>
               <div className="flex items-center justify-between text-[12px] tabular-nums">
-                <span className="text-[var(--text)] font-semibold">{r.label} <span className="text-[10px] font-normal text-[var(--faint)]">{r.kind === 'assumed' ? '가정' : '실제'}</span></span>
+                <span className="text-[var(--text)] font-semibold">{r.label} <span className="text-cap-pc font-normal text-[var(--faint)]">{r.kind === 'assumed' ? '가정' : '실제'}</span></span>
                 <b className="text-[var(--text)]">{fmt(r.usdt)}</b>
               </div>
               <div className="h-1.5 rounded-full mt-0.5 overflow-hidden" style={{ background: 'var(--surface-2)' }} aria-hidden>
@@ -96,18 +96,18 @@ export default function CostLeakCard({ positions, days, fmt }: { positions: Leak
           ))}
         </ul>
       )}
-      {ranks.length > 1 && <p className="text-[10.5px] text-[var(--faint)] mt-1">렌즈마다 겹치는 매매가 있어 합치면 안 됩니다(예: 1시간 미만 매매의 시장가 진입은 두 줄에 다 들어감).</p>}
+      {ranks.length > 1 && <p className="text-cap text-[var(--faint)] mt-1">렌즈마다 겹치는 매매가 있어 합치면 안 됩니다(예: 1시간 미만 매매의 시장가 진입은 두 줄에 다 들어감).</p>}
 
       <div className="grid grid-cols-2 gap-2 mt-3">
         <div className="rounded-xl bg-[var(--surface-2)] px-2.5 py-2">
-          <p className="text-[10px] text-[var(--text-muted)]">본전에 필요한 가격 이동</p>
+          <p className="text-cap-pc text-[var(--text-muted)]">본전에 필요한 가격 이동</p>
           <p className="text-[15px] font-extrabold tabular-nums text-[var(--text)]">{pl.breakEvenMovePct != null ? `${pl.breakEvenMovePct.toFixed(3)}%` : '—'}</p>
-          <p className="text-[9.5px] text-[var(--faint)]">진입+청산 수수료 ÷ 진입 금액</p>
+          <p className="text-cap text-[var(--faint)]">진입+청산 수수료 ÷ 진입 금액</p>
         </div>
         <div className="rounded-xl bg-[var(--surface-2)] px-2.5 py-2">
-          <p className="text-[10px] text-[var(--text-muted)]">매매당 비용 vs 가격손익</p>
+          <p className="text-cap-pc text-[var(--text-muted)]">매매당 비용 vs 가격손익</p>
           <p className="text-[15px] font-extrabold tabular-nums text-[var(--text)]">{pl.costPerTrade != null ? fmt(pl.costPerTrade) : '—'} <span className="text-[11px] font-semibold text-[var(--text-muted)]">vs {pl.grossPerTrade != null ? signed(pl.grossPerTrade, fmt) : '—'}</span></p>
-          <p className="text-[9.5px] text-[var(--faint)]">USDT · 1건 평균</p>
+          <p className="text-cap text-[var(--faint)]">USDT · 1건 평균</p>
         </div>
       </div>
       {pl.short.n > 0 && (
@@ -119,11 +119,11 @@ export default function CostLeakCard({ positions, days, fmt }: { positions: Leak
 
       {fl ? (
         <div className="mt-3">
-          <p className="text-[12px] font-bold text-[var(--text)] mb-1">수수료가 나간 곳 <span className="text-[10px] font-normal text-[var(--text-muted)]">체결 {fl.n}건 · 최근 {days}일</span></p>
+          <p className="text-[12px] font-bold text-[var(--text)] mb-1">수수료가 나간 곳 <span className="text-cap-pc font-normal text-[var(--text-muted)]">체결 {fl.n}건 · 최근 {days}일</span></p>
           <div className="overflow-x-auto -mx-1">
             <table className="w-full text-[11.5px] tabular-nums mx-1" style={{ minWidth: 300 }}>
               <thead>
-                <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+                <tr className="text-cap text-[var(--text-muted)] text-right">
                   <th className="text-left font-semibold py-1">체결</th><th className="font-semibold">건</th><th className="font-semibold">수수료</th><th className="font-semibold">몫</th>
                 </tr>
               </thead>
@@ -132,7 +132,7 @@ export default function CostLeakCard({ positions, days, fmt }: { positions: Leak
                   <tr key={lbl} className="border-t border-[var(--line-2)] text-right">
                     <td className="text-left py-1.5 whitespace-nowrap">
                       <span className="font-semibold text-[var(--text)]">{lbl}</span>
-                      {hint && <span className="block text-[9.5px] text-[var(--faint)]">{hint}</span>}
+                      {hint && <span className="block text-cap text-[var(--faint)]">{hint}</span>}
                     </td>
                     <td className="text-[var(--text-muted)]">{b.n}</td>
                     <td className="font-bold text-[var(--text)]">{fmt(b.fee)}</td>
@@ -148,7 +148,7 @@ export default function CostLeakCard({ positions, days, fmt }: { positions: Leak
               {fl.lossCloseManual > fl.lossCloseBySl ? ' — 손절을 미리 걸어두기보다 보면서 닫는 편입니다.' : '.'}
             </p>
           )}
-          <p className="text-[10.5px] text-[var(--faint)] mt-1 leading-relaxed">
+          <p className="text-cap text-[var(--faint)] mt-1 leading-relaxed">
             가정 절감은 메이커 요율 {(fl.makerRateUsed * 100).toFixed(3)}%({fl.makerRateSource === 'observed' ? '이 기간 실제 지정가 체결 관측값' : 'Bitget 표준 참고값'})로 계산 — 지정가는 체결되지 않을 수 있습니다.
           </p>
         </div>

@@ -166,7 +166,7 @@ export default function CalendarPage() {
             {/* 폰(KL-011): 상태 열은 지표 이름 아래로 옮겨 가로 스크롤 없이 4열 — 넓은 화면은 5열 그대로 */}
             <table className="w-full text-[12px] tabular-nums sm:min-w-[380px]">
               <thead>
-                <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+                <tr className="text-cap text-[var(--text-muted)] text-right">
                   <th className="text-left font-semibold px-3 py-2">날짜 · 지표</th>
                   <th className="font-semibold px-2">예상</th>
                   <th className="font-semibold px-2">이전</th>
@@ -181,7 +181,7 @@ export default function CalendarPage() {
                   <tr key={`${u.date}-${u.name}`} className="border-t border-[var(--border)] text-right">
                     <td className="text-left px-3 py-2">
                       <span className="text-[var(--text)] font-medium">{u.ko}</span>
-                      <span className="block text-[10px] text-[var(--text-muted)]">{u.date.slice(5)}{u.providerDate ? ' (공식 일정)' : ''} · {u.name}</span>
+                      <span className="block text-cap-pc text-[var(--text-muted)]">{u.date.slice(5)}{u.providerDate ? ' (공식 일정)' : ''} · {u.name}</span>
                       <span className="block sm:hidden mt-0.5">{status}</span>
                     </td>
                     <td className="px-2 text-[var(--text)]">{u.forecast || '—'}</td>
@@ -221,7 +221,7 @@ export default function CalendarPage() {
             className={`fin-card overflow-hidden mb-3 transition-shadow ${date < today ? 'opacity-60' : ''} ${date === target ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]' : ''}`}>
             <div className="cal-date">
               {dateLabel(date)}
-              {date === today && <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-[var(--warn)] text-white font-extrabold">오늘</span>}
+              {date === today && <span className="text-cap px-2 py-0.5 rounded-full bg-[var(--warn)] text-white font-extrabold">오늘</span>}
             </div>
             {evts.map((e, i) => <EventRow key={`${e.title}-${i}`} e={e} today={today} showDate={false} />)}
           </section>

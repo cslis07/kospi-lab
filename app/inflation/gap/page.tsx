@@ -26,7 +26,7 @@ export default function GapPage() {
       {rows.length > 0 && !g?.locked && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden mb-3">
           {/* 헤더 */}
-          <div className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.7fr] gap-1 px-3 py-2 text-[10px] font-semibold text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--surface-2)]/40">
+          <div className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.7fr] gap-1 px-3 py-2 text-cap-pc font-semibold text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--surface-2)]/40">
             <span>지표</span>
             <span className="text-right">게이지</span>
             <span className="text-right">공식</span>
@@ -38,7 +38,7 @@ export default function GapPage() {
                 <div className="grid grid-cols-[1.4fr_0.8fr_0.8fr_0.7fr] gap-1 items-baseline tabular-nums">
                   <span className="min-w-0">
                     <span className="block text-[12px] font-semibold text-[var(--text)] truncate">{r.label}</span>
-                    <span className={`inline-block text-[9px] font-semibold px-1 py-0.5 rounded mt-0.5 ${r.fmc_kind === 'forecast' ? 'bg-amber-500/15 text-amber-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                    <span className={`inline-block text-cap font-semibold px-1 py-0.5 rounded mt-0.5 ${r.fmc_kind === 'forecast' ? 'bg-amber-500/15 text-amber-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
                       {r.fmc_kind === 'forecast' ? '나우캐스트 예측' : '실시간 측정'}
                     </span>
                   </span>
@@ -47,7 +47,7 @@ export default function GapPage() {
                   <span className={`text-right text-[13px] font-bold ${sign(r.gap_pp)}`}>{r.gap_pp != null ? signPp(r.gap_pp, 2) : '—'}</span>
                 </div>
                 {(r.official_month || r.fmc_source) && (
-                  <p className="text-[10px] text-[var(--text-muted)] mt-1 leading-relaxed">
+                  <p className="text-cap-pc text-[var(--text-muted)] mt-1 leading-relaxed">
                     {r.fmc_source && <>출처: {r.fmc_source}. </>}
                     {r.official_month && <>공식 {r.official_month} 발표{r.official_role ? ` (${r.official_role})` : ''}. </>}
                   </p>

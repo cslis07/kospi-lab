@@ -42,7 +42,7 @@ function Bars({ ps, metric, usd, annual }: { ps: FinPeriod[]; metric: Metric; us
           <div key={p.key} className="flex-1 min-w-0 flex flex-col items-center">
             <div className="relative w-full" style={{ height: H }}>
               {v != null && (
-                <span className="absolute left-0 right-0 text-center text-[10px] sm:text-[11px] tabular-nums font-semibold text-[var(--ink)] whitespace-nowrap"
+                <span className="absolute left-0 right-0 text-center text-cap-pc sm:text-[11px] tabular-nums font-semibold text-[var(--ink)] whitespace-nowrap"
                   style={v >= 0 ? { bottom: H - zero + h + 2 } : { top: zero + h + 2 }}>{money(v, usd)}</span>
               )}
               {v != null && (
@@ -51,8 +51,8 @@ function Bars({ ps, metric, usd, annual }: { ps: FinPeriod[]; metric: Metric; us
               )}
               {hasNeg && <span className="absolute left-0 right-0 border-t border-[var(--line)]" style={{ top: zero }} />}
             </div>
-            <span className="mt-1.5 text-[10.5px] sm:text-[11px] tabular-nums text-[var(--text-muted)] whitespace-nowrap">{p.label}{p.estimate && <b className="text-[var(--accent)] ml-0.5">E</b>}</span>
-            <span className="text-[10px] tabular-nums whitespace-nowrap" style={{ color: g == null ? 'var(--faint)' : g >= 0 ? 'var(--up)' : 'var(--down)' }}>{g == null ? ' ' : pct(g, 0)}</span>
+            <span className="mt-1.5 text-cap sm:text-[11px] tabular-nums text-[var(--text-muted)] whitespace-nowrap">{p.label}{p.estimate && <b className="text-[var(--accent)] ml-0.5">E</b>}</span>
+            <span className="text-cap-pc tabular-nums whitespace-nowrap" style={{ color: g == null ? 'var(--faint)' : g >= 0 ? 'var(--up)' : 'var(--down)' }}>{g == null ? ' ' : pct(g, 0)}</span>
           </div>
         );
       })}
@@ -81,7 +81,7 @@ export default function FinanceSection(props: { kind: 'kr'; code: string } | { k
       ) : (
         <>
           <Bars ps={ps} metric={metric} usd={usd} annual={annual} />
-          <p className="text-[10.5px] text-[var(--faint)] mt-1">아래 % = {annual ? '전년' : '전년 같은 분기'} 대비 증감{ps.some((p) => p.estimate) ? ' · 점선 막대·E = 증권사 추정치(실적 아님)' : ''}</p>
+          <p className="text-cap text-[var(--faint)] mt-1">아래 % = {annual ? '전년' : '전년 같은 분기'} 대비 증감{ps.some((p) => p.estimate) ? ' · 점선 막대·E = 증권사 추정치(실적 아님)' : ''}</p>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-[12px] tabular-nums">
               <thead><tr className="text-[11px] text-[var(--text-muted)]"><th className="text-left font-medium py-1">기간</th><th className="text-right font-medium">매출</th><th className="text-right font-medium">{opName}</th><th className="text-right font-medium">이익률</th>{!usd && <th className="text-right font-medium">EPS</th>}{!usd && <th className="text-right font-medium">ROE</th>}</tr></thead>
@@ -101,7 +101,7 @@ export default function FinanceSection(props: { kind: 'kr'; code: string } | { k
           </div>
         </>
       )}
-      <p className="text-[10.5px] text-[var(--faint)] mt-2">출처: 네이버페이 증권(연결 기준).</p>
+      <p className="text-cap text-[var(--faint)] mt-2">출처: 네이버페이 증권(연결 기준).</p>
     </Collapsible>
   );
 }

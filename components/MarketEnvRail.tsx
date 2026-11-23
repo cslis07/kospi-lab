@@ -14,12 +14,14 @@ import { CardButton, type IndexCard } from '@/components/IndexCardView';
 import FearGreedGauge from '@/components/FearGreedGauge';
 import { fngBand, type FngCompare } from '@/lib/fearGreed';
 import type { LiveQuote } from '@/components/MarketIndicatorDetail';
+import { jsonFetcher } from '@/lib/fetcher';
 
 interface EnvCard extends IndexCard { cat: string; status: string; source?: string; compare?: FngCompare[] }
 const ENV_FNG = 'ENV_FNG';
 interface Resp { cards: EnvCard[]; fomc: { date: string; dday: number } | null; asOf: string }
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// KL-012: 실패는 예외로 — SWR 이 직전 값을 유지하고 '갱신 실패'로 표시(예전엔 503 의 {error} 가 카드를 지웠다)
+const fetcher = jsonFetcher;
 const MarketIndicatorDetail = dynamic(() => import('@/components/MarketIndicatorDetail'), {
   ssr: false, loading: () => <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0' }}>지표 불러오는 중…</p>,
 });
@@ -61,9 +63,10 @@ function toQuote(c: EnvCard): LiveQuote {
 }
 
 export default function MarketEnvRail() {
-  const { data } = useSWR<Resp>('/api/coin-env/live', fetcher, { refreshInterval: 15000, revalidateOnFocus: true });
+  const { data, error } = useSWR<Resp>('/api/coin-env/live', fetcher, { refreshInterval: 15000, revalidateOnFocus: true });
   const [sel, setSel] = useState<string | null>(null);
-  const cards = data?.cards ?? [];
+  // 갱신 실패 중이면 직전 값은 두되 실시간·일간 배지 대신 '갱신 실패'
+  const cards = (data?.cards ?? []).map((c) => (error ? { ...c, live: false, tag: '갱신 실패' } : c));
   const selCard = sel ? cards.find((c) => c.code === sel) : undefined;
   const time = data?.asOf ? new Date(data.asOf).toLocaleTimeString('ko-KR', { hour12: true, hour: '2-digit', minute: '2-digit' }) : null;
   const fomc = data?.fomc;
@@ -72,10 +75,12 @@ export default function MarketEnvRail() {
     <section>
       <div className="fin-sec" style={{ marginBottom: 10 }}>
         <h3>시장환경</h3>
-        <span className="text-[11px] font-semibold text-[var(--faint)]">금리 · 유가 · 환율 · 심리{time ? ` · ${time} 갱신` : ''}</span>
+        <span className={`text-[11px] font-semibold ${error && data ? 'text-[var(--amber)]' : 'text-[var(--faint)]'}`}>금리 · 유가 · 환율 · 심리{time ? ` · ${time} ${error && data ? '값(갱신 실패·재시도 중)' : '갱신'}` : ''}</span>
       </div>
       <div className="idx-rail env-rail">
-        {!data
+        {!data && error
+          ? <p style={{ fontSize: 12, color: 'var(--faint)', gridColumn: '1 / -1' }}>시장환경을 불러오지 못했습니다. 잠시 후 다시 시도됩니다.</p>
+          : !data
           ? Array.from({ length: 9 }).map((_, i) => <div key={i} className="idx-card skeleton" style={{ height: 112 }} />)
           : cards.length === 0
             ? <p style={{ fontSize: 12, color: 'var(--faint)', gridColumn: '1 / -1' }}>시장환경을 불러오지 못했습니다. 잠시 후 다시 시도됩니다.</p>
@@ -95,7 +100,7 @@ export default function MarketEnvRail() {
           </Link>
         )}
       </div>
-      <p className="text-[10.5px] text-[var(--faint)] mt-2 leading-relaxed">
+      <p className="text-cap text-[var(--faint)] mt-2 leading-relaxed">
         카드를 누르면 추이 차트와 설명을 봅니다. 상승 <span style={{ color: 'var(--warn)' }}>빨강</span>·하락 <span style={{ color: 'var(--accent)' }}>파랑</span>은 값의 방향이며 매매 신호가 아닙니다.
       </p>
 

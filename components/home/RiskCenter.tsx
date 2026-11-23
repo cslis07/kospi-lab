@@ -65,8 +65,8 @@ export default function RiskCenter() {
         <span className="text-[12.5px] text-[var(--text-muted)]">{k}</span>
         <span className="tabular-nums text-right">
           <b className="text-[15px] font-bold" style={{ color: plain ? 'var(--ink)' : tone(v) }}>{plain ? v : signed(v)}</b>
-          <span className="text-[10.5px] text-[var(--text-muted)] ml-1">{unit}</span>
-          {!plain && krw(v) && <span className="block text-[10.5px] text-[var(--faint)]">{krw(v)}</span>}
+          <span className="text-cap text-[var(--text-muted)] ml-1">{unit}</span>
+          {!plain && krw(v) && <span className="block text-cap text-[var(--faint)]">{krw(v)}</span>}
         </span>
       </Link>
     );

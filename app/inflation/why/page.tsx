@@ -35,7 +35,7 @@ export default function WhyPage() {
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
             <p className="text-[11px] text-[var(--text-muted)]">CPI 게이지(나우캐스트) · YoY</p>
             <p className={`text-3xl font-extrabold tabular-nums leading-tight ${sign(s.gauge_yoy_pct)}`}>{pct(s.gauge_yoy_pct)}</p>
-            <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{s.gauge_date ?? s.asof} 기준</p>
+            <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">{s.gauge_date ?? s.asof} 기준</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-3 border-t border-[var(--border)] text-[11px] tabular-nums">
               <span className="text-[var(--text-muted)]">전일 <b className={sign(s.gauge_dod_pp)}>{signPp(s.gauge_dod_pp)}</b></span>
               <span className="text-[var(--text-muted)]">전주 <b className={sign(s.gauge_wow_pp)}>{signPp(s.gauge_wow_pp)}</b></span>
@@ -44,7 +44,7 @@ export default function WhyPage() {
             {typeof s.gauge_gap_explained === 'string' && s.gauge_gap_explained && (
               <p className="text-[12px] text-[var(--text)] leading-relaxed mt-3 pt-3 border-t border-[var(--border)]">{s.gauge_gap_explained}</p>
             )}
-            {s.gauge_changes_note && <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">{s.gauge_changes_note}</p>}
+            {s.gauge_changes_note && <p className="text-cap-pc text-[var(--text-muted)] mt-2 leading-relaxed">{s.gauge_changes_note}</p>}
           </div>
 
           {/* 페이스(연율) */}
@@ -60,7 +60,7 @@ export default function WhyPage() {
                 한 달 변화({s.pace_1m_window.from}→{s.pace_1m_window.to}) <b className={sign(s.pace_1m_change_pct)}>{s.pace_1m_change_pct >= 0 ? '+' : ''}{s.pace_1m_change_pct.toFixed(2)}%</b>
               </p>
             )}
-            {s.pace_basis && <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">기준: {s.pace_basis}</p>}
+            {s.pace_basis && <p className="text-cap-pc text-[var(--text-muted)] mt-1.5 leading-relaxed">기준: {s.pace_basis}</p>}
           </div>
 
           {/* 이달 공식 대비 격차 분해 */}
@@ -95,7 +95,7 @@ function GapExplainedCard({ g }: { g: GapExplained }) {
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
       <div className="flex items-center justify-between gap-2 mb-2">
         <h2 className="text-sm font-semibold text-[var(--text)]">공식 대비 격차, 어디서</h2>
-        {g.month_label && <span className="text-[10px] text-[var(--text-muted)]">{g.month_label}</span>}
+        {g.month_label && <span className="text-cap-pc text-[var(--text-muted)]">{g.month_label}</span>}
       </div>
       {g.gap_pp != null && (
         <p className="text-[12px] text-[var(--text-muted)] mb-2 tabular-nums">
@@ -116,7 +116,7 @@ function GapExplainedCard({ g }: { g: GapExplained }) {
           ))}
         </ul>
       ) : <p className="text-[11px] text-[var(--text-muted)]">분해 데이터가 없습니다.</p>}
-      <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">각 품목이 이달 격차(게이지−공식)에 더한 몫(%p). 매매 신호가 아닙니다.</p>
+      <p className="text-cap-pc text-[var(--text-muted)] mt-2 leading-relaxed">각 품목이 이달 격차(게이지−공식)에 더한 몫(%p). 매매 신호가 아닙니다.</p>
     </div>
   );
 }
@@ -124,7 +124,7 @@ function GapExplainedCard({ g }: { g: GapExplained }) {
 function Stat({ label, value, cls }: { label: string; value: string; cls?: string }) {
   return (
     <div className="rounded-xl border border-[var(--border)] p-2.5">
-      <p className="text-[10px] text-[var(--text-muted)]">{label}</p>
+      <p className="text-cap-pc text-[var(--text-muted)]">{label}</p>
       <p className={`text-base font-bold tabular-nums ${cls ?? 'text-[var(--text)]'}`}>{value}</p>
     </div>
   );
@@ -144,10 +144,10 @@ function DriverBars({ s }: { s: LatestSnapshot }) {
           <li key={d.component}>
             <div className="flex items-center justify-between gap-2 mb-0.5 text-[11px]">
               <span className="flex items-center gap-1.5 min-w-0">
-                <span className={`shrink-0 text-[9px] font-semibold px-1 py-0.5 rounded ${CAT_STYLE[cat]}`}>{cat}</span>
+                <span className={`shrink-0 text-cap font-semibold px-1 py-0.5 rounded ${CAT_STYLE[cat]}`}>{cat}</span>
                 <span className="text-[var(--text)] truncate">{d.label}</span>
-                {d.live ? <span className="shrink-0 text-[9px] font-semibold px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400">실시간</span>
-                  : d.new_print && <span className="shrink-0 text-[9px] font-semibold px-1 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)]">{d.new_print.to_month} 발표</span>}
+                {d.live ? <span className="shrink-0 text-cap font-semibold px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400">실시간</span>
+                  : d.new_print && <span className="shrink-0 text-cap font-semibold px-1 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)]">{d.new_print.to_month} 발표</span>}
               </span>
               <span className="shrink-0 tabular-nums"><b className={sign(d.contribution_pp)}>{d.contribution_pp >= 0 ? '+' : ''}{d.contribution_pp.toFixed(3)}%p</b></span>
             </div>
@@ -157,7 +157,7 @@ function DriverBars({ s }: { s: LatestSnapshot }) {
           </li>
         );
       })}
-      <p className="text-[10px] text-[var(--text-muted)] pt-1 leading-relaxed">막대 = 지난 한 달 게이지에 더한 기여(%p). 빨강=상승 기여, 파랑=하락 기여. <b className="text-[var(--text)]">실시간</b>은 매일 갱신, 나머지는 직전 공식 발표 반영.</p>
+      <p className="text-cap-pc text-[var(--text-muted)] pt-1 leading-relaxed">막대 = 지난 한 달 게이지에 더한 기여(%p). 빨강=상승 기여, 파랑=하락 기여. <b className="text-[var(--text)]">실시간</b>은 매일 갱신, 나머지는 직전 공식 발표 반영.</p>
     </ul>
   );
 }

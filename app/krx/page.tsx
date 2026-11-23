@@ -109,16 +109,16 @@ export default function KrxPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {market.commodities.gold.map((g) => (
                   <div key={g.name} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
-                    <p className="text-[10px] text-[var(--text-muted)] truncate">🥇 {g.name}</p>
+                    <p className="text-cap-pc text-[var(--text-muted)] truncate">🥇 {g.name}</p>
                     <p className="text-sm font-bold tabular-nums text-[var(--text)]">{fmtPrice(g.price)}원/g</p>
                     <p className={`text-[11px] font-semibold ${upColor(g.changeRate)}`}>{sign(g.changeRate)}</p>
                   </div>
                 ))}
                 {market.commodities.oil.map((o) => (
                   <div key={o.name} className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
-                    <p className="text-[10px] text-[var(--text-muted)] truncate">🛢️ {o.name}</p>
+                    <p className="text-cap-pc text-[var(--text-muted)] truncate">🛢️ {o.name}</p>
                     <p className="text-sm font-bold tabular-nums text-[var(--text)]">{fmtPrice(o.price)}원/L</p>
-                    <p className="text-[10px] text-[var(--text-muted)]">가중평균</p>
+                    <p className="text-cap-pc text-[var(--text-muted)]">가중평균</p>
                   </div>
                 ))}
               </div>
@@ -204,7 +204,7 @@ export default function KrxPage() {
                           <Link prefetch={false} href={`/stock/${r.code}`} className="hover:text-sky-400">
                             <span className="font-semibold text-[var(--text)]">{r.name}</span>
                           </Link>
-                          {r.baseIndex && <span className="text-[10px] text-[var(--text-muted)] ml-1.5">{r.baseIndex}</span>}
+                          {r.baseIndex && <span className="text-cap-pc text-[var(--text-muted)] ml-1.5">{r.baseIndex}</span>}
                         </td>
                         <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text)]">{fmtPrice(r.close)}</td>
                         <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${upColor(r.changeRate)}`}>{sign(r.changeRate)}</td>
@@ -249,7 +249,7 @@ function RankTable({ rows, tab }: { rows: RankItem[]; tab: RankKey }) {
               <td className="px-3 py-2.5">
                 <Link prefetch={false} href={`/stock/${r.code}`} className="hover:text-sky-400 transition-colors">
                   <span className="font-semibold text-[var(--text)]">{r.name}</span>
-                  <span className="text-[10px] text-[var(--text-muted)] ml-1.5 font-mono">{r.code}</span>
+                  <span className="text-cap-pc text-[var(--text-muted)] ml-1.5 font-mono">{r.code}</span>
                 </Link>
               </td>
               <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text)]">{fmtPrice(r.close)}</td>

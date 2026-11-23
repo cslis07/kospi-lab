@@ -35,7 +35,7 @@ export default function StockNews({ code }: { code: string }) {
           ))}
         </ul>
       ) : <p className="text-[12.5px] text-[var(--text-muted)] py-4 text-center">최근 {tab === 'news' ? '뉴스가' : '공시가'} 없습니다.</p>}
-      <p className="text-[10.5px] text-[var(--faint)] mt-2">출처: 네이버페이 증권·각 언론사·KRX 공시. 기사·공시는 참고용이며 매매 신호가 아닙니다.</p>
+      <p className="text-cap text-[var(--faint)] mt-2">출처: 네이버페이 증권·각 언론사·KRX 공시. 기사·공시는 참고용이며 매매 신호가 아닙니다.</p>
     </Collapsible>
   );
 }

@@ -11,7 +11,7 @@ export function TagPickRow({ label, metas, active, onToggle, tone }: {
 }) {
   return (
     <div className="flex items-start gap-1.5 flex-wrap">
-      <span className="text-[10px] text-[var(--text-muted)] w-7 pt-1.5 shrink-0">{label}</span>
+      <span className="text-cap-pc text-[var(--text-muted)] w-7 pt-1.5 shrink-0">{label}</span>
       {metas.map((m) => {
         const on = active.includes(m.key);
         return (
@@ -29,7 +29,7 @@ export function TagPickRow({ label, metas, active, onToggle, tone }: {
 export function ConvictionPickRow({ value, onPick }: { value: number | undefined; onPick: (lv: number) => void }) {
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
-      <span className="text-[10px] text-[var(--text-muted)] w-7 shrink-0">확신</span>
+      <span className="text-cap-pc text-[var(--text-muted)] w-7 shrink-0">확신</span>
       {CONVICTIONS.map((c) => (
         <button key={c.level} type="button" onClick={() => onPick(c.level)}
           className="px-2 py-1 rounded-lg border text-[11px] font-semibold"

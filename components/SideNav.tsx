@@ -103,7 +103,7 @@ function SideNavInner() {
           <span aria-hidden className="sn-mark">K</span>
           <span className="sn-t leading-tight">
             <span className="block text-[15px] font-bold tracking-tight text-[var(--sn-ink)]">KOSPI LAB</span>
-            <span className="block text-[10.5px] text-[var(--sn-muted)]">투자 리스크 관리</span>
+            <span className="block text-cap text-[var(--sn-muted)]">투자 리스크 관리</span>
           </span>
         </Link>
         <button type="button" onClick={flip} className="sn-collapse" aria-label="사이드바 접기·펼치기" title="접기·펼치기">

@@ -59,7 +59,7 @@ export default function ToolsPage() {
                   <span className="w-9 h-9 rounded-xl grid place-items-center bg-[var(--accent-soft)] text-[var(--accent)] shrink-0"><ToolIcon name={x.icon} /></span>
                   <span className="min-w-0">
                     <span className="block text-[13px] font-semibold text-[var(--text)] truncate">{x.label}</span>
-                    {x.desc && <span className="block text-[10px] text-[var(--text-muted)] truncate">{x.desc}</span>}
+                    {x.desc && <span className="block text-cap-pc text-[var(--text-muted)] truncate">{x.desc}</span>}
                   </span>
                 </Link>
               ))}

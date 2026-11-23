@@ -39,10 +39,10 @@ export default function HeatcheckPage() {
                     <span className="text-[12px] font-semibold text-[var(--text)] truncate">{s.label}</span>
                     <span className="shrink-0 flex items-center gap-1.5">
                       <span className="text-[12px] font-bold tabular-nums text-[var(--text)]">{s.value}</span>
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${tone.cls}`}>{tone.ko}</span>
+                      <span className={`text-cap-pc font-semibold px-1.5 py-0.5 rounded ${tone.cls}`}>{tone.ko}</span>
                     </span>
                   </div>
-                  {s.why && <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">{s.why}</p>}
+                  {s.why && <p className="text-cap-pc text-[var(--text-muted)] leading-relaxed">{s.why}</p>}
                 </li>
               );
             })}

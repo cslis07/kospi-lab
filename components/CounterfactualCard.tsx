@@ -89,8 +89,8 @@ export default function CounterfactualCard({ trades, fmt, sub, equity }: { trade
   return (
     <section className="fin-card p-4 mb-3">
       <div className="flex items-center gap-2 flex-wrap mb-1">
-        <h2 className="text-sm font-bold text-[var(--text)]">규칙대로였다면 <span className="text-[10px] font-normal text-[var(--text-muted)]">가정 손익</span></h2>
-        <span className="text-[10px] text-[var(--text-muted)]">{sub ?? `청산 ${list.length}건`}</span>
+        <h2 className="text-sm font-bold text-[var(--text)]">규칙대로였다면 <span className="text-cap-pc font-normal text-[var(--text-muted)]">가정 손익</span></h2>
+        <span className="text-cap-pc text-[var(--text-muted)]">{sub ?? `청산 ${list.length}건`}</span>
       </div>
       <p className="text-[11px] font-semibold mb-2 leading-snug" style={{ color: 'var(--amber)' }}>
         가정 계산 — 방향은 그대로, 실행 규칙만 바꿈; 손절이 실제보다 빨리 끊어 이후 반등을 놓친 경우도 반영됨
@@ -99,7 +99,7 @@ export default function CounterfactualCard({ trades, fmt, sub, equity }: { trade
       <div className="overflow-x-auto rounded-xl border border-[var(--line-2)]">
         <table className="w-full text-[11px] tabular-nums">
           <thead>
-            <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+            <tr className="text-cap text-[var(--text-muted)] text-right">
               <th className="text-left font-semibold px-2 py-1.5">규칙</th>
               <th className="font-semibold px-2">순손익</th>
               <th className="font-semibold px-2">실제 대비</th>
@@ -120,7 +120,7 @@ export default function CounterfactualCard({ trades, fmt, sub, equity }: { trade
                 <tr key={k} className="border-t border-[var(--line-2)] text-right">
                   <td className="text-left px-2 py-1.5 text-[var(--text)]">
                     {CF_LABELS[k]}
-                    {partial && <span className="block text-[9.5px] text-[var(--faint)]">손절 판정 {checked}/{list.length}건만 반영</span>}
+                    {partial && <span className="block text-cap text-[var(--faint)]">손절 판정 {checked}/{list.length}건만 반영</span>}
                   </td>
                   <td className="px-2 font-bold" style={{ color: pnlColor(r.net) }}>{signed(r.net, fmt)}</td>
                   <td className="px-1.5 font-bold" style={{ color: pnlColor(r.delta) }}>{signed(r.delta, fmt)}</td>
@@ -142,11 +142,11 @@ export default function CounterfactualCard({ trades, fmt, sub, equity }: { trade
 
       {sweep.n > 0 && (
         <div className="mt-3">
-          <p className="text-[12px] font-semibold text-[var(--text)] mb-1">손절 배수 비교 <span className="text-[10px] font-normal text-[var(--text-muted)]">1H ATR · {sweep.n}건 · 시간순 앞/뒤 절반</span></p>
+          <p className="text-[12px] font-semibold text-[var(--text)] mb-1">손절 배수 비교 <span className="text-cap-pc font-normal text-[var(--text-muted)]">1H ATR · {sweep.n}건 · 시간순 앞/뒤 절반</span></p>
           <div className="overflow-x-auto rounded-xl border border-[var(--line-2)]">
             <table className="w-full text-[11px] tabular-nums" style={{ minWidth: 320 }}>
               <thead>
-                <tr className="text-[10px] text-[var(--text-muted)] text-right">
+                <tr className="text-cap-pc text-[var(--text-muted)] text-right">
                   <th className="text-left font-semibold px-2.5 py-1.5">배수</th>
                   <th className="font-semibold px-2">같은 수량 + 손절<br />실제 대비</th>
                   <th className="font-semibold px-2.5">손절 + 자본 1% 수량<br />앞 · 뒤 (비용 제외)</th>
@@ -155,7 +155,7 @@ export default function CounterfactualCard({ trades, fmt, sub, equity }: { trade
               <tbody>
                 {sweep.rows.map((r) => (
                   <tr key={r.mult} className="border-t border-[var(--line-2)] text-right" style={sweep.pick === r.mult ? { background: 'var(--warn-soft)' } : undefined}>
-                    <td className="text-left px-2.5 py-1.5 text-[var(--text)] font-semibold">×{r.mult}{sweep.pick === r.mult ? ' ★' : ''}<span className="block text-[9.5px] font-normal text-[var(--text-muted)]">닿음 {r.sameSize.hits}건</span></td>
+                    <td className="text-left px-2.5 py-1.5 text-[var(--text)] font-semibold">×{r.mult}{sweep.pick === r.mult ? ' ★' : ''}<span className="block text-cap font-normal text-[var(--text-muted)]">닿음 {r.sameSize.hits}건</span></td>
                     <td className="px-2" style={{ color: pnlColor(r.sameSize.delta) }}>{signed(r.sameSize.delta, fmt)}</td>
                     <td className="px-2.5"><span style={{ color: pnlColor(r.fixedRisk.first) }}>{signed(r.fixedRisk.first, fmt)}</span> · <span style={{ color: pnlColor(r.fixedRisk.second) }}>{signed(r.fixedRisk.second, fmt)}</span></td>
                   </tr>
@@ -163,7 +163,7 @@ export default function CounterfactualCard({ trades, fmt, sub, equity }: { trade
               </tbody>
             </table>
           </div>
-          <p className="text-[10.5px] text-[var(--text-muted)] mt-1 leading-relaxed">
+          <p className="text-cap text-[var(--text-muted)] mt-1 leading-relaxed">
             {sweep.pick != null
               ? <>★ ×{sweep.pick}: 자본 1% 수량 방식에서 앞·뒤 절반 모두 플러스이고 둘 중 작은 쪽이 가장 큰 배수(사전에 정한 규칙). 포지션 가드 제안({CF_STOP_ATR}배){sweep.pick === CF_STOP_ATR ? '와 같습니다.' : `와 다릅니다 — 표본이 쌓여도 같으면 가드 배수를 바꿀 근거가 됩니다.`}</>
               : equity ? '앞·뒤 절반 모두 플러스인 배수가 없어 고르지 않았습니다(우연과 구분 불가).' : '자본을 불러오지 못해 1% 수량 비교는 생략했습니다.'}
@@ -184,7 +184,7 @@ export default function CounterfactualCard({ trades, fmt, sub, equity }: { trade
 
       <details className="mt-2">
         <summary className="cursor-pointer select-none text-[11px] font-semibold text-[var(--text-muted)]">가정과 계산 방식</summary>
-        <ul className="text-[10.5px] text-[var(--text-muted)] mt-1 leading-relaxed list-disc pl-4 space-y-0.5">
+        <ul className="text-cap text-[var(--text-muted)] mt-1 leading-relaxed list-disc pl-4 space-y-0.5">
           <li>손절 {CF_STOP_ATR}×ATR — ATR(14)은 1시간봉(진입 전에 마감된 봉)으로 계산 — 포지션 가드의 손절 제안과 같은 기준. 손절에 닿았는지는 보유 구간을 잘게 나눈 봉(짧은 매매는 1분봉)으로 봅니다. 보유 중 봉이 손절가를 건드렸으면 그 가격에 청산, 아니면 실제 결과. 같은 봉 안 순서는 몰라 봉 범위에 손절가가 있으면 맞았다고 봅니다(보수적). 수수료·펀딩은 실제 값 그대로.</li>
           <li>복수 매매 빼기 — 손실 청산 후 30분 안에 진입한 매매(종목 무관, 규율 점수와 같은 정의)를 없던 것으로. 판정은 실제 기록 기준.</li>
           <li>진입 지정가 — 진입 수수료만 메이커 {(CF_MAKER_RATE * 100).toFixed(2)}% × 진입 금액으로 바꿈(실제가 더 싸면 그대로). 청산은 시장가(손절은 즉시 체결이 필요) 유지. 지정가가 같은 가격에 체결됐다고 가정 — 실제로는 미체결로 놓치는 매매가 생길 수 있습니다.</li>

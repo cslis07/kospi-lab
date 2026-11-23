@@ -103,18 +103,18 @@ function Body({ r, hasStop }: { r: Result; hasStop: boolean }) {
         <div className="absolute inset-y-0 w-px" style={{ left: `${zero}%`, background: 'var(--ink)' }} />
       </div>
       <div className="relative h-4" aria-hidden>
-        <span className="absolute -translate-x-1/2 text-[9.5px] font-bold text-[var(--ink)] whitespace-nowrap" style={{ left: `${exitPos}%`, top: 1 }}>▲ 청산</span>
+        <span className="absolute -translate-x-1/2 text-cap font-bold text-[var(--ink)] whitespace-nowrap" style={{ left: `${exitPos}%`, top: 1 }}>▲ 청산</span>
       </div>
       <div className="grid grid-cols-2 gap-2 mt-1 text-[12px] tabular-nums">
         <div>
-          <p className="text-[10.5px] text-[var(--text-muted)]">최대 역행 (MAE)</p>
+          <p className="text-cap text-[var(--text-muted)]">최대 역행 (MAE)</p>
           <p className="font-extrabold" style={{ color: DOWN }}>−{ex.maePct}%{ex.maeR != null && <span className="text-[11px] font-bold"> · −{ex.maeR}R</span>}</p>
-          <p className="text-[10px] text-[var(--faint)]">−{ex.maeUsdt} USDT</p>
+          <p className="text-cap-pc text-[var(--faint)]">−{ex.maeUsdt} USDT</p>
         </div>
         <div className="text-right">
-          <p className="text-[10.5px] text-[var(--text-muted)]">최대 순행 (MFE)</p>
+          <p className="text-cap text-[var(--text-muted)]">최대 순행 (MFE)</p>
           <p className="font-extrabold" style={{ color: UP }}>+{ex.mfePct}%{ex.mfeR != null && <span className="text-[11px] font-bold"> · +{ex.mfeR}R</span>}</p>
-          <p className="text-[10px] text-[var(--faint)]">+{ex.mfeUsdt} USDT</p>
+          <p className="text-cap-pc text-[var(--faint)]">+{ex.mfeUsdt} USDT</p>
         </div>
       </div>
       <p className="text-[11.5px] text-[var(--text-muted)] mt-1.5 tabular-nums">
@@ -129,12 +129,12 @@ function Body({ r, hasStop }: { r: Result; hasStop: boolean }) {
             <li key={f.key} className="text-[11.5px] leading-snug">
               <span style={{ color: sevColor(f.severity) }} className="font-bold mr-1">{sevIcon(f.severity)}</span>
               <span className="text-[var(--text)]">{f.title}</span>
-              {f.fix && <span className="block text-[10.5px] text-[var(--text-muted)] ml-4">{f.fix}</span>}
+              {f.fix && <span className="block text-cap text-[var(--text-muted)] ml-4">{f.fix}</span>}
             </li>
           ))}
         </ul>
       )}
-      <p className="text-[10px] text-[var(--faint)] mt-2 leading-relaxed">
+      <p className="text-cap-pc text-[var(--faint)] mt-2 leading-relaxed">
         {BAR_NAME[r.g] ?? r.g} {ex.bars}개 기준(가격 차이 × 수량, 수수료 전){ex.rough ? ' · 보유가 봉 3개보다 짧아 진입·청산 봉 전체 범위가 섞인 근사 — 실제보다 크게 나올 수 있음' : ''}.
         {!hasStop && ' 손절가 기록이 없어 R 환산·손절 폭 진단은 생략.'}
       </p>

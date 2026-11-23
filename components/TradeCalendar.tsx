@@ -72,7 +72,7 @@ export default function TradeCalendar({ trades, fmt, krw, marks = [] }: { trades
         {krw(net) && <span className="text-[var(--faint)]"> ({krw(net)})</span>}
       </p>
       <div className="grid grid-cols-7 gap-[3px] text-center">
-        {WD.map((w, i) => <div key={w} className="text-[10px] font-semibold" style={{ color: i === 0 ? 'var(--warn)' : i === 6 ? 'var(--accent-ink)' : 'var(--text-muted)' }}>{w}</div>)}
+        {WD.map((w, i) => <div key={w} className="text-cap-pc font-semibold" style={{ color: i === 0 ? 'var(--warn)' : i === 6 ? 'var(--accent-ink)' : 'var(--text-muted)' }}>{w}</div>)}
         {Array.from({ length: lead }, (_, i) => <div key={`e${i}`} />)}
         {cells.map((c) => {
           const on = sel === c.date;
@@ -82,16 +82,16 @@ export default function TradeCalendar({ trades, fmt, krw, marks = [] }: { trades
               aria-label={`${Number(m)}월 ${c.day}일${c.count ? ` 진입 ${c.count}건 순손익 ${signed(c.pnl ?? 0)}` : ' 매매 없음'}${mk.length ? ` 가드 경보 ${mk.map((k) => MARK_LABEL[k]).join('·')}` : ''}`}
               className="relative rounded-md min-h-[46px] px-0.5 py-1 flex flex-col items-center justify-start tabular-nums"
               style={{ background: bg(c.pnl, maxAbs), outline: on ? '2px solid var(--accent)' : undefined }}>
-              <span className="text-[9.5px] leading-none text-[var(--text)] opacity-75">{c.day}</span>
+              <span className="text-cap leading-none text-[var(--text)] opacity-75">{c.day}</span>
               {c.count > 0 && <span className="text-[11px] font-bold leading-tight text-[var(--text)] mt-0.5">{c.count}건</span>}
-              {c.count > 0 && <span className="text-[9px] leading-none text-[var(--text)] opacity-80">{c.pnl != null ? `${c.pnl > 0 ? '+' : c.pnl < 0 ? '−' : ''}${Math.round(Math.abs(c.pnl))}` : ''}</span>}
+              {c.count > 0 && <span className="text-cap leading-none text-[var(--text)] opacity-80">{c.pnl != null ? `${c.pnl > 0 ? '+' : c.pnl < 0 ? '−' : ''}${Math.round(Math.abs(c.pnl))}` : ''}</span>}
               {scalpDays.has(c.date) && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{ background: '#ff8833' }} aria-hidden />}
-              {mk.length > 0 && <span className="absolute top-0.5 left-0.5 text-[8.5px] leading-none" aria-hidden>{mk.map((k) => MARK_ICON[k]).join('')}</span>}
+              {mk.length > 0 && <span className="absolute top-0.5 left-0.5 text-cap leading-none" aria-hidden>{mk.map((k) => MARK_ICON[k]).join('')}</span>}
             </button>
           );
         })}
       </div>
-      <p className="text-[10px] text-[var(--faint)] mt-1.5 leading-relaxed">
+      <p className="text-cap-pc text-[var(--faint)] mt-1.5 leading-relaxed">
         칸 = 진입 횟수 · 순손익(USDT, 정수) · <span style={{ color: '#ff8833' }}>●</span> 1시간 미만 매매 · 🛑 서킷브레이커 · 🔁 복구 매매 경고(가드 기록은 최근 약 8일)
       </p>
 

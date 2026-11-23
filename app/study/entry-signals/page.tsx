@@ -110,7 +110,7 @@ export default function EntrySignalsGuidePage() {
       <Sec n={4} title="그래프로 이해하는 상승·하락 과정">
         <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3">
           <RiseFallSvg />
-          <p className="text-[10px] text-[var(--text-muted)] text-center">패턴 설명용 그래프 — 실제 시세 아님</p>
+          <p className="text-cap-pc text-[var(--text-muted)] text-center">패턴 설명용 그래프 — 실제 시세 아님</p>
         </div>
         <ul className="mt-2 space-y-1 text-[12px] text-[var(--text)] leading-relaxed">
           <li><b className="text-emerald-400">상승</b>: 저점 상승 → 고점 돌파 → 돌파 후 이전 저항이 지지로 전환되면 추세 지속 근거가 강해짐.</li>

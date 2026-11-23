@@ -51,10 +51,10 @@ const fR = (v: number | null) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.t
 function Delta({ cur, prev, kind }: { cur: number | null; prev: number | null; kind: 'pct' | 'r' }) {
   if (cur == null || prev == null) return null;
   const d = cur - prev;
-  if (Math.abs(d) < (kind === 'r' ? 0.05 : 0.5)) return <span className="text-[10px] text-[var(--text-muted)]">±0</span>;
+  if (Math.abs(d) < (kind === 'r' ? 0.05 : 0.5)) return <span className="text-cap-pc text-[var(--text-muted)]">±0</span>;
   const up = d > 0;
   return (
-    <span className={`text-[10px] font-semibold ${up ? 'text-emerald-500' : 'text-red-500'}`}>
+    <span className={`text-cap-pc font-semibold ${up ? 'text-emerald-500' : 'text-red-500'}`}>
       {up ? '▲' : '▼'} {kind === 'r' ? `${Math.abs(d).toFixed(2)}R` : `${Math.abs(d).toFixed(0)}%`}
     </span>
   );
@@ -63,7 +63,7 @@ function Delta({ cur, prev, kind }: { cur: number | null; prev: number | null; k
 function Metric({ label, value, delta }: { label: string; value: string; delta?: React.ReactNode }) {
   return (
     <div className="rounded-xl bg-[var(--surface-2)] p-2.5 text-center">
-      <p className="text-[10px] text-[var(--text-muted)]">{label}</p>
+      <p className="text-cap-pc text-[var(--text-muted)]">{label}</p>
       <p className="text-base font-bold text-[var(--text)] tabular-nums leading-tight">{value}</p>
       {delta && <p className="mt-0.5">{delta}</p>}
     </div>
@@ -107,9 +107,9 @@ export default function WeeklyReview({ rows }: { rows: Row[] }) {
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-4">
       <div className="flex items-center gap-2 mb-3">
         <h2 className="text-sm font-bold text-[var(--text)]">이번 주 리뷰</h2>
-        <span className="text-[10px] text-[var(--text-muted)]">월요일 기준 · 지난 주 대비</span>
+        <span className="text-cap-pc text-[var(--text-muted)]">월요일 기준 · 지난 주 대비</span>
         <span className="flex-1" />
-        <span className="text-[10px] text-[var(--text-muted)]">마감 {cur.closed} · 미청산 {cur.open}</span>
+        <span className="text-cap-pc text-[var(--text-muted)]">마감 {cur.closed} · 미청산 {cur.open}</span>
       </div>
 
       {cur.total === 0 ? (
@@ -125,7 +125,7 @@ export default function WeeklyReview({ rows }: { rows: Row[] }) {
 
           {mistakes.length > 0 && (
             <div className="rounded-xl bg-[var(--surface-2)] p-3 mb-3">
-              <p className="text-[10px] font-semibold text-[var(--text-muted)] mb-1.5 uppercase tracking-wide">이번 주 최다 실수</p>
+              <p className="text-cap-pc font-semibold text-[var(--text-muted)] mb-1.5 uppercase tracking-wide">이번 주 최다 실수</p>
               <ul className="space-y-1">
                 {mistakes.slice(0, 3).map((m, i) => (
                   <li key={i} className="text-[11px] text-[var(--text)] flex gap-1.5">

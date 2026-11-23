@@ -50,7 +50,7 @@ export default function LeadPage() {
           <p className="text-[11px] text-[var(--text-muted)] mb-2 tabular-nums">발표 {w.n_prints}회 · {w.from} ~ {w.to}</p>
 
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden mb-3">
-            <div className="grid grid-cols-[1.3fr_0.8fr_0.7fr_0.8fr_0.8fr] gap-1 px-3 py-2 text-[10px] font-semibold text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--surface-2)]/40">
+            <div className="grid grid-cols-[1.3fr_0.8fr_0.7fr_0.8fr_0.8fr] gap-1 px-3 py-2 text-cap-pc font-semibold text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--surface-2)]/40">
               <span>지표</span>
               <span className="text-right">평균오차</span>
               <span className="text-right">상관</span>

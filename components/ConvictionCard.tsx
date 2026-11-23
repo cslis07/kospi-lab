@@ -25,13 +25,13 @@ export default function ConvictionCard({ rows, fmt, sub }: { rows: ConvictionSta
     <section className="fin-card p-4 mb-3">
       <div className="flex items-center gap-2 flex-wrap mb-2">
         <h2 className="text-sm font-bold text-[var(--text)]">확신별 성적</h2>
-        <span className="text-[10px] text-[var(--text-muted)]">{sub ?? '진입 확신(1~5)을 매긴 매매만'}</span>
+        <span className="text-cap-pc text-[var(--text-muted)]">{sub ?? '진입 확신(1~5)을 매긴 매매만'}</span>
       </div>
 
       <div className="overflow-x-auto -mx-1">
         <table className="w-full text-[12px] tabular-nums mx-1" style={{ minWidth: 300 }}>
           <thead>
-            <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+            <tr className="text-cap text-[var(--text-muted)] text-right">
               <th className="text-left font-semibold py-1">확신</th>
               <th className="font-semibold">건</th>
               <th className="font-semibold">승률</th>
@@ -54,7 +54,7 @@ export default function ConvictionCard({ rows, fmt, sub }: { rows: ConvictionSta
         </table>
       </div>
 
-      <p className="text-[10.5px] text-[var(--text-muted)] mt-2 leading-relaxed">
+      <p className="text-cap text-[var(--text-muted)] mt-2 leading-relaxed">
         {verdict && <><b className="text-[var(--text)]">{verdict}</b> </>}
         매매 행을 눌러 &lsquo;복기 기록&rsquo;에서 확신을 매길 수 있습니다. 흐린 줄은 5건 미만. 과거 기록이며 다음을 보장하지 않습니다.
       </p>

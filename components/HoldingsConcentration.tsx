@@ -56,7 +56,7 @@ function BarRow({ s, color, limit }: { s: Slice; color: string; limit: number })
     <div className="py-1.5">
       <div className="flex items-center gap-2 text-[12.5px]">
         <span aria-hidden className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: color }} />
-        <span className="font-semibold text-[var(--text)] truncate min-w-0 flex-1">{s.label}{s.estimated ? <span className="text-[10px] font-normal text-[var(--faint)] ml-1">(평단 추정)</span> : null}</span>
+        <span className="font-semibold text-[var(--text)] truncate min-w-0 flex-1">{s.label}{s.estimated ? <span className="text-cap-pc font-normal text-[var(--faint)] ml-1">(평단 추정)</span> : null}</span>
         <span className="tabular-nums font-bold shrink-0" style={{ color: over ? 'var(--warn)' : 'var(--ink-2)' }}>{s.pct.toFixed(1)}%</span>
       </div>
       <div className="relative h-1.5 rounded-full mt-1" style={{ background: 'var(--surface-2)' }}>

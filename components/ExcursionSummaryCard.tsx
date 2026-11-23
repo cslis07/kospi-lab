@@ -57,7 +57,7 @@ export default function ExcursionSummaryCard({ trades, tagsByPosition }: { trade
     <section className="fin-card p-4 mb-3">
       <div className="flex items-center gap-2 flex-wrap mb-2">
         <h2 className="text-sm font-bold text-[var(--text)]">MAE/MFE 요약</h2>
-        <span className="text-[10px] text-[var(--text-muted)]">최근 {recent.length}건 중 {s.n}건 계산 · 보유 구간 캔들 기준</span>
+        <span className="text-cap-pc text-[var(--text-muted)]">최근 {recent.length}건 중 {s.n}건 계산 · 보유 구간 캔들 기준</span>
       </div>
 
       {s.n > 0 && (
@@ -86,7 +86,7 @@ export default function ExcursionSummaryCard({ trades, tagsByPosition }: { trade
               <div className="overflow-x-auto">
                 <table className="w-full text-[11.5px] tabular-nums" style={{ minWidth: 340 }}>
                   <thead>
-                    <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+                    <tr className="text-cap text-[var(--text-muted)] text-right">
                       <th className="text-left font-semibold px-3 py-1.5">셋업</th>
                       <th className="font-semibold px-2">건수</th>
                       <th className="font-semibold px-2">평균 MFE</th>
@@ -105,10 +105,10 @@ export default function ExcursionSummaryCard({ trades, tagsByPosition }: { trade
                   </tbody>
                 </table>
               </div>
-              <p className="text-[10px] text-[var(--faint)] px-3 py-1.5 leading-snug">포착률이 <b>낮은 셋업</b>은 최대 순행까지 못 가고 반납이 잦습니다 — <b>1차 익절·추적손절을 당겨</b> 지키는 게 유리(표본 2건↑).</p>
+              <p className="text-cap-pc text-[var(--faint)] px-3 py-1.5 leading-snug">포착률이 <b>낮은 셋업</b>은 최대 순행까지 못 가고 반납이 잦습니다 — <b>1차 익절·추적손절을 당겨</b> 지키는 게 유리(표본 2건↑).</p>
             </div>
           ) : tagsByPosition ? (
-            <p className="text-[10.5px] text-[var(--text-muted)]">셋업 태그가 2건 이상 쌓이면 셋업별 포착률 리그가 나옵니다(매매 행 → 셋업 태그).</p>
+            <p className="text-cap text-[var(--text-muted)]">셋업 태그가 2건 이상 쌓이면 셋업별 포착률 리그가 나옵니다(매매 행 → 셋업 태그).</p>
           ) : null}
         </div>
       )}
@@ -124,7 +124,7 @@ export default function ExcursionSummaryCard({ trades, tagsByPosition }: { trade
               <div className="overflow-x-auto mt-1.5 rounded-xl border border-[var(--line-2)]">
                 <table className="w-full text-[11.5px] tabular-nums" style={{ minWidth: 470 }}>
                   <thead>
-                    <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+                    <tr className="text-cap text-[var(--text-muted)] text-right">
                       <th className="text-left font-semibold px-2.5 py-1.5">청산(KST) · 종목</th>
                       <th className="font-semibold px-2">진입가</th>
                       <th className="font-semibold px-2">가장 유리했던 가격</th>
@@ -141,15 +141,15 @@ export default function ExcursionSummaryCard({ trades, tagsByPosition }: { trade
                           <span style={{ color: t.side === 'long' ? 'var(--warn)' : 'var(--accent-ink)' }}>{t.side === 'long' ? '롱' : '숏'}</span>
                         </td>
                         <td className="px-2 text-[var(--text)]">{px(t.openAvg)}</td>
-                        <td className="px-2" style={{ color: 'var(--warn)' }}>{px(peak)}<span className="block text-[10px]">+{ex.mfePct.toFixed(2)}%{ex.rough ? ' 근사' : ''}</span></td>
-                        <td className="px-2 text-[var(--text)]">{px(t.closeAvg)}<span className="block text-[10px] text-[var(--accent-ink)]">{ex.exitPct >= 0 ? '+' : ''}{ex.exitPct.toFixed(2)}%</span></td>
+                        <td className="px-2" style={{ color: 'var(--warn)' }}>{px(peak)}<span className="block text-cap-pc">+{ex.mfePct.toFixed(2)}%{ex.rough ? ' 근사' : ''}</span></td>
+                        <td className="px-2 text-[var(--text)]">{px(t.closeAvg)}<span className="block text-cap-pc text-[var(--accent-ink)]">{ex.exitPct >= 0 ? '+' : ''}{ex.exitPct.toFixed(2)}%</span></td>
                         <td className="px-2.5 font-bold" style={{ color: 'var(--accent-ink)' }}>{t.netProfit.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <p className="text-[10.5px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+              <p className="text-cap text-[var(--text-muted)] mt-1.5 leading-relaxed">
                 진입가·청산가는 거래소 체결 평균가 그대로입니다. &lsquo;가장 유리했던 가격&rsquo;은 보유 중 봉의 고가(롱)·저가(숏) 기준이라 실제 체결 가능 가격과 조금 다를 수 있습니다.
                 이 매매들은 한때 최종 손실폭보다 크게 이익 중이었습니다 — 그 구간에서 손절을 본전으로 올렸다면 손실은 피할 수 있었습니다(사후 확인이며, 그렇게 하면 이긴 매매가 일찍 잘리는 경우도 생깁니다).
               </p>
@@ -172,7 +172,7 @@ export default function ExcursionSummaryCard({ trades, tagsByPosition }: { trade
           {busy ? `계산 중… ${busy.done}/${busy.total}` : `${s.n ? '나머지 ' : ''}${missing.length}건 계산하기 (캔들 ${missing.length}회 조회)`}
         </button>
       )}
-      <p className="text-[10px] text-[var(--faint)] mt-2 leading-relaxed">
+      <p className="text-cap-pc text-[var(--faint)] mt-2 leading-relaxed">
         포착률 = 청산 시점 순행 ÷ 최대 순행. 봉 단위 근사(진입·청산 봉 전체 범위 포함)라 아주 짧은 매매는 실제보다 크게 잡힐 수 있습니다.
         결과는 이 기기에만 저장되며, 매매 행을 누르면 건별 상세가 나옵니다.
       </p>
@@ -183,9 +183,9 @@ export default function ExcursionSummaryCard({ trades, tagsByPosition }: { trade
 function Tile({ label, value, sub, color, warn }: { label: string; value: string; sub: string; color?: string; warn?: boolean }) {
   return (
     <div className="rounded-xl bg-[var(--surface-2)] px-3 py-2.5">
-      <p className="text-[10.5px] text-[var(--text-muted)]">{label}</p>
+      <p className="text-cap text-[var(--text-muted)]">{label}</p>
       <p className="text-[16px] font-extrabold tabular-nums" style={{ color: warn ? 'var(--warn)' : color ?? 'var(--text)' }}>{value}</p>
-      <p className="text-[9.5px] text-[var(--faint)] leading-tight">{sub}</p>
+      <p className="text-cap text-[var(--faint)] leading-tight">{sub}</p>
     </div>
   );
 }

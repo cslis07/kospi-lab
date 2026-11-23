@@ -15,12 +15,12 @@ export default function TradesPerDayCard({ rows, fmt, unit = 'USDT' }: { rows: T
   return (
     <section className="fin-card p-4 mb-3">
       <div className="flex items-center gap-2 flex-wrap mb-2">
-        <h2 className="text-sm font-bold text-[var(--text)]">하루 매매 횟수별 <span className="text-[10px] font-normal text-[var(--text-muted)]">과매매한 날이 더 나빴나</span></h2>
+        <h2 className="text-sm font-bold text-[var(--text)]">하루 매매 횟수별 <span className="text-cap-pc font-normal text-[var(--text-muted)]">과매매한 날이 더 나빴나</span></h2>
       </div>
       <div className="overflow-x-auto -mx-1">
         <table className="w-full text-[12px] tabular-nums mx-1" style={{ minWidth: 300 }}>
           <thead>
-            <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+            <tr className="text-cap text-[var(--text-muted)] text-right">
               <th className="text-left font-semibold py-1">빈도</th><th className="font-semibold">날</th><th className="font-semibold">매매</th>
               <th className="font-semibold">승률</th><th className="font-semibold">건당</th><th className="font-semibold">합계</th>
             </tr>

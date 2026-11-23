@@ -77,19 +77,19 @@ export default function WhaleLiquidationPanel({ symbol }: { symbol?: string }) {
 
   const liqLine = (it: Liq): ReactNode => (
     <span className="flex items-baseline gap-2">
-      <span className={`min-w-[52px] text-center text-[10px] font-bold rounded px-1 py-0.5 ${it.long ? 'bg-red-500/15 text-red-400' : 'bg-emerald-500/15 text-emerald-400'}`}>{it.long ? '롱 청산' : '숏 청산'}</span>
+      <span className={`min-w-[52px] text-center text-cap-pc font-bold rounded px-1 py-0.5 ${it.long ? 'bg-red-500/15 text-red-400' : 'bg-emerald-500/15 text-emerald-400'}`}>{it.long ? '롱 청산' : '숏 청산'}</span>
       <span className="font-bold">{it.sym.replace('USDT', '')}</span>
       <span className="font-bold tabular-nums">{fmtUsd(it.usd)}</span>
       <span className="text-[var(--text-muted)] text-[11px]">@ {fmtPx(it.sym, it.price)}</span>
-      <span className="ml-auto text-[var(--text-muted)] text-[10px]">{new Date(it.ts).toLocaleTimeString('ko-KR')}</span>
+      <span className="ml-auto text-[var(--text-muted)] text-cap-pc">{new Date(it.ts).toLocaleTimeString('ko-KR')}</span>
     </span>
   );
   const whaleLine = (it: WhaleItem): ReactNode => (
     <span className="flex items-baseline gap-2 flex-wrap">
-      <span className={`min-w-[42px] text-center text-[10px] font-bold rounded px-1 py-0.5 ${it.side === 'BUY' ? 'bg-emerald-500/15 text-emerald-400' : it.side === 'SELL' ? 'bg-red-500/15 text-red-400' : 'bg-white/10 text-amber-400'}`}>{it.side === 'BUY' ? '매수' : it.side === 'SELL' ? '매도' : '이동'}</span>
+      <span className={`min-w-[42px] text-center text-cap-pc font-bold rounded px-1 py-0.5 ${it.side === 'BUY' ? 'bg-emerald-500/15 text-emerald-400' : it.side === 'SELL' ? 'bg-red-500/15 text-red-400' : 'bg-white/10 text-amber-400'}`}>{it.side === 'BUY' ? '매수' : it.side === 'SELL' ? '매도' : '이동'}</span>
       <span className="font-bold tabular-nums min-w-[64px]">{fmtUsd(it.usd)}</span>
-      <span className="text-[var(--text)]">{it.label}{it.from ? <span className="text-[10px] text-[var(--text-muted)] ml-1">{it.from} → {it.to}</span> : null}</span>
-      <span className="ml-auto text-[var(--text-muted)] text-[10px]">{ago(it.ts)}</span>
+      <span className="text-[var(--text)]">{it.label}{it.from ? <span className="text-cap-pc text-[var(--text-muted)] ml-1">{it.from} → {it.to}</span> : null}</span>
+      <span className="ml-auto text-[var(--text-muted)] text-cap-pc">{ago(it.ts)}</span>
     </span>
   );
 
@@ -99,9 +99,9 @@ export default function WhaleLiquidationPanel({ symbol }: { symbol?: string }) {
     ...fWhale.map((it) => ({ ts: it.ts, node: whaleLine(it) })),
   ].sort((a, b) => b.ts - a.ts).slice(0, 24);
 
-  const title = <>⚡ 실시간 청산 · 🐋 온체인 고래{short ? <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1">{short}</span> : null}</>;
+  const title = <>⚡ 실시간 청산 · 🐋 온체인 고래{short ? <span className="text-cap-pc font-normal text-[var(--text-muted)] ml-1">{short}</span> : null}</>;
   const badge = (
-    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${liqSrc ? 'bg-emerald-500/15 text-emerald-400' : 'bg-white/10 text-[var(--text-muted)]'}`}>
+    <span className={`text-cap-pc font-bold px-2 py-0.5 rounded-full ${liqSrc ? 'bg-emerald-500/15 text-emerald-400' : 'bg-white/10 text-[var(--text-muted)]'}`}>
       {liqSrc ? `LIVE · ${liqSrc}` : '연결 중…'}
     </span>
   );
@@ -122,7 +122,7 @@ export default function WhaleLiquidationPanel({ symbol }: { symbol?: string }) {
         {fWhale.slice(0, 30).map((it, i) => <li key={i} className="py-1 border-b border-[var(--border)] text-[12px]">{whaleLine(it)}</li>)}
         {!fWhale.length && <li className="text-[11px] text-[var(--text-muted)] py-1">{short ? `${short} 고래 데이터 대기 중…` : '고래 데이터 로딩 중…'}</li>}
       </ul>
-      <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-70">대량 체결·온체인 이동은 실제 청산이나 신규 숏 진입과 다른 현상입니다. 거래소 입출금·내부 지갑 이동이 구분되지 않으면 매도 압력으로 단정할 수 없습니다.{whale?.note ? ` ${whale.note}` : ''}</p>
+      <p className="text-cap-pc text-[var(--text-muted)] mt-2 opacity-70">대량 체결·온체인 이동은 실제 청산이나 신규 숏 진입과 다른 현상입니다. 거래소 입출금·내부 지갑 이동이 구분되지 않으면 매도 압력으로 단정할 수 없습니다.{whale?.note ? ` ${whale.note}` : ''}</p>
     </RotatingTicker>
   );
 }

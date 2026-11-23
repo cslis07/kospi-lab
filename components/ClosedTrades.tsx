@@ -66,7 +66,7 @@ export default function ClosedTrades() {
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-bold text-[var(--text)]">선물 청산 내역 <span className="text-[10px] font-normal text-[var(--text-muted)]">거래소 자동</span></h2>
+        <h2 className="text-sm font-bold text-[var(--text)]">선물 청산 내역 <span className="text-cap-pc font-normal text-[var(--text-muted)]">거래소 자동</span></h2>
         <div className="flex gap-1">
           {[7, 30, 90].map((d) => (
             <button key={d} onClick={() => setDays(d)}
@@ -88,15 +88,15 @@ export default function ClosedTrades() {
           {rangeStr && <p className="text-[11px] text-[var(--text-muted)] mb-2">{rangeStr} <span className="opacity-60">· 최근 {days}일</span></p>}
           <div className="grid grid-cols-3 gap-2 mb-2 text-center">
             <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-              <p className="text-[10px] text-[var(--text-muted)]">순손익 합계</p>
+              <p className="text-cap-pc text-[var(--text-muted)]">순손익 합계</p>
               <p className={`text-base font-bold tabular-nums ${total >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{total >= 0 ? '+' : ''}{fnum(total)}</p>
             </div>
             <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-              <p className="text-[10px] text-[var(--text-muted)]">건수 · 승률</p>
+              <p className="text-cap-pc text-[var(--text-muted)]">건수 · 승률</p>
               <p className="text-base font-bold tabular-nums text-[var(--text)]">{pos.length}건 · {decided ? Math.round((wins / decided) * 100) : 0}%</p>
             </div>
             <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-              <p className="text-[10px] text-[var(--text-muted)]">손절가 복구</p>
+              <p className="text-cap-pc text-[var(--text-muted)]">손절가 복구</p>
               <p className="text-base font-bold tabular-nums text-[var(--text)]">{data?.slRecovered ?? 0}건</p>
             </div>
           </div>
@@ -104,11 +104,11 @@ export default function ClosedTrades() {
           {/* 플러스·마이너스 합계 분리 */}
           <div className="grid grid-cols-2 gap-2 mb-3">
             <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.05] p-2.5 text-center">
-              <p className="text-[10px] text-[var(--text-muted)]">플러스 합계 <span className="text-emerald-600">{tot.winN}건</span></p>
+              <p className="text-cap-pc text-[var(--text-muted)]">플러스 합계 <span className="text-emerald-600">{tot.winN}건</span></p>
               <p className="text-base font-bold tabular-nums text-emerald-500">+{fnum(tot.plus)}</p>
             </div>
             <div className="rounded-xl border border-red-500/25 bg-red-500/[0.05] p-2.5 text-center">
-              <p className="text-[10px] text-[var(--text-muted)]">마이너스 합계 <span className="text-red-600">{tot.lossN}건</span></p>
+              <p className="text-cap-pc text-[var(--text-muted)]">마이너스 합계 <span className="text-red-600">{tot.lossN}건</span></p>
               <p className="text-base font-bold tabular-nums text-red-500">{fnum(tot.minus)}</p>
             </div>
           </div>
@@ -131,7 +131,7 @@ export default function ClosedTrades() {
                   <tr key={p.positionId} className="border-b border-[var(--border)]/50">
                     <td className="py-1.5">
                       <span className="font-semibold text-[var(--text)]">{p.symbol.replace('USDT', '')}</span>
-                      <span className={`ml-1.5 text-[9px] px-1 py-0.5 rounded ${p.side === 'long' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500'}`}>{p.side === 'long' ? '롱' : '숏'}</span>
+                      <span className={`ml-1.5 text-cap px-1 py-0.5 rounded ${p.side === 'long' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500'}`}>{p.side === 'long' ? '롱' : '숏'}</span>
                     </td>
                     <td className="text-right text-[var(--text)]">{fnum(p.openAvg, 4)}</td>
                     <td className="text-right text-[var(--text)]">{fnum(p.closeAvg, 4)}</td>
@@ -144,7 +144,7 @@ export default function ClosedTrades() {
               </tbody>
             </table>
           </div>
-          <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
+          <p className="text-cap-pc text-[var(--text-muted)] mt-2 leading-relaxed">
             순손익 = 실현손익 − 수수료 + 펀딩. 손절가는 거래소에 <strong>SL 주문을 걸어둔 매매</strong>에서만 복구됩니다(계획 손절은 지어내지 않음).
             헤더의 <strong>종목·순손익·청산</strong>을 눌러 정렬할 수 있습니다.
           </p>

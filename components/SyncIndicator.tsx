@@ -50,13 +50,13 @@ export default function SyncIndicator() {
           <div className="absolute right-0 mt-2 z-50 w-72 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl p-3 text-left">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-bold text-[var(--text)]">클라우드 동기화</p>
-              <span className="text-[10px] text-[var(--text-muted)]">{s.device}</span>
+              <span className="text-cap-pc text-[var(--text-muted)]">{s.device}</span>
             </div>
 
             {s.status === 'off' && (
               <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
                 <strong className="text-[var(--text)]">로컬 전용으로 동작 중</strong>입니다. 매매일지·관심종목·후보가 이 기기에만 저장됩니다.
-                서버에 <code className="text-[10px]">SUPABASE_URL</code>·<code className="text-[10px]">SUPABASE_SERVICE_ROLE_KEY</code>를
+                서버에 <code className="text-cap-pc">SUPABASE_URL</code>·<code className="text-cap-pc">SUPABASE_SERVICE_ROLE_KEY</code>를
                 넣으면 기기 간 자동 동기화가 켜집니다.
               </p>
             )}
@@ -72,7 +72,7 @@ export default function SyncIndicator() {
                   ({s.conflicts.join(', ')}). 어느 쪽이 최신인지 알 수 없어 <strong className="text-[var(--text)]">자동 동기화를 멈췄습니다</strong> —
                   그냥 진행하면 한쪽 기록이 사라집니다.
                 </p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+                <p className="text-cap-pc text-[var(--text-muted)] mt-1.5 leading-relaxed">
                   걱정되면 먼저 <a href="/tools#backup" className="text-sky-400 underline">백업</a>에서 내보내기를 한 뒤 고르세요.
                 </p>
                 <div className="grid grid-cols-2 gap-2 mt-2">
@@ -111,7 +111,7 @@ export default function SyncIndicator() {
             >
               지금 동기화
             </button>
-            <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
+            <p className="text-cap-pc text-[var(--text-muted)] mt-2 leading-relaxed">
               키 단위로 <strong className="text-[var(--text)]">최신본이 이깁니다</strong>. 같은 항목을 두 기기에서 동시에 고치면 나중에 저장한 쪽이 남습니다.
             </p>
           </div>

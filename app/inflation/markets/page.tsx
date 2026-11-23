@@ -55,7 +55,7 @@ function MarketRow({ m }: { m: PredMarket }) {
         <p className="text-[12px] font-semibold text-[var(--text)] leading-snug min-w-0">
           {m.url ? <a href={m.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{m.title}</a> : m.title}
         </p>
-        <span className="shrink-0 text-[10px] text-[var(--text-muted)] tabular-nums">{m.source}{m.volume ? ` · ${fmtVol(m.volume)}` : ''}</span>
+        <span className="shrink-0 text-cap-pc text-[var(--text-muted)] tabular-nums">{m.source}{m.volume ? ` · ${fmtVol(m.volume)}` : ''}</span>
       </div>
       <ul className="space-y-1">
         {outs.map((o, i) => {

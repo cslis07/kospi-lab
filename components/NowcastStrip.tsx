@@ -33,11 +33,11 @@ export default function NowcastStrip({ className = '', hub = false }: { classNam
       <Link href="/inflation" className="block hover:opacity-90 transition-opacity">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] text-[var(--text-muted)]">🇺🇸 미 CPI — 공식(지연) vs 실시간 나우캐스트</span>
-          <span className="text-[10px] font-semibold text-[var(--accent-ink)] shrink-0">실시간 물가 →</span>
+          <span className="text-cap-pc font-semibold text-[var(--accent-ink)] shrink-0">실시간 물가 →</span>
         </div>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mt-1 tabular-nums">
           <span className="text-[13px]"><span className="text-[11px] text-[var(--text-muted)]">나우캐스트 </span><b className="text-[var(--text)]">{pct(g.gauge_yoy)}</b></span>
-          <span className="text-[13px]"><span className="text-[11px] text-[var(--text-muted)]">공식 </span><b className="text-[var(--text)]">{pct(g.official_yoy)}</b><span className="text-[10px] text-[var(--text-muted)]"> ({g.official_month} · 지연)</span></span>
+          <span className="text-[13px]"><span className="text-[11px] text-[var(--text-muted)]">공식 </span><b className="text-[var(--text)]">{pct(g.official_yoy)}</b><span className="text-cap-pc text-[var(--text-muted)]"> ({g.official_month} · 지연)</span></span>
           <span className={`text-[12px] font-semibold ${up ? 'text-red-400' : 'text-blue-400'}`}>격차 {signPp(g.current_pp)}</span>
         </div>
       </Link>

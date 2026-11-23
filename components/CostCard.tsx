@@ -23,11 +23,11 @@ function HoldCostTable({ rows, fmt }: { rows: HoldCostRow[]; fmt: (n: number) =>
   const eaten = rows.filter((r) => r.eaten);
   return (
     <div className="mt-4">
-      <p className="text-[12px] font-bold text-[var(--text)] mb-1">보유시간별 비용 <span className="text-[10px] font-normal text-[var(--text-muted)]">짧게 자주 할수록 비용 몫이 커지나</span></p>
+      <p className="text-[12px] font-bold text-[var(--text)] mb-1">보유시간별 비용 <span className="text-cap-pc font-normal text-[var(--text-muted)]">짧게 자주 할수록 비용 몫이 커지나</span></p>
       <div className="overflow-x-auto -mx-1">
         <table className="w-full text-[11.5px] tabular-nums mx-1" style={{ minWidth: 300 }}>
           <thead>
-            <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+            <tr className="text-cap text-[var(--text-muted)] text-right">
               <th className="text-left font-semibold py-1">보유</th><th className="font-semibold">건</th>
               <th className="font-semibold">매매손익</th><th className="font-semibold">비용</th><th className="font-semibold">순손익</th>
               <th className="font-semibold">이익 중 비용</th>
@@ -47,7 +47,7 @@ function HoldCostTable({ rows, fmt }: { rows: HoldCostRow[]; fmt: (n: number) =>
           </tbody>
         </table>
       </div>
-      <p className="text-[10.5px] text-[var(--text-muted)] mt-1 leading-relaxed">
+      <p className="text-cap text-[var(--text-muted)] mt-1 leading-relaxed">
         {eaten.length > 0
           ? <>매매로는 벌었는데 비용이 이익을 다 먹은 구간: <b style={{ color: 'var(--warn)' }}>{eaten.map((r) => r.label).join(', ')}</b>. </>
           : null}
@@ -63,7 +63,7 @@ function CashBlock({ cash, net, fmt }: { cash: CashFlow; net: number; fmt: (n: n
   const pct = cash.arrivedOfNetPct;
   return (
     <div className="mt-4 pt-3 border-t border-[var(--line-2)]">
-      <p className="text-[12px] font-bold text-[var(--text)] mb-1">출금 <span className="text-[10px] font-normal text-[var(--text-muted)]">실제로 손에 쥔 돈 · 같은 기간 USDT</span></p>
+      <p className="text-[12px] font-bold text-[var(--text)] mb-1">출금 <span className="text-cap-pc font-normal text-[var(--text-muted)]">실제로 손에 쥔 돈 · 같은 기간 USDT</span></p>
       {cash.nWithdraw === 0 ? (
         <p className="text-[11.5px] text-[var(--text-muted)] py-1">이 기간에 출금한 내역이 없습니다.</p>
       ) : (
@@ -89,7 +89,7 @@ function CashBlock({ cash, net, fmt }: { cash: CashFlow; net: number; fmt: (n: n
           </div>
         </>
       )}
-      <p className="text-[10.5px] text-[var(--text-muted)] mt-2 leading-relaxed tabular-nums">
+      <p className="text-cap text-[var(--text-muted)] mt-2 leading-relaxed tabular-nums">
         같은 기간 입금 {cash.nDeposit}건 {fmt(cash.deposited)} USDT —{' '}
         {cash.netOut >= 0
           ? <>넣은 돈보다 <b className="text-[var(--text)]">{fmt(cash.netOut)} USDT 더 뺐습니다</b>(순출금).</>
@@ -108,7 +108,7 @@ export default function CostCard({ c, fmt, sub, holdRows, cash }: { c: CostBreak
     <section className="fin-card p-4 mb-3">
       <div className="flex items-center gap-2 flex-wrap mb-2">
         <h2 className="text-sm font-bold text-[var(--text)]">비용 분석</h2>
-        <span className="text-[10px] text-[var(--text-muted)]">{sub ?? `청산 ${c.n}건 · 수수료·펀딩`}</span>
+        <span className="text-cap-pc text-[var(--text-muted)]">{sub ?? `청산 ${c.n}건 · 수수료·펀딩`}</span>
       </div>
 
       <Row label="매매손익 (비용 전)" value={`${signed(c.gross, fmt)} USDT`} color={tone(c.gross)} />
@@ -128,7 +128,7 @@ export default function CostCard({ c, fmt, sub, holdRows, cash }: { c: CostBreak
           <div className="h-2 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--surface-2)' }}>
             <div className="h-full rounded-full" style={{ width: `${shareW}%`, background: share >= 30 ? 'var(--warn)' : 'var(--amber)' }} />
           </div>
-          <p className="text-[10.5px] text-[var(--faint)] mt-1 tabular-nums">이익 매매의 매매손익 합 +{fmt(c.grossWin)} 중 비용 {fmt(Math.abs(c.cost))} USDT{c.cost < 0 ? '(펀딩 수입이 더 큼)' : ''}</p>
+          <p className="text-cap text-[var(--faint)] mt-1 tabular-nums">이익 매매의 매매손익 합 +{fmt(c.grossWin)} 중 비용 {fmt(Math.abs(c.cost))} USDT{c.cost < 0 ? '(펀딩 수입이 더 큼)' : ''}</p>
           {c.gross > 0 && c.cost > 0 && (
             <p className="text-[11.5px] text-[var(--text-muted)] mt-1.5 leading-relaxed tabular-nums">
               전체 매매손익 +{fmt(c.gross)} 중 <b style={{ color: 'var(--warn)' }}>{Math.round((c.cost / c.gross) * 100)}%</b>가 비용으로 나가 순손익은 {signed(c.net, fmt)} USDT.
@@ -139,25 +139,25 @@ export default function CostCard({ c, fmt, sub, holdRows, cash }: { c: CostBreak
 
       <div className="grid grid-cols-3 gap-2 mt-3">
         <div className="rounded-xl bg-[var(--surface-2)] px-2.5 py-2">
-          <p className="text-[10px] text-[var(--text-muted)]">비용에 뒤집힌 매매</p>
+          <p className="text-cap-pc text-[var(--text-muted)]">비용에 뒤집힌 매매</p>
           <p className="text-[15px] font-extrabold tabular-nums" style={{ color: c.flipped ? 'var(--warn)' : 'var(--text)' }}>{c.flipped}건</p>
-          <p className="text-[9.5px] text-[var(--faint)]">매매론 이겼는데 순손실</p>
+          <p className="text-cap text-[var(--faint)]">매매론 이겼는데 순손실</p>
         </div>
         <div className="rounded-xl bg-[var(--surface-2)] px-2.5 py-2">
-          <p className="text-[10px] text-[var(--text-muted)]">건당 수수료</p>
+          <p className="text-cap-pc text-[var(--text-muted)]">건당 수수료</p>
           <p className="text-[15px] font-extrabold tabular-nums text-[var(--text)]">{c.avgFee != null ? fmt(c.avgFee) : '—'}</p>
-          <p className="text-[9.5px] text-[var(--faint)]">USDT · 진입+청산</p>
+          <p className="text-cap text-[var(--faint)]">USDT · 진입+청산</p>
         </div>
         <div className="rounded-xl bg-[var(--surface-2)] px-2.5 py-2">
-          <p className="text-[10px] text-[var(--text-muted)]">실효 수수료율</p>
+          <p className="text-cap-pc text-[var(--text-muted)]">실효 수수료율</p>
           <p className="text-[15px] font-extrabold tabular-nums text-[var(--text)]">{c.feeRatePct != null ? `${c.feeRatePct.toFixed(3)}%` : '—'}</p>
-          <p className="text-[9.5px] text-[var(--faint)]">체결 1회당</p>
+          <p className="text-cap text-[var(--faint)]">체결 1회당</p>
         </div>
       </div>
       {holdRows && holdRows.length > 1 && <HoldCostTable rows={holdRows} fmt={fmt} />}
       {cash && <CashBlock cash={cash} net={c.net} fmt={fmt} />}
 
-      <p className="text-[10.5px] text-[var(--text-muted)] mt-2.5 leading-relaxed">
+      <p className="text-cap text-[var(--text-muted)] mt-2.5 leading-relaxed">
         실효 수수료율을 거래소 등급표의 메이커(지정가)·테이커(시장가) 요율과 비교해 보세요 — 테이커 쪽에 가깝다면 시장가 체결이 많다는 뜻입니다.
         보유가 짧고 자주 매매할수록 같은 요율이라도 이익에서 비용이 차지하는 몫이 커집니다.
       </p>

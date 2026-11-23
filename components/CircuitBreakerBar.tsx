@@ -50,7 +50,7 @@ export default function CircuitBreakerBar() {
         {state.reasons.map((r, i) => (
           <p key={i} className={`text-[11px] leading-relaxed ${state.status === 'blocked' ? 'text-red-300' : 'text-[var(--text-muted)]'}`}>• {r}</p>
         ))}
-        <p className="text-[10px] text-[var(--text-muted)] tabular-nums">
+        <p className="text-cap-pc text-[var(--text-muted)] tabular-nums">
           현재 연속손절 {state.lossStreak} · 오늘 실현 {state.todayRealized == null ? '-' : `${state.todayRealized >= 0 ? '+' : ''}${Math.round(state.todayRealized)}`} · 최근7일 {state.weekRealized == null ? '-' : `${state.weekRealized >= 0 ? '+' : ''}${Math.round(state.weekRealized)}`} USDT
         </p>
       </div>
@@ -81,7 +81,7 @@ export default function CircuitBreakerBar() {
               onChange={(e) => update({ perTradeLossLimitUsdt: e.target.value === '' ? null : Math.max(0, Number(e.target.value) || 0) })}
               className="mt-1 w-full px-2 py-1.5 bg-transparent border border-[var(--border)] rounded-lg text-[var(--text)] outline-none focus:border-sky-500/50 tabular-nums" />
           </label>
-          <p className="sm:col-span-3 text-[10px] text-[var(--text-muted)]">양수로 입력하세요(예: 50 → 오늘 −50 USDT면 차단). <b>1회 한도</b>는 한 매매가 한 번에 그만큼 넘게 깨졌을 때 다음 매매 전 경고. 손실은 거래소 대조로 채워진 실현손익 기준. 설정은 기기 간 동기화됩니다.</p>
+          <p className="sm:col-span-3 text-cap-pc text-[var(--text-muted)]">양수로 입력하세요(예: 50 → 오늘 −50 USDT면 차단). <b>1회 한도</b>는 한 매매가 한 번에 그만큼 넘게 깨졌을 때 다음 매매 전 경고. 손실은 거래소 대조로 채워진 실현손익 기준. 설정은 기기 간 동기화됩니다.</p>
         </div>
       )}
     </div>

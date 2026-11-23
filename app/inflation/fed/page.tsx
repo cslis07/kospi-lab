@@ -40,7 +40,7 @@ export default function FedPage() {
             {mk.implied_change_bps != null && (
               <p className="text-[12px] text-[var(--text-muted)] tabular-nums">예상 변화폭 <b className={mk.implied_change_bps > 0 ? 'text-red-400' : mk.implied_change_bps < 0 ? 'text-blue-400' : 'text-[var(--text)]'}>{mk.implied_change_bps > 0 ? '+' : ''}{mk.implied_change_bps.toFixed(1)}bp</b></p>
             )}
-            {nm?.statement_et && <p className="text-[10px] text-[var(--text-muted)] mt-1">성명 발표 {nm.statement_et}</p>}
+            {nm?.statement_et && <p className="text-cap-pc text-[var(--text-muted)] mt-1">성명 발표 {nm.statement_et}</p>}
           </div>
 
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">

@@ -42,7 +42,7 @@ function DisclosureList({ items }: { items: DisclosureItem[] }) {
           rel="noopener noreferrer"
           className="flex items-start gap-3 p-3 rounded-xl border border-[var(--line-2)] bg-[var(--bg-card)] hover:border-sky-500/40 hover:bg-sky-500/5 transition-colors group"
         >
-          <span className={`mt-0.5 shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+          <span className={`mt-0.5 shrink-0 text-cap-pc font-bold px-1.5 py-0.5 rounded ${
             item.source === 'DART'
               ? 'bg-blue-500/20 text-blue-400'
               : 'bg-amber-500/20 text-amber-400'

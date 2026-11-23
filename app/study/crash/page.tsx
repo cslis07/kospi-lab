@@ -230,7 +230,7 @@ export default function CrashPlaybookPage() {
         <p className="text-[11.5px] text-[var(--text-muted)] mt-2 leading-relaxed">
           4코인 합으로는 첫 급락 뒤 <b className="text-[var(--text)]">추가 하락이 되돌림보다 잦았습니다</b> — 떨어지는 칼날 매수·손절 없는 버티기 주의. 코인 하나씩은 표본이 작아 대부분 우연 범위.
         </p>
-        <p className="text-[10.5px] text-[var(--faint)] mt-2">측정 {W.generatedAt.slice(0, 10)} · 과거 빈도이며 예측·매매 신호가 아닙니다.</p>
+        <p className="text-cap text-[var(--faint)] mt-2">측정 {W.generatedAt.slice(0, 10)} · 과거 빈도이며 예측·매매 신호가 아닙니다.</p>
       </section>
 
       <div className="flex flex-wrap gap-1.5 mb-5">

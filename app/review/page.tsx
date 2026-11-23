@@ -184,7 +184,7 @@ export default function ReviewPage() {
                     <li key={r.key} className="flex items-center gap-2">
                       <div className="min-w-0">
                         <p className="text-[12.5px] font-semibold text-[var(--text)]">{r.label}</p>
-                        <p className="text-[10.5px] text-[var(--faint)] truncate">{r.hint}</p>
+                        <p className="text-cap text-[var(--faint)] truncate">{r.hint}</p>
                       </div>
                       <div className="ml-auto text-right shrink-0">
                         <p className="text-[18px] font-extrabold tabular-nums text-[var(--text)] leading-tight">{cur == null ? '—' : `${cur}${r.unit}`}</p>
@@ -194,7 +194,7 @@ export default function ReviewPage() {
                   );
                 })}
               </ul>
-              <p className="text-[10px] text-[var(--faint)] mt-2">일요일 텔레그램 주간 복기와 같은 기준</p>
+              <p className="text-cap-pc text-[var(--faint)] mt-2">일요일 텔레그램 주간 복기와 같은 기준</p>
             </section>
 
             <section className="fin-card p-4">
@@ -215,7 +215,7 @@ export default function ReviewPage() {
               <p className="text-[12px] font-semibold mt-2.5" style={{ color: scalp.net < 0 ? 'var(--warn)' : 'var(--text-muted)' }}>
                 {scalp.n === 0 ? '1시간 미만 매매가 없습니다.' : scalp.net < 0 ? `단타가 ${signed(scalp.net)} USDT${krw(scalp.net) ? `(${krw(scalp.net)})` : ''}를 깎았습니다.` : `단타가 ${signed(scalp.net)} USDT 보탰습니다.`}
               </p>
-              <p className="text-[10px] text-[var(--faint)] mt-1">가정 — 그 매매를 안 했다면의 단순 차감(다른 매매에 미친 영향은 모름)</p>
+              <p className="text-cap-pc text-[var(--faint)] mt-1">가정 — 그 매매를 안 했다면의 단순 차감(다른 매매에 미친 영향은 모름)</p>
             </section>
 
             <section className="fin-card p-4">
@@ -227,7 +227,7 @@ export default function ReviewPage() {
                     <span className="text-[var(--text-muted)]"><b style={{ color: tone(gauge.today) }}>{signed(gauge.today)}</b> / −{fmtUsdt(gauge.dailyLimit)}</span>
                   </div>
                   <Bar pct={(Math.max(0, -gauge.today) / gauge.dailyLimit) * 100} />
-                  <p className="text-[10.5px] text-[var(--faint)] mt-1 tabular-nums">
+                  <p className="text-cap text-[var(--faint)] mt-1 tabular-nums">
                     {gauge.today < 0 ? `한도의 ${Math.round((-gauge.today / gauge.dailyLimit) * 100)}% 사용` : '손실 없음'}
                     {krw(gauge.dailyLimit + Math.min(0, gauge.today)) && ` · 남은 여유 ${krw(Math.max(0, gauge.dailyLimit + Math.min(0, gauge.today)))?.replace('+', '')}`}
                     {gauge.dailyAssumed && ' · 한도 미설정 → 평가금 3% 가정'}
@@ -241,8 +241,8 @@ export default function ReviewPage() {
                 </div>
                 {gauge.weeklyLimit != null
                   ? <Bar pct={(Math.max(0, -gauge.week) / gauge.weeklyLimit) * 100} />
-                  : <p className="text-[10.5px] text-[var(--faint)]">주간 한도 미설정 — 코인 분석의 서킷브레이커에서 정할 수 있습니다.</p>}
-                {krw(gauge.week) && <p className="text-[10.5px] text-[var(--faint)] mt-1 tabular-nums">{krw(gauge.week)}</p>}
+                  : <p className="text-cap text-[var(--faint)]">주간 한도 미설정 — 코인 분석의 서킷브레이커에서 정할 수 있습니다.</p>}
+                {krw(gauge.week) && <p className="text-cap text-[var(--faint)] mt-1 tabular-nums">{krw(gauge.week)}</p>}
               </div>
             </section>
           </div>
@@ -259,11 +259,11 @@ export default function ReviewPage() {
                     <li key={m.month}>
                       <details className="rounded-xl bg-[var(--surface-2)] group">
                         <summary className="cursor-pointer select-none list-none px-3 min-h-[48px] flex items-center gap-2 tabular-nums">
-                          <span className="text-[13.5px] font-bold text-[var(--text)]">{Number(m.month.slice(5))}월{m.partialFrom && <span className="text-[10.5px] font-normal text-[var(--text-muted)]"> ({m.partialFrom}~ 일부)</span>}</span>
+                          <span className="text-[13.5px] font-bold text-[var(--text)]">{Number(m.month.slice(5))}월{m.partialFrom && <span className="text-cap font-normal text-[var(--text-muted)]"> ({m.partialFrom}~ 일부)</span>}</span>
                           <span className="text-[11px] text-[var(--text-muted)]">{m.count}건 · 승률 {m.winRate != null ? `${m.winRate.toFixed(0)}%` : '—'}</span>
                           <span className="ml-auto text-right leading-tight">
                             <span className="block text-[13.5px] font-extrabold" style={{ color: tone(m.netSum) }}>{signed(m.netSum)}</span>
-                            {krw(m.netSum) && <span className="block text-[10px] text-[var(--text-muted)]">{krw(m.netSum)}</span>}
+                            {krw(m.netSum) && <span className="block text-cap-pc text-[var(--text-muted)]">{krw(m.netSum)}</span>}
                           </span>
                           <span className="text-[var(--faint)] transition-transform group-open:rotate-180" aria-hidden>▾</span>
                         </summary>
@@ -292,7 +292,7 @@ export default function ReviewPage() {
             <BreakdownTables items={breakItems} unit="USDT" valueLabel="순손익" fmt={fmtPnl}
               sub={`최근 ${days}일 청산 ${positions.length}건 · 진입 시각(KST) 기준`} />
           </Drop>
-          <p className="text-[10.5px] text-[var(--faint)] px-1">원화 = 업비트 테더(KRW-USDT) 현재가로 환산한 참고 금액 · 매매 신호가 아니라 내 매매 습관을 보는 화면입니다.</p>
+          <p className="text-cap text-[var(--faint)] px-1">원화 = 업비트 테더(KRW-USDT) 현재가로 환산한 참고 금액 · 매매 신호가 아니라 내 매매 습관을 보는 화면입니다.</p>
         </>
       )}
     </div>

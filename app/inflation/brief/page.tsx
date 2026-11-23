@@ -29,8 +29,8 @@ export default function BriefPage() {
         <>
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
             <div className="flex items-center justify-between gap-2 mb-1.5">
-              {t.narrative?.tag && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)]">{t.narrative.tag}</span>}
-              <span className="text-[10px] text-[var(--text-muted)] ml-auto">{t.date_label ?? t.date}</span>
+              {t.narrative?.tag && <span className="text-cap-pc font-semibold px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)]">{t.narrative.tag}</span>}
+              <span className="text-cap-pc text-[var(--text-muted)] ml-auto">{t.date_label ?? t.date}</span>
             </div>
             {t.narrative?.headline && <p className="text-[15px] font-bold text-[var(--text)] leading-snug">{t.narrative.headline}</p>}
             {t.narrative?.body && <p className="text-[12px] text-[var(--text-muted)] leading-relaxed mt-1">{t.narrative.body}</p>}

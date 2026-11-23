@@ -45,7 +45,7 @@ export default function High52Section() {
             </div>
             {data.stocks.map((s) => (
               <Link key={s.code} href={`/stock/${s.code}`} className="grid grid-cols-[1fr_auto_auto] gap-x-3 items-center py-2 border-b border-[var(--line-2)] last:border-0 hover:bg-[var(--bg-card-hover)]">
-                <span className="min-w-0"><span className="block text-[13.5px] text-[var(--ink)] truncate">{s.name}</span><span className="block text-[10.5px] text-[var(--faint)]">{s.code} · 시총 {eok(s.marketCapEok)}</span></span>
+                <span className="min-w-0"><span className="block text-[13.5px] text-[var(--ink)] truncate">{s.name}</span><span className="block text-cap text-[var(--faint)]">{s.code} · 시총 {eok(s.marketCapEok)}</span></span>
                 <span className="text-right tabular-nums"><span className="block text-[13px] text-[var(--ink)]">{s.price.toLocaleString('ko-KR')}</span>
                   <span className="block text-[11px] font-semibold" style={{ color: s.changeRate > 0 ? 'var(--up)' : s.changeRate < 0 ? 'var(--down)' : 'var(--text-muted)' }}>{s.changeRate > 0 ? '+' : ''}{s.changeRate.toFixed(2)}%</span></span>
                 <span className="text-right text-[12px] tabular-nums text-[var(--text)] w-[60px]">{eok(s.tradingValueEok)}</span>

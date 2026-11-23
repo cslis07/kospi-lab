@@ -133,7 +133,7 @@ export default function CorrelationMatrix() {
               </tbody>
             </table>
           </div>
-          <div className="flex items-center gap-2 mt-2 text-[10.5px] text-[var(--text-muted)]">
+          <div className="flex items-center gap-2 mt-2 text-cap text-[var(--text-muted)]">
             <span>−1 반대</span>
             <span className="inline-block w-24 h-2 rounded-full" style={{ background: 'linear-gradient(90deg, var(--amber), var(--surface-2), var(--accent))' }} aria-hidden />
             <span>+1 같이</span>
@@ -142,7 +142,7 @@ export default function CorrelationMatrix() {
           {failed.length > 0 && <p className="text-[11px] text-[var(--text-muted)] mt-1.5">가격 이력을 못 받은 자산: {failed.map((a) => label(a.id)).join(', ')}</p>}
         </>
       )}
-      <p className="text-[10.5px] text-[var(--faint)] mt-2 leading-relaxed">
+      <p className="text-cap text-[var(--faint)] mt-2 leading-relaxed">
         최근 {days}일 일간 수익률 상관(두 자산 모두 거래한 날 기준). 한국·미국은 장 마감 시각이 달라 같은 날짜 비교 시 상관이 낮게 나올 수 있습니다. 과거 관계이며 앞으로도 같다는 보장은 없습니다.
         {Object.keys(portfolio).length === 0 && <> 보유 종목은 <Link href="/my-stocks" className="underline">내 종목</Link>에서 수량·평단을 넣으면 들어갑니다.</>}
       </p>

@@ -39,8 +39,8 @@ export default function FeeDiagCard({ days, fmt }: { days: number; fmt: (n: numb
 
   const head = (
     <div className="flex items-center gap-2 flex-wrap mb-2">
-      <h2 className="text-sm font-bold text-[var(--text)]">수수료 진단 <span className="text-[10px] font-normal text-[var(--text-muted)]">지정가(메이커) vs 시장가(테이커)</span></h2>
-      <span className="text-[10px] text-[var(--text-muted)]">최근 {state!.days}일 · 체결 단위{busy ? ' · 갱신 중…' : ''}</span>
+      <h2 className="text-sm font-bold text-[var(--text)]">수수료 진단 <span className="text-cap-pc font-normal text-[var(--text-muted)]">지정가(메이커) vs 시장가(테이커)</span></h2>
+      <span className="text-cap-pc text-[var(--text-muted)]">최근 {state!.days}일 · 체결 단위{busy ? ' · 갱신 중…' : ''}</span>
     </div>
   );
 
@@ -73,7 +73,7 @@ export default function FeeDiagCard({ days, fmt }: { days: number; fmt: (n: numb
       <div className="overflow-x-auto -mx-1 mt-3">
         <table className="w-full text-[11.5px] tabular-nums mx-1" style={{ minWidth: 300 }}>
           <thead>
-            <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+            <tr className="text-cap text-[var(--text-muted)] text-right">
               <th className="text-left font-semibold py-1">체결</th><th className="font-semibold">건</th>
               <th className="font-semibold">체결 금액</th><th className="font-semibold">수수료</th>
               <th className="font-semibold">실효 요율</th><th className="font-semibold">수수료 몫</th>
@@ -101,7 +101,7 @@ export default function FeeDiagCard({ days, fmt }: { days: number; fmt: (n: numb
           </tbody>
         </table>
       </div>
-      <p className="text-[10.5px] text-[var(--faint)] mt-1 tabular-nums">
+      <p className="text-cap text-[var(--faint)] mt-1 tabular-nums">
         테이커 비중 — 진입 체결 {pct(d.takerShareOpenPct)} · 청산 체결 {pct(d.takerShareClosePct)} (USDT, 체결 금액 기준 요율)
       </p>
 
@@ -112,13 +112,13 @@ export default function FeeDiagCard({ days, fmt }: { days: number; fmt: (n: numb
           <b style={{ color: d.hypoSaving > 0 ? 'var(--warn)' : 'var(--text)' }}>{fmt(d.hypoSaving)} USDT</b>
           {d.hypoSavingPct != null && <span className="text-[var(--text-muted)]"> (수수료의 {d.hypoSavingPct.toFixed(0)}%)</span>}
         </p>
-        <p className="text-[10.5px] text-[var(--faint)] mt-1 leading-relaxed">
+        <p className="text-cap text-[var(--faint)] mt-1 leading-relaxed">
           메이커 요율 {rateLabel} = {d.makerRateSource === 'observed' ? '이 기간 실제 메이커 체결의 실효 요율(관측값)' : 'Bitget 표준 메이커 요율(이 기간 메이커 체결이 없어 참고값 사용)'}.
           테이커 체결 금액에 이 요율을 곱해 계산했습니다.
         </p>
       </div>
 
-      <p className="text-[10.5px] text-[var(--text-muted)] mt-2.5 leading-relaxed">
+      <p className="text-cap text-[var(--text-muted)] mt-2.5 leading-relaxed">
         ⚠ 가정 계산이지 약속이 아닙니다 — 지정가 주문은 체결되지 않을 수 있고(놓친 진입·늦은 손절), 같은 가격에 체결됐다고 가정했습니다.
         손절은 체결 보장이 더 중요해 시장가가 맞을 수 있습니다. 펀딩비는 포함하지 않았습니다(위 비용 분석 참고).
         {r.truncated && ' 체결이 너무 많아 일부 구간은 최근 2,000건까지만 집계했습니다.'}

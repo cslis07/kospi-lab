@@ -262,7 +262,7 @@ function RailIndicesCard() {
       {open && (
         <div className="mt-3">
           <RailManager pref={pref} poolCodes={poolCodes} nameOf={nameOf} save={save} />
-          <p className="text-[10px] text-[var(--text-muted)] mt-2">여기서 바꾸면 홈 상단 지수 레일에 바로 반영됩니다(이 기기).</p>
+          <p className="text-cap-pc text-[var(--text-muted)] mt-2">여기서 바꾸면 홈 상단 지수 레일에 바로 반영됩니다(이 기기).</p>
         </div>
       )}
     </div>

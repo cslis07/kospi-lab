@@ -28,13 +28,13 @@ export default function TradeGate({ plan }: { plan: TradePlan }) {
     <div className={`rounded-2xl border p-4 ${box}`}>
       <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
         <h3 className="text-sm font-bold text-[var(--text)]">
-          실행 가능 판정 <span className="text-[10px] font-normal text-[var(--text-muted)]">이 크기로 걸어도 되는가</span>
+          실행 가능 판정 <span className="text-cap-pc font-normal text-[var(--text-muted)]">이 크기로 걸어도 되는가</span>
         </h3>
         <span className={`text-xs font-extrabold px-2.5 py-1 rounded-full border ${box} ${tone}`}>{title}</span>
       </div>
       <p className={`text-[13px] font-semibold ${tone} mb-1`}>{g.headline}</p>
       {/* 오해를 부르는 지점이라 매번 다시 말한다 */}
-      <p className="text-[10px] text-[var(--text-muted)] mb-3 leading-relaxed">
+      <p className="text-cap-pc text-[var(--text-muted)] mb-3 leading-relaxed">
         이 판정은 <strong className="text-[var(--text)]">방향이 맞는지를 말하지 않습니다</strong> — 방향은 직접 고르신 것이고,
         여기서 보는 건 <strong className="text-[var(--text)]">틀렸을 때 계좌가 버티는가</strong>뿐입니다.
         (이 앱 엔진의 방향 예측은 측정에서 우위가 확인되지 않았습니다)
@@ -49,7 +49,7 @@ export default function TradeGate({ plan }: { plan: TradePlan }) {
             <span className="w-24 shrink-0 text-[var(--text-muted)]">{c.label}</span>
             <span className="flex-1 text-[var(--text)] tabular-nums">
               {c.detail}
-              {c.fix && <span className="block text-[10px] text-amber-400 mt-0.5 leading-relaxed">→ {c.fix}</span>}
+              {c.fix && <span className="block text-cap-pc text-amber-400 mt-0.5 leading-relaxed">→ {c.fix}</span>}
             </span>
           </div>
         ))}

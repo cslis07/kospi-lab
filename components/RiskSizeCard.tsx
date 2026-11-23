@@ -18,8 +18,8 @@ export default function RiskSizeCard({ trades, equity, fmt, sub }: { trades: (Ri
 
   const head = (
     <div className="flex items-center gap-2 flex-wrap mb-2">
-      <h2 className="text-sm font-bold text-[var(--text)]">매매당 손실 크기 <span className="text-[10px] font-normal text-[var(--text-muted)]">계좌 자본 대비 %</span></h2>
-      <span className="text-[10px] text-[var(--text-muted)]">{sub ?? `손실 매매 ${s?.losers ?? 0}건`}</span>
+      <h2 className="text-sm font-bold text-[var(--text)]">매매당 손실 크기 <span className="text-cap-pc font-normal text-[var(--text-muted)]">계좌 자본 대비 %</span></h2>
+      <span className="text-cap-pc text-[var(--text-muted)]">{sub ?? `손실 매매 ${s?.losers ?? 0}건`}</span>
     </div>
   );
   if (!s) {
@@ -49,7 +49,7 @@ export default function RiskSizeCard({ trades, equity, fmt, sub }: { trades: (Ri
       {s.driver && (
         <p className="text-[12px] text-[var(--text)] leading-relaxed mb-1">
           {DRIVER_TEXT[s.driver]}
-          <span className="block text-[10.5px] text-[var(--text-muted)] mt-0.5">{RISK_LIMIT_PCT}% 초과 {s.overCount}건 중 진입 금액 상위 25% {s.overBigSize}건 · 불리한 가격 이동 상위 25% {s.overBigMove}건</span>
+          <span className="block text-cap text-[var(--text-muted)] mt-0.5">{RISK_LIMIT_PCT}% 초과 {s.overCount}건 중 진입 금액 상위 25% {s.overBigSize}건 · 불리한 가격 이동 상위 25% {s.overBigMove}건</span>
         </p>
       )}
       {!s.overCount && <p className="text-[12px] text-[var(--text-muted)] mb-1">한 번에 자본의 {RISK_LIMIT_PCT}%를 넘게 잃은 매매가 없습니다.</p>}
@@ -63,7 +63,7 @@ export default function RiskSizeCard({ trades, equity, fmt, sub }: { trades: (Ri
         <div className="overflow-x-auto mt-1.5 rounded-xl border border-[var(--line-2)]">
           <table className="w-full text-[11.5px] tabular-nums" style={{ minWidth: 470 }}>
             <thead>
-              <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+              <tr className="text-cap text-[var(--text-muted)] text-right">
                 <th className="text-left font-semibold px-2.5 py-1.5">청산(KST) · 종목</th>
                 <th className="font-semibold px-2">손실</th>
                 <th className="font-semibold px-2">자본 대비</th>
@@ -83,7 +83,7 @@ export default function RiskSizeCard({ trades, equity, fmt, sub }: { trades: (Ri
                   <td className="px-2" style={{ color: 'var(--accent-ink)' }}>−{fmt(r.loss)}</td>
                   <td className="px-2 font-bold" style={{ color: r.over ? 'var(--warn)' : 'var(--text)' }}>{r.lossPct.toFixed(2)}%{r.over ? ' ⚠' : ''}</td>
                   <td className="px-2 text-[var(--text-muted)]">{r.lossPctThen != null ? `${r.lossPctThen.toFixed(2)}%` : '—'}</td>
-                  <td className="px-2 text-[var(--text)]">{fmt(r.notional)}{r.sizeQuartile != null && <span className="block text-[9.5px] text-[var(--faint)]">{SIZE_Q[r.sizeQuartile]} 25%</span>}</td>
+                  <td className="px-2 text-[var(--text)]">{fmt(r.notional)}{r.sizeQuartile != null && <span className="block text-cap text-[var(--faint)]">{SIZE_Q[r.sizeQuartile]} 25%</span>}</td>
                   <td className="px-2.5" style={{ color: r.bigMove ? 'var(--warn)' : 'var(--text)' }}>{r.movePct.toFixed(2)}%</td>
                 </tr>
               ))}
@@ -92,7 +92,7 @@ export default function RiskSizeCard({ trades, equity, fmt, sub }: { trades: (Ri
         </div>
       )}
 
-      <p className="text-[10px] text-[var(--faint)] mt-2 leading-relaxed">
+      <p className="text-cap-pc text-[var(--faint)] mt-2 leading-relaxed">
         근사: 과거 매매도 <b>오늘 자본</b>으로 나눴습니다(그 사이 손익·입출금만큼 실제 당시 비율과 다름). &lsquo;당시 추정&rsquo;은 지금 자본에서 그 매매 이후 청산 순손익을 되돌린 값으로, 입출금·현물↔선물 이체·미실현손익은 반영하지 않습니다.
         역행 = 진입가→청산가 불리한 이동(%), 진입 금액 분위는 이 기간 전체 매매 기준. 손실 = 수수료·펀딩 포함 순손실.
       </p>
@@ -103,9 +103,9 @@ export default function RiskSizeCard({ trades, equity, fmt, sub }: { trades: (Ri
 function Tile({ label, value, sub, warn }: { label: string; value: string; sub: string; warn?: boolean }) {
   return (
     <div className="rounded-xl bg-[var(--surface-2)] px-3 py-2.5">
-      <p className="text-[10.5px] text-[var(--text-muted)]">{label}</p>
+      <p className="text-cap text-[var(--text-muted)]">{label}</p>
       <p className="text-[16px] font-extrabold tabular-nums" style={{ color: warn ? 'var(--warn)' : 'var(--text)' }}>{value}</p>
-      <p className="text-[9.5px] text-[var(--faint)] leading-tight">{sub}</p>
+      <p className="text-cap text-[var(--faint)] leading-tight">{sub}</p>
     </div>
   );
 }

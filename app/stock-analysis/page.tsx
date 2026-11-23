@@ -242,7 +242,7 @@ export default function StockAnalysisPage() {
                   <button key={s.code} onMouseDown={() => pick(s.code)}
                     className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/5 text-left">
                     <span className="text-[var(--text)]">{s.name}</span>
-                    <span className="text-[10px] text-[var(--text-muted)]">{s.code} · {s.market}</span>
+                    <span className="text-cap-pc text-[var(--text-muted)]">{s.code} · {s.market}</span>
                   </button>
                 ))}
               </div>
@@ -264,7 +264,7 @@ export default function StockAnalysisPage() {
           ))}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {data && !data.error && <span className="text-[10px] text-[var(--text-muted)]">{new Date(data.updatedAt + 9 * 3600_000).toISOString().slice(11, 19)} 분석</span>}
+          {data && !data.error && <span className="text-cap-pc text-[var(--text-muted)]">{new Date(data.updatedAt + 9 * 3600_000).toISOString().slice(11, 19)} 분석</span>}
           <button onClick={() => setAutoRefresh((x) => !x)} disabled={!run}
             className={`px-3 py-1.5 rounded-xl border text-xs transition-colors disabled:opacity-50 ${autoRefresh ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'text-[var(--text-muted)] border-[var(--border)]'}`}>
             {autoRefresh ? '● 자동 1분' : '○ 자동갱신'}
@@ -356,7 +356,7 @@ export default function StockAnalysisPage() {
                 {data.cio && (
                   <div><p className="text-[var(--text-muted)]">CIO 업종의견</p>
                     <p className={`font-bold ${data.cio.tone === 'up' ? 'text-red-400' : data.cio.tone === 'down' ? 'text-blue-400' : 'text-[var(--text)]'}`}>
-                      {data.cio.sector} <span className="text-[10px] font-normal">{data.cio.label}</span>
+                      {data.cio.sector} <span className="text-cap-pc font-normal">{data.cio.label}</span>
                     </p>
                   </div>
                 )}
@@ -373,7 +373,7 @@ export default function StockAnalysisPage() {
             {/* 수급 심리 바: 외국인·기관·개인 5일 순매수 */}
             {data.supply && (
               <div className="mt-4 pt-4 border-t border-[var(--border)]">
-                <p className="text-[10px] text-[var(--text-muted)] mb-1.5">최근 5일 누적 순매수</p>
+                <p className="text-cap-pc text-[var(--text-muted)] mb-1.5">최근 5일 누적 순매수</p>
                 <div className="grid grid-cols-3 gap-2 text-center text-xs">
                   {[
                     { l: '외국인', v: data.supply.foreign5d, streak: data.supply.foreignStreak },
@@ -381,7 +381,7 @@ export default function StockAnalysisPage() {
                     { l: '개인', v: data.supply.indiv5d, streak: null as number | null },
                   ].map((x) => (
                     <div key={x.l} className={`rounded-xl border p-2 ${x.v >= 0 ? 'border-red-500/20 bg-red-500/5' : 'border-blue-500/20 bg-blue-500/5'}`}>
-                      <p className="text-[10px] text-[var(--text-muted)]">{x.l}{x.streak !== null && Math.abs(x.streak) >= 2 ? ` · ${Math.abs(x.streak)}일연속${x.streak > 0 ? '매수' : '매도'}` : ''}</p>
+                      <p className="text-cap-pc text-[var(--text-muted)]">{x.l}{x.streak !== null && Math.abs(x.streak) >= 2 ? ` · ${Math.abs(x.streak)}일연속${x.streak > 0 ? '매수' : '매도'}` : ''}</p>
                       <p className={`font-bold tabular-nums ${x.v >= 0 ? 'text-red-400' : 'text-blue-400'}`}>{wonQty(x.v)}</p>
                     </div>
                   ))}
@@ -396,7 +396,7 @@ export default function StockAnalysisPage() {
               <h3 className="text-sm font-bold text-[var(--text)]">{data.movement.direction === 'up' ? '📈 지금 왜 오르나' : data.movement.direction === 'down' ? '📉 지금 왜 내리나' : '📊 지금 흐름 읽기'}</h3>
               <div className="flex gap-1.5 ml-auto">
                 {[{ k: '당일', val: data.movement.changeRate }, { k: '5일', val: data.movement.pct5d }].map((c) => (
-                  <span key={c.k} className={`px-2 py-0.5 rounded-lg text-[10px] font-bold tabular-nums border ${c.val >= 0 ? 'text-red-400 border-red-500/30 bg-red-500/5' : 'text-blue-400 border-blue-500/30 bg-blue-500/5'}`}>{c.k} {c.val >= 0 ? '+' : ''}{c.val.toFixed(2)}%</span>
+                  <span key={c.k} className={`px-2 py-0.5 rounded-lg text-cap-pc font-bold tabular-nums border ${c.val >= 0 ? 'text-red-400 border-red-500/30 bg-red-500/5' : 'text-blue-400 border-blue-500/30 bg-blue-500/5'}`}>{c.k} {c.val >= 0 ? '+' : ''}{c.val.toFixed(2)}%</span>
                 ))}
               </div>
             </div>
@@ -407,7 +407,7 @@ export default function StockAnalysisPage() {
                 </li>
               ))}
             </ul>
-            <p className="text-[10px] text-[var(--text-muted)] mt-2.5 opacity-60">수급·추세·뉴스 신호 기반 자동 추정 — 정확한 인과가 아닌 참고용 해석입니다.</p>
+            <p className="text-cap-pc text-[var(--text-muted)] mt-2.5 opacity-60">수급·추세·뉴스 신호 기반 자동 추정 — 정확한 인과가 아닌 참고용 해석입니다.</p>
           </div>
 
           {/* 종합 판단 */}
@@ -428,7 +428,7 @@ export default function StockAnalysisPage() {
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-5">
               <div className="space-y-4">
                 <div>
-                  <div className="flex justify-between text-[10px] text-[var(--text-muted)] mb-1"><span>비중축소 -100</span><span>0</span><span>매수 +100</span></div>
+                  <div className="flex justify-between text-cap-pc text-[var(--text-muted)] mb-1"><span>비중축소 -100</span><span>0</span><span>매수 +100</span></div>
                   <div className="relative h-2.5 rounded-full bg-gradient-to-r from-blue-500/60 via-slate-500/40 to-red-500/60">
                     <div className="absolute w-1 rounded bg-white" style={{ left: `calc(${(v.score + 100) / 2}% - 2px)`, height: '18px', top: '-4px' }} />
                   </div>
@@ -445,11 +445,11 @@ export default function StockAnalysisPage() {
                     { label: '2차 목표', value: `${won(Math.round(v.target2))}원`, cls: 'text-red-400' },
                   ].map((c) => (
                     <div key={c.label} className="rounded-xl border border-[var(--border)] p-3 bg-white/3">
-                      <p className="text-[10px] text-[var(--text-muted)]">{c.label}</p>
+                      <p className="text-cap-pc text-[var(--text-muted)]">{c.label}</p>
                       <p className={`text-base font-bold tabular-nums mt-0.5 ${c.cls}`}>{c.value}</p>
                     </div>
                   ))}
-                  <p className="col-span-2 text-[10px] text-[var(--text-muted)]">손절은 구조 지지선 + ATR 기준. 분할 매수 + 손절 라인 설정 권장.</p>
+                  <p className="col-span-2 text-cap-pc text-[var(--text-muted)]">손절은 구조 지지선 + ATR 기준. 분할 매수 + 손절 라인 설정 권장.</p>
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-[var(--border)] p-5 flex items-center justify-center text-center">
@@ -472,7 +472,7 @@ export default function StockAnalysisPage() {
           {/* AI 브리핑 */}
           <div className="fin-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-              <h3 className="text-sm font-bold text-[var(--text)]">🤖 AI 종합 브리핑 <span className="text-[10px] font-normal text-[var(--text-muted)]">수급 + 뉴스</span></h3>
+              <h3 className="text-sm font-bold text-[var(--text)]">🤖 AI 종합 브리핑 <span className="text-cap-pc font-normal text-[var(--text-muted)]">수급 + 뉴스</span></h3>
               <BriefingModelPicker value={aiModel} onChange={setAiModel} busy={isValidating} />
             </div>
             {data.aiBriefing ? (
@@ -489,8 +489,8 @@ export default function StockAnalysisPage() {
           {/* 차트 */}
           <div className="fin-card p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-[var(--text)]">일봉 차트 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 60일 · EMA20/60 · 지지저항·피보나치·매매레벨</span></h3>
-              <div className="hidden sm:flex items-center gap-2 text-[10px]"><span className="text-purple-400">— EMA20</span><span className="text-sky-400">— EMA60</span></div>
+              <h3 className="text-sm font-bold text-[var(--text)]">일봉 차트 <span className="text-cap-pc font-normal text-[var(--text-muted)]">최근 60일 · EMA20/60 · 지지저항·피보나치·매매레벨</span></h3>
+              <div className="hidden sm:flex items-center gap-2 text-cap-pc"><span className="text-purple-400">— EMA20</span><span className="text-sky-400">— EMA60</span></div>
             </div>
             <CoinCandleChart candles={data.chart}
               supports={data.zones.filter((z) => z.kind === 'support').map((z) => z.price)}
@@ -502,9 +502,9 @@ export default function StockAnalysisPage() {
           {/* 투자자 수급 추이 + 백테스트 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="fin-card p-4">
-              <h3 className="text-sm font-bold text-[var(--text)] mb-3">투자자별 순매수 추이 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 10일 · 수량(주)</span></h3>
+              <h3 className="text-sm font-bold text-[var(--text)] mb-3">투자자별 순매수 추이 <span className="text-cap-pc font-normal text-[var(--text-muted)]">최근 10일 · 수량(주)</span></h3>
               <div className="overflow-x-auto">
-                <table className="w-full text-[10px] tabular-nums">
+                <table className="w-full text-cap-pc tabular-nums">
                   <thead><tr className="text-[var(--text-muted)] border-b border-[var(--border)]"><th className="text-left px-1.5 py-1">날짜</th><th className="text-right px-1.5 py-1">외국인</th><th className="text-right px-1.5 py-1">기관</th><th className="text-right px-1.5 py-1">개인</th><th className="text-right px-1.5 py-1">보유율</th></tr></thead>
                   <tbody>
                     {data.investor.slice(0, 10).map((d, i) => (
@@ -519,24 +519,24 @@ export default function StockAnalysisPage() {
                   </tbody>
                 </table>
               </div>
-              <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-60">외국인·기관 동반 순매수 지속이 한국 시장에서 가장 신뢰도 높은 상승 신호</p>
+              <p className="text-cap-pc text-[var(--text-muted)] mt-2 opacity-60">외국인·기관 동반 순매수 지속이 한국 시장에서 가장 신뢰도 높은 상승 신호</p>
             </div>
 
             <div className="fin-card p-4">
               <h3 className="text-sm font-bold text-[var(--text)] mb-1 flex items-center gap-2 flex-wrap">
-                룰 엔진 성적표 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 {Math.round(data.backtest.spanDays)}일 자동 백테스트</span>
+                룰 엔진 성적표 <span className="text-cap-pc font-normal text-[var(--text-muted)]">최근 {Math.round(data.backtest.spanDays)}일 자동 백테스트</span>
                 {(() => {
                   const n = data.backtest.signals;
                   const low = n < 5;
                   const mid = !low && n < 12;
                   return (
-                    <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${
+                    <span className={`px-1.5 py-0.5 rounded-md border text-cap font-bold ${
                       low ? 'bg-red-500/10 text-red-400 border-red-500/30' : mid ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                     }`}>신뢰도 {low ? '낮음(표본 부족)' : mid ? '보통' : '양호'}</span>
                   );
                 })()}
               </h3>
-              <p className="text-[10px] text-[var(--text-muted)] mb-2">
+              <p className="text-cap-pc text-[var(--text-muted)] mb-2">
                 과거 일봉에서 매수 신호 발생 시 1R 익절 vs 손절 판정. ⚠ 수수료·세금 미반영,
                 과거 투자자 수급 데이터가 없어 <strong>기술적 신호만 검증</strong>.
               </p>
@@ -544,7 +544,7 @@ export default function StockAnalysisPage() {
                   대조군(진입 필터만 제거) 대비 −0.7%p 라 이 엔진의 진입 판정은 값어치를 못 한다. */}
               <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-2.5">
                 <p className="text-[11px] font-bold text-amber-400 mb-1">⚠ 측정 결과: 이 엔진의 진입 판정에 우위가 없습니다</p>
-                <p className="text-[10px] leading-relaxed text-[var(--text-muted)]">
+                <p className="text-cap-pc leading-relaxed text-[var(--text-muted)]">
                   대규모 측정(2026-08-24 · 32종목 · 3년 · 362건) 결과 엔진 승률 <strong className="text-[var(--text)]">54.1%</strong>,
                   수수료·세금 반영 기대값 <strong className="text-[var(--text)]">−0.017R</strong>.
                   결정적으로 <strong className="text-[var(--text)]">진입 필터만 제거한 대조군(3,441건)이 54.8%</strong>로 오히려 더 높습니다
@@ -565,11 +565,11 @@ export default function StockAnalysisPage() {
                       { k: '기대값', val: data.backtest.avgR !== null ? `${data.backtest.avgR >= 0 ? '+' : ''}${data.backtest.avgR.toFixed(2)}R` : '-', cls: data.backtest.avgR !== null && data.backtest.avgR >= 0 ? 'text-red-400' : 'text-blue-400' },
                       { k: '미결', val: String(data.backtest.open), cls: 'text-[var(--text-muted)]' },
                     ].map((c) => (
-                      <div key={c.k} className="rounded-xl border border-[var(--border)] p-2 text-center"><p className="text-[10px] text-[var(--text-muted)]">{c.k}</p><p className={`text-sm font-bold tabular-nums ${c.cls}`}>{c.val}</p></div>
+                      <div key={c.k} className="rounded-xl border border-[var(--border)] p-2 text-center"><p className="text-cap-pc text-[var(--text-muted)]">{c.k}</p><p className={`text-sm font-bold tabular-nums ${c.cls}`}>{c.val}</p></div>
                     ))}
                   </div>
                   <div className="max-h-32 overflow-y-auto rounded-lg border border-[var(--border)]">
-                    <table className="w-full text-[10px] tabular-nums">
+                    <table className="w-full text-cap-pc tabular-nums">
                       <thead><tr className="text-[var(--text-muted)] bg-[var(--bg)] sticky top-0"><th className="text-left px-2 py-1">시각</th><th className="text-right px-2 py-1">진입가</th><th className="text-right px-2 py-1">손절가</th><th className="text-right px-2 py-1">보유</th><th className="text-right px-2 py-1">결과</th></tr></thead>
                       <tbody>
                         {data.backtest.trades.map((tr, i) => (
@@ -584,7 +584,7 @@ export default function StockAnalysisPage() {
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-[10px] text-[var(--text-muted)] mt-2 opacity-60">{data.backtest.winRate !== null && data.backtest.winRate < 45 ? '⚠ 최근 이 종목에서 엔진 적중률이 낮습니다 — 보수적 해석' : '표본이 짧으므로 절대 성능이 아닌 "최근 적합도"로만 참고'}</p>
+                  <p className="text-cap-pc text-[var(--text-muted)] mt-2 opacity-60">{data.backtest.winRate !== null && data.backtest.winRate < 45 ? '⚠ 최근 이 종목에서 엔진 적중률이 낮습니다 — 보수적 해석' : '표본이 짧으므로 절대 성능이 아닌 "최근 적합도"로만 참고'}</p>
                 </>
               )}
             </div>
@@ -598,30 +598,30 @@ export default function StockAnalysisPage() {
                 {v.checklist.map((c) => (
                   <div key={c.label} className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-2"><span className={c.pass ? 'text-emerald-400' : 'text-[var(--text-dim)]'}>{c.pass ? '✓' : '✗'}</span><span className="text-[var(--text)]">{c.label}</span></span>
-                    <span className="text-[10px] text-[var(--text-muted)] text-right">{c.note}</span>
+                    <span className="text-cap-pc text-[var(--text-muted)] text-right">{c.note}</span>
                   </div>
                 ))}
               </div>
               {data.fin.notes.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-[var(--border)]">
-                  <p className="text-[10px] text-[var(--text-muted)] mb-1">재무 코멘트</p>
-                  {data.fin.notes.map((n, i) => <p key={i} className="text-[10px] text-[var(--text-muted)]">· {n}</p>)}
+                  <p className="text-cap-pc text-[var(--text-muted)] mb-1">재무 코멘트</p>
+                  {data.fin.notes.map((n, i) => <p key={i} className="text-cap-pc text-[var(--text-muted)]">· {n}</p>)}
                 </div>
               )}
             </div>
 
             <div className="fin-card p-4">
-              <h3 className="text-sm font-bold text-[var(--text)] mb-3">최신 뉴스 <span className="text-[10px] font-normal text-[var(--text-muted)]">{data.name}</span></h3>
+              <h3 className="text-sm font-bold text-[var(--text)] mb-3">최신 뉴스 <span className="text-cap-pc font-normal text-[var(--text-muted)]">{data.name}</span></h3>
               {data.news.length ? (
                 <div className="space-y-2.5">
                   {data.news.slice(0, 7).map((n, i) => (
                     <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" className="block group">
                       <p className="text-xs text-[var(--text)] group-hover:text-sky-400 transition-colors leading-snug">
-                        {n.sentiment === 'pos' && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/15 text-red-400 mr-1 align-middle">호재</span>}
-                        {n.sentiment === 'neg' && <span className="text-[9px] px-1 py-0.5 rounded bg-blue-500/15 text-blue-400 mr-1 align-middle">악재</span>}
+                        {n.sentiment === 'pos' && <span className="text-cap px-1 py-0.5 rounded bg-red-500/15 text-red-400 mr-1 align-middle">호재</span>}
+                        {n.sentiment === 'neg' && <span className="text-cap px-1 py-0.5 rounded bg-blue-500/15 text-blue-400 mr-1 align-middle">악재</span>}
                         {n.title}
                       </p>
-                      <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{n.source}{n.datetime ? ` · ${n.datetime}` : ''}</p>
+                      <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">{n.source}{n.datetime ? ` · ${n.datetime}` : ''}</p>
                     </a>
                   ))}
                 </div>
@@ -633,9 +633,9 @@ export default function StockAnalysisPage() {
           <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.03] p-4">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="text-sm font-bold text-[var(--text)]">⭐ 반드시 봐야 하는 경제 지표</h3>
-              {data.cio && <span className="text-[10px] text-[var(--text-muted)] ml-auto">업종의견 출처: {data.cioSource}</span>}
+              {data.cio && <span className="text-cap-pc text-[var(--text-muted)] ml-auto">업종의견 출처: {data.cioSource}</span>}
             </div>
-            <p className="text-[10px] text-[var(--text-muted)] mb-3 opacity-70">
+            <p className="text-cap-pc text-[var(--text-muted)] mb-3 opacity-70">
               카드의 연.월 = 데이터 기준 시점(발표 통계는 확정치 기준 지연: 반도체수출 ~2개월·가계부채 분기). 환율은 실시간.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
@@ -646,21 +646,21 @@ export default function StockAnalysisPage() {
                     /* 라이브 환율 */
                     <p className={`text-sm font-bold tabular-nums mt-0.5 ${ind.value.changeRate >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
                       {ind.key === 'jpy' ? `${ind.value.value.toFixed(1)}원` : `${Math.round(ind.value.value).toLocaleString()}원`}
-                      <span className="text-[10px] font-normal ml-1">{ind.value.changeRate >= 0 ? '+' : ''}{ind.value.changeRate.toFixed(2)}%</span>
+                      <span className="text-cap-pc font-normal ml-1">{ind.value.changeRate >= 0 ? '+' : ''}{ind.value.changeRate.toFixed(2)}%</span>
                     </p>
                   ) : ind.macro ? (
                     /* 실측 매크로 (CPI·반도체수출·가계부채) */
                     <>
                       <p className="text-sm font-bold tabular-nums mt-0.5 text-[var(--text)]">
-                        {ind.macro.value.toLocaleString()}<span className="text-[10px] font-normal ml-0.5">{ind.macro.unit}</span>
+                        {ind.macro.value.toLocaleString()}<span className="text-cap-pc font-normal ml-0.5">{ind.macro.unit}</span>
                         {ind.macro.change !== null && (
-                          <span className={`text-[10px] font-normal ml-1 ${ind.macro.change >= 0 ? 'text-red-400' : 'text-blue-400'}`}>{ind.macro.change >= 0 ? '+' : ''}{ind.macro.change}%{ind.macro.changeLabel !== 'YoY' ? '' : ' YoY'}</span>
+                          <span className={`text-cap-pc font-normal ml-1 ${ind.macro.change >= 0 ? 'text-red-400' : 'text-blue-400'}`}>{ind.macro.change >= 0 ? '+' : ''}{ind.macro.change}%{ind.macro.changeLabel !== 'YoY' ? '' : ' YoY'}</span>
                         )}
                       </p>
                       {ind.realEstate && (
-                        <p className="text-[10px] text-[var(--text-muted)] mt-0.5">주택가격 {ind.realEstate.value}{ind.realEstate.change !== null ? ` (${ind.realEstate.change >= 0 ? '+' : ''}${ind.realEstate.change}% MoM)` : ''}</p>
+                        <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">주택가격 {ind.realEstate.value}{ind.realEstate.change !== null ? ` (${ind.realEstate.change >= 0 ? '+' : ''}${ind.realEstate.change}% MoM)` : ''}</p>
                       )}
-                      <p className="text-[9px] text-[var(--text-dim)]">{ind.macro.label} · {ind.macro.source}{ind.event ? ` · 다음발표 D-${ind.event.daysUntil}` : ''}</p>
+                      <p className="text-cap text-[var(--text-dim)]">{ind.macro.label} · {ind.macro.source}{ind.event ? ` · 다음발표 D-${ind.event.daysUntil}` : ''}</p>
                     </>
                   ) : ind.event ? (
                     /* CPI 발표일만 (BLS 실패 시 폴백) */
@@ -668,9 +668,9 @@ export default function StockAnalysisPage() {
                       {ind.event.daysUntil === 0 ? '오늘 발표' : `D-${ind.event.daysUntil}`}
                     </p>
                   ) : (
-                    <p className="text-[10px] text-[var(--text-muted)] mt-0.5">체크 필요</p>
+                    <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">체크 필요</p>
                   )}
-                  <p className="text-[10px] text-[var(--text-muted)] mt-1 leading-snug">{ind.why}</p>
+                  <p className="text-cap-pc text-[var(--text-muted)] mt-1 leading-snug">{ind.why}</p>
                 </div>
               ))}
             </div>
@@ -680,19 +680,19 @@ export default function StockAnalysisPage() {
           {(data.disclosures.length > 0 || data.policy.length > 0) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="fin-card p-4">
-                <h3 className="text-sm font-bold text-[var(--text)] mb-3">DART 공시 <span className="text-[10px] font-normal text-[var(--text-muted)]">최근 30일 · 자동 분류</span></h3>
+                <h3 className="text-sm font-bold text-[var(--text)] mb-3">DART 공시 <span className="text-cap-pc font-normal text-[var(--text-muted)]">최근 30일 · 자동 분류</span></h3>
                 {data.disclosures.length ? (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {data.disclosures.slice(0, 12).map((d, i) => (
                       <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="block group">
                         <div className="flex items-start gap-2">
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${
+                          <span className={`text-cap px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${
                             d.sentiment === 'pos' ? 'bg-red-500/15 text-red-400' : d.sentiment === 'neg' ? 'bg-blue-500/15 text-blue-400' : 'bg-white/10 text-[var(--text-muted)]'
                           }`}>{d.sentiment === 'pos' ? '호재' : d.sentiment === 'neg' ? '악재' : '중립'}{d.importance === 'high' ? '·중요' : ''}</span>
                           <div className="min-w-0">
                             <p className="text-xs text-[var(--text)] group-hover:text-sky-400 transition-colors leading-snug truncate">{d.type}</p>
-                            {d.sentiment !== 'neu' && <p className="text-[10px] text-[var(--text-muted)] leading-snug">{d.label}</p>}
-                            <p className="text-[10px] text-[var(--text-dim)]">{d.date}</p>
+                            {d.sentiment !== 'neu' && <p className="text-cap-pc text-[var(--text-muted)] leading-snug">{d.label}</p>}
+                            <p className="text-cap-pc text-[var(--text-dim)]">{d.date}</p>
                           </div>
                         </div>
                       </a>
@@ -702,7 +702,7 @@ export default function StockAnalysisPage() {
               </div>
 
               <div className="fin-card p-4">
-                <h3 className="text-sm font-bold text-[var(--text)] mb-3">정책·테마 신호 <span className="text-[10px] font-normal text-[var(--text-muted)]">뉴스·공시 기반</span></h3>
+                <h3 className="text-sm font-bold text-[var(--text)] mb-3">정책·테마 신호 <span className="text-cap-pc font-normal text-[var(--text-muted)]">뉴스·공시 기반</span></h3>
                 {data.policy.length ? (
                   <div className="space-y-2">
                     {data.policy.map((p, i) => (
@@ -710,7 +710,7 @@ export default function StockAnalysisPage() {
                         <span className="shrink-0">{p.tone === 'pos' ? '▲' : '▼'}</span>{p.label}
                       </div>
                     ))}
-                    <p className="text-[10px] text-[var(--text-muted)] mt-1 opacity-60">뉴스·공시 제목에서 금리·정부지원·규제·밸류업 등 정책 키워드를 자동 감지</p>
+                    <p className="text-cap-pc text-[var(--text-muted)] mt-1 opacity-60">뉴스·공시 제목에서 금리·정부지원·규제·밸류업 등 정책 키워드를 자동 감지</p>
                   </div>
                 ) : <p className="text-xs text-[var(--text-muted)]">현재 감지된 정책·테마 재료 없음</p>}
               </div>
@@ -720,7 +720,7 @@ export default function StockAnalysisPage() {
           {/* 판정 기록 (매매일지) */}
           <div className="fin-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <h3 className="text-sm font-bold text-[var(--text)]">📓 판정 기록 <span className="text-[10px] font-normal text-[var(--text-muted)]">신호가 실제로 맞았는지 추적</span></h3>
+              <h3 className="text-sm font-bold text-[var(--text)]">📓 판정 기록 <span className="text-cap-pc font-normal text-[var(--text-muted)]">신호가 실제로 맞았는지 추적</span></h3>
               {journal.stats.closed > 0 && (
                 <div className="flex items-center gap-3 text-xs">
                   <span className="text-[var(--text-muted)]">기록 {journal.stats.total}</span>
@@ -747,27 +747,27 @@ export default function StockAnalysisPage() {
                           {e.stance === 'buy' ? '매수우위' : e.stance === 'reduce' ? '비중축소' : '중립'} {e.score > 0 ? '+' : ''}{e.score}
                         </span>
                         <span className="text-[var(--text-muted)] tabular-nums">{won(e.price)}원 · 손절 {won(Math.round(e.stop))} · 목표 {won(Math.round(e.target1))}</span>
-                        <span className="text-[10px] text-[var(--text-muted)]">{new Date(e.ts).toLocaleDateString('ko-KR')}</span>
-                        {e.conviction != null && <span className="text-[10px] text-[var(--text-muted)]">확신 {e.conviction}</span>}
+                        <span className="text-cap-pc text-[var(--text-muted)]">{new Date(e.ts).toLocaleDateString('ko-KR')}</span>
+                        {e.conviction != null && <span className="text-cap-pc text-[var(--text-muted)]">확신 {e.conviction}</span>}
                         {tagEmojis.length > 0 && <span className="text-[11px]">{tagEmojis.join('')}</span>}
                         <span className="ml-auto flex items-center gap-1.5">
                           {e.result === 'open' ? (
                             (['win', 'loss', 'even'] as const).map((r) => (
                               <button key={r} onClick={() => journal.update(e.id, { result: r, resultR: r === 'win' ? 1.5 : r === 'loss' ? -1 : 0 })}
-                                className="px-1.5 py-0.5 rounded border border-[var(--border)] text-[10px] text-[var(--text-muted)] hover:text-[var(--text)]">
+                                className="px-1.5 py-0.5 rounded border border-[var(--border)] text-cap-pc text-[var(--text-muted)] hover:text-[var(--text)]">
                                 {r === 'win' ? '승' : r === 'loss' ? '패' : '본전'}
                               </button>
                             ))
                           ) : (
-                            <span className={`text-[10px] font-bold ${e.result === 'win' ? 'text-red-400' : e.result === 'loss' ? 'text-blue-400' : 'text-[var(--text-muted)]'}`}>
+                            <span className={`text-cap-pc font-bold ${e.result === 'win' ? 'text-red-400' : e.result === 'loss' ? 'text-blue-400' : 'text-[var(--text-muted)]'}`}>
                               {e.result === 'win' ? '✓ 승' : e.result === 'loss' ? '✗ 패' : '— 본전'}{e.memo ? ` · ${e.memo}` : ''}
                             </span>
                           )}
                           <button onClick={() => setTagOpen(open ? null : e.id)}
-                            className={`px-1.5 py-0.5 rounded border text-[10px] ${open || tagEmojis.length || e.conviction != null ? 'border-[var(--accent)] text-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'}`}>🏷 태그</button>
+                            className={`px-1.5 py-0.5 rounded border text-cap-pc ${open || tagEmojis.length || e.conviction != null ? 'border-[var(--accent)] text-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'}`}>🏷 태그</button>
                           <button
                             onClick={() => { if (confirm('이 판정 기록을 삭제할까요?\n되돌릴 수 없습니다.')) journal.remove(e.id); }}
-                            className="text-[10px] text-[var(--text-muted)] hover:text-red-400">삭제</button>
+                            className="text-cap-pc text-[var(--text-muted)] hover:text-red-400">삭제</button>
                         </span>
                       </div>
                       {open && (
@@ -775,7 +775,7 @@ export default function StockAnalysisPage() {
                           <TagPickRow label="셋업" metas={SETUPS} active={e.setups ?? []} onToggle={(k) => toggleTag(e.id, 'setups', k)} tone="var(--accent)" />
                           <TagPickRow label="실수" metas={MISTAKES} active={e.mistakes ?? []} onToggle={(k) => toggleTag(e.id, 'mistakes', k)} tone="var(--amber)" />
                           <ConvictionPickRow value={e.conviction} onPick={(lv) => pickConv(e.id, lv)} />
-                          <p className="text-[10px] text-[var(--faint)]">복기용 태그 — <a href="/performance" className="underline hover:text-[var(--text-muted)]">성과</a>에서 셋업×확신·실수×확신으로 집계됩니다. 방향 예측 아님.</p>
+                          <p className="text-cap-pc text-[var(--faint)]">복기용 태그 — <a href="/performance" className="underline hover:text-[var(--text-muted)]">성과</a>에서 셋업×확신·실수×확신으로 집계됩니다. 방향 예측 아님.</p>
                         </div>
                       )}
                     </div>
@@ -784,12 +784,12 @@ export default function StockAnalysisPage() {
                 </div>
                 <button
                   onClick={() => { if (confirm(`판정 기록 ${journal.entries.length}건을 전부 삭제할까요?\n되돌릴 수 없습니다. 먼저 '가상투자·백업'에서 내보내기를 권장합니다.`)) journal.clear(); }}
-                  className="text-[10px] text-[var(--text-muted)] hover:text-red-400 mt-2">전체 삭제</button>
+                  className="text-cap-pc text-[var(--text-muted)] hover:text-red-400 mt-2">전체 삭제</button>
               </>
             )}
           </div>
 
-          <p className="text-[10px] text-[var(--text-muted)] text-center opacity-60 leading-relaxed">
+          <p className="text-cap-pc text-[var(--text-muted)] text-center opacity-60 leading-relaxed">
             본 분석은 공개 데이터 기반 자동 계산 참고 정보이며 투자 권유가 아닙니다. 투자 판단과 책임은 본인에게 있습니다.<br />
             데이터: 네이버 금융·KIS·Yahoo·DART 공시 · 수급은 장 마감 후 확정치 기준
           </p>

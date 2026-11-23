@@ -17,6 +17,7 @@ import type { LiveQuote } from '@/components/MarketIndicatorDetail';
 import { useRailPref, DEFAULT_RAIL, RAIL_KEY } from '@/hooks/useRailPref';
 import RailManager from '@/components/RailManager';
 import { CardButton, type IndexCard } from '@/components/IndexCardView';
+import { jsonFetcher } from '@/lib/fetcher';
 
 const STABLE = 'STABLE'; // 스테이블코인 전체 시총(lib/stablecoinCap)
 const STABLE_FLAG = 'kospi-lab-rail-stable-v1'; // 이 기기 레일에 한 번 넣었는지
@@ -28,7 +29,11 @@ function fromIndicator(q: IndicatorQuote): IndexCard {
   const live = q.status === '실시간' || q.status.endsWith('지연');
   return { code: q.code, name: q.name, value: q.price, change: q.change, changeRate: q.changeRate, live, spark: q.spark ?? [], sparkLabel: '1개월', week52High: null, week52Low: null, unit: q.unit, dec };
 }
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// KL-012: 실패(non-2xx)는 예외로 — 예전 `r.json()` 은 503 의 {error} 를 데이터로 받아 직전 시세를 지우고 빈 카드를 그렸다.
+// 예외면 SWR 이 직전 값을 유지하고, 아래에서 '갱신 실패 · 마지막 확인 시각'을 표시한다(초록 '실시간' 금지).
+const fetcher = jsonFetcher;
+const hhmm = (ms: number) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+const STALE_TAG = '갱신 실패';
 // 상세 시트는 카드를 눌러야 열리므로 지연 로딩(홈 첫 화면 번들에서 뺀다)
 const MarketIndicatorDetail = dynamic(() => import('@/components/MarketIndicatorDetail'), {
   ssr: false, loading: () => <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0' }}>지표 불러오는 중…</p>,
@@ -42,12 +47,15 @@ function toQuote(c: IndexCard, ind?: IndicatorQuote): LiveQuote {
 }
 
 export default function IndexRail() {
-  const { data } = useSWR<{ cards: IndexCard[] }>('/api/home/indices', fetcher, { refreshInterval: 10000, revalidateOnFocus: true });
+  const [lastOk, setLastOk] = useState<number | null>(null);   // 지수 마지막 성공 시각(실패 중 표시용)
+  const { data, error } = useSWR<{ cards: IndexCard[] }>('/api/home/indices', fetcher, { refreshInterval: 10000, revalidateOnFocus: true, onSuccess: () => setLastOk(Date.now()) });
   // 환율·시장지표도 레일 풀에 합친다(사용자가 WTI·금·국채금리·EUR·JPY 등도 상단 레일에 올릴 수 있게)
-  const { data: indData } = useSWR<{ items: IndicatorQuote[] }>('/api/naver/indicators', fetcher, { refreshInterval: 30000 });
-  const homeCards = data?.cards ?? [];
+  const { data: indData, error: indError } = useSWR<{ items: IndicatorQuote[] }>('/api/naver/indicators', fetcher, { refreshInterval: 30000 });
+  // 갱신 실패 중이면 직전 값은 두되 '실시간'으로 보이지 않게
+  const stale = (c: IndexCard): IndexCard => ({ ...c, live: false, tag: STALE_TAG });
+  const homeCards = (data?.cards ?? []).map((c) => (error ? stale(c) : c));
   const homeNames = new Set(homeCards.map((c) => c.name));
-  const marketCards = (indData?.items ?? []).filter((q) => !homeNames.has(q.name)).map(fromIndicator); // 미국 USD 중복 제외
+  const marketCards = (indData?.items ?? []).filter((q) => !homeNames.has(q.name)).map(fromIndicator).map((c) => (indError ? stale(c) : c)); // 미국 USD 중복 제외
   const cards = [...homeCards, ...marketCards];
   const byCode = new Map(cards.map((c) => [c.code, c]));
   const poolCodes = cards.map((c) => c.code);
@@ -101,6 +109,14 @@ export default function IndexRail() {
           {editing ? '완료' : '⚙ 지수 편집'}
         </button>
       </div>
+      {error && homeCards.length > 0 && (
+        <p role="status" style={{ fontSize: 12, color: 'var(--amber)', margin: '0 2px 8px' }}>
+          ⚠ 시세 갱신 실패 — {lastOk ? `${hhmm(lastOk)}에 받은 값` : '직전 값'}을 보여 주는 중(자동 재시도)
+        </p>
+      )}
+      {error && homeCards.length === 0 && !indData && (
+        <p role="status" style={{ fontSize: 12, color: 'var(--amber)', margin: '0 2px 8px' }}>⚠ 시세를 불러오지 못했습니다 — 잠시 뒤 자동으로 다시 시도합니다.</p>
+      )}
       {editing && (
         <div style={{ marginBottom: 10 }}>
           <RailManager pref={pref} poolCodes={poolCodes} nameOf={nameOf} save={save} />

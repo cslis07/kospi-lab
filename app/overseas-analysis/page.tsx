@@ -129,7 +129,7 @@ function Inner() {
       {/* 52주 위치 */}
       {d && pos !== null && (
         <div className="fin-card p-4 mb-3">
-          <h3 className="text-[13px] font-bold text-[var(--text)] mb-2">52주 위치 <span className="text-[10px] font-normal text-[var(--text-muted)]">하단에서 {Math.round(pos * 100)}% (방향 예측 아님)</span></h3>
+          <h3 className="text-[13px] font-bold text-[var(--text)] mb-2">52주 위치 <span className="text-cap-pc font-normal text-[var(--text-muted)]">하단에서 {Math.round(pos * 100)}% (방향 예측 아님)</span></h3>
           <div className="relative h-2 rounded-full bg-[var(--surface-2)]">
             <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pos * 100}%`, background: `linear-gradient(90deg, ${DOWN}, ${UP})`, opacity: 0.55 }} />
             <span className="absolute top-1/2 w-3.5 h-3.5 -mt-[7px] -ml-[7px] rounded-full bg-[var(--surface)] border-2" style={{ left: `${pos * 100}%`, borderColor: 'var(--ink)' }} />
@@ -143,13 +143,13 @@ function Inner() {
 
       {/* 밸류에이션 + 재무 체력 */}
       <div className="fin-card p-4 mb-3">
-        <h3 className="text-[13px] font-bold text-[var(--text)] mb-3">밸류에이션 · 재무 체력 <span className="text-[10px] font-normal text-[var(--text-muted)]">버핏 7기준 · 검증된 신호 아님</span></h3>
+        <h3 className="text-[13px] font-bold text-[var(--text)] mb-3">밸류에이션 · 재무 체력 <span className="text-cap-pc font-normal text-[var(--text-muted)]">버핏 7기준 · 검증된 신호 아님</span></h3>
         {f ? (
           <>
             <div className="flex items-center gap-3 mb-3">
               <div className="shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl border text-xl font-black"
                 style={{ color: f.buffettScore >= 6 ? '#00cc4b' : f.buffettScore >= 4 ? '#ff8833' : '#ff4433', borderColor: 'var(--border)' }}>
-                {f.buffettScore}<span className="text-[9px] font-normal opacity-70">/7</span>
+                {f.buffettScore}<span className="text-cap font-normal opacity-70">/7</span>
               </div>
               <div className="flex-1 grid grid-cols-3 gap-x-3 gap-y-2 text-sm">
                 <Metric label="PER" value={per(f.per)} pass={f.buffettDetails.per} />
@@ -169,7 +169,7 @@ function Inner() {
               {CRIT.map((c) => {
                 const p = f.buffettDetails[c.key];
                 return (
-                  <span key={c.key} className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded border font-medium ${
+                  <span key={c.key} className={`inline-flex items-center gap-0.5 text-cap-pc px-1.5 py-0.5 rounded border font-medium ${
                     p === true ? 'text-[#ff4433] border-[#ff4433]/30 bg-[#ff4433]/10' : p === false ? 'text-[#1c6cff] border-[#1c6cff]/30 bg-[#1c6cff]/10' : 'text-[var(--faint)] border-[var(--border)]'
                   }`}>{p === true ? '✓' : p === false ? '✕' : '—'} {c.label}</span>
                 );
@@ -183,7 +183,7 @@ function Inner() {
         )}
       </div>
 
-      <p className="text-[10px] text-[var(--text-muted)] text-center mt-2 opacity-60">Yahoo Finance 재무·시세 · 투자 참고용 · 신호/매수추천 아님</p>
+      <p className="text-cap-pc text-[var(--text-muted)] text-center mt-2 opacity-60">Yahoo Finance 재무·시세 · 투자 참고용 · 신호/매수추천 아님</p>
     </div>
   );
 }

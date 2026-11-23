@@ -55,7 +55,7 @@ export default function CalendarHeatmap({ trades, unit, fmt, selected, onSelect,
   return (
     <div className="fin-card p-4 sm:p-5 mb-3">
       <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-sm font-bold text-[var(--text)] break-keep">일별 손익 달력 <span className="text-[10px] font-normal text-[var(--text-muted)]">날짜별 실현손익</span></h2>
+        <h2 className="text-sm font-bold text-[var(--text)] break-keep">일별 손익 달력 <span className="text-cap-pc font-normal text-[var(--text-muted)]">날짜별 실현손익</span></h2>
         <span className="flex-1" />
         <div className="flex items-center gap-1">
           <button type="button" onClick={() => setIdx((i) => Math.min(months.length - 1, i + 1))} disabled={idx >= months.length - 1}
@@ -80,7 +80,7 @@ export default function CalendarHeatmap({ trades, unit, fmt, selected, onSelect,
 
       {/* 요일 머리 */}
       <div className="grid grid-cols-7 gap-1 mb-1">
-        {WD.map((w, i) => <div key={w} className="text-center text-[10px] font-semibold" style={{ color: i === 0 ? 'var(--warn)' : i === 6 ? 'var(--accent-ink)' : 'var(--faint)' }}>{w}</div>)}
+        {WD.map((w, i) => <div key={w} className="text-center text-cap-pc font-semibold" style={{ color: i === 0 ? 'var(--warn)' : i === 6 ? 'var(--accent-ink)' : 'var(--faint)' }}>{w}</div>)}
       </div>
       {/* 날짜 그리드 */}
       <div className="grid grid-cols-7 gap-1">
@@ -88,7 +88,7 @@ export default function CalendarHeatmap({ trades, unit, fmt, selected, onSelect,
         {cells.map((c) => {
           const has = c.pnl != null;
           const tip = has ? `${c.date} · ${c.pnl! > 0 ? '+' : ''}${fmt(c.pnl!)} ${unit} · ${c.count}건` : c.date;
-          const cls = 'aspect-square rounded-md grid place-items-center text-[10px] leading-none tabular-nums';
+          const cls = 'aspect-square rounded-md grid place-items-center text-cap-pc leading-none tabular-nums';
           const label = <span className={has ? 'font-semibold' : ''} style={{ color: has ? 'var(--text)' : 'var(--faint)' }}>{c.day}</span>;
           if (has && onSelect) {
             const on = selected === c.date;
@@ -109,7 +109,7 @@ export default function CalendarHeatmap({ trades, unit, fmt, selected, onSelect,
       {selected && selected.startsWith(ym) ? detail
         : onSelect && sum.tradedDays > 0 && <p className="text-[11px] text-[var(--text-muted)] mt-2">색칠된 날짜를 누르면 그날 매매가 펼쳐집니다.</p>}
 
-      <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-3 text-[10px] text-[var(--faint)] whitespace-nowrap">
+      <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-3 text-cap-pc text-[var(--faint)] whitespace-nowrap">
         <span>손실</span>
         <span className="inline-block w-4 h-3 rounded-sm" style={{ background: `rgba(${DOWN},0.8)` }} />
         <span className="inline-block w-4 h-3 rounded-sm" style={{ background: `rgba(${DOWN},0.3)` }} />

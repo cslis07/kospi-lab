@@ -31,7 +31,7 @@ export default function AnalysisPage() {
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-[var(--text)]">{pd.release?.name ?? 'CPI'} · {pd.print_month_label}</h2>
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${released ? 'bg-emerald-500/15 text-emerald-400' : 'bg-[var(--amber-soft)] text-[var(--amber)]'}`}>{released ? '발표됨' : '발표 예정'}</span>
+              <span className={`text-cap-pc font-semibold px-1.5 py-0.5 rounded ${released ? 'bg-emerald-500/15 text-emerald-400' : 'bg-[var(--amber-soft)] text-[var(--amber)]'}`}>{released ? '발표됨' : '발표 예정'}</span>
             </div>
             {pd.release?.datetime_et && <p className="text-[11px] text-[var(--text-muted)] mt-1">{pd.release.datetime_et}</p>}
           </div>
@@ -79,7 +79,7 @@ function TargetCard({ t, released }: { t: PrintTarget; released: boolean }) {
           </li>
         ))}
       </ul>
-      {released && <p className="text-[10px] text-[var(--text-muted)] mt-1.5">괄호 = 공식과의 절대오차(%p).</p>}
+      {released && <p className="text-cap-pc text-[var(--text-muted)] mt-1.5">괄호 = 공식과의 절대오차(%p).</p>}
     </div>
   );
 }

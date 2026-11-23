@@ -63,21 +63,21 @@ export default function SeasonalityPage() {
                 <div key={s.month} title={`${insights[i]?.shortText ?? ''}${insights[i]?.riskDetail ? `
 ${insights[i].riskDetail}` : ''}`} className={`flex-1 min-w-0 flex flex-col items-center rounded-lg py-1 ${on ? 'bg-[var(--accent-soft)]' : ''}`}>
                   {/* 폰은 12칸이 좁아 % 기호를 빼고 작게(단위는 위 설명줄에) */}
-                  <span className="text-[8.5px] sm:text-[11px] tabular-nums font-semibold whitespace-nowrap tracking-tighter sm:tracking-normal" style={{ color: v == null ? 'var(--faint)' : v >= 0 ? 'var(--up)' : 'var(--down)' }}>
+                  <span className="text-cap sm:text-[11px] tabular-nums font-semibold whitespace-nowrap tracking-tighter sm:tracking-normal" style={{ color: v == null ? 'var(--faint)' : v >= 0 ? 'var(--up)' : 'var(--down)' }}>
                     {v == null ? '—' : stat === 'upPct' ? <>{s.upPct}<span className="hidden sm:inline">%</span></> : <>{sp(v).replace('%', '')}<span className="hidden sm:inline">%</span></>}
                   </span>
                   <div className="relative w-full" style={{ height: 150 }}>
                     <span className="absolute left-0 right-0 top-1/2 border-t border-[var(--line)]" />
                     {v != null && <span className="absolute left-1/2 -translate-x-1/2 w-[62%] max-w-[30px] rounded-[3px]" style={{ height: `${h / 2}%`, ...(v >= 0 ? { bottom: '50%' } : { top: '50%' }), background: v >= 0 ? 'var(--up)' : 'var(--down)', opacity: on ? 1 : 0.8 }} />}
                   </div>
-                  <span className={`text-[10px] sm:text-[12px] whitespace-nowrap ${on ? 'font-bold text-[var(--accent-ink)]' : 'text-[var(--text-muted)]'}`}>{M[i]}</span>
-                  <span className="text-[8.5px] sm:text-[9.5px] text-[var(--faint)] tabular-nums whitespace-nowrap">{s.n}년</span>
+                  <span className={`text-cap-pc sm:text-[12px] whitespace-nowrap ${on ? 'font-bold text-[var(--accent-ink)]' : 'text-[var(--text-muted)]'}`}>{M[i]}</span>
+                  <span className="text-cap sm:text-cap text-[var(--faint)] tabular-nums whitespace-nowrap">{s.n}년</span>
                 </div>
               );
             })}
           </div>
         )}
-        <p className="text-[10.5px] text-[var(--faint)] mt-3">{data && !data.error && nowInsight ? `${nowInsight.shortText} ` : ''}과거 월별 통계이며 다음 달 방향 예측이나 매매 신호가 아닙니다. 연수가 적으면(특히 비트코인) 우연의 폭이 큽니다. 출처: Yahoo Finance 월봉(배당 조정 종가).</p>
+        <p className="text-cap text-[var(--faint)] mt-3">{data && !data.error && nowInsight ? `${nowInsight.shortText} ` : ''}과거 월별 통계이며 다음 달 방향 예측이나 매매 신호가 아닙니다. 연수가 적으면(특히 비트코인) 우연의 폭이 큽니다. 출처: Yahoo Finance 월봉(배당 조정 종가).</p>
       </div>
 
       {yrs.length > 0 && (

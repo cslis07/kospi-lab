@@ -56,7 +56,7 @@ interface KisQuote {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-[var(--border)] p-2.5 bg-white/3 text-center">
-      <p className="text-[10px] text-[var(--text-muted)] mb-0.5">{label}</p>
+      <p className="text-cap-pc text-[var(--text-muted)] mb-0.5">{label}</p>
       <p className="text-sm font-bold text-[var(--text)] tabular-nums">{value}</p>
     </div>
   );
@@ -150,7 +150,7 @@ export default function StockDetailModal({ code, name, market, onClose }: Props)
               <p className="font-bold text-[var(--text)] text-base leading-tight">
                 {stock?.name ?? name}
               </p>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium inline-block mt-0.5 ${
+              <span className={`text-cap-pc px-1.5 py-0.5 rounded font-medium inline-block mt-0.5 ${
                 market === 'KOSDAQ' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
               }`}>{market}</span>
             </div>
@@ -271,14 +271,14 @@ export default function StockDetailModal({ code, name, market, onClose }: Props)
             <div className="rounded-xl border border-[var(--border)] p-3 bg-white/3">
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="text-sm">🏢</span>
-                <span className="text-[10px] text-[var(--text-muted)]">회사 시가총액</span>
+                <span className="text-cap-pc text-[var(--text-muted)]">회사 시가총액</span>
               </div>
               <p className="text-sm font-bold text-[var(--text)] tabular-nums">{stock.marketCap}</p>
             </div>
             <div className="rounded-xl border border-[var(--border)] p-3 bg-white/3">
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="text-sm">🔗</span>
-                <span className="text-[10px] text-[var(--text-muted)]">오늘 거래금액</span>
+                <span className="text-cap-pc text-[var(--text-muted)]">오늘 거래금액</span>
               </div>
               <p className="text-sm font-bold text-[var(--text)] tabular-nums">{stock.tradingValue}</p>
             </div>
@@ -301,7 +301,7 @@ export default function StockDetailModal({ code, name, market, onClose }: Props)
             {/* 52주 최고·최저 + 현재가 위치 바 */}
             {kis.high52w > 0 && kis.low52w > 0 && kis.high52w > kis.low52w && (
               <div className="mt-3 rounded-xl border border-[var(--border)] p-3 bg-white/3">
-                <div className="flex justify-between text-[10px] text-[var(--text-muted)] mb-1.5">
+                <div className="flex justify-between text-cap-pc text-[var(--text-muted)] mb-1.5">
                   <span>52주 최저 ₩{fmt(kis.low52w)}</span>
                   <span>52주 최고 ₩{fmt(kis.high52w)}</span>
                 </div>
@@ -315,7 +315,7 @@ export default function StockDetailModal({ code, name, market, onClose }: Props)
                     }}
                   />
                 </div>
-                <p className="text-[10px] text-[var(--text-muted)] text-center mt-1.5">
+                <p className="text-cap-pc text-[var(--text-muted)] text-center mt-1.5">
                   현재가 52주 범위의{' '}
                   <span className="font-semibold text-[var(--text)]">
                     {(((kis.price - kis.low52w) / (kis.high52w - kis.low52w)) * 100).toFixed(0)}%

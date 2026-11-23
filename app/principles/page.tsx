@@ -68,7 +68,7 @@ function ToolLinks({ note, tools }: { note?: string; tools?: Tool[] }) {
   if (!tools?.length) return null;
   return (
     <div className="mt-3 pt-3 border-t border-[var(--border)]">
-      {note && <p className="text-[10px] font-semibold text-[var(--text-muted)] mb-2 uppercase tracking-wide">{note}</p>}
+      {note && <p className="text-cap-pc font-semibold text-[var(--text-muted)] mb-2 uppercase tracking-wide">{note}</p>}
       <div className="flex flex-wrap gap-2">
         {tools.map((t) => (
           <Link key={t.href + t.label} href={t.href}

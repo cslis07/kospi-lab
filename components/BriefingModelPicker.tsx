@@ -40,7 +40,7 @@ export default function BriefingModelPicker({ value, onChange, busy = false }: P
           </button>
         );
       })}
-      <span className="pl-1 pr-1.5 text-[10px] text-[var(--text-muted)] hidden sm:inline">
+      <span className="pl-1 pr-1.5 text-cap-pc text-[var(--text-muted)] hidden sm:inline">
         {busy ? '생성 중…' : BRIEFING_MODELS.find((m) => m.id === value)?.hint}
       </span>
     </div>

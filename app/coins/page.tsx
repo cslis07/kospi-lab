@@ -13,8 +13,10 @@ import CoinDashboard from '@/components/CoinDashboard';
 import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 import { COINS, fmtCoinPrice } from '@/lib/coins';
 import type { CryptoData } from '@/lib/types';
+import { jsonFetcher } from '@/lib/fetcher';
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+// KL-012: 실패는 예외로 — 직전 시세를 유지하고 아래 안내를 띄운다(예전엔 503 의 {error} 가 시세를 지웠다)
+const fetcher = jsonFetcher;
 // 코인선물 분석 엔진 지원 종목(그 외는 분석 버튼 없음)
 const ANALYZABLE = ['BTC', 'ETH', 'XRP', 'SOL'];
 // 52주 위치는 주요 코인만(주봉 소스). 그 외는 52주 소스가 마땅치 않아 생략.
@@ -63,7 +65,7 @@ export default function CoinsPage() {
     <div className="space-y-7 pb-6">
       <Link href="/eth" className="flex items-center justify-between fin-card px-4 py-3 hover:border-[var(--text-muted)]">
         <div>
-          <p className="text-sm font-bold text-[var(--text)]">ETH 체제 보드 <span className="text-[10px] font-normal text-[var(--accent)] align-middle">NEW</span></p>
+          <p className="text-sm font-bold text-[var(--text)]">ETH 체제 보드 <span className="text-cap-pc font-normal text-[var(--accent)] align-middle">NEW</span></p>
           <p className="text-[11px] text-[var(--text-muted)] mt-0.5">공급·수요·포지셔닝·거시 4층 · 예측 아님</p>
         </div>
         <span className="text-[var(--accent)] text-lg">→</span>
@@ -112,7 +114,7 @@ export default function CoinsPage() {
             })}
           </div>
         )}
-        {error && <p className="text-xs text-[var(--warn)] mt-2">시세를 불러오지 못했습니다. 잠시 후 다시 시도됩니다.</p>}
+        {error && <p role="status" className="text-xs text-[var(--warn)] mt-2">{data ? '시세 갱신 실패 — 직전 값을 보여 주는 중(자동 재시도)' : '시세를 불러오지 못했습니다. 잠시 후 다시 시도됩니다.'}</p>}
       </section>
 
       <CoinDashboard />

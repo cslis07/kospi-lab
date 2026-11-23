@@ -76,10 +76,10 @@ export function NewsCardHorizontal({ item }: { item: NewsItem }) {
           {item.title}
         </p>
         <div className="flex items-center gap-2 mt-1.5">
-          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${colorClass}`}>
+          <span className={`text-cap-pc font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${colorClass}`}>
             {item.source}
           </span>
-          <span className="text-[10px] text-[var(--text-muted)]">{relativeTime(item.pubDate)}</span>
+          <span className="text-cap-pc text-[var(--text-muted)]">{relativeTime(item.pubDate)}</span>
         </div>
       </div>
     </a>
@@ -97,7 +97,7 @@ export default function NewsCard({ item }: { item: NewsItem }) {
       className="block p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-white/20 hover:bg-white/5 transition-all group"
     >
       <div className="flex items-center gap-2 mb-2">
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${colorClass}`}>
+        <span className={`text-cap-pc font-semibold px-2 py-0.5 rounded-full ${colorClass}`}>
           {item.source}
         </span>
         <span className="text-xs text-[var(--text-muted)]">{relativeTime(item.pubDate)}</span>

@@ -64,14 +64,14 @@ function MarketBenchmarkR({ trades }: { trades: TradeValue[] }) {
       {hasMonths && (
         <div className="mt-3 pt-3 border-t border-[var(--border)]">
           <div className="flex items-center justify-between gap-2 mb-1.5">
-            <p className="text-[12px] font-semibold text-[var(--text)]">월별 <span className="text-[10px] font-normal text-[var(--text-muted)]">내 실현 R vs {idxLabel} 월간</span></p>
+            <p className="text-[12px] font-semibold text-[var(--text)]">월별 <span className="text-cap-pc font-normal text-[var(--text-muted)]">내 실현 R vs {idxLabel} 월간</span></p>
             <IndexChips idx={idx} setIdx={setIdx} />
           </div>
           <MonthlyCompare trades={trades} series={series} idxLabel={idxLabel} mineHeader="내 실현 R"
             renderMine={(r) => <span style={{ color: RCOLOR(r) }}>{fmtR(r)}</span>} />
         </div>
       )}
-      <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">R(리스크 배수)과 지수 %는 단위가 달라 수익률 직접 비교가 아니라, 내가 매매한 <b className="text-[var(--text)]">기간에 시장이 어느 방향이었는지</b> 참고용입니다. 지수는 그 달 종가 기준 월간 변화.</p>
+      <p className="text-cap-pc text-[var(--text-muted)] mt-2 leading-relaxed">R(리스크 배수)과 지수 %는 단위가 달라 수익률 직접 비교가 아니라, 내가 매매한 <b className="text-[var(--text)]">기간에 시장이 어느 방향이었는지</b> 참고용입니다. 지수는 그 달 종가 기준 월간 변화.</p>
     </div>
   );
 }
@@ -190,8 +190,8 @@ export default function PerformanceView() {
                   <button type="button" onClick={() => setEditId(editing ? null : d.id)}
                     className="w-full px-3 py-2 flex items-center gap-2 text-[12px] text-left active:bg-[var(--surface-2)]">
                     <span className="text-[var(--text)] font-semibold truncate max-w-[38%]">{d.name}</span>
-                    <span className="text-[10px] text-[var(--text-muted)]">{d.dir}</span>
-                    {d.conviction != null && <span className="text-[10px] text-[var(--text-muted)]">확신 {d.conviction}</span>}
+                    <span className="text-cap-pc text-[var(--text-muted)]">{d.dir}</span>
+                    {d.conviction != null && <span className="text-cap-pc text-[var(--text-muted)]">확신 {d.conviction}</span>}
                     {tagEmojis.length > 0 && <span className="text-[11px]">{tagEmojis.join('')}</span>}
                     <span className="ml-auto text-[11px]" style={{ color: d.result === 'win' ? 'var(--warn)' : d.result === 'loss' ? 'var(--accent-ink)' : 'var(--faint)' }}>{RESULT_KO[d.result] ?? d.result}</span>
                     <span className="text-[12px] font-bold tabular-nums w-[64px] text-right" style={{ color: RCOLOR(d.resultR ?? 0) }}>{d.resultR == null ? '—' : fmtR(d.resultR)}</span>
@@ -219,7 +219,7 @@ export default function PerformanceView() {
               <button key={k} type="button" role="tab" aria-selected={convPeriod === k} className={`seg-i !px-2.5 ${convPeriod === k ? 'on' : ''}`} onClick={() => setConvPeriod(k)}>{l}</button>
             ))}
           </div>
-          {convPeriod === 'month' && <span className="text-[10px] text-[var(--faint)] tabular-nums">{curYM.replace('-', '.')} 기준</span>}
+          {convPeriod === 'month' && <span className="text-cap-pc text-[var(--faint)] tabular-nums">{curYM.replace('-', '.')} 기준</span>}
         </div>
       )}
       {ready && taggedCountAll > 0 && convPeriod === 'month' && rTagged.count === 0 && (

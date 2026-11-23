@@ -28,7 +28,7 @@ function SlHabit({ weeks }: { weeks: LossCloseWeek[] }) {
   if (!ws.length) return null;
   return (
     <div className="mt-3">
-      <p className="text-[12px] font-semibold text-[var(--text)]">손절 미리 걸기 <span className="text-[10px] font-normal text-[var(--text-muted)]">손실 청산 중 예약 손절이 닫은 비율 · 주별 · 참고</span></p>
+      <p className="text-[12px] font-semibold text-[var(--text)]">손절 미리 걸기 <span className="text-cap-pc font-normal text-[var(--text-muted)]">손실 청산 중 예약 손절이 닫은 비율 · 주별 · 참고</span></p>
       <ul className="mt-1 space-y-1">
         {ws.map((w) => {
           const n = w.bySl + w.manual, pct = Math.round((w.bySl / n) * 100);
@@ -43,7 +43,7 @@ function SlHabit({ weeks }: { weeks: LossCloseWeek[] }) {
           );
         })}
       </ul>
-      <p className="text-[10.5px] text-[var(--text-muted)] mt-1">시장가 손실 청산 체결 기준. 낮을수록 손절을 미리 걸지 않고 보면서 닫은 것 — 늘리는 게 목표입니다.</p>
+      <p className="text-cap text-[var(--text-muted)] mt-1">시장가 손실 청산 체결 기준. 낮을수록 손절을 미리 걸지 않고 보면서 닫은 것 — 늘리는 게 목표입니다.</p>
     </div>
   );
 }
@@ -73,7 +73,7 @@ function Breakdown({ title, d, sub, maker }: { title: string; d: DisciplineDay |
     <div className="rounded-xl bg-[var(--surface-2)] px-3 py-2.5">
       <div className="flex items-baseline justify-between">
         <p className="text-[11px] font-semibold text-[var(--text-muted)]">{title}</p>
-        <p className="tabular-nums"><b className="text-[20px] font-extrabold" style={{ color: color(d.score) }}>{d.score}</b><span className="text-[10px] text-[var(--text-muted)]">점 · {d.n}건{sub ? ` · ${sub}` : ''}</span></p>
+        <p className="tabular-nums"><b className="text-[20px] font-extrabold" style={{ color: color(d.score) }}>{d.score}</b><span className="text-cap-pc text-[var(--text-muted)]">점 · {d.n}건{sub ? ` · ${sub}` : ''}</span></p>
       </div>
       <ul className="mt-1 space-y-0.5">
         {(Object.keys(DISCIPLINE_WEIGHTS) as DisciplineKey[]).map((k) => {
@@ -85,19 +85,19 @@ function Breakdown({ title, d, sub, maker }: { title: string; d: DisciplineDay |
                 {v != null && <span className="block h-full rounded-full" style={{ width: `${v * 100}%`, background: color(v * 100) }} />}
               </span>
               <span className="w-[34px] text-right font-bold" style={{ color: v == null ? 'var(--faint)' : color(v * 100) }}>{v == null ? '—' : `${Math.round(v * 100)}%`}</span>
-              <span className="hidden sm:inline w-[150px] text-[10px] text-[var(--faint)] truncate">{detail(k, d)}</span>
+              <span className="hidden sm:inline w-[150px] text-cap-pc text-[var(--faint)] truncate">{detail(k, d)}</span>
             </li>
           );
         })}
       </ul>
       {maker !== undefined && (
         <div className="mt-1.5 pt-1.5 border-t border-dashed border-[var(--line-2)] flex items-center gap-2 text-[11px] tabular-nums">
-          <span className="w-[92px] shrink-0 text-[var(--text-muted)]">지정가 진입 <span className="text-[9px] text-[var(--faint)]">참고</span></span>
+          <span className="w-[92px] shrink-0 text-[var(--text-muted)]">지정가 진입 <span className="text-cap text-[var(--faint)]">참고</span></span>
           <span className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--line-2)' }} aria-hidden>
             {maker?.share != null && <span className="block h-full rounded-full" style={{ width: `${maker.share * 100}%`, background: 'var(--amber)' }} />}
           </span>
           <span className="w-[34px] text-right font-bold" style={{ color: maker?.share == null ? 'var(--faint)' : 'var(--text)' }}>{maker?.share == null ? '—' : `${Math.round(maker.share * 100)}%`}</span>
-          <span className="hidden sm:inline w-[150px] text-[10px] text-[var(--faint)] truncate">{maker == null ? '체결 불러오는 중' : maker.total ? `진입 체결 ${maker.maker}/${maker.total}건 메이커 · 점수 밖` : '진입 체결 없음'}</span>
+          <span className="hidden sm:inline w-[150px] text-cap-pc text-[var(--faint)] truncate">{maker == null ? '체결 불러오는 중' : maker.total ? `진입 체결 ${maker.maker}/${maker.total}건 메이커 · 점수 밖` : '진입 체결 없음'}</span>
         </div>
       )}
     </div>
@@ -158,8 +158,8 @@ export default function DisciplineCard({ positions, days: periodDays = 30 }: { p
   return (
     <section className="fin-card p-4 mb-3">
       <div className="flex items-center gap-2 flex-wrap mb-1">
-        <h2 className="text-sm font-bold text-[var(--text)]">규율 점수 <span className="text-[10px] font-normal text-[var(--text-muted)]">손익이 아니라 규칙을 지킨 정도</span></h2>
-        <span className="text-[10px] text-[var(--text-muted)]">진입 시각(KST) 기준 하루 0~100{candles == null ? ' · 1H 추세 불러오는 중…' : ''}</span>
+        <h2 className="text-sm font-bold text-[var(--text)]">규율 점수 <span className="text-cap-pc font-normal text-[var(--text-muted)]">손익이 아니라 규칙을 지킨 정도</span></h2>
+        <span className="text-cap-pc text-[var(--text-muted)]">진입 시각(KST) 기준 하루 0~100{candles == null ? ' · 1H 추세 불러오는 중…' : ''}</span>
       </div>
 
       {days.length >= 2
@@ -175,7 +175,7 @@ export default function DisciplineCard({ positions, days: periodDays = 30 }: { p
 
       <details className="mt-2.5">
         <summary className="cursor-pointer select-none text-[11px] font-semibold text-[var(--text-muted)]">점수 계산 방식</summary>
-        <ul className="text-[10.5px] text-[var(--text-muted)] mt-1 leading-relaxed list-disc pl-4 space-y-0.5">
+        <ul className="text-cap text-[var(--text-muted)] mt-1 leading-relaxed list-disc pl-4 space-y-0.5">
           <li>손절 주문 {DISCIPLINE_WEIGHTS.stop} — 거래소에 손절(SL) 주문 기록이 있는 매매 비율.</li>
           <li>1H 추세 순응 {DISCIPLINE_WEIGHTS.trend} — 진입 직전 마감된 1H 봉의 EMA20/60 정배열+종가≥EMA20이면 상승(역배열+종가&lt;EMA20 하락, 그 외 횡보). 롱·상승/숏·하락만 순응. 1H 데이터는 최근 약 41일 — 그 전 진입은 이 항목 제외.</li>
           <li>복수 매매 없음 {DISCIPLINE_WEIGHTS.revenge} — 손실 청산 후 30분 안에 다시 들어간 매매(종목 무관)를 뺀 비율.</li>

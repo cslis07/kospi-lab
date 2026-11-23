@@ -330,10 +330,10 @@ function LeverageCalc() {
               symbol === c.symbol ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]'
             }`}>
             <span className="flex items-center gap-1.5">
-              <span className="w-4 h-4 rounded-full inline-flex items-center justify-center text-[8px] text-white" style={{ backgroundColor: c.bg }}>{c.short[0]}</span>
+              <span className="w-4 h-4 rounded-full inline-flex items-center justify-center text-cap text-white" style={{ backgroundColor: c.bg }}>{c.short[0]}</span>
               {c.short}
             </span>
-            <span className="text-[10px] font-normal opacity-70 tabular-nums">
+            <span className="text-cap-pc font-normal opacity-70 tabular-nums">
               {prices?.[c.symbol]?.price ? `$${prices[c.symbol].price.toLocaleString('en-US', { maximumFractionDigits: priceDigits(prices[c.symbol].price) })}` : '…'}
             </span>
           </button>
@@ -379,10 +379,10 @@ function LeverageCalc() {
                 placeholder={price ? String(+price.toFixed(dg)) : '현재가'} min={0} step={priceStep}
                 onChange={(e) => setEntryStr(e.target.value)}
                 className={`w-28 bg-white/5 border rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-sky-500/50 ${usingManualEntry ? 'border-sky-500/50' : 'border-[var(--border)]'}`} />
-              <button onClick={() => setEntryStr('')} className="text-[10px] text-[var(--text-muted)] hover:text-sky-400 w-12" title="현재가로 초기화">현재가</button>
+              <button onClick={() => setEntryStr('')} className="text-cap-pc text-[var(--text-muted)] hover:text-sky-400 w-12" title="현재가로 초기화">현재가</button>
             </div>
           </div>
-          <p className="text-[10px] text-[var(--text-muted)]">
+          <p className="text-cap-pc text-[var(--text-muted)]">
             {usingManualEntry ? '입력한 진입가 기준으로 손익·청산가·역산을 계산합니다.' : '비워두면 현재가로 계산. 실제 체결가나 예정 진입가를 넣으면 그 값이 기준이 됩니다.'}
           </p>
         </div>
@@ -395,15 +395,15 @@ function LeverageCalc() {
                 placeholder={price ? String(+price.toFixed(dg)) : (entry ? String(+entry.toFixed(dg)) : '')} min={0} step={priceStep}
                 onChange={(e) => setTargetStr(e.target.value)}
                 className="w-28 bg-white/5 border border-[var(--border)] rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-sky-500/50" />
-              <button onClick={() => setTargetStr('')} className="text-[10px] text-[var(--text-muted)] hover:text-sky-400 w-12" title="현재가로 초기화">현재가</button>
+              <button onClick={() => setTargetStr('')} className="text-cap-pc text-[var(--text-muted)] hover:text-sky-400 w-12" title="현재가로 초기화">현재가</button>
             </div>
           </div>
-          <p className="text-[10px] text-[var(--text-muted)]">비워두면 <b className="text-[var(--text)]">현재가</b>로 손익을 계산합니다. 도달하길 바라는 가격을 넣으면 그 가격 기준 손익이 나옵니다.</p>
+          <p className="text-cap-pc text-[var(--text-muted)]">비워두면 <b className="text-[var(--text)]">현재가</b>로 손익을 계산합니다. 도달하길 바라는 가격을 넣으면 그 가격 기준 손익이 나옵니다.</p>
           <input type="range" min={priceLo} max={priceHi} step={priceStep}
             value={clamp(effTarget, priceLo, priceHi)}
             onChange={(e) => setTargetStr(e.target.value)} disabled={!price}
             className="w-full accent-sky-500 disabled:opacity-40" />
-          <div className="flex justify-between text-[10px]">
+          <div className="flex justify-between text-cap-pc">
             <span className="text-[var(--text-muted)]">진입가 대비{' '}
               <span className={changePct >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}>{changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%</span>
             </span>
@@ -419,7 +419,7 @@ function LeverageCalc() {
         {/* 수수료·펀딩 반영(실손익) 토글 */}
         <div className="pt-1 border-t border-[var(--border)]">
           <label className="flex items-center justify-between cursor-pointer select-none">
-            <span className="text-xs text-[var(--text)]">수수료·펀딩 반영 <span className="text-[10px] text-[var(--text-muted)]">(실손익)</span></span>
+            <span className="text-xs text-[var(--text)]">수수료·펀딩 반영 <span className="text-cap-pc text-[var(--text-muted)]">(실손익)</span></span>
             <input type="checkbox" checked={feeOn} onChange={(e) => setFeeOn(e.target.checked)} className="w-4 h-4 accent-sky-500" />
           </label>
           {feeOn && (
@@ -441,7 +441,7 @@ function LeverageCalc() {
               ))}
               <SimSlider label="보유 시간" sliderValue={holdH} sliderMin={0} sliderMax={720} sliderStep={1} onSlider={setHoldH}
                 numValue={holdH} numMin={0} numMax={8760} numStep={1} unit="시간" onNum={setHoldH} numW="w-20" />
-              <p className="text-[10px] text-[var(--text-muted)]">
+              <p className="text-cap-pc text-[var(--text-muted)]">
                 진입 {(openRate * 100).toFixed(2)}% + 청산 {(closeRate * 100).toFixed(2)}% · 펀딩 {fundingPct != null ? `${fundingPct >= 0 ? '+' : ''}${fundingPct.toFixed(4)}%/8h (${dir === 'long' ? (fundingPct >= 0 ? '롱 지급' : '롱 수취') : (fundingPct >= 0 ? '숏 수취' : '숏 지급')})` : '로딩…'} · {fundingPeriods.toFixed(1)}회 · Bitget VIP0 기준(BGB 할인 미적용)
               </p>
             </div>
@@ -463,7 +463,7 @@ function LeverageCalc() {
           )}
           <p className={`text-sm font-semibold mt-1 ${roe >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>
             증거금 대비 {roe >= 0 ? '+' : ''}{roe.toFixed(1)}%
-            {usdtKrw ? <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1.5">1 USDT ≈ ₩{Math.round(usdtKrw).toLocaleString('ko-KR')}</span> : null}
+            {usdtKrw ? <span className="text-cap-pc font-normal text-[var(--text-muted)] ml-1.5">1 USDT ≈ ₩{Math.round(usdtKrw).toLocaleString('ko-KR')}</span> : null}
           </p>
           {liquidated && (
             <p className="text-[11px] text-red-400 mt-1.5">⚠ 목표가가 청산가(${liqPrice.toLocaleString('en-US', { maximumFractionDigits: dg })})를 지나 — 고립마진에선 그 전에 강제청산되어 증거금 전액 손실입니다.</p>
@@ -486,9 +486,9 @@ function LeverageCalc() {
             { label: '최대 손실(청산 시)', value: `-${fmtUsdt(margin, 0)}`, sub: '증거금 전액', danger: true },
           ].map((c) => (
             <div key={c.label} className={`rounded-xl border p-3 ${c.danger ? 'border-red-500/20 bg-red-500/5' : 'border-[var(--border)] bg-white/3'}`}>
-              <p className="text-[10px] text-[var(--text-muted)]">{c.label}</p>
+              <p className="text-cap-pc text-[var(--text-muted)]">{c.label}</p>
               <p className={`text-base font-bold tabular-nums mt-0.5 ${c.danger ? 'text-red-400' : 'text-[var(--text)]'}`}>{c.value}</p>
-              {c.sub && <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{c.sub}</p>}
+              {c.sub && <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">{c.sub}</p>}
             </div>
           ))}
         </div>
@@ -514,7 +514,7 @@ function LeverageCalc() {
               className="w-28 bg-white/5 border border-[var(--border)] rounded-md px-1.5 py-1 text-xs font-semibold text-right text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-sky-500/50" />
           </div>
           {stopStr !== '' && !hasStop && (
-            <p className="text-[10px] text-amber-400">손절가는 {dir === 'long' ? '현재가보다 낮아야' : '현재가보다 높아야'} 합니다(손실 방향).</p>
+            <p className="text-cap-pc text-amber-400">손절가는 {dir === 'long' ? '현재가보다 낮아야' : '현재가보다 높아야'} 합니다(손실 방향).</p>
           )}
         </div>
 
@@ -528,9 +528,9 @@ function LeverageCalc() {
                 { label: '청산 여유', value: `${safety.toFixed(1)}배`, sub: safety < 2 ? '⚠ 손절 전 청산 위험' : '손절선의 여유 거리', danger: safety < 2 },
               ].map((c) => (
                 <div key={c.label} className={`rounded-xl border p-3 ${c.danger ? 'border-red-500/20 bg-red-500/5' : 'border-[var(--border)] bg-white/3'}`}>
-                  <p className="text-[10px] text-[var(--text-muted)]">{c.label}</p>
+                  <p className="text-cap-pc text-[var(--text-muted)]">{c.label}</p>
                   <p className={`text-base font-bold tabular-nums mt-0.5 ${c.danger ? 'text-red-400' : 'text-[var(--text)]'}`}>{c.value}</p>
-                  {c.sub && <p className={`text-[10px] mt-0.5 ${c.danger ? 'text-red-400/80' : 'text-[var(--text-muted)]'}`}>{c.sub}</p>}
+                  {c.sub && <p className={`text-cap-pc mt-0.5 ${c.danger ? 'text-red-400/80' : 'text-[var(--text-muted)]'}`}>{c.sub}</p>}
                 </div>
               ))}
             </div>
@@ -568,14 +568,14 @@ function LeverageCalc() {
         ) : (
           <p className="text-[11px] text-[var(--text-muted)] text-center py-3 border border-dashed border-[var(--border)] rounded-xl">손절가를 입력하면 권장 증거금·청산 여유가 계산됩니다.</p>
         )}
-        <p className="text-[10px] text-[var(--text-muted)]">
+        <p className="text-cap-pc text-[var(--text-muted)]">
           권장 증거금은 위 ‘배율’ 슬라이더 값을 그대로 쓴 결과입니다. 배율을 바꾸면 손실 크기는 그대로(손절 거리로 고정)이고 증거금만 달라집니다. 투자 권유가 아닙니다.
         </p>
       </div>
 
       {/* 가격 변동별 빠른 손익표 */}
       <div className="fin-card p-5">
-        <h2 className="text-sm font-semibold text-[var(--text)] mb-3">가격별 손익 사다리 <span className="text-[10px] font-normal text-[var(--text-muted)]">{coin.short} {dir === 'long' ? '롱' : '숏'} · {lev}배 · {margin} USDT · 수수료 전</span></h2>
+        <h2 className="text-sm font-semibold text-[var(--text)] mb-3">가격별 손익 사다리 <span className="text-cap-pc font-normal text-[var(--text-muted)]">{coin.short} {dir === 'long' ? '롱' : '숏'} · {lev}배 · {margin} USDT · 수수료 전</span></h2>
         <div className="overflow-hidden rounded-xl border border-[var(--border)]">
           <table className="w-full text-xs">
             <thead>
@@ -601,7 +601,7 @@ function LeverageCalc() {
               })}
               {/* 청산 행 */}
               <tr className="border-t border-red-500/20 bg-red-500/5">
-                <td className="px-3 py-2 tabular-nums text-red-400">{liqPrice > 0 ? fmtUsdt(liqPrice) : '-'} <span className="text-[10px]">(청산)</span></td>
+                <td className="px-3 py-2 tabular-nums text-red-400">{liqPrice > 0 ? fmtUsdt(liqPrice) : '-'} <span className="text-cap-pc">(청산)</span></td>
                 <td className="px-3 py-2 text-right tabular-nums text-red-400">{dir === 'long' ? '-' : '+'}{liqMovePct.toFixed(1)}%</td>
                 <td className="px-3 py-2 text-right font-semibold tabular-nums text-red-400">-{fmtUsdt(margin)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-red-400">-100%</td>
@@ -612,7 +612,7 @@ function LeverageCalc() {
         <div className="mt-3 rounded-xl border border-[var(--border)] bg-white/3 p-3 text-[11px] leading-relaxed text-[var(--text-muted)]">
           <b className="text-[var(--text)]">되돌림에 수익을 반납하지 않으려면</b> — 전량 홀딩은 수익 잠재력이 크지만 되돌림 때도 크게 반납합니다. <b className="text-[var(--text)]">부분 익절 후 나머지는 추적 손절</b>로 끌어올리면 조기 전량매도의 아쉬움과 수익 반납 위험을 절충할 수 있습니다. 추적 손절선은 최근 확정된 높은 저점·15분/1시간봉 구조·손실 허용액을 함께 봅니다(급락 시 원하는 가격에 체결 안 될 수 있음).
         </div>
-        <p className="text-[10px] text-[var(--text-muted)] mt-3">
+        <p className="text-cap-pc text-[var(--text-muted)] mt-3">
           청산가 = Bitget 고립마진 공식 <b>진입가 × (1 ∓ 1/배율) ÷ (1 ∓ (유지증거금률+테이커수수료 0.06%))</b>. 유지증거금률은 소액(1티어) 기준(BTC·ETH 0.4%, XRP·SOL 0.5%)이라 포지션이 커지면 상승해 청산가가 더 불리해집니다. 손익은 수수료 전이며 교차마진·펀딩비 적립은 미반영. 실제값은 거래소 설정에 따라 다릅니다. 투자 권유가 아닙니다.
         </p>
       </div>
@@ -703,7 +703,7 @@ function ExitRuleSim() {
             </div>
             <button type="button" onClick={loadFromJournal} disabled={!journalReady}
               className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-[12px] font-semibold text-[var(--text)] hover:bg-white/5 disabled:opacity-50">📒 매매일지에서 불러오기</button>
-            <span className="text-[10.5px] text-[var(--text-muted)]">내 과거 기록 기준 · 예측 아님</span>
+            <span className="text-cap text-[var(--text-muted)]">내 과거 기록 기준 · 예측 아님</span>
           </div>
           {loaded && (
             <p className={`text-[11px] leading-relaxed ${loaded.ok ? 'text-[var(--text-muted)]' : 'text-amber-400'}`} role="status">
@@ -722,16 +722,16 @@ function ExitRuleSim() {
           numValue={trades} numMin={10} numMax={2000} numStep={10} unit="회" onNum={setTrades} numW="w-20" />
         <SimSlider label="매매당 리스크 (계좌 대비)" sliderValue={riskPct * 10} sliderMin={5} sliderMax={100} sliderStep={5}
           onSlider={(v) => setRiskPct(v / 10)} numValue={riskPct} numMin={0.1} numMax={20} numStep={0.1} unit="%" onNum={setRiskPct} numW="w-16" />
-        <p className="text-[10px] text-[var(--text-muted)]">기대값(매매당 R) = 승률×익절R − (1−승률)×손절R. 음수면 어떤 익절 규칙도 장기 우상향이 어렵습니다(규칙보다 진입·손절이 먼저).</p>
+        <p className="text-cap-pc text-[var(--text-muted)]">기대값(매매당 R) = 승률×익절R − (1−승률)×손절R. 음수면 어떤 익절 규칙도 장기 우상향이 어렵습니다(규칙보다 진입·손절이 먼저).</p>
       </div>
 
       {/* 결과 표 */}
       <div className="fin-card p-5">
-        <h2 className="text-sm font-semibold text-[var(--text)] mb-1">익절 규칙 비교 <span className="text-[10px] font-normal text-[var(--text-muted)]">{trades}회 매매 × 1,500회 시뮬 · 추천 ★</span></h2>
+        <h2 className="text-sm font-semibold text-[var(--text)] mb-1">익절 규칙 비교 <span className="text-cap-pc font-normal text-[var(--text-muted)]">{trades}회 매매 × 1,500회 시뮬 · 추천 ★</span></h2>
         <div className="overflow-x-auto">
           <table className="w-full text-[11.5px] tabular-nums" style={{ minWidth: 520 }}>
             <thead>
-              <tr className="text-[10.5px] text-[var(--text-muted)] text-right border-b border-[var(--border)]">
+              <tr className="text-cap text-[var(--text-muted)] text-right border-b border-[var(--border)]">
                 <th className="text-left font-semibold py-2">규칙</th>
                 <th className="font-semibold px-1.5">기대R</th>
                 <th className="font-semibold px-1.5">중앙 자산</th>
@@ -747,11 +747,11 @@ function ExitRuleSim() {
                   <tr key={r.key} className={`border-b border-[var(--border)] text-right ${isBest ? 'bg-emerald-500/[0.06]' : ''}`}>
                     <td className="text-left py-2">
                       <span className="font-bold text-[var(--text)]">{isBest ? '★ ' : ''}{r.label}</span>
-                      <span className="block text-[9.5px] text-[var(--text-muted)] leading-tight">승률 {r.winRate}% · 익절 {r.winR}R · 손절 {r.lossR}R</span>
+                      <span className="block text-cap text-[var(--text-muted)] leading-tight">승률 {r.winRate}% · 익절 {r.winR}R · 손절 {r.lossR}R</span>
                     </td>
                     <td className={`px-1.5 font-semibold ${r.evR >= 0 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>{r.evR >= 0 ? '+' : ''}{r.evR}</td>
                     <td className={`px-1.5 font-bold ${r.median >= 1 ? 'text-[var(--up)]' : 'text-[var(--down)]'}`}>{xMul(r.median)}</td>
-                    <td className="px-1.5 text-[var(--text-muted)] text-[10.5px]">{xMul(r.p10)}~{xMul(r.p90)}</td>
+                    <td className="px-1.5 text-[var(--text-muted)] text-cap">{xMul(r.p10)}~{xMul(r.p90)}</td>
                     <td className="px-1.5 text-red-400">−{Math.round(r.medMaxDD * 100)}%</td>
                     <td className={`px-1.5 ${r.ruinPct >= 20 ? 'text-red-400 font-bold' : 'text-[var(--text-muted)]'}`}>{r.ruinPct}%</td>
                   </tr>
@@ -760,22 +760,22 @@ function ExitRuleSim() {
             </tbody>
           </table>
         </div>
-        <p className="text-[10px] text-[var(--text-muted)] mt-2.5 leading-relaxed">중앙 자산 = 시작 대비 최종 자산 배수(중앙값). <b>파산</b> = 1,500회 중 자산이 30% 밑으로 떨어진 비율. 추천 ★ = 파산 20% 이하 중 중앙 자산 최대. 규칙 변형(고정 1.5R·분할·추적)은 <b>명시된 가정</b>이라 네 실제 분포로 검증하세요.</p>
+        <p className="text-cap-pc text-[var(--text-muted)] mt-2.5 leading-relaxed">중앙 자산 = 시작 대비 최종 자산 배수(중앙값). <b>파산</b> = 1,500회 중 자산이 30% 밑으로 떨어진 비율. 추천 ★ = 파산 20% 이하 중 중앙 자산 최대. 규칙 변형(고정 1.5R·분할·추적)은 <b>명시된 가정</b>이라 네 실제 분포로 검증하세요.</p>
       </div>
 
       {/* 추천 규칙 자산 경로 */}
       {best && (
         <div className="fin-card p-5">
           <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
-            <h2 className="text-sm font-semibold text-[var(--text)]">추천: ★ {best.label} <span className="text-[10px] font-normal text-[var(--text-muted)]">자산 경로(p10·중앙·p90)</span></h2>
+            <h2 className="text-sm font-semibold text-[var(--text)]">추천: ★ {best.label} <span className="text-cap-pc font-normal text-[var(--text-muted)]">자산 경로(p10·중앙·p90)</span></h2>
             <span className="text-[11px] tabular-nums text-[var(--text-muted)]">중앙 <b className={best.median >= 1 ? 'text-[var(--up)]' : 'text-[var(--down)]'}>{xMul(best.median)}</b></span>
           </div>
           <FanChart fan={best.fan} trades={trades} />
-          <div className="flex justify-between text-[10px] text-[var(--text-muted)] mt-1"><span>0회</span><span>시작 자산(점선) 기준 배수</span><span>{trades}회</span></div>
+          <div className="flex justify-between text-cap-pc text-[var(--text-muted)] mt-1"><span>0회</span><span>시작 자산(점선) 기준 배수</span><span>{trades}회</span></div>
           {best.evR < 0 && <p className="text-[11px] text-amber-400 mt-2">⚠ 기대값이 음수라 어떤 규칙도 장기 손실 경향입니다 — 익절 규칙보다 <b>진입·손절(손익비·승률)</b>을 먼저 개선하세요.</p>}
         </div>
       )}
-      <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">각 매매는 네 분포에서 독립 추출(복리, 켈리 아님)·수수료·펀딩 미반영. 시드 고정이라 같은 입력은 같은 결과입니다. 방향 적중은 측정상 우위 없음(백테스트 49.7%) — 이 도구는 <b className="text-[var(--text)]">청산 규율의 기대효과</b>를 네 통계로 가늠하는 용도입니다. 투자 권유가 아닙니다.</p>
+      <p className="text-cap-pc text-[var(--text-muted)] leading-relaxed">각 매매는 네 분포에서 독립 추출(복리, 켈리 아님)·수수료·펀딩 미반영. 시드 고정이라 같은 입력은 같은 결과입니다. 방향 적중은 측정상 우위 없음(백테스트 49.7%) — 이 도구는 <b className="text-[var(--text)]">청산 규율의 기대효과</b>를 네 통계로 가늠하는 용도입니다. 투자 권유가 아닙니다.</p>
     </div>
   );
 }

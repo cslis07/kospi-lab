@@ -138,14 +138,14 @@ function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
         {pr > 0 ? (
           <>
             <CompareCurveLazy rows={curve} indexLabel={idxLabel} />
-            <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">내 수익률% = 누적 순손익 ÷ 원금. 지수는 같은 기간 시작일 0% 정규화. 원금은 <b className="text-[var(--text)]">이 기기에만</b> 저장 · 참고용(매매 신호 아님).</p>
+            <p className="text-cap-pc text-[var(--text-muted)] mt-1.5 leading-relaxed">내 수익률% = 누적 순손익 ÷ 원금. 지수는 같은 기간 시작일 0% 정규화. 원금은 <b className="text-[var(--text)]">이 기기에만</b> 저장 · 참고용(매매 신호 아님).</p>
           </>
         ) : (
           <p className="text-[11px] text-[var(--text-muted)]">원금을 입력하면 내 수익률%곡선을 지수와 겹쳐 비교합니다(이 기기에만 저장).</p>
         )}
       </div>
       <div className="mt-3 pt-3 border-t border-[var(--border)]">
-        <p className="text-[12px] font-semibold text-[var(--text)] mb-1.5">월별 수익률 <span className="text-[10px] font-normal text-[var(--text-muted)]">내 vs {idxLabel}</span></p>
+        <p className="text-[12px] font-semibold text-[var(--text)] mb-1.5">월별 수익률 <span className="text-cap-pc font-normal text-[var(--text-muted)]">내 vs {idxLabel}</span></p>
         <MonthlyCompare trades={trades} series={data ? data[idx] : undefined} idxLabel={idxLabel} mineHeader="내 수익률"
           renderMine={(pnl) => {
             const mine = pr > 0 ? (pnl / pr) * 100 : null;
@@ -153,7 +153,7 @@ function BenchmarkCard({ trades }: { trades: TradeValue[] }) {
               ? <span className="text-[var(--text-muted)]">{pnl >= 0 ? '+' : ''}{fmtUsdt(pnl)}</span>
               : <span className={bmCol(mine)}>{pctStr(mine)}</span>;
           }} />
-        {pr <= 0 && <p className="text-[10px] text-[var(--text-muted)] mt-1.5">내 열은 원금 입력 시 %로 바뀝니다(지금은 월 순손익 USDT). 지수는 그 달 종가 기준 월간 변화.</p>}
+        {pr <= 0 && <p className="text-cap-pc text-[var(--text-muted)] mt-1.5">내 열은 원금 입력 시 %로 바뀝니다(지금은 월 순손익 USDT). 지수는 그 달 종가 기준 월간 변화.</p>}
       </div>
     </div>
   );
@@ -174,7 +174,7 @@ const kstDateTime = (ts: number) =>
 const kstMonthLabel = (ym: string) => { const [y, m] = ym.split('-'); return `${y}년 ${Number(m)}월`; };
 
 function SideBadge({ side }: { side: 'long' | 'short' }) {
-  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${side === 'long' ? 'text-[#ff4433] bg-[#ff4433]/10' : 'text-[#1c6cff] bg-[#1c6cff]/10'}`}>{side === 'long' ? '롱' : '숏'}</span>;
+  return <span className={`text-cap-pc font-bold px-1.5 py-0.5 rounded ${side === 'long' ? 'text-[#ff4433] bg-[#ff4433]/10' : 'text-[#1c6cff] bg-[#1c6cff]/10'}`}>{side === 'long' ? '롱' : '숏'}</span>;
 }
 
 function Chevron({ open }: { open: boolean }) {
@@ -388,7 +388,7 @@ export default function JournalPage() {
       <details className="mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
         <summary className="cursor-pointer select-none px-4 py-2.5 text-[12px] font-semibold text-[var(--text)] flex items-center gap-2">
           <span>📖 복기 사용법</span>
-          <span className="text-[10px] font-normal text-[var(--text-muted)]">기록 → 태그 → 복기, 3단계</span>
+          <span className="text-cap-pc font-normal text-[var(--text-muted)]">기록 → 태그 → 복기, 3단계</span>
         </summary>
         <div className="px-4 pb-3 pt-0 text-[11.5px] text-[var(--text-muted)] leading-relaxed space-y-1.5 border-t border-[var(--line-2)]">
           <p className="pt-2"><b className="text-[var(--text)]">① 기록은 자동</b> — 거래소 청산 내역·실현손익(수수료·펀딩 반영)을 그대로 불러옵니다. 적을 필요 없습니다.</p>
@@ -431,7 +431,7 @@ export default function JournalPage() {
             <p className="text-[11px] text-[var(--text-muted)]">{k}</p>
             <p className="text-[17px] font-bold tabular-nums" style={{ color: !signed ? 'var(--text)' : v > 0 ? 'var(--up)' : v < 0 ? 'var(--down)' : 'var(--text)' }}>
               {signed ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 2 })}` : v}
-              {signed && <span className="text-[10.5px] font-medium text-[var(--text-muted)] ml-1">USDT</span>}
+              {signed && <span className="text-cap font-medium text-[var(--text-muted)] ml-1">USDT</span>}
             </p>
           </div>
         );
@@ -457,7 +457,7 @@ export default function JournalPage() {
           {/* 현재 포지션 (미청산) — 진입 당시 기분을 바로 기록 */}
           {open.length > 0 && (
             <section className="mb-5">
-              <h2 className="text-sm font-bold text-[var(--text)] mb-2">현재 포지션 <span className="text-[10px] font-normal text-[var(--text-muted)]">미청산 · 눌러서 기분·태그 기록</span></h2>
+              <h2 className="text-sm font-bold text-[var(--text)] mb-2">현재 포지션 <span className="text-cap-pc font-normal text-[var(--text-muted)]">미청산 · 눌러서 기분·태그 기록</span></h2>
               <div className="fin-card overflow-hidden">
                 {open.map((p, i) => {
                   const id = openId(p);
@@ -470,7 +470,7 @@ export default function JournalPage() {
                         <span className="flex items-center gap-1.5 flex-wrap">
                           <b className="text-[14px] text-[var(--text)]">{coinName(p.symbol)}</b>
                           <SideBadge side={p.side} />
-                          {p.leverage > 0 && <span className="text-[10px] font-bold text-[var(--faint)]">{p.leverage}x</span>}
+                          {p.leverage > 0 && <span className="text-cap-pc font-bold text-[var(--faint)]">{p.leverage}x</span>}
                           {meta && <span className="text-[11px]">{meta.emoji} {meta.label}</span>}
                           <TagEmojis set={tags[id]} />
                           {snaps.ids.has(id) && <span className="text-[11px] text-[var(--faint)]" title="차트 이미지 있음">📎</span>}
@@ -481,7 +481,7 @@ export default function JournalPage() {
                       </span>
                       <span className="text-right shrink-0">
                         <span className="block text-[14px] font-bold tabular-nums" style={{ color: pnlColor(p.unrealizedPL) }}>{fmtPnl(p.unrealizedPL)}</span>
-                        <span className="block text-[10px] text-[var(--faint)]">미실현</span>
+                        <span className="block text-cap-pc text-[var(--faint)]">미실현</span>
                       </span>
                     </button>
                   );
@@ -517,7 +517,7 @@ export default function JournalPage() {
           {/* ③ 월별 보고서 — 접힘 상태로 월 목록만, 월을 누르면 상세 펼침(청산 건만) */}
           {months.length > 0 && (
             <section id="sec-months" className="scroll-mt-16 mb-5">
-              <h2 className="text-sm font-bold text-[var(--text)] mb-2">월별 보고서 <span className="text-[10px] font-normal text-[var(--text-muted)]">월을 누르면 상세가 열립니다</span></h2>
+              <h2 className="text-sm font-bold text-[var(--text)] mb-2">월별 보고서 <span className="text-cap-pc font-normal text-[var(--text-muted)]">월을 누르면 상세가 열립니다</span></h2>
               <div className="fin-card overflow-hidden">
                 {months.map((m, i) => {
                   const isOpen = selMonth === m.month;
@@ -556,7 +556,7 @@ export default function JournalPage() {
                           {/* 기분별 성적(그 달) */}
                           {mm.length > 0 && (
                             <div className="mt-4">
-                              <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">기분별 성적 <span className="text-[10px] font-normal text-[var(--text-muted)]">어떤 심리일 때 잘·못 했나</span></h3>
+                              <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">기분별 성적 <span className="text-cap-pc font-normal text-[var(--text-muted)]">어떤 심리일 때 잘·못 했나</span></h3>
                               <div className="space-y-1.5">
                                 {mm.map((s) => {
                                   const meta = MOOD_BY_KEY.get(s.mood)!;
@@ -575,7 +575,7 @@ export default function JournalPage() {
 
                           {/* 거래내역(그 달, 청산 성적) — 행을 눌러 기분·태그 기록 */}
                           <div className="mt-4">
-                            <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">거래내역 <span className="text-[10px] font-normal text-[var(--text-muted)]">행을 눌러 기분·태그 기록</span></h3>
+                            <h3 className="text-[12px] font-bold text-[var(--text)] mb-1.5">거래내역 <span className="text-cap-pc font-normal text-[var(--text-muted)]">행을 눌러 기분·태그 기록</span></h3>
                             <div className="rounded-xl border border-[var(--line-2)] overflow-hidden">
                               {trades.map((p, j) => (
                                 <TradeRow key={p.positionId} p={p} mood={moods[p.positionId]} tagset={tags[p.positionId]} hasSnap={snaps.ids.has(p.positionId)} border={j > 0}
@@ -676,7 +676,7 @@ export default function JournalPage() {
                   <button key={k} type="button" role="tab" aria-selected={convPeriod === k} className={`seg-i !px-2.5 ${convPeriod === k ? 'on' : ''}`} onClick={() => setConvPeriod(k)}>{l}</button>
                 ))}
               </div>
-              {convPeriod === 'month' && <span className="text-[10px] text-[var(--faint)] tabular-nums">{curYM.replace('-', '.')} 기준</span>}
+              {convPeriod === 'month' && <span className="text-cap-pc text-[var(--faint)] tabular-nums">{curYM.replace('-', '.')} 기준</span>}
             </div>
           )}
           {positions.length > 0 && convStatsAll.length > 0 && convStats.length === 0 && (
@@ -740,7 +740,7 @@ export default function JournalPage() {
         </div>
       )}
 
-      <p className="text-[10px] text-[var(--text-muted)] mt-4 leading-relaxed">
+      <p className="text-cap-pc text-[var(--text-muted)] mt-4 leading-relaxed">
         ※ 월별 보고서·손익은 <strong className="text-[var(--text)]">거래소가 청산한 포지션</strong>만 반영합니다(수수료·펀딩 포함). 현재 포지션의 미실현손익은 참고용이며 보고서에 넣지 않습니다.
         기분·셋업·실수 태그는 이 브라우저에만 저장되며 <Link href="/tools#backup" className="text-sky-400 hover:underline">더보기 › 데이터 백업</Link>에서 내보낼 수 있습니다. 읽기 전용 조회이며 주문은 하지 않습니다.
       </p>
@@ -808,7 +808,7 @@ export default function JournalPage() {
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={200}
           placeholder="메모(선택) — 왜 그렇게 들어갔나, 무엇을 배웠나"
           className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[13px] text-[var(--text)] resize-none" />
-        <p className="text-[10px] text-[var(--faint)] mt-2">메모는 기분을 함께 고를 때 저장됩니다. 셋업·실수 태그·차트 이미지는 기분 없이도 저장돼요(이미지는 이 기기에만).</p>
+        <p className="text-cap-pc text-[var(--faint)] mt-2">메모는 기분을 함께 고를 때 저장됩니다. 셋업·실수 태그·차트 이미지는 기분 없이도 저장돼요(이미지는 이 기기에만).</p>
       </BottomSheet>
 
       {!mounted && <div className="skeleton h-40 mt-3" />}
@@ -866,7 +866,7 @@ function DayTrades({ date, trades, moods, tags, snapIds, onEdit, onClose }: {
         <TradeRow key={p.positionId} p={p} mood={moods[p.positionId]} tagset={tags[p.positionId]} hasSnap={snapIds.has(p.positionId)} border={j > 0}
           onEdit={() => onEdit(p)} />
       ))}
-      <p className="px-3 py-1.5 text-[10px] text-[var(--faint)] border-t border-[var(--line-2)]">청산 시각(KST) 기준 · 행을 누르면 기분·태그·스냅샷 기록</p>
+      <p className="px-3 py-1.5 text-cap-pc text-[var(--faint)] border-t border-[var(--line-2)]">청산 시각(KST) 기준 · 행을 누르면 기분·태그·스냅샷 기록</p>
     </div>
   );
 }
@@ -914,13 +914,13 @@ function BucketTrades({ title, trades, moods, tags, snapIds, onEdit, onClose, no
         <span className="ml-auto text-[13px] font-bold tabular-nums" style={{ color: pnlColor(sum) }}>{fmtPnl(sum)} USDT</span>
         {trades.length > 0 && (
           <button type="button" onClick={exportBucket} title="이 구간 매매만 CSV로 저장"
-            className="px-2 py-0.5 rounded-md border border-[var(--line-2)] text-[10px] text-[var(--text-muted)] hover:text-[var(--text)]">CSV</button>
+            className="px-2 py-0.5 rounded-md border border-[var(--line-2)] text-cap-pc text-[var(--text-muted)] hover:text-[var(--text)]">CSV</button>
         )}
         <button type="button" onClick={onClose} aria-label="상세 닫기" className="w-7 h-7 grid place-items-center rounded-lg text-[var(--text-muted)]">✕</button>
       </div>
       {chips.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap px-3 py-1.5 border-b border-[var(--line-2)] bg-[var(--bg-card)]">
-          <span className="text-[10px] text-[var(--text-muted)]">태그 분포</span>
+          <span className="text-cap-pc text-[var(--text-muted)]">태그 분포</span>
           {chips.map((t) => (
             <span key={t.key} className="inline-flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded-md border border-[var(--line-2)]" style={{ color: t.c }}>
               {t.emoji} {t.label} <b className="tabular-nums">{t.count}</b>
@@ -934,7 +934,7 @@ function BucketTrades({ title, trades, moods, tags, snapIds, onEdit, onClose, no
         <TradeRow key={p.positionId} p={p} mood={moods[p.positionId]} tagset={tags[p.positionId]} hasSnap={snapIds.has(p.positionId)} border={j > 0}
           onEdit={() => onEdit(p)} />
       ))}
-      <p className="px-3 py-1.5 text-[10px] text-[var(--faint)] border-t border-[var(--line-2)]">{note ?? '행을 누르면 기분·태그·스냅샷 기록'}</p>
+      <p className="px-3 py-1.5 text-cap-pc text-[var(--faint)] border-t border-[var(--line-2)]">{note ?? '행을 누르면 기분·태그·스냅샷 기록'}</p>
     </div>
   );
 }
@@ -971,7 +971,7 @@ function TagChip({ meta, on, onClick, tone }: { meta: TagMeta; on: boolean; onCl
 function TagStatTable({ title, sub, stats }: { title: string; sub: string; stats: TagStat[] }) {
   return (
     <div className="fin-card p-4">
-      <h3 className="text-[13px] font-bold text-[var(--text)] mb-2">{title} <span className="text-[10px] font-normal text-[var(--text-muted)]">{sub}</span></h3>
+      <h3 className="text-[13px] font-bold text-[var(--text)] mb-2">{title} <span className="text-cap-pc font-normal text-[var(--text-muted)]">{sub}</span></h3>
       {stats.length === 0 ? (
         <p className="text-[11px] text-[var(--faint)] py-2">아직 태그가 없습니다.</p>
       ) : (
@@ -984,7 +984,7 @@ function TagStatTable({ title, sub, stats }: { title: string; sub: string; stats
               <span className="font-bold tabular-nums w-20 text-right" style={{ color: s.netSum > 0 ? 'var(--warn)' : s.netSum < 0 ? 'var(--accent-ink)' : 'var(--text)' }}>{fmtPnl(s.netSum)}</span>
             </div>
           ))}
-          <p className="text-[10px] text-[var(--faint)] pt-1 leading-relaxed">한 매매에 태그가 여러 개면 각 태그에 모두 반영 · 순손익 USDT</p>
+          <p className="text-cap-pc text-[var(--faint)] pt-1 leading-relaxed">한 매매에 태그가 여러 개면 각 태그에 모두 반영 · 순손익 USDT</p>
         </div>
       )}
     </div>

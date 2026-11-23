@@ -168,7 +168,7 @@ export default function Figure({ panels, from = 0, to, caption, label, padRight 
       </div>
       <figcaption className="text-[11.5px] leading-relaxed text-[var(--text-muted)] mt-1.5 px-0.5">
         {caption}
-        <span className="text-[10px] text-[var(--faint)] ml-1">(설명용 가상 데이터 · 지표는 실제 공식으로 계산)</span>
+        <span className="text-cap-pc text-[var(--faint)] ml-1">(설명용 가상 데이터 · 지표는 실제 공식으로 계산)</span>
       </figcaption>
     </figure>
   );

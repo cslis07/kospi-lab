@@ -139,7 +139,7 @@ export default function ReleasesPage() {
               </div>
             </div>
             <ReleaseChartLazy rows={chartRows} />
-            <p className="text-[10px] text-[var(--text-muted)] mt-1.5">결과값(발표치) 추이. 마우스를 올리면 날짜·결과·예측·이전이 표시됩니다.{file.rows.some((r) => /K|%|만/.test(r.actual || '')) ? ' 단위는 표(아래) 기준.' : ''}</p>
+            <p className="text-cap-pc text-[var(--text-muted)] mt-1.5">결과값(발표치) 추이. 마우스를 올리면 날짜·결과·예측·이전이 표시됩니다.{file.rows.some((r) => /K|%|만/.test(r.actual || '')) ? ' 단위는 표(아래) 기준.' : ''}</p>
           </div>
 
           {/* 연도 필터 */}
@@ -168,7 +168,7 @@ export default function ReleasesPage() {
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={r.date + i} className={`border-b border-[var(--border)]/50 ${!r.actual ? 'bg-[var(--surface-2)]/40' : ''}`}>
-                      <td className="px-3 py-2 font-semibold text-[var(--text)] whitespace-nowrap">{r.date}{r.ref ? <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1">({r.ref})</span> : ''}</td>
+                      <td className="px-3 py-2 font-semibold text-[var(--text)] whitespace-nowrap">{r.date}{r.ref ? <span className="text-cap-pc font-normal text-[var(--text-muted)] ml-1">({r.ref})</span> : ''}</td>
                       <td className="px-2 py-2 text-[var(--text-muted)] whitespace-nowrap">{r.time ?? '-'}</td>
                       <td className={`px-2 py-2 text-right font-bold tabular-nums ${actualClass(r.actual, r.forecast)}`}>{r.actual || (r.actual === '' ? '-' : pendingLabel(r.date, idx?.updatedAt))}</td>
                       <td className="px-2 py-2 text-right tabular-nums text-[var(--text-muted)]">{r.forecast || '-'}</td>
@@ -216,7 +216,7 @@ export default function ReleasesPage() {
                     </tbody>
                   </table>
                 </div>
-                <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
+                <p className="text-cap-pc text-[var(--text-muted)] mt-2 leading-relaxed">
                   각 칸 = 평균 변동% · 상승 비율(표본 수) — 상승 비율은 과거 표본 중 오른 날의 비율이지 미래 상승 확률이 아닙니다. <b>상회/하회는 좋고 나쁨이 아니라 결과가 예측보다 높았나 낮았나</b>일 뿐입니다(지표마다 의미 다름).
                   변동폭이 대조군과 비슷하거나 표본(괄호)이 적으면(주황) <b className="text-amber-400">우연</b>입니다 — 이 앱의 측정에서 지표 서프라이즈로 다음날을 맞히는 우위는 거의 없었습니다. 상관이지 인과 아님.
                 </p>

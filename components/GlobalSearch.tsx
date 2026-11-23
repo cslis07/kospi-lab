@@ -83,7 +83,7 @@ export default function GlobalSearch() {
           onBlur={() => setFocused(false)}
           className="flex-1 bg-transparent text-xs text-[var(--text)] placeholder-[var(--text-muted)] outline-none min-w-0"
         />
-        <kbd className="hidden lg:inline text-[10px] text-[var(--text-muted)] border border-[var(--border)] rounded px-1.5 py-0.5 whitespace-nowrap" title="Windows Ctrl+K · macOS ⌘K">{isMac ? '⌘K' : 'Ctrl K'}</kbd>
+        <kbd className="hidden lg:inline text-cap-pc text-[var(--text-muted)] border border-[var(--border)] rounded px-1.5 py-0.5 whitespace-nowrap" title="Windows Ctrl+K · macOS ⌘K">{isMac ? '⌘K' : 'Ctrl K'}</kbd>
       </div>
 
       {open && hits.length > 0 && (
@@ -95,8 +95,8 @@ export default function GlobalSearch() {
               }`}>
               <span className="text-xs text-[var(--text)] truncate">{h.name}</span>
               <div className="flex items-center gap-1.5 shrink-0">
-                {h.market && <span className="text-[9px] px-1 py-0.5 rounded bg-white/5 text-[var(--text-muted)]">{h.market}</span>}
-                <span className="text-[10px] font-mono text-[var(--text-muted)]">{(h.code ?? h.ticker).replace(/\.(KS|KQ)$/, '')}</span>
+                {h.market && <span className="text-cap px-1 py-0.5 rounded bg-white/5 text-[var(--text-muted)]">{h.market}</span>}
+                <span className="text-cap-pc font-mono text-[var(--text-muted)]">{(h.code ?? h.ticker).replace(/\.(KS|KQ)$/, '')}</span>
               </div>
             </button>
           ))}

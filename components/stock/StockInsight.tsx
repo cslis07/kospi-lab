@@ -58,14 +58,14 @@ export function ValuationSection({ code, price }: { code: string; price: number 
           </div>
           {pos != null && (
             <div className="mt-3">
-              <div className="flex justify-between text-[10.5px] text-[var(--faint)]"><span>매도</span><span>중립</span><span>매수</span></div>
+              <div className="flex justify-between text-cap text-[var(--faint)]"><span>매도</span><span>중립</span><span>매수</span></div>
               <div className="relative h-1.5 rounded-full mt-1" style={{ background: `linear-gradient(90deg, ${DOWN}, var(--line) 50%, ${UP})` }} aria-hidden>
                 <span className="absolute top-1/2 w-3 h-3 rounded-full border-2 border-[var(--surface)]" style={{ left: `calc(${pos}% - 6px)`, transform: 'translateY(-50%)', background: 'var(--ink)' }} />
               </div>
               <p className="text-[12px] mt-1.5 text-[var(--text)]">투자의견 평균 <b>{c.recommMean?.toFixed(2)}</b> / 5 {op && <span className="text-[var(--text-muted)]">({op})</span>}</p>
             </div>
           )}
-          <p className="text-[10.5px] text-[var(--faint)] mt-2">증권사 의견 평균{c.date ? ` · ${c.date} 기준` : ''}. 목표주가는 예측이며 매수·매도 신호가 아닙니다.</p>
+          <p className="text-cap text-[var(--faint)] mt-2">증권사 의견 평균{c.date ? ` · ${c.date} 기준` : ''}. 목표주가는 예측이며 매수·매도 신호가 아닙니다.</p>
         </div>
       )}
       {data.metrics.length > 0 && (
@@ -79,7 +79,7 @@ export function ValuationSection({ code, price }: { code: string; price: number 
         </dl>
       )}
       {data.metrics.some((m) => m.key === 'cnsPer') && (
-        <p className="text-[10.5px] text-[var(--faint)] mt-2">추정 PER·EPS = 증권사 올해 실적 추정치 기준. 업종마다 적정 수준이 달라 같은 업종끼리 비교하세요.</p>
+        <p className="text-cap text-[var(--faint)] mt-2">추정 PER·EPS = 증권사 올해 실적 추정치 기준. 업종마다 적정 수준이 달라 같은 업종끼리 비교하세요.</p>
       )}
     </Collapsible>
   );
@@ -99,7 +99,7 @@ export function PeersSection({ code }: { code: string }) {
           <Link key={p.code} href={`/stock/${p.code}`} className="grid grid-cols-[1fr_auto_auto] gap-x-3 items-center px-1 py-2 border-b border-[var(--line-2)] last:border-0 hover:bg-[var(--bg-card-hover)] rounded-md">
             <span className="min-w-0">
               <span className="block text-[13px] text-[var(--ink)] truncate">{p.name}</span>
-              <span className="block text-[10.5px] text-[var(--faint)]">{p.code}{p.market ? ` · ${p.market}` : ''}</span>
+              <span className="block text-cap text-[var(--faint)]">{p.code}{p.market ? ` · ${p.market}` : ''}</span>
             </span>
             <span className="text-right tabular-nums">
               <span className="block text-[13px] text-[var(--ink)]">{won(p.price)}</span>
@@ -109,7 +109,7 @@ export function PeersSection({ code }: { code: string }) {
           </Link>
         ))}
       </div>
-      <p className="text-[10.5px] text-[var(--faint)] mt-2">네이버 업종 분류 기준 비교 종목.</p>
+      <p className="text-cap text-[var(--faint)] mt-2">네이버 업종 분류 기준 비교 종목.</p>
     </Collapsible>
   );
 }
@@ -160,7 +160,7 @@ function HoldSpark({ rows }: { rows: FlowRow[] }) {
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-12 mt-1" preserveAspectRatio="none" role="img" aria-label={`외국인 보유율 ${vs[0].toFixed(2)}%에서 ${vs[vs.length - 1].toFixed(2)}%로`}>
         <path d={d} fill="none" stroke="var(--accent)" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
       </svg>
-      <div className="flex justify-between text-[10.5px] text-[var(--faint)] tabular-nums"><span>{pts[0].date}</span><span>{pts[pts.length - 1].date}</span></div>
+      <div className="flex justify-between text-cap text-[var(--faint)] tabular-nums"><span>{pts[0].date}</span><span>{pts[pts.length - 1].date}</span></div>
     </div>
   );
 }
@@ -252,7 +252,7 @@ export function OverseasInsightSections({ symbol, price }: { symbol: string; pri
             </div>
           )}
           {op && <p className="text-[12px] mt-2 text-[var(--text)]">투자의견 평균 <b>{c.recommMean?.toFixed(2)}</b> / 5 <span className="text-[var(--text-muted)]">({op})</span></p>}
-          <p className="text-[10.5px] text-[var(--faint)] mt-2">애널리스트 의견 평균{c.date ? ` · ${c.date} 기준` : ''}. 목표주가는 예측이며 매수·매도 신호가 아닙니다.</p>
+          <p className="text-cap text-[var(--faint)] mt-2">애널리스트 의견 평균{c.date ? ` · ${c.date} 기준` : ''}. 목표주가는 예측이며 매수·매도 신호가 아닙니다.</p>
         </Collapsible>
       )}
       {data.overview && (
@@ -270,7 +270,7 @@ export function OverseasInsightSections({ symbol, price }: { symbol: string; pri
               <Link key={p.symbol} href={`/overseas/${encodeURIComponent(p.symbol)}`} className="grid grid-cols-[1fr_auto_auto] gap-x-3 items-center px-1 py-2 border-b border-[var(--line-2)] last:border-0 hover:bg-[var(--bg-card-hover)] rounded-md">
                 <span className="min-w-0">
                   <span className="block text-[13px] text-[var(--ink)] truncate">{p.name}</span>
-                  <span className="block text-[10.5px] text-[var(--faint)]">{p.symbol}{p.dividendYield ? ` · 배당 ${p.dividendYield.toFixed(2)}%` : ''}</span>
+                  <span className="block text-cap text-[var(--faint)]">{p.symbol}{p.dividendYield ? ` · 배당 ${p.dividendYield.toFixed(2)}%` : ''}</span>
                 </span>
                 <span className="text-right tabular-nums">
                   <span className="block text-[13px] text-[var(--ink)]">{usd(p.price)}</span>
@@ -303,13 +303,13 @@ export function ShareholdersSection({ code }: { code: string }) {
           <li key={h.name}>
             <div className="flex items-baseline justify-between gap-2 text-[12.5px]">
               <span className="truncate text-[var(--ink)]">{h.name}</span>
-              <span className="tabular-nums shrink-0"><b className="text-[var(--ink)]">{h.ownershipPct.toFixed(2)}%</b><span className="text-[10.5px] text-[var(--faint)] ml-1.5">{h.shares.toLocaleString('ko-KR')}주</span></span>
+              <span className="tabular-nums shrink-0"><b className="text-[var(--ink)]">{h.ownershipPct.toFixed(2)}%</b><span className="text-cap text-[var(--faint)] ml-1.5">{h.shares.toLocaleString('ko-KR')}주</span></span>
             </div>
             <div className="h-1.5 rounded-full bg-[var(--surface-2)] mt-1 overflow-hidden" aria-hidden><div className="h-full rounded-full" style={{ width: `${(h.ownershipPct / max) * 100}%`, background: 'var(--accent)' }} /></div>
           </li>
         ))}
       </ul>
-      <p className="text-[10.5px] text-[var(--faint)] mt-2">연 1회 사업보고서 기준이라 그 뒤 지분 변동은 반영되지 않습니다. 최신 변동은 공시 탭을 확인하세요.</p>
+      <p className="text-cap text-[var(--faint)] mt-2">연 1회 사업보고서 기준이라 그 뒤 지분 변동은 반영되지 않습니다. 최신 변동은 공시 탭을 확인하세요.</p>
     </Collapsible>
   );
 }

@@ -118,7 +118,7 @@ export default function KrStockChart({
             {/* RSI 차트 */}
             {showRSI && !compareTicker && rsiData.length > 0 && (
               <div className="mt-3 border-t border-[var(--border)] pt-3">
-                <p className="text-[10px] text-[var(--text-muted)] mb-1">RSI (14)</p>
+                <p className="text-cap-pc text-[var(--text-muted)] mb-1">RSI (14)</p>
                 <ResponsiveContainer width="100%" height={80}>
                   <ComposedChart data={rsiData} margin={{ top: 0, right: 5, left: 10, bottom: 0 }}>
                     <YAxis domain={[0, 100]} ticks={[30, 70]} tick={{ fontSize: 9, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={24} />

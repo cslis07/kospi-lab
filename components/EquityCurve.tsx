@@ -57,7 +57,7 @@ export default function EquityCurve({ trades, unit, fmt }: {
         <span className="inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] overflow-hidden">
           <input type="number" inputMode="numeric" value={target || ''} placeholder="예: 500" onChange={(e) => onTarget(Math.max(0, Number(e.target.value) || 0))}
             className="w-[76px] bg-transparent px-2 py-1 text-[12px] text-[var(--text)] tabular-nums outline-none" />
-          <span className="px-1.5 text-[10px] text-[var(--text-muted)]">{unit}/월</span>
+          <span className="px-1.5 text-cap-pc text-[var(--text-muted)]">{unit}/월</span>
         </span>
         {target > 0 && (
           <span className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden" role="group" aria-label="목표선 방식">
@@ -113,7 +113,7 @@ export default function EquityCurve({ trades, unit, fmt }: {
       {/* 수면 아래(underwater) — 누적 최고 대비 낙폭을 음(−)으로 그려 MDD를 눈으로 본다 */}
       {eq.maxDrawdown > 0 && (
         <>
-          <p className="text-[10px] text-[var(--text-muted)] mt-1 mb-0.5">최고점 대비 낙폭(underwater)</p>
+          <p className="text-cap-pc text-[var(--text-muted)] mt-1 mb-0.5">최고점 대비 낙폭(underwater)</p>
           <ResponsiveContainer width="100%" height={44}>
             <AreaChart data={data} margin={{ top: 2, right: 6, left: 2, bottom: 0 }}>
               <XAxis dataKey="date" hide /><YAxis hide domain={[(dataMin: number) => Math.min(dataMin, -1), 0]} />
@@ -131,22 +131,22 @@ function Head({ finalCum, mdd, n, unit, fmt }: {
 }) {
   return (
     <div className="flex items-center justify-between gap-2 mb-3">
-      <h2 className="text-sm font-bold text-[var(--text)]">자산 곡선 <span className="text-[10px] font-normal text-[var(--text-muted)]">누적 손익 · 최대낙폭</span></h2>
+      <h2 className="text-sm font-bold text-[var(--text)]">자산 곡선 <span className="text-cap-pc font-normal text-[var(--text-muted)]">누적 손익 · 최대낙폭</span></h2>
       <div className="flex items-center gap-3 text-right">
         <div>
-          <p className="text-[9px] text-[var(--text-muted)]">최종 누적</p>
+          <p className="text-cap text-[var(--text-muted)]">최종 누적</p>
           <p className="text-[14px] font-extrabold tabular-nums leading-tight" style={{ color: finalCum > 0 ? UP : finalCum < 0 ? DOWN : 'var(--faint)' }}>
-            {finalCum > 0 ? '+' : ''}{fmt(finalCum)}<span className="text-[9px] font-normal text-[var(--faint)] ml-0.5">{unit}</span>
+            {finalCum > 0 ? '+' : ''}{fmt(finalCum)}<span className="text-cap font-normal text-[var(--faint)] ml-0.5">{unit}</span>
           </p>
         </div>
         <div>
-          <p className="text-[9px] text-[var(--text-muted)]">최대낙폭(MDD)</p>
+          <p className="text-cap text-[var(--text-muted)]">최대낙폭(MDD)</p>
           <p className="text-[14px] font-extrabold tabular-nums leading-tight" style={{ color: mdd > 0 ? UP : 'var(--faint)' }}>
-            −{fmt(mdd)}<span className="text-[9px] font-normal text-[var(--faint)] ml-0.5">{unit}</span>
+            −{fmt(mdd)}<span className="text-cap font-normal text-[var(--faint)] ml-0.5">{unit}</span>
           </p>
         </div>
         <div>
-          <p className="text-[9px] text-[var(--text-muted)]">거래</p>
+          <p className="text-cap text-[var(--text-muted)]">거래</p>
           <p className="text-[14px] font-extrabold tabular-nums leading-tight text-[var(--text)]">{n}건</p>
         </div>
       </div>

@@ -76,7 +76,7 @@ function MacroCell({ m }: { m: MacroNum }) {
         <span className={`text-xs font-mono ${changeColor(m.change)}`}>{m.changeText}</span>
       </div>
       {m.hint && <div className="mt-1 text-[11px] leading-snug text-[var(--text-muted)] opacity-80">{m.hint}</div>}
-      <div className="mt-1 text-[10px] text-[var(--text-muted)] opacity-60 tabular-nums">{[asOfText(m), m.source].filter(Boolean).join(' · ')}</div>
+      <div className="mt-1 text-cap-pc text-[var(--text-muted)] opacity-60 tabular-nums">{[asOfText(m), m.source].filter(Boolean).join(' · ')}</div>
     </div>
   );
 }
@@ -124,7 +124,7 @@ function EdgeSection({ e }: { e: EdgeReport }) {
       <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-x-auto">
         <table className="w-full text-[12px] tabular-nums" style={{ minWidth: 330 }}>
           <thead>
-            <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+            <tr className="text-cap text-[var(--text-muted)] text-right">
               <th className="text-left font-semibold px-3 py-2">전날 조건</th>
               <th className="font-semibold px-2">다음 날 상승</th>
               {hasIntra && <th className="font-semibold px-2">시가→종가</th>}
@@ -141,19 +141,19 @@ function EdgeSection({ e }: { e: EdgeReport }) {
                 <tr key={`${r.factor}-${r.bucket}`} className="border-t border-[var(--border)] text-right" style={now ? { background: 'rgba(56,189,248,.08)' } : undefined}>
                   <td className="text-left px-3 py-2">
                     <span className="text-[var(--text)] font-medium">{r.label} {r.bucket === 'surge' ? '급등' : '급락'}</span>
-                    <span className="block text-[10px] text-[var(--text-muted)]">{r.bucket === 'surge' ? '≥' : '≤'} {thr(r)}{now && l ? <b className="text-sky-400"> · 최근({l.date.slice(5)}) 해당</b> : null}</span>
+                    <span className="block text-cap-pc text-[var(--text-muted)]">{r.bucket === 'surge' ? '≥' : '≤'} {thr(r)}{now && l ? <b className="text-sky-400"> · 최근({l.date.slice(5)}) 해당</b> : null}</span>
                   </td>
                   <td className="px-2">
                     <b className={r.verdict === 'significant' ? changeColor(r.diff) : 'text-[var(--text)]'}>{r.upRate.toFixed(0)}%</b>
-                    <span className="block text-[10px] text-[var(--text-muted)]">평소 {r.baseRate.toFixed(0)}%</span>
+                    <span className="block text-cap-pc text-[var(--text-muted)]">평소 {r.baseRate.toFixed(0)}%</span>
                   </td>
                   {hasIntra && (
                     <td className="px-2">
-                      {r.intra ? <><span className="text-[var(--text)]">{r.intra.upRate.toFixed(0)}%</span><span className="block text-[10px] text-[var(--text-muted)]">평소 {r.intra.baseRate.toFixed(0)}%</span></> : '—'}
+                      {r.intra ? <><span className="text-[var(--text)]">{r.intra.upRate.toFixed(0)}%</span><span className="block text-cap-pc text-[var(--text-muted)]">평소 {r.intra.baseRate.toFixed(0)}%</span></> : '—'}
                     </td>
                   )}
                   <td className="px-2 text-[var(--text-muted)]">{r.n}</td>
-                  <td className="px-3"><span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${v.cls}`}>{v.label}</span></td>
+                  <td className="px-3"><span className={`inline-block text-cap-pc font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${v.cls}`}>{v.label}</span></td>
                 </tr>
               );
             })}
@@ -204,7 +204,7 @@ function NewsRow({ item }: { item: BriefNews }) {
       rel="noopener noreferrer"
       className="flex items-start gap-2.5 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-sky-500/40 hover:bg-sky-500/5 transition-colors group"
     >
-      {tag && <span className={`mt-0.5 shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${tag.cls}`}>{tag.label}</span>}
+      {tag && <span className={`mt-0.5 shrink-0 text-cap-pc font-bold px-1.5 py-0.5 rounded ${tag.cls}`}>{tag.label}</span>}
       <div className="flex-1 min-w-0">
         <p className="text-sm text-[var(--text)] leading-snug group-hover:text-sky-400 transition-colors line-clamp-2">{item.title}</p>
         <span className="text-xs text-[var(--text-muted)] opacity-60">{[item.source, ago(item.ts)].filter(Boolean).join(' · ')}</span>
@@ -265,7 +265,7 @@ export default function BriefPage() {
       {market === 'coin' && (
         <Link href="/eth" className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3.5 py-2.5 mb-4 hover:border-[var(--text-muted)]">
           <div>
-            <p className="text-[13px] font-bold text-[var(--text)]">ETH 체제 보드 <span className="text-[10px] font-normal text-sky-400 align-middle">심층</span></p>
+            <p className="text-[13px] font-bold text-[var(--text)]">ETH 체제 보드 <span className="text-cap-pc font-normal text-sky-400 align-middle">심층</span></p>
             <p className="text-[11px] text-[var(--text-muted)] mt-0.5">공급·수요·포지셔닝·거시 4층 · 예측 아님</p>
           </div>
           <span className="text-sky-400 text-lg">→</span>
@@ -287,10 +287,10 @@ export default function BriefPage() {
           <div className="fin-card ai p-4">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <h3 className="text-sm font-semibold text-[var(--text)]">① 오늘의 핵심 3가지</h3>
-              <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[var(--ai-soft)] text-[var(--ai)]">AI 요약 · 투자 신호 아님</span>
-              {ai?.at && <span className="text-[10px] text-[var(--text-muted)] opacity-70 tabular-nums">{hhmm(ai.at)} 작성</span>}
-              {ai?.model && <span className="text-[10px] text-[var(--text-muted)] opacity-50">{ai.model}</span>}
-              {ai?.stale && <span className="text-[10px] text-amber-400 opacity-80">이전 요약</span>}
+              <span className="text-cap font-bold px-2 py-0.5 rounded-full bg-[var(--ai-soft)] text-[var(--ai)]">AI 요약 · 투자 신호 아님</span>
+              {ai?.at && <span className="text-cap-pc text-[var(--text-muted)] opacity-70 tabular-nums">{hhmm(ai.at)} 작성</span>}
+              {ai?.model && <span className="text-cap-pc text-[var(--text-muted)] opacity-50">{ai.model}</span>}
+              {ai?.stale && <span className="text-cap-pc text-amber-400 opacity-80">이전 요약</span>}
             </div>
             {ai?.headline ? (
               <>
@@ -311,7 +311,7 @@ export default function BriefPage() {
                     </ul>
                   </details>
                 )}
-                <p className="mt-2 text-[10.5px] text-[var(--text-muted)]">
+                <p className="mt-2 text-cap text-[var(--text-muted)]">
                   <b>사실</b> = 아래 수치·뉴스 헤드라인(원문 출처·시각 표시) · <b>AI</b> = 그 사실을 문장으로 정리한 것(모델 의견 아님). 문장 속 수치는 아래 수치·헤드라인과 자동 대조했습니다{ai.dropped ? ` — 근거에 없는 숫자를 쓴 문장 ${ai.dropped}개 제외` : ''}. 요약 뒤에도 수치는 계속 갱신됩니다.
                 </p>
               </>
@@ -331,7 +331,7 @@ export default function BriefPage() {
                   <div key={`e-${i}`} className="flex items-center gap-3 p-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]">
                     <span className="text-xs font-mono text-[var(--text-muted)] shrink-0">{e.date.slice(5)}</span>
                     <span className="text-sm text-[var(--text)] flex-1 min-w-0 truncate">{e.title}</span>
-                    {e.importance === 'high' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--warn-soft)] text-[var(--warn)] shrink-0">중요</span>}
+                    {e.importance === 'high' && <span className="text-cap-pc font-bold px-1.5 py-0.5 rounded bg-[var(--warn-soft)] text-[var(--warn)] shrink-0">중요</span>}
                   </div>
                 ))}
               </div>
@@ -344,7 +344,7 @@ export default function BriefPage() {
           <div>
             <div className="flex items-baseline gap-2 mb-2">
               <h3 className="text-sm font-semibold text-[var(--text)]">지금 수치</h3>
-              <span className="text-[10.5px] text-[var(--text-muted)] tabular-nums">1분마다 갱신{live?.asOf ? ` · ${hhmm(live.asOf)} 조회` : ''}</span>
+              <span className="text-cap text-[var(--text-muted)] tabular-nums">1분마다 갱신{live?.asOf ? ` · ${hhmm(live.asOf)} 조회` : ''}</span>
             </div>
             <MacroGroups macro={macro} />
             <NowcastStrip className="mt-3" hub />
@@ -369,7 +369,7 @@ export default function BriefPage() {
           <div>
             <div className="flex items-baseline gap-2 mb-2">
               <h3 className="text-sm font-semibold text-[var(--text)]">관련 뉴스</h3>
-              <span className="text-[10.5px] text-[var(--text-muted)]">관련도·매체·신선도순 · 같은 사건 중복 제거</span>
+              <span className="text-cap text-[var(--text-muted)]">관련도·매체·신선도순 · 같은 사건 중복 제거</span>
             </div>
             {data.news.length > 0 ? (
               <div className="space-y-2">{data.news.map((n, i) => <NewsRow key={`n-${i}`} item={n} />)}</div>

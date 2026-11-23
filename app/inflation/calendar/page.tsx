@@ -36,7 +36,7 @@ export default function CalendarPage() {
               <li key={`${e.kind}-${e.date}-${i}`} className="border-t border-[var(--border)] pt-2.5 first:border-0 first:pt-0">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="flex items-center gap-1.5 min-w-0">
-                    <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--amber-soft)] text-[var(--amber)]">{KIND_KO[e.kind] ?? e.kind.toUpperCase()}</span>
+                    <span className="shrink-0 text-cap-pc font-bold px-1.5 py-0.5 rounded bg-[var(--amber-soft)] text-[var(--amber)]">{KIND_KO[e.kind] ?? e.kind.toUpperCase()}</span>
                     <span className="text-[12px] font-semibold text-[var(--text)] truncate">{e.data_month ?? ''}</span>
                   </span>
                   <span className="shrink-0 text-[11px] text-[var(--text-muted)] tabular-nums">{dShort(e.date)}</span>

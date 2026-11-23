@@ -24,7 +24,7 @@ export default function SetupConvictionCard({ rows, fmt, sub, kind = 'setup' }: 
     <section className="fin-card p-4 mb-3">
       <div className="flex items-center gap-2 flex-wrap mb-2">
         <h2 className="text-sm font-bold text-[var(--text)]">{isMistake ? '실수 × 확신' : '셋업 × 확신'}</h2>
-        <span className="text-[10px] text-[var(--text-muted)]">{sub ?? (isMistake
+        <span className="text-cap-pc text-[var(--text-muted)]">{sub ?? (isMistake
           ? '실수와 확신(1~5)을 둘 다 매긴 매매만 — 어떤 실수가 어떤 확신대에서 나왔나'
           : '셋업과 확신(1~5)을 둘 다 매긴 매매만 — 어떤 셋업에서 확신이 맞았나')}</span>
       </div>
@@ -32,7 +32,7 @@ export default function SetupConvictionCard({ rows, fmt, sub, kind = 'setup' }: 
       <div className="overflow-x-auto -mx-1">
         <table className="w-full text-[12px] tabular-nums mx-1" style={{ minWidth: 380 }}>
           <thead>
-            <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+            <tr className="text-cap text-[var(--text-muted)] text-right">
               <th className="text-left font-semibold py-1">{isMistake ? '실수' : '셋업'}</th>
               <th className="font-semibold">건</th>
               <th className="font-semibold">평균확신</th>
@@ -70,7 +70,7 @@ export default function SetupConvictionCard({ rows, fmt, sub, kind = 'setup' }: 
         </table>
       </div>
 
-      <p className="text-[10.5px] text-[var(--text-muted)] mt-2 leading-relaxed">
+      <p className="text-cap text-[var(--text-muted)] mt-2 leading-relaxed">
         {isMistake ? (
           <>&lsquo;확신↑/↓ 건&rsquo;은 그 실수가 <b>확신 4~5</b>에서 / <b>확신 1~3</b>에서 나온 건수.
             <b className="text-[var(--text)]"> 평균 확신이 높은 실수(⚠️)는 확신이 셀 때(과신) 저지른 실수</b>라 더 위험합니다. </>

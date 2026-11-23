@@ -42,7 +42,7 @@ export default function NextReleases({ rc, limit = 4, detailHref }: { rc?: Relea
               <span className="text-[12px] font-bold text-[var(--text)] truncate">{KIND_KO[e.kind] ?? e.kind.toUpperCase()}{e.data_month ? ` ${e.data_month}` : ''}</span>
               <span className="text-[11px] tabular-nums font-extrabold text-[var(--accent-ink)] shrink-0">{fmtCountdown(diff)}</span>
             </div>
-            <p className="text-[10px] text-[var(--text-muted)] tabular-nums mt-0.5">{kt ? `${kt} KST · ` : ''}{e.date}</p>
+            <p className="text-cap-pc text-[var(--text-muted)] tabular-nums mt-0.5">{kt ? `${kt} KST · ` : ''}{e.date}</p>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] tabular-nums mt-1.5">
               {e.street != null && <span className="text-[var(--text-muted)]">컨센서스 <b className="text-[var(--text)]">{fx(e.street, e.unit)}</b></span>}
               {e.nowflation_forecast != null && <span className="text-[var(--text-muted)]">나우캐스트 <b className="text-[var(--accent-ink)]">{fx(e.nowflation_forecast, e.unit)}</b></span>}

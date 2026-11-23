@@ -25,7 +25,7 @@ function Card({ title, flow }: { title: string; flow: EtfFlow | null }) {
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5">
       <div className="flex items-baseline justify-between mb-1">
         <p className="text-sm font-bold text-[var(--text)]">{title}</p>
-        <span className={`text-[10px] ${flow.stale ? 'text-amber-400 font-semibold' : 'text-[var(--text-muted)]'}`}>
+        <span className={`text-cap-pc ${flow.stale ? 'text-amber-400 font-semibold' : 'text-[var(--text-muted)]'}`}>
           {flow.latest.date}{flow.stale ? ` · ${flow.ageDays}일 지연` : ''}
         </span>
       </div>
@@ -44,7 +44,7 @@ function Card({ title, flow }: { title: string; flow: EtfFlow | null }) {
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-[var(--text-muted)] mt-2">누적 순유입 {signed(cum7)} · 최근 7일</p>
+      <p className="text-cap-pc text-[var(--text-muted)] mt-2">누적 순유입 {signed(cum7)} · 최근 7일</p>
     </div>
   );
 }

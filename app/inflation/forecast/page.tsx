@@ -151,7 +151,7 @@ function GroupCard({ items, refs }: { items: ForecastItem[]; refs: ForecastPaylo
       <div className="overflow-x-auto -mx-1 px-1">
         <table className="w-full text-[12px] tabular-nums">
           <thead>
-            <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+            <tr className="text-cap text-[var(--text-muted)] text-right">
               <th className="text-left font-medium py-1.5">지표</th>
               <th className="font-medium px-1.5">이전</th>
               <th className="font-medium px-1.5">시장 예상</th>
@@ -170,8 +170,8 @@ function GroupCard({ items, refs }: { items: ForecastItem[]; refs: ForecastPaylo
                   <td className="text-left py-1.5 text-[var(--text)] whitespace-nowrap">{r.label}</td>
                   <td className="px-1.5 text-[var(--text-muted)]">{n1(r.prev)}</td>
                   <td className="px-1.5 text-[var(--text)]">{n1(r.cons)}</td>
-                  <td className={`px-1.5 ${hasAi ? 'text-[var(--text-muted)]' : 'font-semibold text-[var(--text)]'}`}>{n1(r.model)}<span className="text-[10px] text-[var(--text-muted)] font-normal"> ({n2(r.model)})</span></td>
-                  {hasAi && <td className="px-1.5 font-semibold text-[var(--text)]">{n1(r.fin)}<span className="text-[10px] text-[var(--text-muted)] font-normal"> ({n2(r.fin)})</span></td>}
+                  <td className={`px-1.5 ${hasAi ? 'text-[var(--text-muted)]' : 'font-semibold text-[var(--text)]'}`}>{n1(r.model)}<span className="text-cap-pc text-[var(--text-muted)] font-normal"> ({n2(r.model)})</span></td>
+                  {hasAi && <td className="px-1.5 font-semibold text-[var(--text)]">{n1(r.fin)}<span className="text-cap-pc text-[var(--text-muted)] font-normal"> ({n2(r.fin)})</span></td>}
                   <td className={`px-1.5 ${diff == null ? 'text-[var(--text-muted)]' : tone(diff)}`}>{diff == null ? '—' : `${sg(diff)}%p`}</td>
                   {anyActual && <td className="pl-1.5 font-semibold text-[var(--text)]">{n1(r.actual)}</td>}
                 </tr>
@@ -218,7 +218,7 @@ function BacktestCard({ items }: { items: ForecastItem[] }) {
       <div className="overflow-x-auto -mx-1 px-1">
         <table className="w-full text-[12px] tabular-nums">
           <thead>
-            <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+            <tr className="text-cap text-[var(--text-muted)] text-right">
               <th className="text-left font-medium py-1.5">지표(전월비)</th>
               <th className="font-medium px-1.5">검증 횟수</th>
               <th className="font-medium px-1.5">모델 평균 오차</th>
@@ -254,7 +254,7 @@ function ScoreCard({ rows }: { rows: ScoreRow[] }) {
       <div className="overflow-x-auto -mx-1 px-1">
         <table className="w-full text-[12px] tabular-nums">
           <thead>
-            <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
+            <tr className="text-cap text-[var(--text-muted)] text-right">
               <th className="text-left font-medium py-1.5">지표·월</th>
               <th className="font-medium px-1.5">시장</th>
               <th className="font-medium px-1.5">우리(모델)</th>

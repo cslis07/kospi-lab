@@ -66,7 +66,7 @@ export default function UnlockGate({ reason = '계좌 잔고는 본인만 볼 �
         </button>
       </form>
       {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
-      <p className="text-[10px] text-[var(--text-muted)] mt-2.5">
+      <p className="text-cap-pc text-[var(--text-muted)] mt-2.5">
         토큰은 배포 시 설정한 <code className="text-sky-400">APP_ACCESS_TOKEN</code> 값입니다.
       </p>
     </div>

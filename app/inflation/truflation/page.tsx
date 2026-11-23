@@ -46,17 +46,17 @@ export default function TruflationPage() {
               <div>
                 <p className="text-[11px] text-[var(--text-muted)]">Nowflation 게이지</p>
                 <p className={`text-2xl font-extrabold tabular-nums ${sign(gauge)}`}>{pct(gauge)}</p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-0.5">YoY · 최신</p>
+                <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">YoY · 최신</p>
               </div>
               <div>
                 <p className="text-[11px] text-[var(--text-muted)]">Truflation</p>
                 <p className={`text-2xl font-extrabold tabular-nums ${sign(truf)}`}>{pct(truf)}</p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-0.5">YoY · {tf?.truflation?.date ?? '—'}</p>
+                <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">YoY · {tf?.truflation?.date ?? '—'}</p>
               </div>
               <div>
                 <p className="text-[11px] text-[var(--text-muted)]">격차(게이지−Truf)</p>
                 <p className={`text-2xl font-extrabold tabular-nums ${sign(spread)}`}>{signPp(spread)}</p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{spread == null ? '' : spread >= 0 ? '게이지가 높음' : '게이지가 낮음'}</p>
+                <p className="text-cap-pc text-[var(--text-muted)] mt-0.5">{spread == null ? '' : spread >= 0 ? '게이지가 높음' : '게이지가 낮음'}</p>
               </div>
             </div>
             {tf?.truflation?.dod_pp != null && (
@@ -67,7 +67,7 @@ export default function TruflationPage() {
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
             <h2 className="text-sm font-semibold text-[var(--text)] mb-2">일별 추이 (최근 24개월)</h2>
             <InflationChartLazy kind="trend" rows={rows} />
-            <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+            <p className="text-cap-pc text-[var(--text-muted)] mt-1.5 leading-relaxed">
               YoY(%) · <span style={{ color: '#1c6cff' }}>■</span> Nowflation 게이지 vs <span style={{ color: '#10b981' }}>■</span> Truflation.
               두 추정치 모두 공식 발표치가 아니며, 방향이 같아도 매매 우위를 보장하지 않습니다.
             </p>
