@@ -17,6 +17,9 @@ import { rowFromDecision, rowFromJournal, matchClosed, summarizeReview, type Ris
 import type { BreakerEntry } from '@/lib/circuitBreaker';
 import { useCoinJournal } from '@/hooks/useCoinJournal';
 import { useRiskSettings, useRiskDecisions } from '@/hooks/useRiskControl';
+import ExchangeQtyLine from '@/components/ExchangeQtyLine';
+import { useUnlockHint } from '@/hooks/useUnlockHint';
+import { markLocked } from '@/lib/unlockHint';
 
 type Sym = 'BTCUSDT' | 'ETHUSDT';
 interface PosRow { symbol: string; side: Direction; size: number; openAvg: number; markPrice: number; leverage: number; slStop?: number | null }
@@ -110,8 +113,12 @@ export default function RiskControlView() {
 
   const market = useSWR<MarketContext>(`/api/risk/market?symbol=${sym}`, jsonFetcher, { refreshInterval: 20_000, revalidateOnFocus: true });
   const events = useSWR<EventsResp>('/api/risk/events', jsonFetcher, silent);
-  const pos = useSWR<PosResp>('/api/bitget/positions', jsonFetcher, { ...silent, refreshInterval: 60_000 });
-  const hist = useSWR<HistResp>('/api/bitget/history?days=8', jsonFetcher, { ...silent, refreshInterval: 300_000 });
+  // 계좌 API 는 게이트 뒤 — 잠긴 기기는 부르지 않는다(401 콘솔 오류 없음 · lib/unlockHint). 잠김이면 아래에서 '조회 실패'와 같게 보고 매매일지로 대신한다
+  const unlocked = useUnlockHint();
+  const locked = unlocked === false;
+  const gatedFetcher = (u: string) => fetch(u).then((r) => { if (r.status === 401) markLocked(); if (!r.ok) throw new Error(String(r.status)); return r.json(); });
+  const pos = useSWR<PosResp>(unlocked ? '/api/bitget/positions' : null, gatedFetcher, { ...silent, refreshInterval: 60_000 });
+  const hist = useSWR<HistResp>(unlocked ? '/api/bitget/history?days=8' : null, gatedFetcher, { ...silent, refreshInterval: 300_000 });
 
   const levNum = num(lev) ?? settings.defaultLeverage;
   const bitgetEquity = pos.data?.configured && pos.data.account?.equity ? pos.data.account.equity : null;
@@ -124,7 +131,7 @@ export default function RiskControlView() {
     if (hist.data?.configured && !hist.data.error && Array.isArray(hist.data.positions)) {
       closed = hist.data.positions.map((p) => ({ ts: p.closeTs, result: p.netProfit > 0 ? 'win' : p.netProfit < 0 ? 'loss' : 'even', realizedUsdt: p.netProfit }));
       closedSource = 'bitget';
-    } else if (journal.mounted && (hist.data || hist.error)) {
+    } else if (journal.mounted && (hist.data || hist.error || locked)) {
       closed = journal.entries.map((e) => ({ ts: e.ts, result: e.result, realizedUsdt: e.realizedUsdt ?? null }));
       closedSource = 'journal';
     }
@@ -137,7 +144,7 @@ export default function RiskControlView() {
         // 손절가: 거래소에 걸린 손절 주문 우선(가드와 같은 기준) → 없으면 매매일지 계획
         return { symbol: p.symbol, side: p.side, riskUsdt: openRiskUsdt(p.side, p.size, p.openAvg, p.slStop ?? plan?.stop ?? null) };
       });
-    } else if (!posFailed && journal.mounted && (pos.data || pos.error)) {
+    } else if (!posFailed && journal.mounted && (pos.data || pos.error || locked)) {
       open = openJournal.map((e) => {
         const dist = e.entry > 0 && e.stop > 0 ? Math.abs(e.entry - e.stop) / e.entry : null;
         const risk = e.notionUsdt && dist ? e.notionUsdt * dist : e.seedUsdt && e.riskPct ? (e.seedUsdt * e.riskPct) / 100 : null;
@@ -145,7 +152,7 @@ export default function RiskControlView() {
       });
     }
     return { equity, equitySource: bitgetEquity ? 'bitget' : equity ? 'manual' : null, closed, closedSource, open };
-  }, [journal.entries, journal.mounted, hist.data, hist.error, pos.data, pos.error, equity, bitgetEquity]);
+  }, [journal.entries, journal.mounted, hist.data, hist.error, pos.data, pos.error, locked, equity, bitgetEquity]);
 
   const evs = events.data?.events ?? null;
   const decision = useMemo(() => (now ? evaluateEntry({
@@ -316,6 +323,17 @@ export default function RiskControlView() {
                   </div>
                 ))}
               </dl>
+              {/* 거래소 수량 단위로 내림한 실제 수량과 그 손실(KL-001) — 위 '수량'은 내림 전 연속값 */}
+              {usedEntry != null && num(stop) != null && (
+                <ExchangeQtyLine className="mt-2.5 rounded-xl border border-[var(--border)] px-3 py-2"
+                  symbol={sym} side={dir} entry={usedEntry} stop={num(stop)!} riskBudget={z.riskBudget} leverage={levNum}
+                  costs={{
+                    entryFee: (entryOrder === 'market' ? settings.takerFeePct : settings.makerFeePct) / 100, exitFee: settings.takerFeePct / 100,
+                    entrySlip: entryOrder === 'market' ? settings.slippagePct / 100 : 0, exitSlip: settings.slippagePct / 100,
+                    // 위 크기 계산(sizePosition)이 넣은 펀딩 비율 그대로 — 같은 예산·같은 비용으로 내림만 다르게
+                    fund: z.qty > 0 ? z.costs.fundingCost / (z.qty * usedEntry) : 0,
+                  }} />
+              )}
               <p className="text-[10.5px] text-[var(--faint)] mt-2.5 leading-relaxed">
                 레버리지는 증거금만 바꿉니다 — 같은 수량·같은 손절가면 5배든 10배든 손절 손실은 같습니다. 청산가는 거래소의 마크가격·유지증거금 티어·마진 모드에 따라 달라지므로 위 값은 확정 청산가가 아닙니다.
               </p>

@@ -13,7 +13,7 @@
  *  - 거래소 청산가는 마크가격·유지증거금 티어·마진 모드에 따라 달라 여기 값은 '단순 근사'로만 쓴다.
  */
 import { evaluateBreaker, type BreakerEntry } from './circuitBreaker';
-import { isolatedLiqPrice, perUnitStopLoss } from './positionSizing';
+import { isolatedLiqPrice, perUnitStopLoss, stopFillPrice } from './positionSizing';
 import { eventWindow, coReleases, humanMin, fmtKst, type MacroEvent, type EventWindowState } from './macroSchedule';
 
 /* ── 설정 ─────────────────────────────────────────────── */
@@ -202,8 +202,9 @@ export function sizePosition(p: PlanInput, s: RiskSettings): Sizing {
     netProfitAtTarget, grossRR, netRR,
     riskPctOfEquity: ((qty * perUnitLoss) / p.equity) * 100,
     costs: {
-      entryFee: qty * p.entry * inFee, stopExitFee: qty * p.stop * taker, targetExitFee,
-      slippageStop: qty * (p.entry * inSlip + p.stop * slip), slippageTarget,
+      // 손절 수수료는 미끄러진 체결가 기준(perUnitStopLoss 와 같은 정의 — KL-001)
+      entryFee: qty * p.entry * inFee, stopExitFee: qty * stopFillPrice(p.entry, p.stop, slip) * taker, targetExitFee,
+      slippageStop: qty * (p.entry * inSlip + Math.abs(p.stop - stopFillPrice(p.entry, p.stop, slip))), slippageTarget,
       fundingCost: qty * p.entry * fund, fundingKnown: fundFrac != null,
     },
     liqApprox, stopBeyondLiq,

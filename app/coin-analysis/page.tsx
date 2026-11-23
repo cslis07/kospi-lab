@@ -40,6 +40,7 @@ const DECISION_ENGINE_ON = process.env.NEXT_PUBLIC_CRYPTO_DECISION_ENGINE_V1 !==
 import { jsonFetcher, ApiError } from '@/lib/fetcher';
 import TradeGate from '@/components/TradeGate';
 import CircuitBreakerBar from '@/components/CircuitBreakerBar';
+import ExchangeQtyLine from '@/components/ExchangeQtyLine';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Collapsible from '@/components/ui/Collapsible';
 import RotatingTicker from '@/components/ui/RotatingTicker';
@@ -334,8 +335,8 @@ function OrderbookPanel({ ob, price, digits }: {
 
 export interface RiskSizing { lev: number; seed: number; riskPct: number; notion: number; margin: number }
 
-function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr, levMax, fundingRatePct, priceDigits, entryPlan, onSizing, eventHoursUntil, eventTitle, account, breaker }: {
-  entry: number; stop: number; stopPct: number; target1: number; target2: number;
+function RiskPanel({ symbol, entry, stop, stopPct, target1, target2, direction, levAggr, levMax, fundingRatePct, priceDigits, entryPlan, onSizing, eventHoursUntil, eventTitle, account, breaker }: {
+  symbol?: string; entry: number; stop: number; stopPct: number; target1: number; target2: number;
   direction: 'long' | 'short' | 'wait';
   levAggr: number; levMax: number; fundingRatePct: number; priceDigits: number;
   entryPlan: { type: 'now' | 'pullback' | 'wait'; zoneLow: number; zoneHigh: number };
@@ -423,6 +424,8 @@ function RiskPanel({ entry, stop, stopPct, target1, target2, direction, levAggr,
       </label>
       <div className="space-y-1.5 text-xs">
         <div className="flex justify-between"><span className="text-[var(--text-muted)]">적정 포지션 노션</span><span className="font-bold text-[var(--text)] tabular-nums">{usd(notion, 0)} USDT</span></div>
+        {/* 거래소 수량 단위로 내림한 실제 수량과 그 손실(KL-001) — 일괄 진입 기준 */}
+        <ExchangeQtyLine symbol={symbol} side={direction === 'short' ? 'short' : 'long'} entry={entry} stop={stop} riskBudget={s * r / 100} costs={stopCosts} leverage={lev} />
         <div className="flex justify-between"><span className="text-[var(--text-muted)]">필요 증거금 ({lev}배)</span>
           <span className={`font-semibold tabular-nums ${marginOverSeed ? 'text-red-400' : 'text-[var(--text)]'}`}>
             {usd(margin, 0)} USDT{marginOverSeed && s > 0 ? ` (시드의 ${Math.round(margin / s * 100)}%)` : ''}
@@ -1939,6 +1942,7 @@ export default function CoinAnalysisPage() {
               ) : <p className="text-[11px] text-[var(--text-muted)]">현재 특이 경고 없음</p>}
             </div>
             <RiskPanel
+              symbol={symbol}
               entry={v.entry} stop={v.stop} stopPct={v.stopPct}
               target1={v.target1} target2={v.target2} direction={v.direction}
               levAggr={v.leverage.aggressive} levMax={v.leverage.max}

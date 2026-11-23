@@ -96,6 +96,31 @@ export async function fetchFundingIntervals(): Promise<Map<string, number>> {
   }
 }
 
+/* ── 공개 USDT-Futures 상품 규격(수량 단위·최소 수량·최소 주문금액) — KL-001 사이징 내림용 ─────────────
+ * 거의 안 바뀌므로 6시간 메모리 캐시. 실패하면 직전 값(없으면 빈 맵) — 화면은 '수량 단위 미확인'으로 표시한다. */
+export interface ContractSpecRow { symbol: string; qtyStep: number; minQty: number; minNotional: number | null; pricePlace: number | null; maker: number | null; taker: number | null }
+let _specs: { map: Map<string, ContractSpecRow>; ts: number } | null = null;
+export async function fetchContractSpecs(): Promise<Map<string, ContractSpecRow>> {
+  if (_specs && Date.now() - _specs.ts < 6 * 3600_000) return _specs.map;
+  try {
+    const res = await fetch(`${BITGET_BASE}/api/v2/mix/market/contracts?productType=USDT-FUTURES`, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    const json = await res.json();
+    if (json.code !== '00000') throw new Error(json.msg);
+    const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+    const map = new Map<string, ContractSpecRow>();
+    for (const r of json.data as Record<string, unknown>[]) {
+      const step = num(r.sizeMultiplier), min = num(r.minTradeNum);
+      if (!step || !(step > 0) || min == null) continue;
+      const sym = String(r.symbol);
+      map.set(sym, { symbol: sym, qtyStep: step, minQty: min, minNotional: num(r.minTradeUSDT), pricePlace: num(r.pricePlace), maker: num(r.makerFeeRate), taker: num(r.takerFeeRate) });
+    }
+    if (map.size) _specs = { map, ts: Date.now() };
+    return map;
+  } catch {
+    return _specs?.map ?? new Map();
+  }
+}
+
 /* ── 개인 계좌 (HMAC 서명) ─────────────────────────────────── */
 function sign(timestamp: string, method: string, path: string, body: string, secret: string) {
   const prehash = timestamp + method.toUpperCase() + path + body;

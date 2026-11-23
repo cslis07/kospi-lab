@@ -7,6 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import Segmented from '@/components/ui/Segmented';
 import { isolatedLiqPrice, liqSafety, notionalForNetRisk, feeVsRisk, FEE_RISK_WARN, STD_SLIPPAGE } from '@/lib/positionSizing';
 import { useRiskLimits } from '@/hooks/useRiskLimits';
+import ExchangeQtyLine from '@/components/ExchangeQtyLine';
 import { simulateRules, statsFromRecords, type RuleStat } from '@/lib/exitSim';
 import { useCoinJournal } from '@/hooks/useCoinJournal';
 import { useStockJournal } from '@/hooks/useStockJournal';
@@ -292,9 +293,8 @@ function LeverageCalc() {
   // 비용 포함 사이징(lib/positionSizing.notionalForNetRisk — /risk-control·코인 분석과 같은 공식):
   //  손절에 걸렸을 때 가격손실+진입 수수료(고른 주문유형)+손절 수수료(시장가)+시장가 슬리피지+낼 펀딩(보유 시간분)=허용손실
   const payFund   = fundingPct != null && fundingPct * dirSign > 0 ? Math.abs(fundingPct) / 100 * (holdH / 8) : 0;
-  const recNotion = hasStop ? notionalForNetRisk(riskLoss, entry, stopNum, {
-    entryFee: openRate, exitFee: TAKER_FEE, entrySlip: openMaker ? 0 : STD_SLIPPAGE, exitSlip: STD_SLIPPAGE, fund: payFund,
-  }) : 0;  // 권장 포지션 명목가(비용 포함)
+  const recCosts = { entryFee: openRate, exitFee: TAKER_FEE, entrySlip: openMaker ? 0 : STD_SLIPPAGE, exitSlip: STD_SLIPPAGE, fund: payFund };
+  const recNotion = hasStop ? notionalForNetRisk(riskLoss, entry, stopNum, recCosts) : 0;  // 권장 포지션 명목가(비용 포함, 수량 단위 내림 전)
   const estCost   = hasStop ? Math.max(0, riskLoss - recNotion * (stopPct / 100)) : 0; // 허용손실 중 비용 몫
   const recMargin = recNotion / lev;                    // 권장 증거금
   const safety    = hasStop ? liqSafety(entry, stopPct, lev, isShort, coin.mmr, TAKER_FEE) : 0; // 청산여유÷손절거리
@@ -482,7 +482,7 @@ function LeverageCalc() {
           {[
             { label: '포지션 크기', value: fmtUsdt(position, 0), sub: entry ? `${qty.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${coin.short}` : '' },
             { label: '목표가', value: entry ? `$${targetPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `진입가 대비 ${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%` },
-            { label: '청산가 (Bitget 고립)', value: entry ? `$${liqPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `${dir === 'long' ? '-' : '+'}${liqMovePct.toFixed(1)}% · 유지증거금 ${(coin.mmr * 100).toFixed(1)}%`, danger: true },
+            { label: '예상 청산가 (격리·추정)', value: entry ? `$${liqPrice.toLocaleString('en-US', { maximumFractionDigits: dg })}` : '-', sub: `${dir === 'long' ? '-' : '+'}${liqMovePct.toFixed(1)}% · 유지증거금 ${(coin.mmr * 100).toFixed(1)}% 가정 — 실제는 거래소 마크가격·티어 기준`, danger: true },
             { label: '최대 손실(청산 시)', value: `-${fmtUsdt(margin, 0)}`, sub: '증거금 전액', danger: true },
           ].map((c) => (
             <div key={c.label} className={`rounded-xl border p-3 ${c.danger ? 'border-red-500/20 bg-red-500/5' : 'border-[var(--border)] bg-white/3'}`}>
@@ -534,6 +534,9 @@ function LeverageCalc() {
                 </div>
               ))}
             </div>
+            {/* 거래소 수량 단위로 내림한 실제 수량과 그 손실(KL-001) */}
+            <ExchangeQtyLine symbol={symbol} side={isShort ? 'short' : 'long'} entry={entry} stop={stopNum} riskBudget={riskLoss} costs={recCosts} leverage={lev}
+              className="rounded-xl border border-[var(--border)] px-3 py-2" />
             {safety > 0 && safety < 2 && (
               <div className="flex items-start gap-2 text-[11px] text-red-400 bg-red-500/5 border border-red-500/20 rounded-xl px-3 py-2">
                 <span>⚠</span>

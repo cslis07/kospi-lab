@@ -51,8 +51,9 @@ ok('2,000 USDT·0.5% = 10 USDT — 손절 시 순손실이 정확히 허용액(�
   assert.ok(z.ok);
   near(z.riskBudget, 10);
   near(z.netLossAtStop, 10);
-  // 코인 1개당 손실 = 1(가격) + 100×0.06% + 99×0.06% + 100×0.05% + 99×0.05%
-  const perUnit = 1 + 0.06 + 0.0594 + 0.05 + 0.0495;
+  // 코인 1개당 손실 = |100 − 손절 체결가 98.9505(=99×(1−0.05%))| + 100×0.06% + 98.9505×0.06% + 100×0.05%(진입 슬리피지)
+  // (2026-11-23 KL-001: 손절 수수료를 손절가 99 가 아니라 미끄러진 체결가에 매김 — 예전 1.2189 → 1.21887…, 차이 0.00003)
+  const perUnit = (100 - 98.9505) + 0.06 + 98.9505 * 0.0006 + 0.05;
   near(z.qty, 10 / perUnit);
   near(z.notional, (10 / perUnit) * 100);
   near(z.riskPctOfEquity, 0.5);
@@ -68,7 +69,7 @@ ok('5배 vs 10배 — 수량·손실은 같고 증거금만 절반', () => {
 
 ok('수수료 반영 손익 — 목표 순이익·순손익비(지정가 목표 = 메이커)', () => {
   const z = sizePosition(plan({ fundingRate: 0 }), S);
-  const perUnitLoss = 1 + 0.06 + 0.0594 + 0.05 + 0.0495;
+  const perUnitLoss = (100 - 98.9505) + 0.06 + 98.9505 * 0.0006 + 0.05; // 손절 체결가 기준(KL-001)
   const perUnitProfit = 3 - 0.06 - 103 * 0.0002 - 0.05; // 진입 테이커·슬리피지, 목표 메이커
   near(z.netProfitAtTarget, z.qty * perUnitProfit);
   near(z.netRR, perUnitProfit / perUnitLoss);
