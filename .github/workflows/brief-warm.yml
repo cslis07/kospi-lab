@@ -10,6 +10,10 @@ on:
     - cron: '30 22 * * *' # 07:30 KST
   workflow_dispatch:
 
+# 공개 주소만 curl 로 부른다 — 저장소 쓰기 권한 불필요(KL-004 최소 권한)
+permissions:
+  contents: read
+
 concurrency:
   group: brief-warm
   cancel-in-progress: false

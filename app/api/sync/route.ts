@@ -3,10 +3,12 @@
  *
  * 저장소: Supabase REST(테이블 `kl_sync`). supabase-js 의존성 없이 fetch 만 쓴다.
  * ⚠ 이 라우트는 middleware 게이트 뒤에 있다(개인 데이터). 서비스 키는 서버에서만 쓴다.
+ *   KL-003: 게이트에서 경로가 빠져도 열리지 않게 라우트 안에서도 같은 규칙으로 다시 확인하고, 응답은 private·no-store.
  * ⚠ env 미구성이면 200 + {configured:false} 를 준다 — 클라이언트가 조용히 로컬 전용으로 돌기 위해서다.
  *   (503 으로 만들면 미설정 사용자 화면에 에러가 뜬다. 동기화는 부가 기능이지 필수가 아니다.)
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { isAuthorizedRequest, NO_STORE } from '@/lib/appAuth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 15;
@@ -43,17 +45,21 @@ async function readAll(): Promise<Row[]> {
 }
 const toItems = (rows: Row[]): Item[] => rows.map((x) => ({ id: x.id, data: x.data, updatedAt: Number(x.updated_at) }));
 
-export async function GET() {
-  if (!configured()) return NextResponse.json({ configured: false, items: [] });
+const LOCKED = () => NextResponse.json({ locked: true, error: '인증이 필요합니다.' }, { status: 401, headers: NO_STORE });
+
+export async function GET(req: NextRequest) {
+  if (!isAuthorizedRequest(req)) return LOCKED();
+  if (!configured()) return NextResponse.json({ configured: false, items: [] }, { headers: NO_STORE });
   try {
-    return NextResponse.json({ configured: true, items: toItems(await readAll()) });
+    return NextResponse.json({ configured: true, items: toItems(await readAll()) }, { headers: NO_STORE });
   } catch (e) {
-    return NextResponse.json({ configured: true, error: String(e), items: [] }, { status: 502 });
+    return NextResponse.json({ configured: true, error: String(e), items: [] }, { status: 502, headers: NO_STORE });
   }
 }
 
 export async function POST(req: NextRequest) {
-  if (!configured()) return NextResponse.json({ configured: false, items: [], applied: 0 });
+  if (!isAuthorizedRequest(req)) return LOCKED();
+  if (!configured()) return NextResponse.json({ configured: false, items: [], applied: 0 }, { headers: NO_STORE });
   let body: { items?: Item[]; device?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'bad json' }, { status: 400 }); }
 
@@ -83,8 +89,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 병합 후 최종 상태를 돌려준다 → 클라이언트는 이 한 번의 왕복으로 push+pull 을 끝낸다
-    return NextResponse.json({ configured: true, applied: upserts.length, items: toItems(await readAll()) });
+    return NextResponse.json({ configured: true, applied: upserts.length, items: toItems(await readAll()) }, { headers: NO_STORE });
   } catch (e) {
-    return NextResponse.json({ configured: true, error: String(e), items: [], applied: 0 }, { status: 502 });
+    return NextResponse.json({ configured: true, error: String(e), items: [], applied: 0 }, { status: 502, headers: NO_STORE });
   }
 }

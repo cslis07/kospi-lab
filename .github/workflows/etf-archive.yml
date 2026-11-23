@@ -7,6 +7,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+# 수동 실행과 예약 실행이 겹쳐 같은 날 기록을 두 번 커밋하지 않게(KL-004)
+concurrency:
+  group: etf-archive
+  cancel-in-progress: false
 jobs:
   archive:
     runs-on: ubuntu-latest

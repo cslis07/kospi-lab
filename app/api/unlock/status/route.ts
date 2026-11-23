@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AUTH_COOKIE, timingSafeEqual } from '@/middleware';
+import { isAuthorizedRequest } from '@/lib/appAuth';
 import { UNLOCK_HINT_COOKIE } from '@/lib/unlockHint';
 
 /**
@@ -10,10 +10,8 @@ import { UNLOCK_HINT_COOKIE } from '@/lib/unlockHint';
 export const dynamic = 'force-dynamic';
 
 export function GET(req: NextRequest) {
-  const secret = process.env.APP_ACCESS_TOKEN ?? '';
-  const presented = req.cookies.get(AUTH_COOKIE)?.value ?? req.headers.get('x-app-token') ?? '';
-  // 토큰 미설정: 로컬은 게이트가 통과시키므로 해제로 본다, 프로덕션은 게이트가 잠그므로 잠금
-  const unlocked = secret ? !!presented && timingSafeEqual(presented, secret) : process.env.NODE_ENV !== 'production';
+  // 토큰 미설정: 로컬은 게이트가 통과시키므로 해제로 본다, 프로덕션은 게이트가 잠그므로 잠금(lib/appAuth)
+  const unlocked = isAuthorizedRequest(req);
   const res = NextResponse.json({ unlocked }, { headers: { 'Cache-Control': 'private, no-store' } });
   if (unlocked) res.cookies.set(UNLOCK_HINT_COOKIE, '1', { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
   return res;
