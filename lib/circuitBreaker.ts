@@ -7,6 +7,8 @@
  *
  * 순수 함수 — tests/engine.test.ts 로 고정한다.
  */
+import { COOLDOWN_RULES } from './cooldownRules';
+
 
 export interface BreakerEntry {
   ts: number;
@@ -22,7 +24,7 @@ export interface BreakerLimits {
 }
 
 export const DEFAULT_LIMITS: BreakerLimits = {
-  maxConsecutiveLosses: 3,
+  maxConsecutiveLosses: COOLDOWN_RULES.defaultLossStreak,   // lib/cooldownRules(KL-009)
   dailyLossLimitUsdt: null,
   weeklyLossLimitUsdt: null,
   perTradeLossLimitUsdt: null,

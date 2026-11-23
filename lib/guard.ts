@@ -26,6 +26,9 @@ import precursorStats from '../public/data/precursor-stats.json';
 import warningStats from '../public/data/crash-warning-stats.json';
 import { fetchLiveFlags, type Flags } from './crashWarning';
 import { FEE_RISK_WARN } from './positionSizing';
+import type { GuardHeartbeat } from './guardHealth';
+import { COOLDOWN_RULES } from './cooldownRules';
+export type { GuardHeartbeat } from './guardHealth';
 import { appendAlerts, dueAt, resolveWarn, resolveShock, summarizeAlertLog, type AlertLog, type AlertLogEntry, type AlertLogSummary } from './alertLog';
 
 export interface OpenPos {
@@ -198,7 +201,7 @@ ${on.map((c) => NAME[c.key]).join(' · ')}
     // 복구 매매
     const lastLoss = inp.closed.filter((c) => c.closeTs <= p.openTs && c.netProfit < 0).sort((a, b) => b.closeTs - a.closeTs)[0];
     const lastAny = inp.closed.filter((c) => c.closeTs <= p.openTs).sort((a, b) => b.closeTs - a.closeTs)[0];
-    if (lastLoss && lastAny === lastLoss && p.openTs - lastLoss.closeTs <= 30 * 60_000)
+    if (lastLoss && lastAny === lastLoss && p.openTs - lastLoss.closeTs <= COOLDOWN_AFTER_LOSS_MS)
       fire(`revenge:${pid}`, ONCE, `🔁 <b>${base(p.symbol)} — 손실 청산 ${Math.max(1, Math.round((p.openTs - lastLoss.closeTs) / 60_000))}분 뒤 재진입</b>\n직전 ${base(lastLoss.symbol)} ${fmt(lastLoss.netProfit)} USDT 손실. 복구 매매가 아닌지 확인하세요.${link('/journal?tab=discipline', '규율 탭')}`);
 
     // 청산가 근접
@@ -360,10 +363,19 @@ export async function sendTelegram(text: string): Promise<boolean> {
 
 export interface GuardRun { ok: boolean; skipped?: string; positions: number; alerts: GuardAlert[]; sent: boolean; stateSaved: boolean }
 
+/** 실패한 회차 기록 — 직전 성공 시각(at)은 그대로 두고 실패 시각·짧은 사유만 덧붙인다(긴 토큰처럼 보이는 문자열은 가림) */
+export async function recordGuardFailure(err: unknown, at: number = Date.now()): Promise<boolean> {
+  const prev = await sbGet<GuardHeartbeat>(HEARTBEAT_ID).catch(() => null);
+  const msg = (err instanceof Error ? err.message : String(err)).replace(/[A-Za-z0-9_-]{24,}/g, '…').slice(0, 160);
+  return sbPut(HEARTBEAT_ID, { ...(prev ?? {}), lastErrorAt: at, lastError: msg }).catch(() => false);
+}
+
+
 /** 한 회차: 조회 → 판정 → (dry 아니면) 발송 → 상태 저장. 발송 실패면 상태를 저장하지 않아 다음 회차에 다시 시도 */
 export async function runGuard(opts: { dry?: boolean; now?: number; ignoreState?: boolean } = {}): Promise<GuardRun> {
   if (!bitgetKeysConfigured()) return { ok: false, skipped: 'Bitget 키 없음', positions: 0, alerts: [], sent: false, stateSaved: false };
   const now = opts.now ?? Date.now();
+  const startedAt = Date.now();
   const posJson = await bitgetSignedGet('/api/v2/mix/position/all-position?productType=USDT-FUTURES&marginCoin=USDT');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const raw = ((posJson.data as any[]) ?? []).filter((r) => num(r.total) !== 0);
@@ -396,13 +408,21 @@ export async function runGuard(opts: { dry?: boolean; now?: number; ignoreState?
     (opts.ignoreState ? null : state) ?? { fired: {} },
   );
   if (opts.dry) return { ok: true, positions: positions.length, alerts, sent: false, stateSaved: false };
-  await sbPut(HEARTBEAT_ID, { at: now, positions: positions.length, alerts: alerts.map((a) => a.key) }).catch(() => false);
   let sent = false, stateSaved = false;
   if (alerts.length) {
-    sent = await sendTelegram(alerts.map((a) => a.text).join('\n\n'));
-    if (sent) stateSaved = await sbPut(STATE_ID, next);
-  } else if (JSON.stringify(next) !== JSON.stringify(state ?? { fired: {} })) stateSaved = await sbPut(STATE_ID, next);
+    // 발송 실패(throw 포함)여도 상태를 저장하지 않아 다음 회차에 다시 보낸다 — 실행 기록엔 '발송 실패'로 남긴다
+    sent = await sendTelegram(alerts.map((a) => a.text).join('\n\n')).catch(() => false);
+    if (sent) stateSaved = await sbPut(STATE_ID, next).catch(() => false);
+  } else if (JSON.stringify(next) !== JSON.stringify(state ?? { fired: {} })) stateSaved = await sbPut(STATE_ID, next).catch(() => false);
   await updateAlertLog(sent ? sentEntries(alerts, positions, now) : [], now).catch(() => null);
+  // 실행 기록(KL-006) — at = 마지막 성공(판정까지 끝남). 직전 실패 기록(lastErrorAt)은 남겨 '최근 실패'를 보여 줄 수 있게
+  const prevHb = await sbGet<GuardHeartbeat>(HEARTBEAT_ID).catch(() => null);
+  const hb: GuardHeartbeat = {
+    ...(prevHb ?? {}), at: now, startedAt, durationMs: Date.now() - startedAt,
+    positions: positions.length, alerts: alerts.map((a) => a.key),
+    notified: alerts.length ? (sent ? 'sent' : 'failed') : 'none',
+  };
+  await sbPut(HEARTBEAT_ID, hb).catch(() => false);
   return { ok: true, positions: positions.length, alerts, sent, stateSaved };
 }
 
@@ -469,7 +489,7 @@ export async function guardMarks(): Promise<GuardMark[]> {
 
 /* ── 냉각 타이머(앱 상단 배너) ─────────────────── */
 /** 손실 청산 뒤 다음 진입까지 쉬는 시간 — 복구 매매 판정(30분)과 같은 기준 */
-export const COOLDOWN_AFTER_LOSS_MS = 30 * 60_000;
+export const COOLDOWN_AFTER_LOSS_MS = COOLDOWN_RULES.autoLossCooldownMin * 60_000;   // lib/cooldownRules(KL-009)
 
 export interface Cooldown { until: number; kind: 'loss' | 'breaker'; reason: string }
 /**
@@ -501,6 +521,10 @@ export async function cooldownNow(now: number = Date.now()): Promise<Cooldown | 
 /* ── 홈 '지금 내 상태' 한 줄(/api/bitget/status) ─────────────────── */
 export interface MyStatus {
   heartbeatAt: number | null;            // 마지막 가드 실행(pg_cron 5분)
+  /** 마지막 실패 시각(마지막 성공보다 뒤면 '실패' 표시) — KL-006 */
+  guardErrorAt?: number | null;
+  /** 마지막 성공 회차의 알림 결과 */
+  guardNotified?: GuardHeartbeat['notified'] | null;
   positions: {
     symbol: string; side: 'long' | 'short'; slSet: boolean | null; pnlPct: number | null;
     // 상세(가격·마진 전부 USDT) — 비트겟 all-position 그대로. 값이 없으면 0/null
@@ -513,7 +537,7 @@ export const HEARTBEAT_STALE_MS = 15 * 60_000;
 
 export async function myStatus(now: number = Date.now()): Promise<MyStatus> {
   const [hb, posJson, sl, cd] = await Promise.all([
-    sbGet<{ at: number }>(HEARTBEAT_ID),
+    sbGet<GuardHeartbeat>(HEARTBEAT_ID),
     bitgetSignedGet('/api/v2/mix/position/all-position?productType=USDT-FUTURES&marginCoin=USDT').catch(() => null),
     slOrders(),
     cooldownNow(now).catch(() => null),
@@ -522,6 +546,8 @@ export async function myStatus(now: number = Date.now()): Promise<MyStatus> {
   const raw = ((posJson?.data as any[]) ?? []).filter((r) => num(r.total) !== 0);
   return {
     heartbeatAt: hb?.at ?? null,
+    guardErrorAt: hb?.lastErrorAt ?? null,
+    guardNotified: hb?.notified ?? null,
     positions: raw.map((r) => {
       const entry = num(r.openPriceAvg ?? r.averageOpenPrice), mark = num(r.markPrice), side = r.holdSide === 'short' ? 'short' : 'long';
       const liq = num(r.liquidationPrice), sym = normSym(String(r.symbol));

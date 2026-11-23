@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { COOLDOWN_RULES } from '@/lib/cooldownRules';
+import { useRiskLimits } from '@/hooks/useRiskLimits';
 
 /**
  * 진입 전 7문항 + 손절 후 재진입 프로토콜(STOP→MAP→CLOSE→RETEST→RISK).
@@ -28,13 +30,14 @@ const PROTOCOL = [
 ];
 
 const STOP_KEY = 'kl-reentry-stop';
-const WAIT_MS = 60 * 60_000;
+const WAIT_MS = COOLDOWN_RULES.reentryReflectionMin * 60_000;   // lib/cooldownRules(KL-009)
 
 export default function ReentryChecklistPage() {
   const [pre, setPre] = useState<boolean[]>(() => PRE_ENTRY.map(() => false));
   const [proto, setProto] = useState<boolean[]>(() => PROTOCOL.map(() => false));
   const [stopTs, setStopTs] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const { limits, mounted: limitsReady } = useRiskLimits();   // 연속 손절 차단 기준(사용자 설정) — KL-009
 
   useEffect(() => {
     try { const raw = localStorage.getItem(STOP_KEY); if (raw) setStopTs(Number(raw) || null); } catch {}
@@ -96,6 +99,16 @@ export default function ReentryChecklistPage() {
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 mb-5">
         <h2 className="text-[15px] font-bold text-[var(--text)] mb-1">손절 후 재진입 프로토콜</h2>
         <p className="text-[12px] text-[var(--text-muted)] mb-4">재진입 허용 조건은 <b className="text-[var(--text)]">시간이 아니라 “새로운 근거”</b>입니다. 손절 직후 60분은 멈추고, 아래 4단계를 다시 확인합니다.</p>
+        {/* 냉각 규칙 3가지의 관계(KL-009) — 값은 lib/cooldownRules·서킷브레이커 설정에서 */}
+        <div className="rounded-xl border border-[var(--border)] px-3 py-2.5 mb-3 text-[11.5px] leading-relaxed text-[var(--text-muted)]">
+          <p className="font-bold text-[var(--text)] mb-1">앱의 쉬는 규칙 3가지 — 목적이 달라 따로 갑니다</p>
+          <ul className="space-y-0.5">
+            <li>· <b className="text-[var(--text)]">자동 냉각 {COOLDOWN_RULES.autoLossCooldownMin}분</b> — 거래소에서 손실 청산이 감지되면 모든 화면 위에 배너(잠금 해제 기기)</li>
+            <li>· <b className="text-[var(--text)]">이 반성 타이머 {COOLDOWN_RULES.reentryReflectionMin}분</b> — 손절 뒤 직접 눌러 시작, 이 기기에만 저장(앱을 다시 열어도 남은 시간 유지)</li>
+            <li>· <b className="text-[var(--text)]">연속 손절 차단 {limitsReady ? limits.maxConsecutiveLosses : COOLDOWN_RULES.defaultLossStreak}회</b> — 오늘 연속 손절이 이 횟수면 한국 시간 자정까지 배너. 바꾸는 곳: <Link href="/coin-analysis" className="text-[var(--accent-ink)] font-semibold">코인 분석 › 서킷브레이커</Link>(교본의 시험 규칙은 2회)</li>
+          </ul>
+          <p className="mt-1">셋 다 <b className="text-[var(--text)]">거래소 주문을 막지 않습니다</b> — 스스로 지키는 알림입니다. 하루 경계는 한국 시간 자정.</p>
+        </div>
 
         {/* STOP 타이머 */}
         <div className={`rounded-xl border p-3.5 mb-3 ${waitDone ? 'border-emerald-500/25 bg-emerald-500/[0.06]' : stopTs != null ? 'border-sky-500/25 bg-sky-500/[0.06]' : 'border-[var(--border)] bg-white/3'}`}>

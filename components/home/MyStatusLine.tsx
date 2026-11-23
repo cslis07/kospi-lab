@@ -10,6 +10,7 @@ import useSWR from 'swr';
 import { useUnlockHint } from '@/hooks/useUnlockHint';
 import { markLocked } from '@/lib/unlockHint';
 import type { MyStatus } from '@/lib/guard';
+import { guardHealth } from '@/lib/guardHealth';
 
 const fetcher = async (u: string) => { const r = await fetch(u); if (r.status === 401) markLocked(); if (!r.ok) throw new Error(String(r.status)); return r.json(); };
 const STALE = 15 * 60_000;
@@ -41,16 +42,23 @@ function StatusLink({ data }: { data: MyStatus & { configured?: boolean; asOf?: 
   if (!data.positions) return null;
   // 렌더 중 Date.now() 대신 응답 수신 시점 기준(SWR 갱신마다 다시 계산)
   const now = data.asOf ?? data.heartbeatAt ?? 0;
-  const hbAge = data.heartbeatAt != null ? Math.max(0, now - data.heartbeatAt) : null;
-  const stale = hbAge == null || hbAge > STALE;
+  // 가드 실행 상태(KL-006): 정상 / 지연(15분 넘게 성공 없음) / 실패(마지막 실패가 마지막 성공보다 뒤) / 기록 없음
+  const gh = guardHealth({ at: data.heartbeatAt ?? undefined, lastErrorAt: data.guardErrorAt ?? undefined }, now, STALE);
+  const guardText = gh.state === 'none' ? '가드 기록 없음'
+    : gh.state === 'failed' ? `가드 실행 실패(${ago(gh.lastErrorAgoMs!)})${gh.lastSuccessAgoMs != null ? ` · 마지막 성공 ${ago(gh.lastSuccessAgoMs)}` : ''}`
+    : gh.state === 'delayed' ? `가드 확인 지연 · 마지막 성공 ${ago(gh.lastSuccessAgoMs!)}`
+    : `가드 ${ago(gh.lastSuccessAgoMs!)} 확인${data.guardNotified === 'failed' ? ' · 알림 발송 실패' : ''}`;
+  const guardOff = gh.state !== 'ok' || data.guardNotified === 'failed';
   const noSl = data.positions.filter((p) => p.slSet === false);
   // 냉각(서킷브레이커·손실 직후)은 상단 전역 배너(CooldownBanner)가 이미 크게 보여 줘서 여기선 중복 표시하지 않는다
-  const bad = stale || noSl.length > 0;
+  // 손절 주문 없음 = 빨강(실제 위험) · 가드 지연/실패 = 주의색(알림 경로 문제 — 포지션 위험을 단정하지 않음)
+  const tone = noSl.length > 0 ? 'border-[var(--warn)] bg-[var(--warn-soft)]' : guardOff ? 'border-[var(--amber)] bg-[var(--amber-soft)]' : 'border-[var(--border)] bg-[var(--bg-card)]';
   return (
     <Link href={data.positions.length ? '/coin-analysis' : '/review'}
-      className={`block rounded-2xl border px-3.5 py-2.5 text-[12.5px] leading-snug ${bad ? 'border-[var(--warn)] bg-[var(--warn-soft)]' : 'border-[var(--border)] bg-[var(--bg-card)]'}`}>
-      <span className="text-[var(--text)] font-semibold">{bad ? '⚠️ ' : '🛡 '}지금 내 상태</span>
-      <span className="text-[var(--text-muted)]"> · 가드 {hbAge == null ? '기록 없음' : `${ago(hbAge)} 확인`}{stale ? '(멈춤?)' : ''}</span>
+      title="가드는 5분마다 포지션을 확인해 텔레그램으로 알릴 뿐, 거래소 손절 주문을 대신하지 않습니다."
+      className={`block rounded-2xl border px-3.5 py-2.5 text-[12.5px] leading-snug ${tone}`}>
+      <span className="text-[var(--text)] font-semibold">{noSl.length > 0 || guardOff ? '⚠️ ' : '🛡 '}지금 내 상태</span>
+      <span className={guardOff ? 'text-[var(--amber)] font-semibold' : 'text-[var(--text-muted)]'}> · {guardText}</span>
       {data.positions.length
         ? data.positions.map((p) => <PosRow key={p.symbol + p.side} p={p} />)
         : <span className="block mt-0.5 text-[var(--text)]">열린 포지션 없음</span>}
