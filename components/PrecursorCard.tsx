@@ -10,6 +10,7 @@ import type { LiveState, StatsFile, ShockStat } from '@/lib/crashPrecursor';
 import { SIGNALS } from '@/lib/crashPrecursor';
 import type { Flags, WarningStatsFile, Scorecard } from '@/lib/crashWarning';
 import type { AlertLogSummary } from '@/lib/alertLog';
+import { useUnlockHint } from '@/hooks/useUnlockHint';
 
 const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); });
 const pct = (v: number | null | undefined, d = 0) => (v == null || !Number.isFinite(v) ? '–' : `${v.toFixed(d)}%`);
@@ -64,7 +65,8 @@ function EarlyWarning({ f, cards, btc, days }: { f: Flags; cards: Scorecard[]; b
 
 /** 실전 성적 — 가드가 실제로 보낸 경보의 이후 결과(lib/alertLog) vs 과거 측정값. 계좌 게이트 뒤라 잠겨 있으면 안 보임 */
 function LiveRecord({ pooled }: { pooled: ShockStat }) {
-  const { data } = useSWR<{ ok: boolean; summary: AlertLogSummary | null }>('/api/bitget/alert-log', fetcher, { revalidateOnFocus: false });
+  const unlocked = useUnlockHint();   // 잠긴 기기는 부르지 않는다(401 콘솔 오류 없음 · lib/unlockHint)
+  const { data } = useSWR<{ ok: boolean; summary: AlertLogSummary | null }>(unlocked ? '/api/bitget/alert-log' : null, fetcher, { revalidateOnFocus: false });
   const s = data?.summary;
   if (!s || (s.warn.n + s.warn.pending + s.shock.n + s.shock.pending) === 0) return null;
   const m = pooled.n || 1;

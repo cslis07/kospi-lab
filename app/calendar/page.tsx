@@ -163,29 +163,34 @@ export default function CalendarPage() {
         <div className="mb-4">
           <div className="fin-sec"><h3 className="!text-[15px]">이번 주 지표 · 예상/이전/실제</h3><span className="text-[11px] text-[var(--text-muted)]">출처 SoSoValue · 예상 = 시장 컨센서스</span></div>
           <div className="fin-card overflow-x-auto">
-            <table className="w-full text-[12px] tabular-nums" style={{ minWidth: 380 }}>
+            {/* 폰(KL-011): 상태 열은 지표 이름 아래로 옮겨 가로 스크롤 없이 4열 — 넓은 화면은 5열 그대로 */}
+            <table className="w-full text-[12px] tabular-nums sm:min-w-[380px]">
               <thead>
                 <tr className="text-[10.5px] text-[var(--text-muted)] text-right">
                   <th className="text-left font-semibold px-3 py-2">날짜 · 지표</th>
                   <th className="font-semibold px-2">예상</th>
                   <th className="font-semibold px-2">이전</th>
                   <th className="font-semibold px-2">실제</th>
-                  <th className="font-semibold px-3 text-center">상태</th>
+                  <th className="font-semibold px-3 text-center hidden sm:table-cell">상태</th>
                 </tr>
               </thead>
               <tbody>
-                {upcoming.map((u) => (
+                {upcoming.map((u) => {
+                  const status = u.actual ? <span className="ds live"><i aria-hidden />발표 완료</span> : today && u.date < today ? <span className="ds closed"><i aria-hidden />결과 확인 중</span> : <span className="ds closed"><i aria-hidden />발표 전</span>;
+                  return (
                   <tr key={`${u.date}-${u.name}`} className="border-t border-[var(--border)] text-right">
                     <td className="text-left px-3 py-2">
                       <span className="text-[var(--text)] font-medium">{u.ko}</span>
                       <span className="block text-[10px] text-[var(--text-muted)]">{u.date.slice(5)}{u.providerDate ? ' (공식 일정)' : ''} · {u.name}</span>
+                      <span className="block sm:hidden mt-0.5">{status}</span>
                     </td>
                     <td className="px-2 text-[var(--text)]">{u.forecast || '—'}</td>
                     <td className="px-2 text-[var(--text-muted)]">{u.previous || '—'}</td>
                     <td className="px-2 text-[var(--text)] font-semibold">{u.actual || <span className="text-[var(--text-muted)] font-normal">—</span>}</td>
-                    <td className="px-3 text-center">{u.actual ? <span className="ds live"><i aria-hidden />발표 완료</span> : today && u.date < today ? <span className="ds closed"><i aria-hidden />결과 확인 중</span> : <span className="ds closed"><i aria-hidden />발표 전</span>}</td>
+                    <td className="px-3 text-center hidden sm:table-cell">{status}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

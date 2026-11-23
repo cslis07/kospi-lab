@@ -10,6 +10,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import MyStatusLine from '@/components/home/MyStatusLine';
+import NextReleaseLine from '@/components/home/NextReleaseLine';
 import MyReviewLine from '@/components/home/MyReviewLine';
 import QuickChips from '@/components/home/QuickChips';
 import IndexRail from '@/components/home/naver/IndexRail';
@@ -26,6 +27,8 @@ function DashboardInner() {
     <div className="space-y-5">
       {/* 지금 내 상태 — 가드·포지션 손절·냉각(잠금 해제 기기만) */}
       <MyStatusLine />
+      {/* KL-010: 오늘 위험(지금 내 상태) → 다음 발표 → 시장 요약 순 */}
+      <NextReleaseLine />
       <MyReviewLine />
       <QuickChips />
       <IndexRail />

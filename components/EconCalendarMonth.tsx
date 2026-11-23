@@ -3,8 +3,11 @@
 /**
  * 월간 달력(그리드) 경제 캘린더 — 지표 발표·FOMC·한은·실적·휴장을 날짜 칸에 칩으로.
  * 데이터는 호출부가 CalEvt[]로 넘긴다(정적 CALENDAR_EVENTS + 나우캐스트 지표 발표일 병합 등).
+ * KL-011: 폰(640px 미만)은 칸 안 글자가 잘려 읽을 수 없어서 색 점 + 건수만 보이고, 날짜를 누르면 그날 일정 전체를 시트로 연다(넓은 화면은 이름 칩 유지).
  */
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import BottomSheet from '@/components/ui/BottomSheet';
 
 export interface CalEvt { date: string; label: string; tone: 'fomc' | 'bok' | 'ind' | 'earn' | 'holi'; href?: string }
 
@@ -15,6 +18,8 @@ const TONE: Record<CalEvt['tone'], string> = {
   earn: 'bg-emerald-500/15 text-emerald-500',
   holi: 'bg-[var(--surface-2)] text-[var(--text-muted)]',
 };
+const DOT: Record<CalEvt['tone'], string> = { fomc: 'bg-violet-500', bok: 'bg-amber-500', ind: 'bg-sky-500', earn: 'bg-emerald-500', holi: 'bg-[var(--text-muted)]' };
+const TONE_NAME: Record<CalEvt['tone'], string> = { fomc: 'FOMC', bok: '한은', ind: '지표', earn: '실적', holi: '휴장' };
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 function kstNow() { return new Date(Date.now() + 9 * 3_600_000); }
 function todayStr() { const k = kstNow(); return `${k.getUTCFullYear()}-${String(k.getUTCMonth() + 1).padStart(2, '0')}-${String(k.getUTCDate()).padStart(2, '0')}`; }
@@ -22,6 +27,7 @@ function todayStr() { const k = kstNow(); return `${k.getUTCFullYear()}-${String
 export default function EconCalendarMonth({ events }: { events: CalEvt[] }) {
   const [cursor, setCursor] = useState(() => { const k = kstNow(); return { y: k.getUTCFullYear(), m: k.getUTCMonth() }; });
   const today = todayStr();
+  const [openDay, setOpenDay] = useState<string | null>(null);
   const { y, m } = cursor;
   const startDow = new Date(Date.UTC(y, m, 1)).getUTCDay();
   const daysInMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
@@ -53,14 +59,25 @@ export default function EconCalendarMonth({ events }: { events: CalEvt[] }) {
         {cells.map((d, i) => {
           if (d == null) return <div key={i} />;
           const ds = dstr(d); const evs = byDate.get(ds) ?? []; const isToday = ds === today; const dow = i % 7;
+          const tones = [...new Set(evs.map((e) => e.tone))];
           return (
-            <div key={i} className={`min-h-[54px] rounded-lg border p-1 overflow-hidden ${isToday ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-[var(--line-2)]'}`}>
-              <div className={`text-[10px] font-bold leading-none mb-0.5 ${dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-[var(--text)]'}`}>{d}</div>
-              <div className="space-y-0.5">
-                {evs.slice(0, 2).map((e, j) => <div key={j} className={`text-[8.5px] leading-tight px-1 py-0.5 rounded truncate ${TONE[e.tone]}`} title={e.label}>{e.label}</div>)}
-                {evs.length > 2 && <div className="text-[8px] text-[var(--text-muted)] px-1 leading-none">+{evs.length - 2}</div>}
-              </div>
-            </div>
+            <button key={i} type="button" disabled={!evs.length} onClick={() => setOpenDay(ds)}
+              aria-label={`${m + 1}월 ${d}일${isToday ? '(오늘)' : ''} 일정 ${evs.length}건`}
+              className={`min-h-[54px] rounded-lg border p-1 overflow-hidden text-left align-top flex flex-col ${evs.length ? 'cursor-pointer hover:border-[var(--border-hover)]' : 'cursor-default'} ${isToday ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-[var(--line-2)]'}`}>
+              <span className={`text-[10px] font-bold leading-none mb-0.5 ${dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-[var(--text)]'}`}>{d}</span>
+              {/* 폰: 색 점 + 건수 */}
+              {evs.length > 0 && (
+                <span className="sm:hidden mt-auto flex items-center gap-0.5 flex-wrap">
+                  {tones.map((t) => <span key={t} aria-hidden className={`w-1.5 h-1.5 rounded-full ${DOT[t]}`} />)}
+                  <span className="text-[11px] font-bold text-[var(--text-muted)] tabular-nums leading-none ml-0.5">{evs.length}</span>
+                </span>
+              )}
+              {/* 넓은 화면: 이름 칩 2개 + 나머지 수 */}
+              <span className="hidden sm:block space-y-0.5 w-full">
+                {evs.slice(0, 2).map((e, j) => <span key={j} className={`block text-[8.5px] leading-tight px-1 py-0.5 rounded truncate ${TONE[e.tone]}`} title={e.label}>{e.label}</span>)}
+                {evs.length > 2 && <span className="block text-[8px] text-[var(--text-muted)] px-1 leading-none">+{evs.length - 2}</span>}
+              </span>
+            </button>
           );
         })}
       </div>
@@ -70,7 +87,24 @@ export default function EconCalendarMonth({ events }: { events: CalEvt[] }) {
         <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-500/60" />한은</span>
         <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500/60" />실적</span>
         <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded bg-[var(--surface-2)] border border-[var(--line-2)]" />휴장</span>
+        <span className="sm:hidden">· 날짜를 누르면 그날 일정 전체</span>
       </div>
+
+      {/* 그날 일정 전체(KL-011) — 이름이 잘리지 않게 줄바꿈해서 보여 준다 */}
+      <BottomSheet open={openDay != null} onClose={() => setOpenDay(null)}
+        title={openDay ? `${Number(openDay.slice(5, 7))}월 ${Number(openDay.slice(8, 10))}일 일정 ${(byDate.get(openDay) ?? []).length}건` : ''}>
+        <ul className="divide-y divide-[var(--line-2)]">
+          {(openDay ? byDate.get(openDay) ?? [] : []).map((e, j) => (
+            <li key={j} className="flex items-start gap-2.5 py-2.5">
+              <span className={`shrink-0 mt-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded ${TONE[e.tone]}`}>{TONE_NAME[e.tone]}</span>
+              {e.href
+                ? <Link href={e.href} onClick={() => setOpenDay(null)} className="text-[14px] leading-snug text-[var(--accent-ink)] font-semibold break-keep">{e.label} →</Link>
+                : <span className="text-[14px] leading-snug text-[var(--text)] break-keep">{e.label}</span>}
+            </li>
+          ))}
+        </ul>
+        <p className="text-[11.5px] text-[var(--text-muted)] mt-2">시각·예상·실제 값은 아래 &lsquo;이번 주 지표&rsquo;·&lsquo;다음 주요 발표&rsquo;에 한국 시간으로 나옵니다.</p>
+      </BottomSheet>
     </div>
   );
 }

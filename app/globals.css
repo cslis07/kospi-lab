@@ -1269,6 +1269,9 @@ html.side-min .side-nav .sn-item { justify-content: center; padding: 0; }
 /* 폰: 본문이 최소 한 화면 — 데이터가 늦게 차오를 때 화면 맨 아래 보이던 푸터가 밀려 내려가던 화면 밀림 방지(푸터는 스크롤 끝에 그대로) */
 @media (max-width: 767px) { .app-main { min-height: 100svh; } }
 .status-slot:empty { display: none; }
+/* 홈 '다음 발표' 자리(NextReleaseLine, KL-010) — 같은 방식: 지난번에 보였던 기기(html.kl-nr)는 응답 전에도 높이를 잡아 둔다 */
+.nr-slot:empty { display: none; }
+.kl-nr .nr-slot:empty { display: block; min-height: 62px; }
 .kl-st .status-slot:empty { display: block; min-height: 58px; }
 /* 포지션 상세 줄(진입·현재·청산·마진)이 있는 카드 — 폰은 상세가 두 줄로 접혀 더 높다(포지션 1개 기준) */
 .kl-stp .status-slot:empty { min-height: 94px; }

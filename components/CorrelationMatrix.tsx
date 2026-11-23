@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import Segmented from '@/components/ui/Segmented';
+import { useUnlockHint } from '@/hooks/useUnlockHint';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
@@ -40,7 +41,8 @@ export default function CorrelationMatrix() {
   const [scope, setScope] = useState<Scope>('hold');
   const [days, setDays] = useState<Days>('90');
   // 열린 선물 포지션(잠금 해제 기기만 — 실패하면 조용히 빼고 진행)
-  const { data: pos } = useSWR<{ positions?: { symbol: string }[] }>('/api/bitget/positions', fetcher, { revalidateOnFocus: false, shouldRetryOnError: false });
+  const posUnlocked = useUnlockHint();   // 잠긴 기기는 계좌 API 를 부르지 않는다(401 콘솔 오류 없음)
+  const { data: pos } = useSWR<{ positions?: { symbol: string }[] }>(posUnlocked ? '/api/bitget/positions' : null, fetcher, { revalidateOnFocus: false, shouldRetryOnError: false });
 
   const picks = useMemo(() => {
     const out: { id: string; label: string; group: string }[] = [];

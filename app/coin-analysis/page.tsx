@@ -45,6 +45,7 @@ import BottomSheet from '@/components/ui/BottomSheet';
 import Collapsible from '@/components/ui/Collapsible';
 import RotatingTicker from '@/components/ui/RotatingTicker';
 import { useRiskLimits } from '@/hooks/useRiskLimits';
+import { useUnlockHint } from '@/hooks/useUnlockHint';
 import { evaluateBreaker, type BreakerEntry } from '@/lib/circuitBreaker';
 
 // 시세·스캔 등 부수 요청은 조용히 실패해도 무방하지만, 분석 본문은 jsonFetcher(throw)를 쓴다
@@ -1290,8 +1291,10 @@ export default function CoinAnalysisPage() {
 
   // 실행 가능 판정의 '방향 쏠림' 검사용 계좌 맥락. 게이트 뒤라 잠겨 있으면 조용히 null
   // → 판정에서 통과가 아니라 '확인 불가'로 표시된다(모르는 걸 통과로 위장하지 않는다).
+  // 잠긴 기기는 부르지 않는다(401 콘솔 오류 없음 · lib/unlockHint) — 결과는 위와 같이 '확인 불가'
+  const posUnlocked = useUnlockHint();
   const { data: posData } = useSWR<{ configured?: boolean; error?: string; positions?: { symbol: string; side: 'long' | 'short'; size: number; markPrice: number }[] }>(
-    '/api/bitget/positions', fetcher, { refreshInterval: 60000, shouldRetryOnError: false },
+    posUnlocked ? '/api/bitget/positions' : null, fetcher, { refreshInterval: 60000, shouldRetryOnError: false },
   );
   const accountCtx = useMemo(() => {
     // 조회 실패(200 + error)는 '포지션 없음'이 아니라 '확인 불가'(null) — 예전엔 '첫 포지션'으로 통과시켰다
