@@ -55,7 +55,7 @@ export default function PriceChart({
 
   return (
     <div className="fin-card p-4 sm:p-5 mb-3">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex flex-wrap items-center gap-2 mb-3">
         <div className="seg" role="tablist" aria-label="차트 기간">
           {TIMEFRAMES.map((t, i) => (
             <button key={t.label} type="button" role="tab" aria-selected={tfIdx === i} onClick={() => onTf(i)}

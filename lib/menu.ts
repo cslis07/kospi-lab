@@ -135,6 +135,8 @@ export const MENU: MenuGroup[] = [
     { href: '/coin-analysis', icon: 'analysis', label: '코인 분석',   desc: '진입 판단·급변 계기판·폭락 경보·내 포지션' },
     { href: '/eth',           icon: 'risk',     label: 'ETH 체제',    desc: '공급·수요·포지셔닝·거시 4층(예측 아님)' },
     { href: '/simulate',      icon: 'simulate', label: '리스크 계산', desc: '진입 전 비용·리스크 역산·선물 손익' },
+    // KL-007: 진입 전 단일 점검(손절 기준 크기·ALLOW/WAIT/BLOCK·판정 기록, 주문 버튼 없음) — 예전엔 주소로만 들어갔다
+    { href: '/risk-control',  icon: 'risk',     label: '진입 전 점검', desc: '손절 기준 크기·진입 가능 여부·판정 기록(주문 없음)' },
   ], ['/stock-analysis', '/overseas-analysis']),
   G('review', '매매 복기', 'c-rose', 'qc-rose', 'journal', [
     { href: '/review',                 icon: 'journal',  label: '복기 대시보드', desc: '비용 분석(원화)·매매 달력·월별 보고서·손익 분해' },
