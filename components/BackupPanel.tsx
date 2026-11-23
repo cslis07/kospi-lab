@@ -7,29 +7,7 @@
  */
 import { useRef, useState } from 'react';
 import { readMeta, writeMeta } from '@/lib/cloudSync';
-
-/** 모든 앱 데이터의 공통 접두사 — 새 훅이 생겨도 백업에서 자동으로 누락되지 않도록 접두사로 훑는다. */
-const LS_PREFIX = 'kospi-lab-';
-/** v1 백업 파일(관심종목·가상투자·코인관심 3개만 담음) 하위호환 키 */
-const V1_KEYS = { watchlist: 'kospi-lab-watchlist', virtual: 'kospi-lab-virtual', cryptoWatchlist: 'kospi-lab-crypto-watchlist' };
-
-/**
- * 기기 고유·동기화 장부 키는 백업에서 뺀다 — 동기화 메타(해시·수정 시각)까지 복원하면 '로컬 변경 없음'으로 판정돼
- * 서버의 더 새 값이 복원 데이터를 다시 덮어썼고(복원이 조용히 무효), 다른 기기에 복원하면 기기 ID 까지 복제됐다.
- */
-const DEVICE_ONLY_KEYS = new Set(['kospi-lab-sync-meta', 'kospi-lab-device-id']);
-
-function collectAll(): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith(LS_PREFIX) && !DEVICE_ONLY_KEYS.has(k)) {
-      const val = localStorage.getItem(k);
-      if (val !== null) out[k] = val;
-    }
-  }
-  return out;
-}
+import { applyBackup, buildBackupPayload, collectBackup, parseBackup, previewBackup } from '@/lib/backup';
 
 /** 복원한 키의 동기화 기록을 지운다 → 다음 동기화가 '이 기기에서 방금 바뀐 값'으로 보고 서버에 올린다(서버 값이 되돌리지 않게) */
 function forgetSyncMeta(keys: string[]) {
@@ -38,63 +16,50 @@ function forgetSyncMeta(keys: string[]) {
   writeMeta(meta);
 }
 
-function exportData() {
-  const keys = collectAll();
-  const payload = { version: 2, exportedAt: new Date().toISOString(), keys, keyCount: Object.keys(keys).length };
+/** 이 브라우저의 데이터 전체를 파일로 — prefix 는 파일 이름 앞부분(복원 직전 자동 백업은 'before-restore') */
+function exportData(prefix = 'backup') {
+  const payload = buildBackupPayload(collectBackup(localStorage));
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `kospi-lab-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `kospi-lab-${prefix}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
   a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importData(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target?.result as string);
-        if (!data.version) throw new Error('올바른 백업 파일이 아닙니다');
-        if (data.version >= 2 && data.keys && typeof data.keys === 'object') {
-          const restored: string[] = [];
-          for (const [k, v] of Object.entries(data.keys as Record<string, string>)) {
-            if (k.startsWith(LS_PREFIX) && !DEVICE_ONLY_KEYS.has(k) && typeof v === 'string') { localStorage.setItem(k, v); restored.push(k); }
-          }
-          forgetSyncMeta(restored);
-        } else {
-          if (data.watchlist) localStorage.setItem(V1_KEYS.watchlist, JSON.stringify(data.watchlist));
-          if (data.virtual) localStorage.setItem(V1_KEYS.virtual, JSON.stringify(data.virtual));
-          if (data.cryptoWatchlist) localStorage.setItem(V1_KEYS.cryptoWatchlist, JSON.stringify(data.cryptoWatchlist));
-          forgetSyncMeta(Object.values(V1_KEYS));
-        }
-        resolve(data.exportedAt ?? '');
-      } catch (err) {
-        reject(err);
-      }
-    };
-    reader.onerror = () => reject(new Error('파일을 읽을 수 없습니다'));
-    reader.readAsText(file);
-  });
+  // 클릭 직후 해제하면 일부 브라우저에서 다운로드가 끊길 수 있어 잠시 뒤 해제
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 export default function BackupPanel() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
-  const show = (type: 'ok' | 'err', text: string) => { setMsg({ type, text }); setTimeout(() => setMsg(null), 4000); };
+  const show = (type: 'ok' | 'err', text: string) => { setMsg({ type, text }); setTimeout(() => setMsg(null), 6000); };
 
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-    if (!confirm('현재 데이터를 백업 파일로 덮어씁니다. 계속할까요?')) return;
     try {
-      const at = await importData(file);
-      show('ok', `복원 완료${at ? ` (백업일: ${at.slice(0, 10)})` : ''} — 페이지를 새로고침합니다`);
-      setTimeout(() => window.location.reload(), 1500);
+      // 1) 파일 전체를 먼저 검증(이때까지 아무것도 쓰지 않음)
+      const plan = parseBackup(await file.text());
+      const pv = previewBackup(plan, localStorage);
+      const when = plan.exportedAt ? plan.exportedAt.slice(0, 10) : '날짜 미상';
+      // 2) 미리보기 — 무엇이 바뀌는지 보여 주고 확인
+      if (!confirm(
+        `백업(${when}, v${plan.version})의 ${pv.total}개 항목으로 복원합니다.
+` +
+        `· 내용이 바뀌는 항목 ${pv.changed}개 · 새로 생기는 항목 ${pv.added}개 · 백업에 없는 현재 항목은 그대로
+` +
+        `${plan.skipped ? `· 형식이 맞지 않아 건너뛰는 항목 ${plan.skipped}개
+` : ''}` +
+        `복원 전에 지금 데이터를 'kospi-lab-before-restore-…json'으로 자동 저장합니다(되돌리기용). 계속할까요?`,
+      )) return;
+      // 3) 되돌리기용 자동 백업 → 4) 쓰기 → 동기화 메타 정리
+      exportData('before-restore');
+      forgetSyncMeta(applyBackup(plan, localStorage));
+      show('ok', `복원 완료(백업일 ${when}, ${pv.total}개) — 되돌리려면 방금 받은 before-restore 파일을 가져오세요. 새로고침합니다`);
+      setTimeout(() => window.location.reload(), 2500);
     } catch (err) {
-      show('err', String(err));
+      show('err', err instanceof Error ? err.message : String(err));
     }
   };
 
