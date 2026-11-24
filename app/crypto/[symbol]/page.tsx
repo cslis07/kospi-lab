@@ -17,6 +17,8 @@ import { useCryptoWatchlist } from '@/hooks/useCryptoWatchlist';
 import { COINS, fmtCoinPrice } from '@/lib/coins';
 import type { CryptoData, ChartPoint } from '@/lib/types';
 import { jsonFetcher } from '@/lib/fetcher';
+import { kstClock } from '@/lib/kstClock';
+import StaleNotice from '@/components/StaleNotice';
 
 const UP = '#ff4433';
 const DOWN = '#1c6cff';
@@ -42,7 +44,8 @@ export default function CryptoDetailPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const wl = useCryptoWatchlist();
 
-  const { data: batch, error } = useSWR<Record<string, CryptoData>>(symbol ? `/api/crypto/batch?symbols=${symbol}` : null, fetcher, { refreshInterval: 5000 });
+  const [lastOk, setLastOk] = useState<number | null>(null); // 마지막 성공 시각(갱신 실패 안내용)
+  const { data: batch, error } = useSWR<Record<string, CryptoData>>(symbol ? `/api/crypto/batch?symbols=${symbol}` : null, fetcher, { refreshInterval: 5000, onSuccess: () => setLastOk(Date.now()) });
   const { data: chart, error: chartError } = useSWR<ChartPoint[]>(symbol ? `/api/crypto/chart/${symbol}?months=${TIMEFRAMES[tfIdx].months}` : null, fetcher, { refreshInterval: 60000 });
   // 52주 위치(주봉) — 코인 티커엔 24h만 있어 별도 조회(목록·분석과 일관)
   const { data: w52 } = useSWR<Record<string, { high52w: number; low52w: number }>>(symbol ? `/api/crypto/week52?symbols=${symbol}` : null, fetcher, { revalidateOnFocus: false });
@@ -113,6 +116,7 @@ export default function CryptoDetailPage() {
           )}
         </div>
       </SwipeNav>
+      <StaleNotice show={!!c && !!error} at={lastOk ? kstClock(lastOk) : null} className="mb-3 px-1" />
 
       {/* 첫 로딩 실패 시 빈 배열을 넘겨 '불러오지 못했습니다' 안내(스켈레톤에 멈추지 않게) */}
       <PriceChart points={chart ?? (chartError ? [] : undefined)} isUp={isUp} tfIdx={tfIdx} onTf={setTfIdx} fmt={(n) => fmtCoinPrice(n)} yFmt={yFmt} />

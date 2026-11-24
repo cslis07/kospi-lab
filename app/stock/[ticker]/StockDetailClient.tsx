@@ -16,6 +16,8 @@ import { calcMA, calcRSI, calcBB } from '@/lib/indicators';
 import type { StockData, ChartPoint } from '@/lib/types';
 import type { DartCompany, DartFinancials, DartDividend } from '@/lib/dartClient';
 import { jsonFetcher } from '@/lib/fetcher';
+import { kstClock } from '@/lib/kstClock';
+import StaleNotice from '@/components/StaleNotice';
 import Collapsible from '@/components/ui/Collapsible';
 import Range52Bar from '@/components/Range52Bar';
 import BottomSheet from '@/components/ui/BottomSheet';
@@ -355,8 +357,9 @@ export default function StockDetailClient() {
   const tf = TIMEFRAMES[tfIdx];
 
   // 시세 갱신: 장중(KST 평일 09:00~15:40) 15초, 장외 60초 — 예전 5초 고정은 장이 닫혀도 계속 함수를 불렀다
-  const { data: stock, isLoading } = useSWR<StockData>(
-    ticker ? `/api/stock/${ticker}` : null, jsonFetcher, { refreshInterval: () => (krSessionOpen() ? 15_000 : 60_000) }
+  const [lastOk, setLastOk] = useState<number | null>(null); // 마지막 성공 시각(갱신 실패 안내용)
+  const { data: stock, isLoading, error: stockErr } = useSWR<StockData>(
+    ticker ? `/api/stock/${ticker}` : null, jsonFetcher, { refreshInterval: () => (krSessionOpen() ? 15_000 : 60_000), onSuccess: () => setLastOk(Date.now()) }
   );
   // 차트는 시세(market)를 기다리지 않고 바로 — 예전엔 market='' 로 한 번, 시세 도착 후 market=KOSPI 로 또 한 번(2.98초+3.49초) 받았다.
   // 라우트가 market 없으면 .KS → .KQ 순으로 알아서 찾는다.
@@ -550,6 +553,7 @@ export default function StockDetailClient() {
         )}
       </div>
       </SwipeNav>
+      <StaleNotice show={!!stockErr} at={lastOk ? kstClock(lastOk) : null} className="mb-3 px-1" />
       <ActionSheet open={menuOpen} onClose={() => setMenuOpen(false)} title={stock.name} actions={actions} />
 
       {/* ── 차트 ── 기간은 세그먼트, 지표·비교는 시트로 숨기고 켜진 것만 범례로 */}

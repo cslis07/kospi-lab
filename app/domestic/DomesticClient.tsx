@@ -15,6 +15,7 @@ import type { StockData } from '@/lib/types';
 import Mini52 from '@/components/Mini52';
 import { batchFetcher } from '@/lib/stockBatch';
 import { jsonFetcher } from '@/lib/fetcher';
+import StaleNotice from '@/components/StaleNotice';
 import { ALL_STOCKS, FIRST_KEY, REST_KEY } from '@/lib/domesticKeys';
 import { kstClock, kstStamp } from '@/lib/kstClock';
 
@@ -102,6 +103,8 @@ export default function DomesticClient({ snapshotAt }: { snapshotAt?: number }) 
   // 둘 다 실패하면 스켈레톤에 멈추지 않고 실패 안내를 띄운다
   const loadFailed = !d0 && !dRest && (!!e0 || !FIRST_KEY) && (!!eRest || !REST_KEY);
   const isLoading = !d0 && !dRest && !loadFailed;
+  // 받은 시세가 있는데 다음 갱신이 실패 중 — 직전 값은 두고 한 줄로 알린다
+  const stale = (!!e0 && !!d0) || (!!eRest && !!dRest);
 
   const { watchlist, add, remove, mounted } = useWatchlist();
 
@@ -167,6 +170,7 @@ export default function DomesticClient({ snapshotAt }: { snapshotAt?: number }) 
           {statusLabel || '—'} · {updatedAt ? `${updatedAt} 갱신` : '로딩 중…'}
         </span>
       </div>
+      <StaleNotice show={stale} at={updatedAt} className="mb-2 px-1" />
 
       {/* 안내 배너 */}
       <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] mb-3 px-1">

@@ -12,6 +12,7 @@ import Mini52 from '@/components/Mini52';
 import { ALL_SYMBOLS, CHUNK_KEYS, MARKET_KEY } from '@/lib/overseasKeys';
 import { kstClock, kstStamp } from '@/lib/kstClock';
 import { jsonFetcher } from '@/lib/fetcher';
+import StaleNotice from '@/components/StaleNotice';
 
 // 실패(non-2xx)는 예외로 — SWR 이 직전 시세를 유지하고 error 로 알린다
 const fetcher = jsonFetcher;
@@ -183,6 +184,8 @@ export default function OverseasClient({ snapshotAt }: { snapshotAt?: number }) 
   const noData = Object.keys(allData).length === 0;
   const loadFailed = noData && !topLoading && [e1, e2, e3, e4, e5].some(Boolean);
   const isLoading = noData && !loadFailed;
+  // 받은 시세가 있는 묶음 중 하나라도 갱신 실패 중 — 직전 값은 두고 한 줄로 알린다
+  const stale = ([[d1, e1], [d2, e2], [d3, e3], [d4, e4], [d5, e5]] as const).some(([d, e]) => !!d && !!e);
 
   // 등락 TOP — 수록 종목(OVERSEAS_LIST) 중 실시간 등락률 정렬(국내 RankList와 동일한 카드 구성)
   const ranked = useMemo(() => {
@@ -278,6 +281,7 @@ export default function OverseasClient({ snapshotAt }: { snapshotAt?: number }) 
         <h3>미국 종목</h3>
         <span className="text-xs font-medium text-[var(--faint)] tabular-nums shrink-0">미국 주식 · {updatedAt ? `${updatedAt} 갱신` : loadFailed ? '갱신 실패' : '로딩 중…'}</span>
       </div>
+      <StaleNotice show={stale} at={updatedAt} className="mb-2 px-1" />
 
       {/* 안내 배너 */}
       <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] mb-3 px-1">

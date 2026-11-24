@@ -5,6 +5,8 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import HBarChart, { type BarItem } from '@/components/HBarChart';
 import { jsonFetcher } from '@/lib/fetcher';
+import { kstClock } from '@/lib/kstClock';
+import StaleNotice from '@/components/StaleNotice';
 
 // 코인선물 분석 엔진 지원 종목(그 외는 분석 버튼 없음)
 const ANALYZABLE = new Set(['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT']);
@@ -46,8 +48,10 @@ type Filter  = 'all' | 'up' | 'down';
 type ChartView = 'gainers' | 'losers' | 'volume';
 
 export default function FuturesPage() {
+  const [lastOk, setLastOk] = useState<number | null>(null); // 마지막 성공 시각(갱신 실패 안내용)
   const { data, isLoading, error } = useSWR<FuturesRow[]>('/api/futures/tickers', fetcher, {
     refreshInterval: 10000,
+    onSuccess: () => setLastOk(Date.now()),
     revalidateOnFocus: false,
   });
 
@@ -102,6 +106,8 @@ export default function FuturesPage() {
     <div className="max-w-4xl xl:max-w-none mx-auto pb-12">
       <h1 className="text-xl font-bold text-[var(--text)] mb-1">선물 시세 (USDT 무기한)</h1>
       <p className="text-sm text-[var(--text-muted)] mb-5">최근 24시간 많이 오르거나 내린 선물 계약을 보여줍니다. 상승 순위는 앞으로 오를 종목의 추천 순위가 아닙니다. · Bitget USDT 무기한 · 10초마다 화면 재조회</p>
+
+      <StaleNotice show={!!data && !!error} at={lastOk ? kstClock(lastOk) : null} className="-mt-3 mb-3 px-1" />
 
       {/* ── 한눈에 보기: 막대그래프 ── */}
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-5">

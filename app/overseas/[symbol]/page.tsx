@@ -20,6 +20,8 @@ import { badgeTint } from '@/components/WatchRow';
 import { useOverseasWatchlist } from '@/hooks/useOverseasWatchlist';
 import type { OverseasStockData, ChartPoint } from '@/lib/types';
 import { jsonFetcher } from '@/lib/fetcher';
+import { kstClock } from '@/lib/kstClock';
+import StaleNotice from '@/components/StaleNotice';
 
 const UP = '#ff4433';
 const DOWN = '#1c6cff';
@@ -49,8 +51,9 @@ export default function OverseasDetailPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const wl = useOverseasWatchlist();
 
+  const [lastOk, setLastOk] = useState<number | null>(null); // 마지막 성공 시각(갱신 실패 안내용)
   const { data: batch, error } = useSWR<Record<string, OverseasStockData>>(
-    symbol ? `/api/overseas/batch?symbols=${encodeURIComponent(symbol)}` : null, fetcher, { refreshInterval: 15000 });
+    symbol ? `/api/overseas/batch?symbols=${encodeURIComponent(symbol)}` : null, fetcher, { refreshInterval: 15000, onSuccess: () => setLastOk(Date.now()) });
   const { data: chart, error: chartError } = useSWR<ChartPoint[]>(
     symbol ? `/api/overseas/chart?symbol=${encodeURIComponent(symbol)}&months=${TIMEFRAMES[tfIdx].months}` : null, fetcher, { refreshInterval: 300000 });
   const { data: market } = useSWR<{ usdkrw?: { value: number } | null }>('/api/market', fetcher, { refreshInterval: 60000, revalidateOnFocus: false });
@@ -124,6 +127,7 @@ export default function OverseasDetailPage() {
           )}
         </div>
       </SwipeNav>
+      <StaleNotice show={!!d && !!error} at={lastOk ? kstClock(lastOk) : null} className="mb-3 px-1" />
 
       {/* 첫 로딩 실패 시 빈 배열을 넘겨 '불러오지 못했습니다' 안내(스켈레톤에 멈추지 않게) */}
       <PriceChart points={chart ?? (chartError ? [] : undefined)} isUp={isUp} tfIdx={tfIdx} onTf={setTfIdx} fmt={usd} yFmt={yFmt} />
