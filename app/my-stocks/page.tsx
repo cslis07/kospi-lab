@@ -22,6 +22,8 @@ import { COINS, fmtCoinPrice } from '@/lib/coins';
 import type { StockData, OverseasStockData, CryptoData } from '@/lib/types';
 import { batchFetcher } from '@/lib/stockBatch';
 import { jsonFetcher } from '@/lib/fetcher';
+import { kstClock } from '@/lib/kstClock';
+import StaleNotice from '@/components/StaleNotice';
 
 // 실패(non-2xx)는 예외로 — SWR 이 직전 값을 유지한다(오류 본문이 데이터로 덮어쓰지 않게)
 const fetcher = jsonFetcher;
@@ -80,12 +82,18 @@ function MyStocksInner() {
   const { alerts } = useAlerts();
 
   // 실패(error)면 스켈레톤을 멈추고 '—'(fetcher 전환 후속 — 예전엔 시세 실패 시 칸이 계속 로딩)
+  // 탭별 마지막 성공 시각 — 갱신 실패 중 '언제 받은 값인지' 안내용
+  const [okAt, setOkAt] = useState<Record<MarketTab, number | null>>({ domestic: null, overseas: null, crypto: null });
+  const markOk = (t: MarketTab) => () => setOkAt((o) => ({ ...o, [t]: Date.now() }));
   const { data: krData, error: krErr } = useSWR<Record<string, StockData>>(
-    tab === 'domestic' && kr.watchlist.length ? `/api/stock/batch?tickers=${kr.watchlist.map((w) => w.ticker).join(',')}` : null, batchFetcher<StockData>, { refreshInterval: 5000 });
+    tab === 'domestic' && kr.watchlist.length ? `/api/stock/batch?tickers=${kr.watchlist.map((w) => w.ticker).join(',')}` : null, batchFetcher<StockData>, { refreshInterval: 5000, onSuccess: markOk('domestic') });
   const { data: ovData, error: ovErr } = useSWR<Record<string, OverseasStockData>>(
-    tab === 'overseas' && ov.watchlist.length ? `/api/overseas/batch?symbols=${ov.watchlist.map((w) => w.symbol).join(',')}` : null, batchFetcher<OverseasStockData>, { refreshInterval: 15000 });
+    tab === 'overseas' && ov.watchlist.length ? `/api/overseas/batch?symbols=${ov.watchlist.map((w) => w.symbol).join(',')}` : null, batchFetcher<OverseasStockData>, { refreshInterval: 15000, onSuccess: markOk('overseas') });
   const { data: crData, error: crErr } = useSWR<Record<string, CryptoData>>(
-    tab === 'crypto' && cr.watchlist.length ? `/api/crypto/batch?symbols=${cr.watchlist.map((w) => w.symbol).join(',')}` : null, batchFetcher<CryptoData>, { refreshInterval: 5000 });
+    tab === 'crypto' && cr.watchlist.length ? `/api/crypto/batch?symbols=${cr.watchlist.map((w) => w.symbol).join(',')}` : null, batchFetcher<CryptoData>, { refreshInterval: 5000, onSuccess: markOk('crypto') });
+  // 지금 탭의 시세 상태 — 받은 값이 있는데 갱신 실패 중이면 안내, 처음부터 실패면 '—' 이유 안내
+  const curData = tab === 'domestic' ? krData : tab === 'overseas' ? ovData : crData;
+  const curErr = tab === 'domestic' ? krErr : tab === 'overseas' ? ovErr : crErr;
   // 주요 코인 52주(주봉) — 느리게 변해 길게 캐시
   const crMajors = cr.watchlist.filter((w) => MAJOR_CRYPTO.includes(w.base)).map((w) => w.symbol).join(',');
   const { data: w52c } = useSWR<Record<string, { high52w: number; low52w: number }>>(
@@ -201,6 +209,10 @@ function MyStocksInner() {
         </div>
       )}
 
+      <StaleNotice show={!!curData && !!curErr} at={okAt[tab] ? kstClock(okAt[tab]!) : null} className="mb-2 px-1" />
+      {!curData && !!curErr && rows.length > 0 && (
+        <p role="status" className="text-xs text-[var(--amber)] mb-2 px-1">⚠ 시세를 불러오지 못했습니다 — 잠시 뒤 자동으로 다시 시도합니다.</p>
+      )}
       <div className="fin-card overflow-hidden">
         {!mounted ? (
           [0, 1, 2, 3].map((i) => (
