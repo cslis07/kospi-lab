@@ -170,6 +170,7 @@ export const EXTRAS: MenuItem[] = [
   { href: '/study/crash',         icon: 'risk',       label: '폭락 대응 교본',          desc: '3단계·30초 체크리스트·측정 결과', section: 'study' },
   { href: '/study/reentry',       icon: 'principles', label: '진입·재진입 체크리스트',   desc: '진입 전 7문항·손절 후 60분 프로토콜', section: 'study' },
   { href: '/study/habits',        icon: 'journal',    label: '매매 습관 교정',          desc: '잦은 진입·재진입 함정·돌파 확인·손실 한도', section: 'study' },
+  { href: '/study/styles',        icon: 'insight',    label: '장기 투자 방식 6가지',     desc: '지수·배당·가치·이벤트·집중·성장주의 전제와 함정', section: 'study' },
   { href: '/study/entry-signals', icon: 'insight',    label: '롱·숏 진입 가이드',        desc: '신호 평가·가격대·RSI/MACD 해석', section: 'study' },
   { href: '/study',               icon: 'insight',    label: '코인 기초',              desc: '차트·RSI·MACD·피보나치·금리·유가', section: 'study' },
 ];

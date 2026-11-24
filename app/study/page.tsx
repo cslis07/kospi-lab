@@ -63,6 +63,14 @@ export default function StudyPage() {
         <p className="text-[12px] text-[var(--text-muted)] mt-1.5 leading-relaxed">돈이 새는 곳(빈도·비용), 손실을 키우는 습관 5단계, 심리 함정 3가지, 돌파 확인 2단계, 시간봉 역할, 모의 검증용 손실 한도·기록 템플릿.</p>
       </Link>
 
+      <Link href="/study/styles" className="fin-card p-4 block mb-7 border border-[var(--accent)]/30">
+        <div className="flex items-center justify-between">
+          <b className="text-[14px] text-[var(--text)]">🌱 장기 투자 방식 6가지</b>
+          <span className="text-[12px] font-semibold text-[var(--accent-ink)]">열기 →</span>
+        </div>
+        <p className="text-[12px] text-[var(--text-muted)] mt-1.5 leading-relaxed">폭락 때 지수·집중 스윙·고배당·이벤트 기대·가치 투자·고성장 소형주 — 각 방식의 전제와 함정, 이 앱에서 확인할 곳.</p>
+      </Link>
+
       <Link href="/study/crash" className="fin-card p-4 block mb-7 border border-[var(--accent)]/30">
         <div className="flex items-center justify-between">
           <b className="text-[14px] text-[var(--text)]">🧯 폭락 대응 교본</b>
