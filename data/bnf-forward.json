@@ -2,21 +2,21 @@
  "version": 1,
  "registeredAt": "2026-11-04",
  "startUtc": "2026-11-05T00:00:00Z",
- "updatedAt": "2026-11-24T13:59:27.171Z",
+ "updatedAt": "2026-11-24T23:57:54.476Z",
  "symbol": "ETHUSDT",
  "exchange": "bitget",
  "revisions": [],
  "status": "ok",
  "statusNote": null,
  "now": {
-  "barUtc": "2026-11-24T12:00:00Z",
-  "close": 1703.45,
+  "barUtc": "2026-11-24T22:00:00Z",
+  "close": 1684.69,
   "sma25": 2010.8427999999997,
-  "deviation": -0.15287,
+  "deviation": -0.1622,
   "q10": -0.15129,
   "oversoldRecent": true
  },
- "dataThroughUtc": "2026-11-24T13:00:00Z",
+ "dataThroughUtc": "2026-11-24T23:00:00Z",
  "candidates": [
   {
    "id": "A",
@@ -89,7 +89,17 @@
      "firstSeenAt": "2026-11-24T02:24:27.538Z"
     }
    ],
-   "open": null,
+   "open": {
+    "signalT": "2026-11-24T17:00:00Z",
+    "entryT": "2026-11-24T18:00:00Z",
+    "entry": 1685.14,
+    "stop": 1619.05,
+    "target": 1804.08,
+    "qty": 0.075477,
+    "lastClose": 1684.69,
+    "unrealizedR": -0.007,
+    "expiresT": "2026-11-27T18:00:00Z"
+   },
    "pending": null,
    "summary": {
     "trades": 4,
@@ -119,11 +129,11 @@
     "skipped": {
      "wideStop": 0,
      "busy": 38,
-     "cooldown": 16,
+     "cooldown": 17,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 58,
+    "signalsInWindow": 60,
     "sufficient": false
    },
    "progress": "4/30",
@@ -132,10 +142,10 @@
    "monthly": [
     [
      "2026-11",
-     -0.246
+     -0.249
     ]
    ],
-   "equity": 997.5439
+   "equity": 997.5108
   },
   {
    "id": "B",
@@ -224,7 +234,17 @@
      "firstSeenAt": "2026-11-24T02:24:27.538Z"
     }
    ],
-   "open": null,
+   "open": {
+    "signalT": "2026-11-24T17:00:00Z",
+    "entryT": "2026-11-24T18:00:00Z",
+    "entry": 1685.14,
+    "stop": 1619.05,
+    "target": 1751.22,
+    "qty": 0.075543,
+    "lastClose": 1684.69,
+    "unrealizedR": -0.007,
+    "expiresT": "2026-11-27T18:00:00Z"
+   },
    "pending": null,
    "summary": {
     "trades": 5,
@@ -254,11 +274,11 @@
     "skipped": {
      "wideStop": 0,
      "busy": 33,
-     "cooldown": 20,
+     "cooldown": 21,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 58,
+    "signalsInWindow": 60,
     "sufficient": false
    },
    "progress": "5/30",
@@ -267,10 +287,10 @@
    "monthly": [
     [
      "2026-11",
-     -0.159
+     -0.162
     ]
    ],
-   "equity": 998.4116
+   "equity": 998.3784
   }
  ]
 }
