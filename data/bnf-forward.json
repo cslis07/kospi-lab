@@ -2,21 +2,21 @@
  "version": 1,
  "registeredAt": "2026-11-04",
  "startUtc": "2026-11-05T00:00:00Z",
- "updatedAt": "2026-11-24T23:57:54.476Z",
+ "updatedAt": "2026-11-25T08:54:09.826Z",
  "symbol": "ETHUSDT",
  "exchange": "bitget",
  "revisions": [],
  "status": "ok",
  "statusNote": null,
  "now": {
-  "barUtc": "2026-11-24T22:00:00Z",
-  "close": 1684.69,
-  "sma25": 2010.8427999999997,
-  "deviation": -0.1622,
-  "q10": -0.15129,
+  "barUtc": "2026-11-25T07:00:00Z",
+  "close": 1640.1,
+  "sma25": 1988.2644,
+  "deviation": -0.17511,
+  "q10": -0.15329,
   "oversoldRecent": true
  },
- "dataThroughUtc": "2026-11-24T23:00:00Z",
+ "dataThroughUtc": "2026-11-25T08:00:00Z",
  "candidates": [
   {
    "id": "A",
@@ -96,8 +96,8 @@
     "stop": 1619.05,
     "target": 1804.08,
     "qty": 0.075477,
-    "lastClose": 1684.69,
-    "unrealizedR": -0.007,
+    "lastClose": 1640.1,
+    "unrealizedR": -0.682,
     "expiresT": "2026-11-27T18:00:00Z"
    },
    "pending": null,
@@ -128,12 +128,12 @@
     "cappedTrades": 0,
     "skipped": {
      "wideStop": 0,
-     "busy": 38,
-     "cooldown": 17,
+     "busy": 40,
+     "cooldown": 16,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 60,
+    "signalsInWindow": 61,
     "sufficient": false
    },
    "progress": "4/30",
@@ -142,10 +142,10 @@
    "monthly": [
     [
      "2026-11",
-     -0.249
+     -0.59
     ]
    ],
-   "equity": 997.5108
+   "equity": 994.1022
   },
   {
    "id": "B",
@@ -241,8 +241,8 @@
     "stop": 1619.05,
     "target": 1751.22,
     "qty": 0.075543,
-    "lastClose": 1684.69,
-    "unrealizedR": -0.007,
+    "lastClose": 1640.1,
+    "unrealizedR": -0.682,
     "expiresT": "2026-11-27T18:00:00Z"
    },
    "pending": null,
@@ -273,12 +273,12 @@
     "cappedTrades": 0,
     "skipped": {
      "wideStop": 0,
-     "busy": 33,
-     "cooldown": 21,
+     "busy": 35,
+     "cooldown": 20,
      "noAtr": 0,
      "noBar": 0
     },
-    "signalsInWindow": 60,
+    "signalsInWindow": 61,
     "sufficient": false
    },
    "progress": "5/30",
@@ -287,10 +287,10 @@
    "monthly": [
     [
      "2026-11",
-     -0.162
+     -0.503
     ]
    ],
-   "equity": 998.3784
+   "equity": 994.9668
   }
  ]
 }
